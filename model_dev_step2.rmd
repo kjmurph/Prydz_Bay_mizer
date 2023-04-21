@@ -1,0 +1,1236 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Step 1: revised catch for 2010-2020
+Step 2: tune resilience of all the species (i.e., long-lived, slower growing species = vulnerable...etc...)
+Step 3: calibrated model with fishing mortality represented (time-averaged catch comparison, model vs observed) = base model
+Step 4: check base model without fishing to ensure co-existence is still present, observed biomass would not be specified
+Step 5: Experiments through time - effort functions - uses the base model with no fishing effort as a starting point
+Step 6: Expose the base model to fishing through time and compare to observed catch time series 
+ - start from 0 effort at first time-step to max effort approx around collapse
+ - If the modelled versus observed don't match, need to adjust effort/or initial biological params and experiment to see what improves
+ - hand tune / optim options
+Adjust and recalibrate if needed (optim)
+Use rules to constrain - i.e., 
+- time-averaged biomasses within calibration period must be +- xx %
+- can optim things like fishing-size selectivity, PPMRs etc
+
+
+Can we reproduce the time series?
+
+
+Load libraries 
+```{r}
+remotes::install_github("sizespectrum/mizerExperimental")
+library(mizerExperimental)
+# remotes::install_github("sizespectrum/mizerMR")
+# library(mizerMR)
+# library(mizer)
+library(tidyverse)
+library(tictoc)
+library(parallel)
+# library(plotly)
+```
+
+Catch data for all indivudals and summarised as totals per species each year
+
+Maybe this isn't expressing effort, rather fishing mortality
+
+
+```{r}
+# df_ind_CPUE <- readRDS("ind_catch_weight_BanzareBank_1930_2019_CPUE.rds")
+# df_CPUE_kg_day <- readRDS("catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
+# 
+# glimpse(df_ind_CPUE)
+# glimpse(df_CPUE_kg_day)
+```
+
+Yield for the period that matches Ecopath model, post 2000 annual average
+```{r}
+# df_yield_2000 <- df_CPUE_kg_day %>% 
+#   filter(Year > 2009) %>% 
+#   group_by(Species) %>% 
+#   summarise(yield = sum(total_catch_kg)/10)
+# 
+# df_yield_2000
+```
+
+
+
+effort_days/max value plotted by species
+This might indicate the effort curve required, especially if there is a difference between different species
+```{r}
+# df_plot <- df_CPUE_kg_day %>% 
+#   filter(Year > 2000) %>% 
+#   group_by(Species) %>% 
+#   mutate(max_effort = max(effort_days)) %>% 
+#   group_by(Species,Year) %>% 
+#   mutate(effort_standard = effort_days/max_effort)
+```
+
+Relative change in catch pre-1930, could inform the relative change in effort
+Ask Cami, how could I reconstruct the effort to the initial point of catch when effort = 0...i.e., approx 1850 
+```{r}
+# df_plot %>% 
+#   ggplot(aes(x = Year, y = effort_standard, colour = Species)) +
+#   geom_smooth() +
+#   geom_line()
+#   # facet_wrap(~Species) 
+```
+
+```{r}
+# df_plot %>% 
+#   ggplot(aes(x = Year, y = CPUE, colour = Species)) +
+#   # geom_smooth() +
+#   geom_line()
+#   # facet_wrap(~Species) 
+```
+
+Load catch length
+```{r}
+catch_lengths <- readRDS("catch_lengths.rds")
+
+glimpse(catch_lengths)
+```
+The value for euphausiids `obs_yield` is from  `calibration_catch_histsoc_1850_2004_regional_models.csv` found at http://portal.sf.utas.edu.au/thredds/catalog/gem/fishmip/ISIMIP3a/InputData/fishing/histsoc/catalog.html. It is the annual average yield over a 22 year period for the Prydz Bay Region.
+
+The values of `obs_yield` for minke whales (2175476136), orca (19923729), sperm whales (4062177445), and baleen whales (50341696055) are the annual average yield from 1930 - 2019 from IWC records of whaling in the Prydz Bay model domain (1,433,028 km2).
+
+Adjust the catch to represent the 2010 - 2020 time period + incorporate toothfish catch if possible (i.e., Stacey's paper values)
+
+
+
+
+```{r}
+df_ind_CPUE <- readRDS("ind_catch_weight_BanzareBank_1930_2019_CPUE.rds")
+df_CPUE_kg_day <- readRDS("catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
+
+glimpse(df_ind_CPUE)
+glimpse(df_CPUE_kg_day)
+```
+
+Yield for the period that matches Ecopath model, post 2000 annual average
+```{r}
+df_yield_2000_2019 <- df_CPUE_kg_day %>% 
+  filter(Year > 2000) %>% 
+  group_by(Species) %>% 
+  summarise(yield = sum(total_catch_kg)/19)
+
+df_yield_2000_2019
+```
+
+Add yield in tonnes per km2, same as g m2 and it is consistent with `biomass_observed` 
+
+1.474341e+12 m^2 for model domain
+
+1.474341e+12/1e+6 = 1474341 km^2
+
+507511 kg of minke whale per year from 2000 - 2019
+
+507.5/1474341 = 0.0003442216 tonnes Minke whale yield per km2 from 2000 - 2019
+
+15619.24 kg of baleen whale per year from 2000 - 2019
+
+15.6/1474341 = 1.0581e-05 tonnes of baleen whale per km2 from 2000 - 2019
+
+```{r}
+obs_yield <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0003442216, 0, 0, 1.0581e-05) # to add a yield_observed column in species_params
+
+```
+
+
+```{r}
+biomass_cutoff <- c(0.1, 1, 1, 1, 40, 4500, 1, 1, 200000, 10000, 135000, 600000, 490000, 3650000, 2250000) # to add a biomass_cutoff column in species_params
+
+```
+
+
+Steady-state model with no fishing effort calibrated to observed biomass values from McCormack et al. 2020 that represent an average state of the food web from 2010-2020.
+
+```{r}
+# params <-  readRDS("stage1_steady_vXX.rds") # Incorrect orca and leopard seal w_max values
+so_params <- readRDS("params_16_March_2023.rds") # Updated w_max for orca and leopard seals
+
+# params <- setParams(setFishing(params, initial_effort = 0.2))
+
+```
+
+
+```{r}
+# species_params(params)$yield_observed <- obs_yield
+# species_params(params)$biomass_cutoff <- biomass_cutoff
+# species_params(params)$biomass_cutoffLow <- biomass_cutoff
+# species_params(params)$biomass_cutoffHigh <- species_params(params)$w_max
+
+species_params(so_params)$yield_observed <- obs_yield
+species_params(so_params)$biomass_cutoff <- biomass_cutoff
+species_params(so_params)$biomass_cutoffLow <- biomass_cutoff
+species_params(so_params)$biomass_cutoffHigh <- species_params(so_params)$w_max
+
+# species_params(params) |> dplyr::select(species, yield_observed, w_mat, w_max, R_max)
+species_params(so_params) |> dplyr::select(species, yield_observed, w_mat, w_max, R_max)
+```
+
+
+
+```{r}
+# groups |> dplyr::select(species, yield_observed, biomass_observed, biomass_cutoff, w_min)
+```
+
+
+```{r}
+# yield_observed <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0003442216, 0, 0, 1.0581e-05) # to add a yield_observed column in species_params
+# 
+# species_params(params)$yield_observed <- yield_observed
+```
+
+```{r}
+# biomass_cutoff <- c(0.1, 1, 1, 1, 40, 4500, 1, 1, 200000, 10000, 135000, 600000, 490000, 3650000, 2250000) # to add a biomass_cutoff column in species_params
+# 
+# species_params(params)$biomass_cutoff <- biomass_cutoff
+```
+
+Update max and mat size for orca using sealifebase values rather than the previous w_max of 6t
+```{r}
+# species_params(params)$species[13]
+# species_params(params)$w_max[13]
+# species_params(params)$w_mat[13]
+# 
+# species_params(params)$w_max[13] <- 10628034
+# 
+# species_params(params)$w_mat[13] <- 3198855
+# 
+# species_params(params)$w_max[13]
+# species_params(params)$w_mat[13]
+# species_params(params)$w_mat25[13]
+```
+
+
+Update max and mat size for leopard seal using sealifebase values. Max weight observed reported as 450kg. Using the sealifebase values for L-W conversion and max length results in an estimated max weight of 545875.2g, which is too high above the max weight observed.
+```{r}
+# species_params(params)$species[9]
+# species_params(params)$w_max[9]
+# species_params(params)$w_mat[9]
+# 
+# species_params(params)$w_max[9] <- 450000
+#  
+# species_params(params)$w_max[9]
+# species_params(params)$w_mat[9]
+# species_params(params)$w_mat25[9]
+```
+
+Adjust `w_mat` values that were changed by default in `newMultispeciesParams`
+```{r}
+# params_v1 <- params
+# 
+# params_v1@species_params$w_mat[params_v1@species_params$species == "large divers"]  <- params_v1@species_params$w_max[params_v1@species_params$species == "large divers"] * 0.9
+# params_v1@species_params$w_mat[params_v1@species_params$species == "minke whales"]  <- params_v1@species_params$w_max[params_v1@species_params$species == "minke whales"] * 0.9
+# params_v1@species_params$w_mat[params_v1@species_params$species == "orca"]  <- params_v1@species_params$w_max[params_v1@species_params$species == "orca"] * 0.9
+# params_v1@species_params$w_mat[params_v1@species_params$species == "sperm whales"]  <- params_v1@species_params$w_max[params_v1@species_params$species == "sperm whales"] * 0.9
+# 
+# params_v1 <- setParams(params_v1)
+```
+
+
+```{r}
+# params_v2 <- params_v1
+# 
+# params_v2@species_params$w_min[params_v2@species_params$species == "small divers"]  <- params_v2@species_params$w_mat[params_v2@species_params$species == "small divers"] * 0.85
+# params_v2@species_params$w_min[params_v2@species_params$species == "leopard seals"]  <- params_v2@species_params$w_mat[params_v2@species_params$species == "leopard seals"] * 0.85
+# 
+# params_v2 <- setParams(params_v2)
+```
+
+
+```{r}
+params <- steady(so_params)
+```
+
+Check gear params
+
+```{r}
+gear_params(params)
+```
+
+Adjust catchability to only select fishing on species with catch data
+This is a only starting point
+```{r}
+gear_params(params)$catchability <-  c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.49, 0, 0, 0.001)
+```
+
+
+Catchability: 1 value 
+Effort changes through time (voyage frequency and length)
+
+```{r}
+gear_params(params)$gear <-  c("Main", "Main", "Main", "Main", "Main", "Main",
+                                   "Main", "Main", "Main", "Main", "Main", "Main",
+                                   "Main", "Main", "Main")
+
+gear_params(params)$l50 <-  c(1, 5, 5, 5, 10, 10, 10, 20, 20, 20, 20, 850, 600, 1500, 2200) # values for minke, orca, sperm and baleen are estimated based off `catch_lengths`, while all others are rough guesses, purely as the param won't work with values missing.
+
+gear_params(params)$l25 <-  c(0.8, 4, 4, 4, 8, 8, 8, 16, 16, 16, 16, 800, 500, 1400, 1500)
+
+gear_params(params)$sel_func <-  c("sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length",
+                                   "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length",
+                                   "sigmoid_length", "sigmoid_length", "sigmoid_length")
+
+gear_params(params)
+```
+
+
+```{r}
+params_v02 <- setParams(setFishing(params, initial_effort = 0.2))
+
+params_v02 <- steady(params_v02)
+
+sim_v01 <- project(params_v02, t_max = 100)
+plot(sim_v01)
+plotlyBiomass(sim_v01)
+sim_v01@params@initial_effort
+```
+
+
+```{r}
+plotYieldVsSize(sim_v01, species = "baleen whales", catch = catch_lengths, 
+                x_var = "Length")
+
+# plotYieldVsSize(sim_v1, species = "sperm whales", catch = catch_lengths, 
+#                 x_var = "Length")
+# 
+# plotYieldVsSize(sim_v1, species = "orca", catch = catch_lengths, 
+#                 x_var = "Length")
+
+plotYieldVsSize(sim_v01, species = "minke whales", catch = catch_lengths, 
+                x_var = "Length")
+```
+
+```{r}
+getErrorCustom <- function(vary, params, dat, tol = 0.001, 
+    timetorun = 10)
+{
+  params@species_params$R_max[1:15]<-10^vary[1:15] # R_max for 15 species
+  params@species_params$erepro[1:15]<-vary[16:30] # erepro for 15 species
+  params@species_params$interaction_resource[1:15] <- vary[31:45] # interaction_resource for 15 species
+  params <- setParams(params)
+  # interaction <- params@interaction
+  # interaction[] <- matrix(vary[28:108],nrow = 9) # stop at 54 if looking only at 3 biggest species
+  
+  # params <- setInteraction(params,interaction)
+    params <- projectToSteady(params, distance_func = distanceSSLogN, 
+        tol = tol, t_max = 200, return_sim = F)
+    
+    sim <- project(params, t_max = timetorun, progress_bar = F)
+    
+    sim_biomass = rep(0, length(params@species_params$species))
+    
+        cutoffLow <- params@species_params$biomass_cutoffLow
+    if (is.null(cutoffLow)) 
+        cutoffLow <- rep(0, no_sp)
+    cutoffLow[is.na(cutoffLow)] <- 0
+    
+        cutoffHigh <- params@species_params$biomass_cutoffHigh
+    if (is.null(cutoffHigh)) 
+        cutoffHigh <- rep(0, no_sp)
+    cutoffHigh[is.na(cutoffHigh)] <- 0
+        
+    for (j in 1:length(sim_biomass)) {
+        sim_biomass[j] = sum((sim@n[dim(sim@n)[1],j,] * params@w * 
+            params@dw)[params@w >= cutoffLow[j] & cutoffHigh[j] >= params@w])
+    }
+    
+     pred <- log(sim_biomass)
+    dat <- log(dat)
+    discrep <- pred - dat
+    discrep <- (sum(discrep^2))
+    return(discrep)
+}
+    
+```
+
+
+```{r}
+# create set of params for the optimisation process
+tic()
+
+params_optim <- params_v02
+
+vary <- c(log10(params_optim@species_params$R_max),
+          params_optim@species_params$erepro,
+          params_optim@species_params$interaction_resource)
+
+params_optim<-setParams(params_optim)
+
+# set up workers
+noCores <- parallel::detectCores() - 1 # keep some spare core
+cl <- parallel::makeCluster(noCores, setup_timeout = 0.5)
+setDefaultCluster(cl = cl)
+clusterExport(cl, varlist = "cl",envir=environment())
+clusterEvalQ(cl, {
+  library(mizerExperimental)
+  library(optimParallel)
+})
+
+optim_result <- optimParallel::optimParallel(par=vary,getErrorCustom,params=params_optim, 
+                                             dat = params_optim@species_params$biomass_observed, method ="L-BFGS-B", 
+                                             lower=c(rep(-15,15),rep(1e-7,15),rep(.1,15)),
+                                             upper= c(rep(15,15),rep(1,15),rep(.99,15)),
+                                             parallel=list(loginfo=TRUE, forward=TRUE))
+stopCluster(cl)
+
+toc()
+
+saveRDS(optim_result, file="optim_result_v00.RDS")
+# optim_result <- readRDS("optim_result_v00.RDS")
+```
+
+
+```{r}
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim)$R_max<-10^optim_result$par[1:15]
+species_params(params_optim)$erepro<-optim_result$par[16:30]
+species_params(params_optim)$interaction_resource <-optim_result$par[31:45]
+ 
+sim_optim <- project(params_optim, t_max = 2000)
+plotBiomass(sim_optim)
+```
+
+```{r}
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim)$R_max
+species_params(params_optim)$erepro
+species_params(params_optim)$interaction_resource
+```
+
+
+```{r}
+# this function adds a lower boundary to selected size
+plotBiomassObservedVsModelCustom <- function (object, species = NULL, ratio = FALSE, log_scale = TRUE, 
+    return_data = FALSE, labels = TRUE, show_unobserved = FALSE) 
+{
+    if (is(object, "MizerSim")) {
+        params = object@params
+        n <- finalN(object)
+    }
+    else if (is(object, "MizerParams")) {
+        params = object
+        n <- initialN(params)
+    }
+    else {
+        stop("You have not provided a valid mizerSim or mizerParams object.")
+    }
+    sp_params <- params@species_params
+    species = valid_species_arg(object, species)
+    if (length(species) == 0) 
+        stop("No species selected, please fix.")
+    row_select = match(species, sp_params$species)
+    if (!"biomass_observed" %in% names(sp_params)) {
+        stop("You have not provided values for the column 'biomass_observed' ", 
+            "in the mizerParams/mizerSim object.")
+    }
+    else if (!is.numeric(sp_params$biomass_observed)) {
+        stop("The column 'biomass_observed' in the mizerParams/mizerSim object", 
+            " is not numeric, please fix.")
+    }
+    else {
+        biomass_observed = sp_params$biomass_observed
+    }
+    
+    cutoffLow <- sp_params$biomass_cutoffLow[row_select]
+    if (is.null(cutoffLow)) {
+        cutoffLow = rep(0, length(species))
+    }
+    else if (!is.numeric(cutoffLow)) {
+        stop("params@species_params$biomass_cutoffLow is not numeric, \",\n                 \"please fix.")
+    }
+    cutoffLow[is.na(cutoffLow)] <- 0
+    
+    cutoffHigh <- sp_params$biomass_cutoffHigh[row_select]
+    if (is.null(cutoffHigh)) {
+        cutoffHigh = rep(0, length(species))
+    }
+    else if (!is.numeric(cutoffHigh)) {
+        stop("params@species_params$biomass_cutoffHigh is not numeric, \",\n                 \"please fix.")
+    }
+    cutoffHigh[is.na(cutoffHigh)] <- 0
+    
+    sim_biomass = rep(0, length(species))
+    for (j in 1:length(species)) {
+        sim_biomass[j] = sum((n[row_select[j], ] * params@w * 
+            params@dw)[params@w >= cutoffLow[j] & cutoffHigh[j] >= params@w])
+    }
+    dummy = data.frame(species = species, model = sim_biomass, 
+        observed = biomass_observed[row_select]) %>% mutate(species = factor(species, 
+        levels = species), is_observed = !is.na(observed) & observed > 
+        0, observed = case_when(is_observed ~ observed, !is_observed ~ 
+        model), ratio = model/observed)
+    if (sum(dummy$is_observed) == 0) {
+        cat(paste("There are no observed biomasses to compare to model,", 
+            "only plotting model biomasses.", sep = "\n"))
+    }
+    if (!show_unobserved) {
+        dummy <- filter(dummy, is_observed)
+    }
+    if (return_data == TRUE) 
+        return(dummy)
+    tre <- round(sum(abs(1 - dummy$ratio)), digits = 3)
+    caption <- paste0("Total relative error = ", tre)
+    if (any(!dummy$is_observed)) {
+        caption <- paste(caption, "\n Open circles represent species without biomass observation.")
+    }
+    if (ratio == FALSE) {
+        gg <- ggplot(data = dummy, aes(x = observed, y = model, 
+            colour = species, shape = is_observed)) + geom_abline(aes(intercept = 0, 
+            slope = 1), colour = "purple", linetype = "dashed", 
+            size = 1.3) + geom_point(size = 3) + labs(y = "model biomass [g]") + 
+            coord_cartesian(ylim = range(dummy$model, dummy$observed))
+    }
+    else {
+        gg <- ggplot(data = dummy, aes(x = observed, y = ratio, 
+            colour = species, shape = is_observed)) + geom_hline(aes(yintercept = 1), 
+            linetype = "dashed", colour = "purple", 
+            size = 1.3) + geom_point(size = 3) + labs(y = "model biomass / observed biomass") + 
+            coord_cartesian(ylim = range(dummy$ratio))
+    }
+    gg <- gg + labs(x = "observed biomass [g]", caption = caption) + 
+        scale_colour_manual(values = getColours(params)[dummy$species]) + 
+        scale_shape_manual(values = c(`TRUE` = 19, `FALSE` = 1)) + 
+        guides(shape = "none")
+    if (log_scale == TRUE & ratio == FALSE) {
+        gg = gg + scale_x_log10() + scale_y_log10()
+    }
+    if (log_scale == TRUE & ratio == TRUE) {
+        gg = gg + scale_x_log10()
+    }
+    if (labels == TRUE) {
+        gg = gg + ggrepel::geom_label_repel(aes(label = species), 
+            box.padding = 0.35, point.padding = 0.5, segment.color = "grey50", 
+            show.legend = FALSE, max.overlaps = Inf, seed = 42)
+    }
+    gg
+}
+```
+
+
+```{r}
+plotBiomassObservedVsModelCustom(sim_optim)
+```
+
+
+Use tuneParams() to investigate the species with erepro values too high
+```{r}
+params_tuned_v01 <- tuneParams(params_optim)
+
+params_tuned_v01@species_params$erepro
+
+params_tuned_v01 <- steady(params_tuned_v01)
+```
+
+```{r}
+# create set of params for the optimisation process
+tic()
+
+params_optim <- params_tuned_v01
+
+vary <- c(log10(params_optim@species_params$R_max),
+          params_optim@species_params$erepro,
+          params_optim@species_params$interaction_resource)
+
+params_optim<-setParams(params_optim)
+
+# set up workers
+noCores <- parallel::detectCores() - 1 # keep some spare core
+cl <- parallel::makeCluster(noCores, setup_timeout = 0.5)
+setDefaultCluster(cl = cl)
+clusterExport(cl, varlist = "cl",envir=environment())
+clusterEvalQ(cl, {
+  library(mizerExperimental)
+  library(optimParallel)
+})
+
+optim_result <- optimParallel::optimParallel(par=vary,getErrorCustom,params=params_optim, 
+                                             dat = params_optim@species_params$biomass_observed, method ="L-BFGS-B", 
+                                             lower=c(rep(-15,15),rep(1e-7,15),rep(.1,15)),
+                                             upper= c(rep(15,15),rep(0.99,15),rep(.99,15)),
+                                             parallel=list(loginfo=TRUE, forward=TRUE))
+stopCluster(cl)
+
+toc()
+
+saveRDS(optim_result, file="optim_result_v01.RDS")
+# optim_result <- readRDS("optim_result_v00.RDS")
+```
+
+
+```{r}
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim)$R_max<-10^optim_result$par[1:15]
+species_params(params_optim)$erepro<-optim_result$par[16:30]
+species_params(params_optim)$interaction_resource <-optim_result$par[31:45]
+
+species_params(params_optim)$R_max
+species_params(params_optim)$erepro
+species_params(params_optim)$interaction_resource
+```
+
+
+```{r}
+sim_optim_v02 <- project(params_optim, t_max = 1000)
+plotBiomass(sim_optim_v02)
+```
+
+```{r}
+params_v03 <- steady(params_optim)
+```
+
+```{r}
+params_loop <- params_v03 |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady()
+
+params_loop@species_params$erepro
+```
+
+```{r}
+sim_v02 <- project(params_loop, t_max = 2000)
+```
+
+
+
+```{r}
+plotBiomass(sim_v02)
+plotBiomassObservedVsModelCustom(sim_v02)
+plotBiomassObservedVsModel(sim_v02)
+plotDiet(params_loop)
+```
+Save progress
+```{r}
+# saveRDS(params_loop, "params_optim_v01.rds")
+```
+
+
+Try to ween the species of the resource spectra
+```{r}
+params_loop@resource_params$w_pp_cutoff
+params_loop@resource_params$kappa
+```
+
+```{r}
+resource_params(params_loop)[["w_pp_cutoff"]] <- 10
+
+params_v04 <- setParams(params_loop)
+
+params_v04@resource_params$w_pp_cutoff
+```
+
+```{r}
+sim_v03 <- project(params_v04, t_max = 200)
+
+plotBiomass(sim_v03)
+plotBiomassObservedVsModelCustom(sim_v03)
+plotBiomassObservedVsModel(sim_v03)
+plotDiet(params_v04)
+```
+
+```{r}
+getErrorCustom_v02 <- function(vary, params, dat, tol = 0.001, 
+    timetorun = 10)
+{
+  params@species_params$R_max[1:15]<-10^vary[1:15] # R_max for 15 species
+  params@species_params$erepro[1:15]<-vary[16:30] # erepro for 15 species
+  params@species_params$interaction_resource[1:15] <- vary[31:45] # interaction_resource for 15 species
+  params@resource_params$w_pp_cutoff[1] <- vary[46] # interaction_resource for 15 species
+  params <- setParams(params)
+  # interaction <- params@interaction
+  # interaction[] <- matrix(vary[28:108],nrow = 9) # stop at 54 if looking only at 3 biggest species
+  
+  # params <- setInteraction(params,interaction)
+    params <- projectToSteady(params, distance_func = distanceSSLogN, 
+        tol = tol, t_max = 200, return_sim = F)
+    
+    sim <- project(params, t_max = timetorun, progress_bar = F)
+    
+    sim_biomass = rep(0, length(params@species_params$species))
+    
+        cutoffLow <- params@species_params$biomass_cutoffLow
+    if (is.null(cutoffLow)) 
+        cutoffLow <- rep(0, no_sp)
+    cutoffLow[is.na(cutoffLow)] <- 0
+    
+        cutoffHigh <- params@species_params$biomass_cutoffHigh
+    if (is.null(cutoffHigh)) 
+        cutoffHigh <- rep(0, no_sp)
+    cutoffHigh[is.na(cutoffHigh)] <- 0
+        
+    for (j in 1:length(sim_biomass)) {
+        sim_biomass[j] = sum((sim@n[dim(sim@n)[1],j,] * params@w * 
+            params@dw)[params@w >= cutoffLow[j] & cutoffHigh[j] >= params@w])
+    }
+    
+     pred <- log(sim_biomass)
+    dat <- log(dat)
+    discrep <- pred - dat
+    discrep <- (sum(discrep^2))
+    return(discrep)
+}
+    
+```
+
+
+```{r}
+# create set of params for the optimisation process
+tic()
+
+params_optim <- params_v04
+
+vary <- c(log10(params_optim@species_params$R_max),
+          params_optim@species_params$erepro,
+          params_optim@species_params$interaction_resource,
+          params_optim@resource_params$w_pp_cutoff)
+
+params_optim<-setParams(params_optim)
+
+# set up workers
+noCores <- parallel::detectCores() - 1 # keep some spare core
+cl <- parallel::makeCluster(noCores, setup_timeout = 0.5)
+setDefaultCluster(cl = cl)
+clusterExport(cl, varlist = "cl",envir=environment())
+clusterEvalQ(cl, {
+  library(mizerExperimental)
+  library(optimParallel)
+})
+
+optim_result <- optimParallel::optimParallel(par=vary,getErrorCustom_v02,params=params_optim, 
+                                             dat = params_optim@species_params$biomass_observed, method ="L-BFGS-B", 
+                                             lower=c(rep(-15,15),rep(1e-7,15),rep(.1,15), 0.1),
+                                             upper= c(rep(15,15),rep(0.99,15),rep(.99,15),1000),
+                                             parallel=list(loginfo=TRUE, forward=TRUE))
+stopCluster(cl)
+
+toc()
+
+saveRDS(optim_result, file="optim_result_v02.RDS")
+# optim_result <- readRDS("optim_result_v00.RDS")
+```
+
+
+
+```{r}
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim)$R_max<-10^optim_result$par[1:15]
+species_params(params_optim)$erepro<-optim_result$par[16:30]
+species_params(params_optim)$interaction_resource <-optim_result$par[31:45]
+resource_params(params_optim)$w_pp_cutoff <- optim_result$par[46]
+
+species_params(params_optim)$R_max
+species_params(params_optim)$erepro
+species_params(params_optim)$interaction_resource
+```
+
+
+```{r}
+sim_v04 <- project(params_optim, t_max = 1000)
+
+plotBiomass(sim_v04)
+plotBiomassObservedVsModelCustom(sim_v04)
+plotBiomassObservedVsModel(sim_v04)
+plotDiet(params_optim)
+```
+
+```{r}
+params_steady <- params_optim
+
+initialN(params_steady) <- sim_v04@n[dim(sim_v04@n)[1],,]
+
+plotDiet(params_steady)
+
+sim_v05 <- project(params_steady, t_max = 100)
+
+plotBiomass(sim_v05)
+
+plotGrowthCurves(sim_v05, species_panel = T)
+```
+
+```{r}
+params_tuned_v02 <- tuneParams(params_steady)
+
+params_tuned_v02 <- steady(params_tuned_v02)
+
+params_tuned_v02@species_params$erepro
+```
+species        w_min     w_mat    w_max beta k_vb  h min_depth max_depth water.column.use p_time_prydz pc_annual_offspring
+5   salps 3.162278e-05 0.2511886 25.11886 1000   NA 33         0       500          non DVM            1                  NA
+  biomass_observed
+5            0.652
+```{r}
+species_params <- data.frame(
+    species = "salps",
+    w_min = 3.162278e-05,
+    w_max = 25.11886,
+    w_mat = 0.2511886,
+    beta = 1000000,
+    sigma = 2,
+    biomass_observed = 0.652,
+    k_vb = 0.4,
+    yield_observed = 0,
+    biomass_cutoff = 0.1,
+    biomass_cutoffLow = 0.1,
+    biomass_cutoffHigh = 25.11886
+)
+
+params_v05 <- addSpecies(params_tuned_v02, species_params)
+plotSpectra(params_v05)
+
+params_v05@species_params$erepro
+
+```
+
+
+```{r}
+# function running tuneParams function in a row for a quick start to a calibration
+fastCalib <- function(params, match = F)
+{
+params <- calibrateBiomass(params) # changes kappa and rmax
+if(match) params <- matchBiomasses(params) # set rmax to inf and adjust erepro
+params <- steady(params, tol = 0.001)
+sim <- project(params, t_max = 1000)
+return(sim)
+}
+```
+
+
+```{r}
+sim_v06 <- fastCalib(params_v05)
+
+plotBiomass(sim_v06)
+plotDiet(params_v05)
+```
+
+```{r}
+so_theta <- as.matrix(params_v05@interaction)
+
+salp_row <- c(1,
+0.1250000,
+0.1250000,
+0.1373626,
+0.0500000,
+0.1000000,
+0.2500000,
+0.2500000,
+0.1000000,
+0.1666667,
+0.1666667,
+0.0500000,
+0.2000000,
+0.1250000,
+0.2000000,
+1)
+```
+
+
+```{r}
+so_theta[16,] # automated salps interaction when added using addSpecies()
+
+so_theta[16,] <- salp_row
+
+so_theta[,16] # automated salps interaction when added using addSpecies()
+
+so_theta[,16] <- salp_row
+
+so_theta
+```
+
+
+```{r}
+params_v06 <- setParams(params_v05, interaction = so_theta)
+
+params_v06@interaction
+```
+
+
+```{r}
+sim_v07 <- fastCalib(params_v06)
+
+plotBiomass(sim_v07)
+```
+
+```{r}
+initialN(params_v06) <- sim_v07@n[dim(sim_v07@n)[1],,]
+```
+
+
+```{r}
+sim_v08 <- project(params_v06, t_max = 100)
+plotBiomass(sim_v08)
+plotDiet(params_v06)
+```
+
+Fill in missing and adjust beta values for zooplankton groups using Heneghan et al. 2020 (10.1016/j.ecolmodel.2020.109265)
+
+Need a value for microzooplankton
+microzooplankton (in McCormack et al. 2020) is composed of Heterotrophic dinoflagellates, tintinnids, ciliates, copepod nauplii
+Heneghan et al. log10PPMR values for:
+Hetero.Flagellates = 0.2–0.72 -> 0.46
+Hetero.Ciliates = 2.5–2.9 -> 2.7
+Mean: (2.7+0.46)/2 = 1.58
+10^1.58 = 38.01894
+
+Need to adjust values for mesozoo, other macrozoo, euphausiids, salps
+
+Heneghan et al. log10PPMR values (midpoints for range) for:
+salps = 6.8–11.7 -> 9.25
+10^9.25 = 1778279410
+
+euphausiids = 6.6–7.8 -> 7.2
+10^7.2 = 15848932
+
+mesozoo (copepods)
+Omni.Cop. = 3.6–4.6 -> 4.1
+Carn.Cop. = 0.8–1.9 -> 1.35
+Mean: (4.1+1.35)/2 = 2.725
+10^2.725 = 530.8844
+
+other macrozoo ()
+Chaetognaths = 1.9–3.4 -> 2.65
+10^2.65 = 446.6836
+
+```{r}
+params_tuned_v03 <- tuneParams(params_v06)
+params_tuned_v04 <- tuneParams(params_tuned_v03) # updated salps PPMR to match empirical estimates from Heneghan et al 2020
+```
+
+
+```{r}
+getErrorCustom_v3 <- function(vary, params, dat, tol = 0.001, 
+    timetorun = 10)
+{
+  params@species_params$R_max[1:16]<-10^vary[1:16] # R_max for 15 species
+  params@species_params$erepro[1:16]<-vary[17:32] # erepro for 15 species
+  params@species_params$interaction_resource[1:16] <- vary[33:48] # interaction_resource for 15 species
+  params <- setParams(params)
+  # interaction <- params@interaction
+  # interaction[] <- matrix(vary[28:108],nrow = 9) # stop at 54 if looking only at 3 biggest species
+  
+  # params <- setInteraction(params,interaction)
+    params <- projectToSteady(params, distance_func = distanceSSLogN, 
+        tol = tol, t_max = 200, return_sim = F)
+    
+    sim <- project(params, t_max = timetorun, progress_bar = F)
+    
+    sim_biomass = rep(0, length(params@species_params$species))
+    
+        cutoffLow <- params@species_params$biomass_cutoffLow
+    if (is.null(cutoffLow)) 
+        cutoffLow <- rep(0, no_sp)
+    cutoffLow[is.na(cutoffLow)] <- 0
+    
+        cutoffHigh <- params@species_params$biomass_cutoffHigh
+    if (is.null(cutoffHigh)) 
+        cutoffHigh <- rep(0, no_sp)
+    cutoffHigh[is.na(cutoffHigh)] <- 0
+        
+    for (j in 1:length(sim_biomass)) {
+        sim_biomass[j] = sum((sim@n[dim(sim@n)[1],j,] * params@w * 
+            params@dw)[params@w >= cutoffLow[j] & cutoffHigh[j] >= params@w])
+    }
+    
+     pred <- log(sim_biomass)
+    dat <- log(dat)
+    discrep <- pred - dat
+    discrep <- (sum(discrep^2))
+    return(discrep)
+}
+```
+
+
+
+
+```{r}
+# create set of params for the optimisation process
+tic()
+
+params_optim <- params_tuned_v04
+
+vary <- c(log10(params_optim@species_params$R_max),
+          params_optim@species_params$erepro,
+          params_optim@species_params$interaction_resource)
+
+params_optim<-setParams(params_optim)
+
+# set up workers
+noCores <- parallel::detectCores() - 1 # keep some spare core
+cl <- parallel::makeCluster(noCores, setup_timeout = 0.5)
+setDefaultCluster(cl = cl)
+clusterExport(cl, varlist = "cl",envir=environment())
+clusterEvalQ(cl, {
+  library(mizerExperimental)
+  library(optimParallel)
+})
+
+optim_result <- optimParallel::optimParallel(par=vary,getErrorCustom_v3,params=params_optim, 
+                                             dat = params_optim@species_params$biomass_observed, method ="L-BFGS-B", 
+                                             lower=c(rep(-15,16),rep(1e-7,16),rep(.1,16)),
+                                             upper= c(rep(15,16),rep(0.99,16),rep(.99,16)),
+                                             parallel=list(loginfo=TRUE, forward=TRUE))
+stopCluster(cl)
+
+toc()
+
+saveRDS(optim_result, file="optim_result_v03.RDS")
+# optim_result <- readRDS("optim_result_v00.RDS")
+```
+
+
+```{r}
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim)$R_max<-10^optim_result$par[1:16]
+species_params(params_optim)$erepro<-optim_result$par[17:32]
+species_params(params_optim)$interaction_resource <-optim_result$par[33:48]
+
+species_params(params_optim)$R_max
+species_params(params_optim)$erepro
+species_params(params_optim)$interaction_resource
+```
+
+```{r}
+sim_v09 <- project(params_optim, t_max = 200)
+plotBiomass(sim_v09)
+```
+
+
+```{r}
+params_v07 <- params_optim
+initialN(params_v07) <- sim_v09@n[dim(sim_v09@n)[1],,]
+```
+
+
+```{r}
+sim_v10 <- project(params_v07, t_max = 200)
+plotBiomass(sim_v10)
+plotDiet(params_v07)
+```
+
+```{r}
+initialN(params_v07) <- sim_v10@n[dim(sim_v10@n)[1],,]
+```
+
+
+
+```{r}
+sim_v11 <- project(params_v07, t_max = 200)
+plotBiomass(sim_v11)
+```
+
+
+```{r}
+params_tuned_v05 <- tuneParams(params_v07)
+
+params_tuned_v05 <- steady(params_tuned_v05)
+
+params_tuned_v05@species_params$erepro
+```
+
+
+```{r}
+# saveRDS(params_tuned_v05, "params_optim_v02.rds")
+
+params_tuned_v05 <- readRDS("params_optim_v02.rds")
+```
+
+
+
+```{r}
+sim_v12 <- project(params_tuned_v05, t_max = 500)
+
+initialN(params_tuned_v05) <- sim_v12@n[dim(sim_v12@n)[1],,]
+
+sim_v13 <- project(params_tuned_v05, t_max = 500)
+```
+
+```{r}
+plotlyBiomass(sim_v13)
+plotBiomassObservedVsModel(sim_v13)
+plotBiomassObservedVsModelCustom(sim_v13)
+```
+
+Gradually reducing resource maximum size in tuneParams(), as doing it directly in the setParams() route will tell you the w_pp_cutoff has changed, but it will still incorporate a background resource up to the w_pp_cutoff that was originally used in newMultispeciesParams()
+
+```{r}
+params_tuned_v06 <- tuneParams(params_tuned_v05)
+
+params_tuned_v06 <- steady(params_tuned_v06)
+
+params_tuned_v06@species_params$erepro
+params_tuned_v06@species_params$R_max
+
+```
+```{r}
+params_tuned_v10 <- tuneParams(params_tuned_v06)
+
+params_tuned_v10 <- steady(params_tuned_v10)
+
+params_tuned_v10@species_params$erepro
+params_tuned_v10@species_params$R_max
+
+params_tuned_v10@resource_params$w_pp_cutoff
+
+```
+
+
+```{r}
+# saveRDS(params_tuned_v06, "params_optim_v02_w_pp_100.rds")
+# saveRDS(params_tuned_v10, "params_optim_v03_w_pp_100.rds")
+
+```
+
+
+```{r}
+# create set of params for the optimisation process
+tic()
+
+params_optim <- params_tuned_v10
+
+vary <- c(log10(params_optim@species_params$R_max),
+          params_optim@species_params$erepro,
+          params_optim@species_params$interaction_resource)
+
+params_optim<-setParams(params_optim)
+
+# set up workers
+noCores <- parallel::detectCores() - 1 # keep some spare core
+cl <- parallel::makeCluster(noCores, setup_timeout = 0.5)
+setDefaultCluster(cl = cl)
+clusterExport(cl, varlist = "cl",envir=environment())
+clusterEvalQ(cl, {
+  library(mizerExperimental)
+  library(optimParallel)
+})
+
+optim_result <- optimParallel::optimParallel(par=vary,getErrorCustom_v3,params=params_optim,
+                                             dat = params_optim@species_params$biomass_observed, method ="L-BFGS-B",
+                                             lower=c(rep(-15,16),rep(1e-7,16),rep(.1,16)),
+                                             upper= c(rep(15,16),rep(0.99,16),rep(.99,16)),
+                                             parallel=list(loginfo=TRUE, forward=TRUE))
+stopCluster(cl)
+
+toc()
+
+saveRDS(optim_result, file="optim_result_v04.RDS")
+
+# optim_result <- readRDS("optim_result_v04.RDS")
+```
+
+
+```{r}
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim)$R_max<-10^optim_result$par[1:16]
+species_params(params_optim)$erepro<-optim_result$par[17:32]
+species_params(params_optim)$interaction_resource <-optim_result$par[33:48]
+
+species_params(params_optim)$R_max
+species_params(params_optim)$erepro
+species_params(params_optim)$interaction_resource
+```
+
+
+
+```{r}
+sim_v14 <- project(params_optim, t_max = 2000)
+plotBiomass(sim_v14)
+```
+
+
+```{r}
+params_v08 <- params_optim
+initialN(params_v08) <- sim_v14@n[dim(sim_v14@n)[1],,]
+```
+
+
+```{r}
+params_tuned_v07 <- tuneParams(params_v08)
+
+params_tuned_v07 <- steady(params_tuned_v07)
+
+params_tuned_v07@species_params$erepro
+params_tuned_v07@species_params$R_max
+
+# saveRDS(params_tuned_v07, file="params_optim_v04_w_pp_100.rds")
+
+```
+
+
+```{r}
+sim_v15 <- project(params_tuned_v07, t_max = 2000)
+plotBiomass(sim_v15)
+plotDiet(params_tuned_v07)
+```
+
+
+```{r}
+initialN(params_tuned_v07) <- sim_v15@n[dim(sim_v15@n)[1],,]
+
+sim_v16 <- project(params_tuned_v07, t_max = 500)
+plotlyBiomass(sim_v16)
+plotBiomassObservedVsModel(sim_v16)
+```
+
+```{r}
+params_loop <- params_tuned_v07 |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady()
+
+params_loop@species_params$erepro
+plotBiomassObservedVsModel(params_loop)
+
+```
+
+
+```{r}
+sim_v17 <- project(params_loop, t_max = 500)
+plotlyBiomass(sim_v17)
+plotBiomassObservedVsModel(sim_v17)
+plotBiomassObservedVsModelCustom(sim_v17)
+plotBiomassRelative(sim_v17)
+plotDiet(params_loop)
+```
+
+```{r}
+initialN(params_loop) <- sim_v17@n[dim(sim_v17@n)[1],,]
+```
+
+
+```{r}
+sim_v18 <- project(params_loop, t_max = 1000)
+plotlyBiomass(sim_v18)
+plotBiomassObservedVsModel(sim_v18)
+plotBiomassObservedVsModelCustom(sim_v18)
+plotBiomassRelative(sim_v18)
+plotDiet(params_loop)
+```
+
+
+
+
+
+
+
+
+
+
+

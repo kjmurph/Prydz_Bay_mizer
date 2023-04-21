@@ -1,0 +1,16 @@
+species,w_min,w_mat,w_max,beta,k_vb,h,min_depth,max_depth,water.column.use,p_time_prydz,pc_annual_offspring,biomass_observed
+euphausiids,6.31E-05,0.015848932,3.16227766,500,NA,33,0,3500,non DVM,1,NA,5.9
+mesopelagic fishes,0.001,11.275,240,441.6666667,0.360833333,NA,0,5300,DVM,1,NA,1.2
+bathypelagic fishes,0.00069691,62.55,603.7,425,0.1825,NA,0,4000,DVM,1,NA,1.93
+shelf and coastal fishes,0.003591364,46.75,2422.2,350,0.15,NA,0,728,ontogenetic,1,NA,0.802
+flying birds,40,1718.541667,4191.25,58.1350328,NA,189,0,10,diving,0.3875,0.5,0.003
+small divers,4500,4266.666667,6000,293.7879413,NA,66,0,100,diving,0.61,0.6,0.016
+squids,0.003591364,128.0542765,20718.35147,50,NA,NA,0,2000,non DVM,1,NA,0.15
+toothfishes,0.033510322,12765.2,157569.3,100,0.06,NA,0,3850,non DVM,1,NA,0.75
+leopard seals,2.00E+05,348000,348000,11.23595506,NA,33,0,100,diving,0.75,0.5,0.002
+medium divers,10000,294750,1283000,686.1885872,NA,38.5,0,1500,diving,0.535625,0.6,0.265
+large divers,135000,2024000,2024000,3610.108303,NA,41,0,1500,diving,0.33,0.5,0.022
+minke whales,6.00E+05,6.00E+06,6.00E+06,5042016.807,NA,18,0,50,diving,0.75,0.5,0.014
+orca,490000,4900000,6.00E+06,0.557945144,NA,18,0,200,diving,0.33,0.5,0.006
+sperm whales,3650000,36500000,36500000,44082.1256,NA,5.2,0,2000,diving,0.5,0.5,0.011
+baleen whales,2250000,50700000,1.03E+08,219112.6012,NA,8.3,0,200,diving,0.5,0.5,0.127

@@ -1,0 +1,618 @@
+---
+title: "1f_simplified_groups_params_KJM.R"
+output: html_notebook
+---
+
+https://github.com/juliablanchard/nsea_calibration/blob/main/from-steady-state-to-time-series.Rmd
+
+Determining traits for simplified groups
+
+# Species Groupings
+
+## Zooplankton
+
+### Original groups:
+
+ - Zooplankton
+ - Euphausiids
+ - salps
+ - other macrozooplankton
+ - mesozooplankton
+ - microzooplankton
+
+### Simplified groups:
+
+ - macrozooplankton
+ - mesozooplankton
+ - microzooplankton
+ 
+### Further reduced
+
+ - Krill
+ 
+The level of complexity involved in resolving the smallest organisms as part of the dynamic size spectrum has proved difficult enough that we will delay the inclusion until a later date in the project. Main emphasis is on how changes to the structure and function will effect krill and as such we will prioritise their inclusion in the model
+
+## Fishes
+
+### Original groups:
+
+ - small myctophids (epipelagic)
+ - large myctophids (migrating)
+ - gonostomatiids (mid and lower mesopelagic)
+ - bathylagiids (migrating bathypelagics)
+ - other mesopelagics
+ - other bathypelagics (non-migrating bathypelagis)
+ - shelf and coast demersal (icefish, silverfish)
+ - toothfish (large pelagic-foraging demersal; shelf and slope)
+	
+### Simplified groups:
+
+ - mesopelagic fishes
+ - bathypelagic fishes
+ - shelf and coastal fishes
+ - toothfishes
+
+## Squids
+
+### Original groups:
+ - small nektonic
+ - pelagic
+	
+### Simplified groups:
+
+ - squids
+
+## Bird and mammal "top predators"
+
+### Minimum set of:
+ - baleen whales
+ - toothed whales and large seals
+ - small seals and large penguins
+ - small penguins and other birds
+ - apex predators (orca and leopard seals)
+ 
+### Simplified groups:
+ - flying birds
+ - small divers
+ - medium divers
+ - apex predators
+ - large divers
+ - baleen whales
+
+# for each group, initially need
+	# group name
+	# min and max size
+	# depth
+	# water column use
+	# preferred PPMR
+	
+# Functional Groups
+
+Order may vary, as will be ordered by asymptotic size
+
+1)  krill
+
+2)  mesopelagic fishes
+3)  bathypelagic fishes
+4)  shelf and coastal fishes
+5)  toothfishes
+
+6)  squids
+
+7)  flying birds
+8)  small divers
+9)  medium divers
+10) apex predators
+11) large divers
+12) baleen whales
+
+Rowan's notes
+- some growth and consumption values were collated for the size spectrum modelling workshop
+- Q/B and P/B estimates have also been collated by Stacey McCormack on SOKI for the Prydz Bay Ecopath model
+- grazing rates have also been collated on SOKI for the Atlantis model initialization
+- daily maximum rations for krill in %C/day, along with lots of detail on feeding ecology, are in Schmidt and Atkinson chapter in Siegel 2016 book.
+
+
+```{r}
+library(readxl)
+library(tidyverse)
+# remotes::install_github("SCAR/solong")
+# library(solong)
+# remotes::install_github("ropensci/rfishbase")
+# library(rfishbase)
+```
+
+Use `solong` package (https://github.com/SCAR/solong) to estimate weights where data is available
+
+```{r}
+sol_properties()
+x <- tibble(TL = c(0.7, 61), species = "Euphausia superba")
+x
+
+```
+
+```{r}
+x$TL <- sol_set_property(x$TL, "total length")
+```
+
+
+```{r}
+# sol_equations() %>% dplyr::filter(taxon_name == "Euphausia superba") %>% summary # Antarctic krill
+# sol_equations() %>% dplyr::filter(taxon_name == "Euphausia crystallorophias") %>% summary # Crystal krill
+# sol_equations() %>% dplyr::filter(taxon_name == "Thysanoessa macrura") %>% summary 
+# sol_equations() %>% dplyr::filter(taxon_name == "Leptonychotes weddellii") %>% summary # Weddell seal
+
+```
+
+
+```{r}
+sol_allometry(x, "236217_WW~TL_Farb1994")
+```
+
+
+# Krill
+
+https://www.ccamlr.org/en/system/files/science_journal_papers/09-Siegel.pdf
+
+https://link.springer.com/article/10.1007/s00300-021-02984-4 (highlights the range of lenght-weight relationships and the uncertianty in size parameters). Can we model this uncertainty?
+
+Initial zooplankton dataframe with minimum and maximum sizes in mm and length-weight coefficients `a` and `b`
+
+```{r}
+# simplified zooplankton groups
+zsp <- read_xlsx("./excel data/zoop_parameters_v1.xlsx", sheet="zoop simple groups", skip = 2)
+zsp
+
+df_z <- zsp %>% 
+  filter(group == "euphausiids") %>% 
+  mutate(max_size_mm = as.numeric(max_size_mm),
+         min_size_mm = as.numeric(min_size_mm),
+         lw_a = as.numeric(lw_a),
+         lw_b = as.numeric(lw_b),
+         w_max = lw_a*max_size_mm^lw_b/1000, 
+         w_min = lw_a*min_size_mm^lw_b/1000)
+  
+df_z
+```
+
+```{r}
+# sizes to weights
+z.prm.s<- df_z %>% 
+	select(group, max_depth, min_depth, beta, Wmax, Wmat, W0) %>% rename(species=group)
+
+z.prm.s$h <- c(33)
+# - max for krill: 33 (from Surma et al 2014; Meyer estimate as high as 102 for juvs)
+# - max for mesozoop: 39 (Stacey compilation)
+
+
+z.prm.s
+```
+
+
+There are a lot of different param files and within them a lot of different size metrics, particularly for max size
+
+I need to inspect the original values, compare them to what we have been using and correct any obvious issues.
+
+`fish_params_wide.RDS` is the original param file used to calculate the fish group parameters
+
+```{r}
+fish_params_wide <- readRDS("fish_params_wide.RDS")
+glimpse(fish_params_wide)
+fish_params_wide
+```
+
+I want to reorder the species for ease of comparison with the pasted parameter list in `1a_fish_trait_calc.R` starting on line 53
+
+Here they are for ease of use
+ 
+	# 		              species wmax.calc     wmax    w_mat  p_mat_max p_calc_max p_calc_max_mat
+	#                       <chr>     <dbl>    <dbl>   <dbl>      <dbl>      <dbl>          <dbl>
+	# 1     Benthalbella elongata     494.3       NA   107.7         NA         NA     0.21781820		#  looks OK, wmax calc maybe a bit big
+	# 2   Benthalbella macropinna      79.8       NA    18.8         NA         NA     0.23613383		#  looks OK
+	# 3    Bathylagus antarcticus      24.9     51.0     7.2 0.14095284  0.4888120     0.28835795		#  PROBLEM: wmax calc is 1/2 wmax
+	# 4       Cynomacrurus piriei     603.7       NA   110.3         NA         NA     0.18276597		#  looks ok
+	# 5   Champsocephalus gunnari    2422.2   2000.0    76.2 0.03807680  1.2110952     0.03143997		#  PROBLEM: w_mat tiny relative to wmax; but checked and correct
+	# 6     Gymnoscopelus braueri      15.2     21.0     9.7 0.46027982  0.7229740     0.63664779		#  
+	# 7    Gymnoscopelus nicholsi      60.4     51.0     8.7 0.16978336  1.1847070     0.14331253		#  
+	# 8    Nannobrachium achirus       28.5       NA     8.0         NA         NA     0.27873775		#  
+	# 9       Cyclothone microdon       1.6       NA     0.1         NA         NA     0.08699037		#  PROBLEM: w_mat looks pretty tiny; checked, and driven purely by lw params
+	# 10       Melanonus gracilis      36.1       NA     9.5         NA         NA     0.26381340		#  
+	# 11         Notolepis coatsi     237.8     24.0    49.3 2.05481675  9.9098538     0.20735086		#  PROBLEM: w_mat is 2x wmax; wmax.calc huge
+	# 12 Paradiplospinus gracilis     161.2    189.0    33.8 0.17870200  0.8530738     0.20948013		#  looks good
+	# 13 Pleuragramma antarcticum     156.7    200.0    17.3 0.08647293  0.7837103     0.11033787		#  CHECK: w_mat looks a bit small
+	# 14     Electrona antarctica      15.1     15.0     5.4 0.35751671  1.0097588     0.35406151		#  looks good
+	# 15     Electrona carlsbergi       4.5     14.0     2.3 0.16205880  0.3224837     0.50253327		#  PROBLEM: wmax calc is 1/3 wmax
+	# 16    Gymnoscopelus fraseri        NA       NA  2944.5         NA         NA             NA		#  PROBLEM: w_mat looks much to big; why no wmax?? ### Was a typo; 73 cm for w_mat rather than 7.3
+	# 17 Krefftichthys anderssoni       1.8      4.0     0.7 0.18748138  0.4403679     0.42573807		#  PROBLEM: wmax calc is 1/2 observed
+	# 18    Protomyctophum bolini       3.8      3.9     1.6 0.41625003  0.9725315     0.42800674		#  looks good
+	# 19 Dissostichus eleginoides  157569.3 135000.0 11734.9 0.08692498  1.1671800     0.07447436		#  looks OK
+	# 20     Dissostichus mawsoni  121611.0  70000.0 13795.5 0.19707908  1.7372996     0.11343989		#  looks OK			
+
+This is to reorder the `fish_params_wide.rds` data so I can compare more easily with Rowan's trouble shooting notes pasted above.
+```{r}
+full_name_order <- c("Benthalbella elongata","Benthalbella macropinna","Bathylagus antarcticus","Cynomacrurus piriei","Champsocephalus gunnari",
+           "Gymnoscopelus braueri","Gymnoscopelus nicholsi","Nannobrachium achirus","Cyclothone microdon","Melanonus gracilis","Notolepis coatsi",
+           "Paradiplospinus gracilis","Pleuragramma antarcticum","Electrona antarctica","Electrona carlsbergi","Gymnoscopelus fraseri","Krefftichthys anderssoni","Protomyctophum bolini","Dissostichus eleginoides","Dissostichus mawsoni")
+
+abbrev_order <- c("B.elongata","B.macropinna","B.antarcticus","C.piriei","C.gunnari",
+           "G.braueri","G.nicholsi","N.achirus","C.microdon","M.gracilis","N.coatsi",
+           "P.gracilis","P.antarcticum","E.antarctica","E.carlsbergi","G.fraseri","K.anderssoni","P.bolini","D.eleginoides","D.mawsoni")
+```
+
+
+Duplicate original
+```{r}
+df_fish <- fish_params_wide
+```
+
+Rearrange df_fish to double check with Rowan's original values and see what has been adjusted
+```{r}
+df <- df_fish %>% 
+  arrange(factor(species, levels = abbrev_order))
+
+df
+```
+
+Reduce variables for ease of comparison 
+```{r}
+# df_f <- df %>% 
+# 	select(species, lw_a, lw_b, egg_mass_g, w_inf,wmax, w_mat, wmax.calc)
+# 
+# df_f
+```
+
+```{r}
+fish_w_max_updated <- c(
+494.3,
+79.8,
+51,
+603.7,
+2422.2,
+21,
+52.5,
+28.5,
+1.6,
+36.1,
+240,
+189,
+200,
+15,
+14,
+6.1,
+4,
+3.9,
+157569.3,
+141744.8
+)
+
+df$w_max <- fish_w_max_updated
+
+df
+```
+
+```{r}
+
+species_order <- c("B.antarcticus","B.elongata","B.macropinna","C.piriei","C.gunnari","G.braueri","G.nicholsi","N.achirus","C.microdon","M.gracilis","N.coatsi","P.gracilis","P.antarcticum","E.antarctica","K.anderssoni","P.bolini","E.carlsbergi","G.fraseri","D.mawsoni","D.eleginoides")
+
+f.df <- df %>% 
+  arrange(factor(species, levels = species_order))
+
+f.df
+```
+
+
+```{r}
+# # initial simplified groups
+# f.sgroups<- data.frame(
+  
+# species=c("B.antarcticus","B.elongata","B.macropinna","C.piriei","C.gunnari","G.braueri","G.nicholsi","N.achirus","C.microdon","M.gracilis","N.coatsi","P.gracilis","P.antarcticum","E.antarctica","K.anderssoni","P.bolini","E.carlsbergi","G.fraseri","D.mawsoni","D.eleginoides"), 
+# 
+# simple_group=c("bathylagiids","other bathypelagics","other bathypelagics","other bathypelagics","shelf and coastal fishes","large myctophids","large myctophids","large myctophids","gonostomatiids","other mesopelagics","other mesopelagics","other mesopelagics","shelf and coastal fishes","small myctophids","small myctophids","small myctophids","small myctophids","small myctophids","toothfish","toothfish"))
+
+# even simpler groups
+f.sgroups<- data.frame(
+
+species=c("B.antarcticus","B.elongata","B.macropinna","C.piriei","C.gunnari","G.braueri","G.nicholsi","N.achirus","C.microdon","M.gracilis","N.coatsi","P.gracilis","P.antarcticum","E.antarctica","K.anderssoni","P.bolini","E.carlsbergi","G.fraseri","D.mawsoni","D.eleginoides"),
+
+simple_group=c("bathypelagic fishes","bathypelagic fishes","bathypelagic fishes","bathypelagic fishes","shelf and coastal fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","shelf and coastal fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","mesopelagic fishes","toothfishes","toothfishes"))
+
+f.prm.w <- inner_join(f.sgroups,f.df)
+
+f.prm.w
+```
+
+Tidy up parameter names and add depth specifications that I think are required for the interaction matrix
+
+```{r}
+f.prm.s <- f.prm.w %>% group_by(simple_group) %>% summarize(
+	 W0 = min(egg_mass_g),
+	 Wmax = max(w_max),
+	 k_vb=mean(k_vb),
+	 beta = mean(beta),
+	 max_depth = max(max_depth),
+	 min_depth = min(min_depth),
+	 Wmat.mizer=mean(w_mat)
+	) %>% rename(species=simple_group)
+
+wcu <- data.frame(species=c("bathypelagic fishes","shelf and coastal fishes","mesopelagic fishes","toothfishes"),
+                  water.column.use=c("DVM","ontogenetic","DVM","non DVM"))
+
+# wcu <- data.frame(species=c("bathylagiids","gonostomatiids","large myctophids","other bathypelagics","other mesopelagics","shelf and coastal fishes","small myctophids", "toothfish"), water.column.use=c("DVM","non DVM","DVM","non DVM","non DVM","ontogenetic","DVM","non DVM"))
+
+f.prm.s<- inner_join(f.prm.s, wcu)
+
+# f.prm.s$max_depth <- 2000 # set all max depths to 2000m 
+
+f.prm.s
+```
+## Squid
+
+```{r}
+# simplified squids groups
+s.prm.w<- readRDS("squid_params_wide.RDS")
+
+s.prm.w
+
+# s.prm.w$simple_group <- c("pelagic squids","pelagic squids", "small nektonic squids")
+
+# s.prm.s <- s.prm.w %>% group_by(simple_group) %>% summarize(
+# 	 W0 = min(egg_mass_g),
+# 	 Wmax = max(wmax),
+# 	 beta = mean(beta),
+# 	 max_depth = max(max_depth),
+# 	 min_depth = min(min_depth) 
+# 	) %>% rename(species=simple_group) 
+
+s.prm.s <- s.prm.w %>% 
+	 mutate(w_mat=lw_a*(lmat_cm*10)^lw_b, wmax=lw_a*(lmax_cm*10)^lw_b ) %>%
+summarize(
+	 W0 = min(egg_mass_g),
+	 Wmax = max(wmax),
+	 Wmat.mizer = mean(w_mat),
+	 beta = mean(beta),
+	 max_depth = 2000,
+	 min_depth = 0 
+	) %>% mutate(species="squids") 
+
+s.prm.s$water.column.use <- "non DVM"
+
+s.prm.s
+```
+
+
+
+```{r}
+# simplified pred groups
+p.if <- read_excel("./excel data/predator_parameter_collating_v1.xlsx", sheet="interaction_factors")
+
+# 	  - baleen whales
+#     - toothed whales and large seals: large divers
+#     - small seals and large penguins: medium divers
+#     - small penguins: small divers
+# 	  - flying birds
+# 	  - apex predators
+
+p.prm.w <- readRDS("predator_params_wide.RDS")
+# p.names <- read_csv("./csvs/predator_group_names.csv")
+p.names <- read_csv("./csvs/predator_group_names_catch_calibration.csv")
+
+
+# p.prm.s<- p.prm.w %>% inner_join(p.names) %>% group_by(simple_group) %>% summarize(
+# 		Wmax = max(wmax),
+# 		W0	 = min(w_indep),
+# 		Wmat = min(w_indep),
+# 		beta = 1/mean(beta),
+# 	)
+
+
+df_pred <- p.prm.w %>% inner_join(p.names)
+```
+
+Check the group means
+
+```{r}
+df_group_mean <- df_pred %>% 
+  # group_by(simple_group) %>% 
+  group_by(group_names_catch) %>% 
+  summarise(Wmin_group = min(w_birth),
+            Wind_group = min(w_indep),
+            Wmat_mean = mean(wmat),
+            Wmax_group = max(wmax))
+
+df_group_mean
+```
+
+
+
+
+```{r}
+p.prm.s<- p.prm.w %>% inner_join(p.names) %>% group_by(group_names_catch) %>% summarize(
+		Wmax = max(wmax),
+		W0	 = min(w_indep),
+		Wmat.mizer = mean(wmat),
+		beta = 1/mean(beta),
+	)
+
+p.prm.s
+```
+
+
+```{r}
+p.prm.s$water.column.use<- "diving"
+# note that flying birds are classified as "diving"
+
+# depth ranges
+p.prm.s <- p.if %>% inner_join(p.names, by=c("taxon"="group")) %>% group_by(group_names_catch) %>%
+	summarize(
+		max_depth = max(`max diving depth`),
+		p_time_prydz = mean(`p time spent in area (prydz)`)
+		) %>% inner_join(p.prm.s) %>% rename(species=group_names_catch)
+
+# per-capita offspring 
+
+# 60 % success for emperor penguins (Robinson 1992)
+# assume 60% for small and medium divers
+# 50 % for large divers, apex predators, baleen whales and flying birds
+
+# p.prm.s$pc_annual_offspring <- c(rep(0.5,4),rep(0.6,2))
+p.prm.s$pc_annual_offspring <- c(rep(0.5,4),rep(0.6,1),rep(0.5,2),rep(0.6,1),rep(0.5,1)) # Edit to match expanded groups
+
+# # intake rates
+pQB <- read_excel("./excel data/predator_parameter_collating_v1.xlsx", sheet="QBs")
+p.prm.s <- pQB %>% group_by(group_names_catch) %>% summarize(h=mean(QonBmax)) %>% ungroup() %>% rename(species=group_names_catch) %>% full_join(p.prm.s)
+
+# Not using empirical intake rates for now, let the model calculate these based on size and kvb
+p.prm.s
+```
+
+```{r}
+z.prm.s_save <- z.prm.s
+
+z.prm.s_save$Wmat.mizer <- 10^(z.prm.s$Wmat)  
+z.prm.s_save$Wmax <- 10^(z.prm.s$Wmax)
+z.prm.s_save$W0 <- 10^(z.prm.s$W0)
+
+z.prm.s_save
+```
+
+
+weight in grams
+```{r}
+z.prm.s_save
+p.prm.s
+f.prm.s
+s.prm.s
+
+all.prm <- full_join(z.prm.s_save, p.prm.s) %>% full_join(f.prm.s) %>% full_join(s.prm.s)
+
+all.prm
+```
+
+
+
+```{r}
+
+# fill gaps
+all.prm[is.na(all.prm$min_depth),]$min_depth<-0
+all.prm[is.na(all.prm$p_time_prydz),]$p_time_prydz<-1
+all.prm[is.na(all.prm$water.column.use),]$water.column.use<-"non DVM"
+
+all.prm
+```
+
+
+```{r}
+
+all.prm <- select(all.prm, species,W0, Wmat.mizer, Wmax, beta, k_vb, h, min_depth, max_depth, water.column.use, p_time_prydz,pc_annual_offspring)
+
+all.prm
+
+```
+
+```{r}
+
+all.prm.tidy <- all.prm %>% rename(
+		w_inf = Wmax,
+		w_min	 = W0,
+		w_mat = Wmat.mizer
+	)
+
+all.prm.tidy
+```
+
+```{r}
+biomass_observed <- c(5.9, # euphausiids 
+                      0.127, # baleen whales
+                      0.003, # flying birds
+                      0.022, # large divers
+                      0.002, # leopard seals
+                      0.265,  # medium divers
+                      0.014, # minke whales
+                      0.006, # orca
+                      0.016,  # small divers
+                      0.011, # sperm whales
+                      1.93, # bathypelagic fishes
+                      1.2,   # mesopelagic fishes
+                      0.802, # shelf and coastal fishes
+                      0.75, # toothfishes
+                      0.15 # squids
+                      )
+
+# biomass_observed <- c(5.9, # Euphausiids 
+#                       0.008, # apex predators
+#                       0.141, # baleen whales
+#                       0.003, # flying birds
+#                       0.022, # large divers
+#                       0.265,  # medium divers
+#                       0.016,  # small divers
+#                       1.93, # bathypelagic fishes
+#                       1.2,   # mesopelagic fishes
+#                       0.802, # shelf and coastal fishes
+#                       0.75, # toothfishes
+#                       0.15 # squids
+#                       )
+
+
+
+all.prm.tidy$biomass_observed <- biomass_observed
+
+all.prm.tidy
+
+all.prm.tidy.ordered <- all.prm.tidy %>%  
+  arrange(w_inf)
+
+all.prm.tidy.ordered
+```
+
+```{r}
+# write.csv(all.prm.tidy.ordered, "trait_groups_params_vCWC.csv") #version Commercial Whaling Calibration
+# write_rds(all.prm.tidy.ordered, "trait_groups_params_vCWC.RDS")
+
+# all.prm.tidy.ordered <- readRDS("trait_groups_params.RDS")
+```
+
+```{r}
+# all.prm %>% saveRDS("all_groups_params_distributions.rds")
+# all.prm.tidy.ordered %>% saveRDS("trait_groups_params_distributions_vCWC.rds")
+```
+
+
+```{r}
+ggplot(all.prm.tidy.ordered, aes(log10(w_inf), log10(biomass_observed), colour = species)) +
+  geom_point()
+```
+
+
+log10 weights
+```{r}
+# weights into common units before binding
+
+# p.prm.s_save <- p.prm.s
+# f.prm.s_save <- f.prm.s
+# s.prm.s_save <- s.prm.s
+# 
+# p.prm.s_save$Wmat.mizer <- log10(p.prm.s$Wmat.mizer)  
+# p.prm.s_save$Wmax <- log10(p.prm.s$Wmax)
+# p.prm.s_save$W0 <- log10(p.prm.s$W0)
+# 
+# f.prm.s_save$Wmat.mizer <- log10(f.prm.s$Wmat.mizer)
+# f.prm.s_save$Wmax <- log10(f.prm.s$Wmax)
+# f.prm.s_save$W0 <- log10(f.prm.s$W0)
+# 
+# s.prm.s_save$Wmat.mizer <- log10(s.prm.s$Wmat.mizer)
+# s.prm.s_save$Wmax <- log10(s.prm.s$Wmax)
+# s.prm.s_save$W0 <- log10(s.prm.s$W0)
+# 
+# p.prm.s_save
+# f.prm.s_save
+# s.prm.s_save
+```
+
+
+
+
+
+
+
+
+

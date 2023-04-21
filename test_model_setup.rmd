@@ -1,0 +1,217 @@
+---
+title: "Getting steady-state in SO trait model"
+output: html_notebook
+---
+
+
+
+
+Load libraries 
+```{r}
+remotes::install_github("sizespectrum/mizerExperimental")
+```
+
+```{r}
+library(mizerExperimental)
+library(mizer)
+library(tidyverse)
+# library(plotly)
+```
+
+
+Load group params
+
+```{r}
+groups_raw <- read.csv("group params/trait_groups_params_vCWC.csv")
+
+groups <- groups_raw[,-7]
+
+k_vb_string <- c(0.4,0.3608333,0.1825,0.15,1,0.2,0.5,0.06,0.2,0.2,0.2,0.2,0.2,0.2,0.2) # to use all k_vb values and instead of h
+
+groups$k_vb <- k_vb_string
+
+groups
+```
+
+
+
+Load interaction matrix
+```{r}
+theta <- readRDS("interaction matrix/trait_groups_interaction_matrix_vCWC.RDS")
+theta
+```
+
+Adjust orca interaction with each other
+Infanticide has been documented (https://doi.org/10.1038/s41598-018-22714-x), but as a starting point for the model, assuming they are not feeding on one another for maintenance of metabolism, growth and reproduction 
+
+```{r}
+# theta[13,13]
+# 
+# theta[13,13] <- 0
+# 
+# theta[13,13]
+```
+
+
+Setup params object
+```{r}
+params <- newMultispeciesParams(species_params = groups, 
+                                interaction = theta, 
+                                kappa = 2.63907e+13,
+                                w_pp_cutoff = 10000,
+                                n = 3/4, p = 3/4)
+```
+
+```{r}
+groups$w_mat
+params@species_params$w_mat
+params@species_params$species
+```
+Readjust w_mat for the three mammal groups corrected to 25% of the original w_mat
+'For the species leopard seals, large divers, minke whales, sperm whales the value for `w_mat` is not smaller than that of `w_max`'
+If w_mat must be smaller than w_max, then use 90% as a compromise value
+Correction: co-existence not achievable using 90%. Trying 75%
+
+```{r}
+# params_v1 <- params
+# 
+# params_v1@species_params$w_mat[params_v1@species_params$species == "leopard seals"]  <- 3.480000e+05 * 0.25
+# params_v1@species_params$w_mat[params_v1@species_params$species == "large divers"]  <- 2.024000e+06 * 0.25
+# params_v1@species_params$w_mat[params_v1@species_params$species == "minke whales"]  <- 6.000000e+06 * 0.25
+# params_v1@species_params$w_mat[params_v1@species_params$species == "sperm whales"]  <- 3.650000e+07 * 0.25
+# 
+# params_v1 <- setParams(params_v1)
+```
+
+
+
+
+
+Check to make sure setParams didn't reagjust the w_mat values
+```{r}
+groups$w_mat
+params_v1@species_params$w_mat
+params_v1@species_params$species
+```
+The values look good, they are at the 90% corrected w_mat value rather than the 25% default
+
+Check what the w_min values were adjusted to for small divers and leopard seals
+
+```{r}
+groups$w_min
+params_v1@species_params$w_min
+params_v1@species_params$species
+```
+It looks like 25% of w_mat has been used as the w_min correction. Again I'm going to redjust to apply a 90% correction.
+Correction: 90% didn't satisfy the requirements of mizer, so I've had to redo with 85%
+
+```{r}
+# params_v2 <- params_v1
+# 
+# params_v2@species_params$w_min[params_v2@species_params$species == "small divers"]  <- params_v2@species_params$w_mat[params_v2@species_params$species == "small divers"] * 0.85
+# params_v2@species_params$w_min[params_v2@species_params$species == "leopard seals"]  <- params_v2@species_params$w_mat[params_v2@species_params$species == "leopard seals"] * 0.85
+# 
+# params_v2 <- setParams(params_v2)
+```
+
+Check to make sure setParams didn't change the adjusted w_min values
+```{r}
+groups$w_min
+params_v2@species_params$w_min
+params_v2@species_params$w_mat
+params_v2@species_params$species
+```
+
+Add in box feeding kernel for the baleen whales
+max ppmr value are based on w_max baleen whale feeding on w_min euphausiids
+min ppmr value based on w_min baleen whale feeding on w_max euphausiids
+
+```{r}
+params_v2@species_params$w_min[params_v2@species_params$species == "baleen whales"]
+params_v2@species_params$w_max[params_v2@species_params$species == "baleen whales"]
+
+params_v2@species_params$w_min[params_v2@species_params$species == "euphausiids"]
+params_v2@species_params$w_max[params_v2@species_params$species == "euphausiids"]
+```
+```{r}
+params_v2 <- params
+```
+
+
+```{r}
+# 1.03e+08/6.31e-05 # w_max baleen whale divided by w_min euphausiids
+# 2250000/3.162278 # w_min baleen whale divided by w_max euphausiids
+
+# params_v2@species_params$ppmr_min[params_v2@species_params$species == "baleen whales"]  <- 711512.4
+# params_v2@species_params$ppmr_max[params_v2@species_params$species == "baleen whales"] <- 1.63233e+12
+# params_v2@species_params$ppmr_min[params_v2@species_params$species == "baleen whales"]  <- 711512.4
+# params_v2@species_params$ppmr_max[params_v2@species_params$species == "baleen whales"] <- 1e+10
+params_v2@species_params$ppmr_min[params_v2@species_params$species == "baleen whales"]  <- 1e5
+params_v2@species_params$ppmr_max[params_v2@species_params$species == "baleen whales"] <-5e7
+params_v2@species_params$pred_kernel_type[params_v2@species_params$species == "baleen whales"] <- "box"
+```
+
+
+```{r}
+params_v2 <- setParams(params_v2)
+
+params_v2@resource_params$w_pp_cutoff
+```
+Correct R_max for the kappa value
+
+```{r}
+params_sim <- params_v2
+
+params_sim@species_params$R_max <- params_sim@resource_params$kappa*params_sim@species_params$w_max^-1.5
+
+params_sim <- setParams(params_sim)
+
+sim <- project(params_sim, effort=0, t_max = 500)
+
+plot(sim)
+```
+
+```{r}
+params_steady_v1 <- steady(params_sim)
+```
+
+Some species don't appear to be getting enough food, especially orca.
+Increase gamma to see if this improves things
+
+```{r}
+params_sim_v2 <- params_sim
+params_sim_v2@species_params$gamma[params_sim_v2@species_params$species == "orca"] <- params_sim@species_params$gamma[params_sim@species_params$species == "orca"] * 50
+```
+
+
+```{r}
+sim_v2 <- project(params_sim_v2, effort=0, t_max = 1000)
+
+plot(sim_v2)
+```
+
+```{r}
+# params_tuned_v1 <- tuneGrowth(params_sim_v2)
+params_tuned_v1 <- tuneParams(params_sim_v2)
+
+```
+
+```{r}
+sim_tuned_v1 <- project(params_tuned_v1, effort=0, t_max = 500)
+
+plot(sim_tuned_v1)
+```
+
+
+```{r}
+params_tuned_v2 <- steady(params_tuned_v1)
+
+params_tuned_v3 <- tuneParams(params_tuned_v2)
+```
+
+
+
+
+
+
+

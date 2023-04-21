@@ -1,0 +1,602 @@
+---
+title: "IWC data"
+output: html_notebook
+---
+
+Tidying IWC data relevant for Southern Hemisphere catch from pelagic, land based and Soviet Union corrected numbers
+
+SHL.CSV & SHL.TXT 	Individual data and Header records for catches from the Antarctic land-stations
+SHP1.CSV & SHP1.TXT	Part 1 of Individual data and Header records for pelagic catches in the Antarctic
+SHP2.CSV & SHP2.TXT	Part 2 of Individual data and Header records for pelagic catches in the Antarctic
+SU.CSV and SU.TXT	Revised Individual data and Header records for catches in the Antarctic taken by the Soviet Union
+
+Load required libraries
+
+```{r}
+library(tidyverse)
+library(lubridate)
+```
+Whale species coding for variable `Sp`
+
+```{r}
+Species.code<-c(1:22) 
+
+# Species<-c("Pilot", "Bottlenose", "Killer", "Blue", "Fin",
+#                "Sperm", "Humpback", "Sei", "Common Minke",
+#                "Byrdes", "Right", "Gray", "Bairds Beaked",
+#                "Baleen", "Pygmy Blue", "Pygmy Right", 
+#                "Cuviers Beaked", "Bowhead", "Beaked (unspec)",
+#                "Antarctic Minke", "Sei/Brydes", "Dolphin")
+
+Species<-c("Pilot", "Bottlenose", "Killer", "Baleen", "Baleen",
+               "Sperm", "Baleen", "Baleen", "Common Minke",
+               "Byrdes", "Right", "Gray", "Bairds Beaked",
+               "Baleen", "Pygmy Blue", "Pygmy Right", 
+               "Cuviers Beaked", "Bowhead", "Beaked (unspec)",
+               "Antarctic Minke", "Sei/Brydes", "Dolphin")
+
+whale.codes<-data.frame(Species, Species.code)
+```
+
+
+Read in and inspect raw data frames
+
+```{r}
+# First time-series for SH ()
+df_1_raw <- read.csv("IWC data/SHP1.csv")
+
+# Second time-series for SH
+df_2_raw <- read.csv("IWC data/SHP2.csv")
+
+# Southern hemisphere land catch
+df_3_raw <- read.csv("IWC data/SHL.csv")
+
+# Soviet Union Antartic catch
+df_4_raw <- read.csv("IWC data/SU.csv")
+
+glimpse(df_1_raw)
+glimpse(df_2_raw)
+glimpse(df_3_raw)
+glimpse(df_4_raw)
+
+summary(df_1_raw)
+summary(df_2_raw)
+summary(df_3_raw)
+summary(df_4_raw)
+```
+
+Streamline the dataframes and rename variables as necessary
+
+Lat and Lon have minutes variables `Mn` associated with them, and as such the second one read in is `Mn.1`. The same goes for `AC` and there is an unnamed variable to specify if the Lat or Lon measurement is North-South or East-West respectively.
+
+```{r}
+df_1_reduced <- select(df_1_raw, "Sum.Ex", "Day", "Mon", "Year", "Sp", "Len", "L.u", "Sx", "Lat", "Mn", "Lon","Mn.1", "Mat", "Ac", "X", "X.1", "Ac.1")
+
+df_2_reduced <- select(df_2_raw, "Sum.Ex", "Day", "Mon","Year", "Sp", "Len", "L.u", "Sx", "Lat", "Mn", "Lon","Mn.1", "Mat", "Ac", "X", "X.1","Ac.1")
+
+df_3_reduced <- select(df_3_raw, "Sum.Ex", "Day", "Mon","Year", "Sp", "Len", "L.u", "Sx", "Lat", "Mn", "Lon","Mn.1", "Mat", "Ac", "X", "X.1", "Ac.1")
+
+df_4_reduced <- select(df_4_raw, "Sum.Ex", "Day", "Mon","Year", "Sp", "Len", "L.u", "Sx", "Lat", "Mn", "Lon","Mn.1", "Mat", "Ac", "X", "X.1", "Ac.1")
+
+
+names(df_1_reduced) <- c("Exp.no", "Day", "Month", "Year","Species.code","Length","Length.unit","Sex","Lat","Mn","Lon","Mn.1","Mat","Ac","N.S",    "E.W","Ac.1")
+
+names(df_2_reduced) <- c("Exp.no","Day", "Month", "Year","Species.code","Length","Length.unit","Sex","Lat","Mn","Lon","Mn.1","Mat","Ac","N.S",    "E.W","Ac.1")
+
+names(df_3_reduced) <- c("Exp.no","Day", "Month", "Year","Species.code","Length","Length.unit","Sex","Lat","Mn","Lon","Mn.1","Mat","Ac","N.S",    "E.W","Ac.1")
+
+names(df_4_reduced) <- c("Exp.no","Day", "Month", "Year","Species.code","Length","Length.unit","Sex","Lat","Mn","Lon","Mn.1","Mat","Ac","N.S",    "E.W","Ac.1")
+
+# write.csv(df_1_reduced, "SHP1_v1.csv")
+# write.csv(df_2_reduced, "SHP2_v1.csv")
+# write.csv(df_3_reduced, "SHP3_v1.csv")
+# write.csv(df_4_reduced, "SHP4_v1.csv")
+```
+
+
+```{r}
+df_comb <- rbind(df_1_reduced, df_2_reduced, df_3_reduced, df_4_reduced)
+
+df_comb_names <- left_join(df_comb, whale.codes)
+```
+
+```{r}
+glimpse(df_comb_names)
+
+df_comb_names <- df_comb_names %>% 
+  mutate(date = make_date(Year, Month, Day),
+         ID = row_number()) 
+
+glimpse(df_comb_names)
+
+```
+
+```{r}
+df_effort <- df_comb_names %>% 
+  group_by(Exp.no) %>% 
+  mutate(Duration = length(unique(date))) %>% 
+  group_by(Exp.no,Species) %>% 
+  mutate(total_n = n(),
+         Ind_CPUE = Duration/total_n)
+```
+
+
+```{r}
+df_timeseries <- df_effort %>% 
+  group_by(Year, Species) %>% 
+  summarise(Catch_individuals = n())
+
+glimpse(df_timeseries)
+summary(df_timeseries)
+```
+
+
+```{r}
+ggplot(df_timeseries, aes(x=Year, y = Catch_individuals, colour = Species)) +
+  geom_line() +
+  facet_wrap(~Species)
+
+ggplot(df_timeseries, aes(x=Year, y = Catch_individuals, colour = Species)) +
+  geom_line()
+```
+
+
+
+Editing location data to account for all positive lat/lon values and converting to decimal degrees
+Quality control for measurements where location uncertainty present
+```{r}
+# df_dd <- df_comb_names
+df_dd <- df_effort
+
+##correct positive lat and long
+df_dd$Lat[which(df_dd$N.S=="S")]<-df_dd$Lat[which(df_dd$N.S=="S")]*-1
+df_dd$Lon[which(df_dd$E.W=="W")]<-df_dd$Lon[which(df_dd$E.W=="W")]*-1
+
+##convert to decimal
+df_dd$dec.Lat<-df_dd$Lat+(df_dd$Mn/60)
+df_dd$dec.Lon<-df_dd$Lon+(df_dd$Mn.1/60)
+
+##NA out the locational data that isnt certain:
+df_dd$Lat[which(df_dd$Ac==0)]<-NA;df_dd$Lon[which(df_dd$Ac.1==0)]<-NA
+```
+
+
+```{r}
+# world<-map_data("world")
+
+##map the data 
+# mp <- NULL
+mapWorld <- borders("world", colour="gray50", fill="white") # create a layer of borders
+whales<-c("Sperm", "Baleen", "Antarctic Minke", "Killer", "Dolphin")
+sub.dd<-df_dd[df_dd$Species%in%whales, ]
+
+
+
+ # png("Plots/world map.png", width=1600, height=5000)
+  ggplot()+mapWorld +geom_point(data=sub.dd, aes(x=dec.Lon, y=dec.Lat, col=Species), size=0.5)+scale_colour_brewer(palette = "Set2", name = "Species")+coord_equal(ratio=1)+theme_bw()+theme(legend.position="top")+ xlab("")+ylab("")+theme(axis.ticks = element_blank(), axis.text.x = element_blank(),axis.text.y = element_blank())+facet_wrap(~Species, ncol=1)
+ # dev.off()
+```
+
+```{r}
+library(sf)
+
+df_sf <- st_as_sf(x = df_dd,
+                  coords = c("dec.Lon","dec.Lat"),
+                  crs = "+proj=longlat +datum=WGS84")
+
+model_domain <- readRDS("model_domains/Stacey/BanzareBank.rds")
+
+df_sf_update <- df_sf %>% st_set_crs(4326)
+
+mod_domain_update <- model_domain %>% st_crs(4326)
+
+df_overlap <- st_intersection(df_sf_update, model_domain)
+
+df_BB_map <- sf_transform_xy(df_overlap, 4326,3347)
+
+##convert to decimal
+df_BB_map$dec.Lat<-df_BB_map$Lat+(df_BB_map$Mn/60)
+df_BB_map$dec.Lon<-df_BB_map$Lon+(df_BB_map$Mn.1/60)
+
+# png("Plots/BanzareBank map.png", width=1600, height=5000)
+  ggplot()+mapWorld +geom_point(data=df_BB_map, aes(x=dec.Lon, y=dec.Lat, col=Species), size=0.5)+scale_colour_brewer(palette = "Set2", name = "Species")+coord_equal(ratio=1)+theme_bw()+theme(legend.position="top")+ xlab("")+ylab("")+theme(axis.ticks = element_blank(), axis.text.x = element_blank(),axis.text.y = element_blank())+facet_wrap(~Species, ncol=1)
+ # dev.off()
+```
+
+
+
+```{r}
+sub.dd.ts <- sub.dd %>% 
+  group_by(Year, Species) %>% 
+  summarise(Catch_individuals = n()) %>% 
+  filter(!Catch_individuals == 0) %>% 
+  filter(!is.na(Catch_individuals))
+
+ggplot(sub.dd.ts, aes(x=Year, y = Catch_individuals, colour = Species)) +
+  geom_line() +
+  facet_wrap(~Species, scales = "free_y")
+
+# tiff(file="Plots/SH_Whale_Landings.tiff", width=6, height=4, units="in", res=500)
+ggplot(sub.dd.ts, aes(x=Year, y = Catch_individuals, colour = Species)) +
+  geom_line(size=0.5) +
+  ylab("Landings (no. of whales)") +
+  # scale_y_log10() +
+  theme_classic()
+# dev.off()
+```
+
+```{r}
+sub_df_BB_map <- df_BB_map %>% 
+  group_by(Year, Species) %>% 
+  summarise(Catch_individuals = n()) %>% 
+  filter(!Catch_individuals == 0) %>% 
+  filter(!is.na(Catch_individuals))
+
+whales<-c("Sperm", "Baleen", "Antarctic Minke", "Killer", "Dolphin")
+sub.dd.BB <- sub_df_BB_map[sub_df_BB_map$Species%in%whales, ]
+
+ggplot(sub.dd.BB, aes(x=Year, y = Catch_individuals, colour = Species)) +
+  geom_line() +
+  facet_wrap(~Species, scales = "free_y")
+
+# tiff(file="Plots/BanzareBank_Whale_Landings.tiff", width=6, height=4, units="in", res=500)
+ggplot(sub.dd.BB, aes(x=Year, y = Catch_individuals, colour = Species)) +
+  geom_line(size=0.5) +
+  ylab("Landings (no. of whales)") +
+  # scale_y_log10() +
+  theme_classic()
+# dev.off()
+```
+
+```{r}
+library(SOmap)
+# tiff(file="Plots/BanzareBank_Whale_Landings_Map.tiff", width=6, height=4, units="in", res=500)
+SOmap_auto(df_BB_map$dec.Lon, df_BB_map$dec.Lat, input_lines = F, pcol = 4)
+# dev.off()
+
+
+# df_map <- df_BB_map %>% 
+#   rename(lat = dec.Lat,
+#          lon = dec.Lon)
+# 
+# ## first transform our track to polar-stereographic coordinates
+# library(sp)
+# library(raster)
+# ele_sp <- df_BB_map
+# coordinates(ele_sp) <- c("lon", "lat")
+# projection(ele_sp) <- "+proj=longlat +ellps=WGS84"
+# ele_sp <- spTransform(ele_sp,
+#             CRS("+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +k=1 +x_0=0 +y_0=0 
+#             +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+# 
+# ## plot the base map with ocean fronts shown
+# SOmap(fronts = TRUE)
+# ## add current marine protected areas
+# SOmanagement(mpa = TRUE, mpa_col = "darkblue")
+# ## add our track
+# plot(ele_sp, col = "darkgreen", add = TRUE)
+```
+
+
+Body size stuff
+
+```{r}
+##function to convert ft and inches to cm
+ft.in.2cm<-function(x){
+	return(((as.numeric(substring(as.character(x), 1, 2))*12)+as.numeric(substring(as.character(x), 3, 4)))*2.54)
+}
+
+ft2cm<-function(x){
+	return((as.numeric(substring(as.character(x), 1, 2))*12)*2.54)
+}
+```
+
+```{r}
+library(reshape2)
+##remove spp with hardly any data:
+# omit<-c("Cuviers Beaked", "Baleen", "Pygmy Blue")
+
+##convert the ft and inches to cm
+
+dd <- df_BB_map
+# dd <- sub.dd
+
+d1<-(melt(tapply(dd$Species, list(dd$Year, dd$Species), length)))
+names(d1)<-c("Year", "Species", "Landings")
+
+dd$Length[which(dd$Length==0000)]<-NA
+dd$Length[which(dd$Length.unit==4)]<-ft.in.2cm(dd$Length[which(dd$Length.unit==4)])
+dd$Length[which(dd$Length.unit==2)]<-ft2cm(dd$Length[which(dd$Length.unit==2)])
+
+##remove shitty data (eg. massive individuals)
+dd$Length[which(dd$Length>3400)]<-NA
+```
+
+
+W = a × L^b
+
+Blue whale: https://www.sealifebase.ca/PopDyn/LWRelationshipList.php?ID=69007&GenusName=Balaenoptera&SpeciesName=musculus&fc=1174
+
+Best values:
+a = 0.0061
+b = 3
+
+Fin whale: https://www.sealifebase.ca/PopDyn/LWRelationshipList.php?ID=69006&GenusName=Balaenoptera&SpeciesName=physalus&fc=1174
+
+Best values:
+a = 0.00555
+b = 2.95 (average of male and female from most reliable sources for Antarctic)
+
+```{r}
+df_LW_Baleen <- dd %>% 
+  filter(Species == "Baleen") %>% 
+  filter(!is.na(Length)) %>% 
+  mutate(Weight_kg = (0.0061*(Length)^3)/1000)
+```
+
+```{r}
+df_Baleen_Catch <- df_LW_Baleen %>% 
+  group_by(Year) %>% 
+  summarise(Catch_kg = sum(Weight_kg))
+```
+
+```{r}
+ggplot(df_Baleen_Catch, aes(x=Year, y= (Catch_kg/(1000)/1e6))) +
+  geom_line() +
+  ggtitle("Baleen Whale Harvest in Prydz Bay/Banzare Bank") +
+  ylab("Catch (Tonnes)")
+```
+
+
+Fin whale: https://www.sealifebase.ca/PopDyn/LWRelationshipList.php?ID=69006&GenusName=Balaenoptera&SpeciesName=physalus&fc=1174
+
+https://www.sealifebase.ca/PopDyn/LWRelationshipList.php?ID=70932&GenusName=Balaenoptera&SpeciesName=bonaerensis&fc=1174
+
+Best values:
+a = 0.0115
+b = 3 (average of male and female from most reliable sources for Antarctic)
+```{r}
+df_LW_Minke <- dd %>% 
+  filter(Species == "Antarctic Minke") %>% 
+  filter(!is.na(Length)) %>% 
+  mutate(Weight_kg = (0.0115*(Length)^3)/1000)
+```
+
+```{r}
+df_Ant_Minke_Catch <- df_LW_Minke %>% 
+  group_by(Year) %>% 
+  summarise(Catch_kg = sum(Weight_kg))
+```
+
+```{r}
+ggplot(df_Ant_Minke_Catch, aes(x=Year, y= (Catch_kg/(1000)/1000000))) +
+  geom_line() +
+  ggtitle("Antarctic Minke Whale Harvest in Prydz Bay/BB") +
+  ylab("Catch (Million Tonnes)")
+```
+
+
+Sperm whale: https://www.sealifebase.ca/PopDyn/LWRelationshipList.php?ID=68882&GenusName=Physeter&SpeciesName=macrocephalus&fc=1182
+
+Best values:
+a = 0.0109
+b = 3 (unsexed)
+```{r}
+df_LW_Sperm <- dd %>% 
+  filter(Species == "Sperm") %>% 
+  filter(!is.na(Length)) %>% 
+  mutate(Weight_kg = (0.0109*(Length)^3)/1000)
+```
+
+```{r}
+df_Sperm_Catch <- df_LW_Sperm %>% 
+  group_by(Year) %>% 
+  summarise(Catch_kg = sum(Weight_kg))
+```
+
+```{r}
+ggplot(df_Sperm_Catch, aes(x=Year, y= (Catch_kg/(1000)/1000000))) +
+  geom_line() +
+  ggtitle("Sperm Whale Harvest in Prydz Bay/BB") +
+  ylab("Catch (Million Tonnes)")
+```
+
+Killer whale: https://www.sealifebase.ca/PopDyn/LWRelationshipList.php?ID=69400&GenusName=Orcinus&SpeciesName=orca&fc=1175
+
+```{r}
+ # max length = 980
+
+# 0.2080*(Length)^2.577)/1000
+
+
+(0.2080*(980)^2.577) # max length expressed in grams
+
+(0.2080*(615)^2.577) # mat length expressed in grams (used midpoint of the Lm range)
+```
+
+
+Best values:
+a = 0.2080
+b = 2.577 (mixed sex)
+```{r}
+df_LW_Orca <- dd %>% 
+  filter(Species == "Killer") %>% 
+  filter(!is.na(Length)) %>% 
+  mutate(Weight_kg = (0.2080*(Length)^2.577)/1000)
+```
+
+```{r}
+df_Orca_Catch <- df_LW_Orca %>% 
+  group_by(Year) %>% 
+  summarise(Catch_kg = sum(Weight_kg))
+```
+
+```{r}
+ggplot(df_Orca_Catch, aes(x=Year, y= (Catch_kg/(1000)/1000000))) +
+  geom_line() +
+  ggtitle("Killer Whale Harvest in Prydz Bay/BB") +
+  ylab("Catch (Million Tonnes)")
+```
+
+
+Dolphin: https://www.sealifebase.ca/PopDyn/LWRelationshipList.php?ID=69376&GenusName=Tursiops&SpeciesName=truncatus&fc=1175
+
+Best values:
+a = 0.2754
+b = 2.73 (mixed sex)
+```{r}
+df_LW_Dolphin <- dd %>% 
+  filter(Species == "Dolphin") %>% 
+  filter(!is.na(Length)) %>% 
+  mutate(Weight_kg = (0.2754*(Length)^2.73)/1000)
+```
+
+```{r}
+df_Dolphin_Catch <- df_LW_Dolphin %>% 
+  group_by(Year) %>% 
+  summarise(Catch_kg = sum(Weight_kg))
+```
+
+```{r}
+ggplot(df_Dolphin_Catch, aes(x=Year, y= (Catch_kg/(1000)/1000000))) +
+  geom_line() +
+  ggtitle("Dolphin Harvest in Prydz Bay/BB") +
+  ylab("Catch (Million Tonnes)")
+```
+
+Combined dataframe of individuals
+
+```{r}
+
+df_ind_weight <- rbind(df_LW_Sperm,df_LW_Baleen,df_LW_Minke, df_LW_Orca)
+
+glimpse(df_ind_weight)
+summary(df_ind_weight)
+
+# saveRDS(df_ind_weight, "ind_catch_weight_BanzareBank_1930_2019.rds")
+df_ind <- readRDS("ind_catch_weight_BanzareBank_1930_2019.rds")
+summary(df_ind)
+
+df_ind_CPUE <- as.data.frame(df_ind) %>% 
+  dplyr::select(ID, Exp.no, Year, Species, Length, Length.unit, Weight_kg, date) %>% 
+  group_by(Exp.no, Species) %>% 
+  mutate(Duration = length(unique(date)))
+
+glimpse(df_ind_CPUE)
+
+df_CPUE_kg_day <- df_ind_CPUE %>% 
+  group_by(Exp.no, Species) %>% 
+  mutate(Sp_total_kg = sum(Weight_kg)) %>% 
+  ungroup() %>% 
+  mutate(Ind_UnitEffort_day = Weight_kg/(Sp_total_kg/Duration)) %>% 
+  group_by(Year, Species) %>% 
+  summarise(total_catch_kg = sum(Weight_kg),
+            effort_days = sum(Ind_UnitEffort_day),
+            CPUE = total_catch_kg/effort_days)
+
+glimpse(df_CPUE_kg_day)
+
+# saveRDS(df_ind_CPUE, "ind_catch_weight_BanzareBank_1930_2019_CPUE.rds")
+# saveRDS(df_CPUE_kg_day, "catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
+  
+```
+
+```{r}
+ggplot(df_CPUE_kg_day, aes(x = Year, y = CPUE, colour = Species)) +
+    geom_line() +
+   # scale_y_log10() +
+    facet_wrap(~Species)
+
+ggplot(df_CPUE_kg_day, aes(x = Year, y = effort_days, colour = Species)) +
+    geom_line() +
+    facet_wrap(~Species,scales = "free")
+
+ggplot(df_CPUE_kg_day, aes(x = Year, y = total_catch_kg, colour = Species)) +
+    geom_line() +
+    facet_wrap(~Species, scales = "free")
+```
+
+
+Combine harvest data
+
+```{r}
+df_Sperm_Catch$Species <- "Sperm"
+df_Baleen_Catch$Species <- "Baleen"
+df_Ant_Minke_Catch$Species <- "Antarctic Minke"
+df_Orca_Catch$Species <- "Killer"
+# df_Dolphin_Catch$Species <- "Dolphin"
+
+df_harvest <- rbind(df_Sperm_Catch, df_Baleen_Catch, df_Ant_Minke_Catch, df_Orca_Catch) %>% 
+  select(Year, Catch_kg, Species)
+
+# write.csv(df_catch_timeseries, "catch_timeseries_BanzareBank_1930_2019.csv")
+```
+
+
+```{r}
+df_harvest <- read.csv("catch_timeseries_BanzareBank_1930_2019.csv")
+
+ggplot(df_harvest, aes(x=Year, y= (Catch_kg/(1000)/1e6), colour = Species)) +
+  geom_line() +
+  ggtitle("Prydz Bay Whale Harvest") +
+  # facet_wrap(~Species) +
+  # scale_y_log10() +
+  ylab("Catch (Million Tonnes)")
+
+```
+
+
+```{r}
+# ##calculate means per spp per yr
+# szs<-(melt(tapply(dd$Length, list(dd$Year, dd$Species), mean, na.rm=T)))
+# szs<-szs[!szs$Var2%in%omit,]
+# d1$Mean.size<-szs$value
+# 
+# ##calculate size sd per yr
+# szs.sd<-(melt(tapply(dd$Length, list(dd$Year, dd$Species), sd, na.rm=T)))
+# szs.sd<-szs.sd[!szs.sd$Var2%in%omit,]
+# d1$SD.size<-szs.sd$value
+# 
+# ##calculate the 95 percentile 
+# q<-function(x){quantile(na.omit(x), 0.95)}
+# szs.95<-(melt(tapply(dd$Length, list(dd$Year, dd$Species), q)))
+# szs.95<-szs.95[!szs.95$Var2%in%omit,]
+# d1$size.95<-szs.95$value
+# 
+# ##calculate L-MAX
+# lmx<-function(x){max(na.omit(x))}
+# lmax<-(melt(tapply(dd$Length, list(dd$Year, dd$Species), lmx)))
+# lmax<-lmax[!lmax$Var2%in%omit,]
+# d1$lmax<-lmax$value
+```
+
+
+```{r}
+# ggplot(na.omit(d1), aes(x=Year, y=size.95))+geom_point(col="maroon")+geom_line(col="red")+theme_bw()+facet_wrap(~Species)+theme(legend.position="none")+geom_vline(xintercept=1985)+stat_smooth(col="black")+xlab("Year")+ylab("Mean size (cm)")+thm+xlim(1900, 1985)
+
+```
+Length-weight Relationships
+
+Guide for using fishbase/sealifebase value for L-W relationships.
+
+https://www.fishbase.de/manual/fishbasethe_length_weight_table.htm#:~:text=The%20LENGTH%2DWEIGHT%20table%20presents,about%20over%202%2C000%20fish%20species.
+
+We have length for individuals above, so need to apply it to the individual data on a species by species basis
+
+
+```{r}
+
+```
+
+
+## Leopard seal
+
+```{r}
+
+ # max length = 300
+
+
+(0.0117*(360)^3) # max length expressed in grams
+
+# (0.2080*()^2.577) # mat length expressed in grams (used midpoint of the Lm range)
+```

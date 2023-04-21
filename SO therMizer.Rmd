@@ -1,0 +1,370 @@
+---
+title: "Trying out therMizer on the Prydz Bay SO model"
+author: "Kieran edited from Samik Datta's original"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+I'm using Hiromi Beran's .Rmd document `Testing therMizer.Rmd` as my insipiration, which itself uses Phoebe Woodworth-Jefcoats' introduction to therMizer (<https://github.com/sizespectrum/therMizer>).
+
+## Load packages
+
+```{r}
+# install.packages("remotes")
+# remotes::install_github("sizespectrum/therMizer@dev")
+remotes::install_github("sizespectrum/therMizer") # if needed
+library(therMizer)
+library(mizer)
+library(tidyverse)
+```
+
+## therMizer model parameters required
+
+### Species and temperature parameters
+
+-   The usual mizer species parameters
+
+-   `temp_min` - lower bound of a species' thermal tolerance limit (source from `rfishbase` and the literature e.g. tagging studies)
+
+-   `temp_max` - upper bound of a species' thermal tolerance limit (source from `rfishbase` and the literature e.g. tagging studies)
+
+-   `realm` - depth strata which species inhabit and for which temperatures will be provided. Names need to match the realm names provided in the `ocean_temp` array you're using (examples include *epipelagic*, *mesopelagic*, *surface*, *bottom, diel vertical migration day, diel vertical migration night*)
+
+-   `vertical migration` - simulates the proportion of time that a given size of a given species spends in a given realm (realm being depth stratum)
+
+-   Has the dimensions `realm` x `sp` (species) x `w` (size)
+
+-   Values can range from 0 to 1, and must sum to 1 across all realms for each species and size
+
+-   `exposure` - links `vertical_migration` to `ocean_temp`
+
+-   Has the dimensions of `realm` x `sp` (species)
+
+-   The values are 1 for the realms to which a species is exposed and 0 elsewhere
+
+-   In theory, you could set all values to 1, and as long as `vertical_migration` is constructed correctly, get the same results (because when multiple by `exposure` the result would still be 0 for realms in which species spend no time).
+
+-   Realm names and order have to match those used in `vertical_migration` and `ocean_temp`
+
+-   `ocean_temp` - an array with temperature(s) in degrees Celsius for each `realm`. Can be a vector, if temperature is constant over time, or an array for dynamic temperatures. If you're using time-varying temperatures, the array will have the dimensions of `time` x `realm`
+
+-   `n_pp` - an array that has numerical plankton abundance for each size class. therMizer will convert these abundances to densities for use within mizer. Can be a vector, if the abundances are constant over time, or an array for a dynamic resource. If you're using time-varying plankton, the array will have the dimensions of `time` x `w`
+
+### Temperature functions
+
+Temperature functions in therMizer overwrite mizer's default rate functions, replacing them with custom functions using the new set of parameters.
+
+-   `therMizerEncounter` affects the encounter rate
+
+-   `therMizerPredRate` affects the predation rate
+
+-   `therMizerEReproAndGrowth` takes care of the maintenance metabolism
+
+These functions can be disabled by settings the arguments `aerobic_effect` and `metabolism_effect` to `FALSE` for encounter and predation rates and for metabolism, respectively.
+
+These functions can also be overwritten by the user using `setRateFunction()`. *See GitHub example.*
+
+*See GitHub example for full sample code. Here I add therMizer into the mini model.*
+
+## Adding therMizer to the North Sea model 
+
+Read in the latest SO model.
+
+```{r}
+#Read in model
+
+so_params <- readRDS("params_16_March_2023.rds")
+
+```
+
+
+```{r}
+params_tuned_v1 <- tuneParams(so_params)
+```
+
+
+Adding min and max temp for each group
+
+Using sealifebase for all non-fish species/groups. In most cases, there are no listed Temperature values in the 'Environment' section, like there is for more data-rich species, e.g., cod
+
+Instead, there are values at the bottom of the sealifebase pages in 'Estimates of some properties based on models' with 'Preferred temperature' estimates from the AquaMaps model-based approach (https://www.gbif.org/tool/81356/aquamaps-predicted-range-maps-for-aquatic-species)  
+
+[1] "euphausiids":
+Antarctic krill - (Preferred temperature (Ref. 115969): -1.5 - 1.6, mean 0.2 (based on 535 cells))
+Crystal krill - (Preferred temperature (Ref. 115969): -1.8 - 1.1, mean -1.6 (based on 3588 cells)) 
+Thysanoessa macrura - (Preferred temperature (Ref. 115969): -1.2 - 2.8, mean 0.2 (based on 24 cells). Not included due to small number of cells and low contribution to biomass in this model domain
+[2]"mesopelagic fishes" - Electrona antarctica(nothing on fishbase)    
+[3]"bathypelagic fishes"      
+[4]"shelf and coastal fishes":
+Marbled rockcod (-1 - 5)
+[5]"flying birds":
+Southern giant petrel (Preferred temperature (Ref. 115969): 2.1 - 15.6, mean 10.1 (based on 533 cells));
+Arctic tern (Sterna paradisaea) (Preferred temperature (Ref. 115969): 0.4 - 13.3, mean 6.8 (based on 2468 cells))
+Thalassarche chrysostoma (Grey-headed petrel)  (Preferred temperature (Ref. 115969): 1.3 - 9.1, mean 5.2 (based on 263 cells))
+South polar skua (Preferred temperature (Ref. 115969): 0.2 - 18.2, mean 6.4 (based on 1318 cells))
+Diomedea exulans (Wandering albatross), (Preferred temperature (Ref. 115969): 0.5 - 12, mean 4.6 (based on 1528 cells)_
+[6]"small divers" - no info for adelie, gentoo or crested penguins on sealifebase. Guess based on medium divers       
+[7]"squids" - based on Psychroteuthis glacialis (sealifebase)                   
+[8]"toothfishes" - no data on fishbase            
+[9]"leopard seals" - Preferred temperature (Ref. 115969): -1.9 - 1.4, mean -0.5 (based on 2109 cells).          
+[10] "medium divers":
+Crabeater Seals - (Preferred temperature (Ref. 115969): -0.4 - 1, mean 0.1 (based on 9397 cells))
+Ross seals (Preferred temperature (Ref. 115969): -1.8 - 1.1, mean -1.5 (based on 2110 cells));
+Weddell seals (Preferred temperature (Ref. 115969): -1.8 - 1, mean -1.6 (based on 6026 cells));
+Hourglass dolphin (Preferred temperature (Ref. 115969): 0.1 - 2, mean 0.9 (based on 11222 cells)) # Not included in the biomass
+King penguin (no data on sealifebase)
+Emperor penguin (no data on sealifebase)
+[11]"large divers" - Southern elephant seals only in this group now that Sperm whales are also seperated         
+[12]"minke whales"             
+[13]"orca"                     
+[14]"sperm whales"             
+[15]"baleen whales" 
+
+```{r}
+species_params(so_params)$temp_min <- c(-1.8, # euphausiids
+                                     -2, # mesopelagic fishes
+                                     -2, # bathypelagic fishes
+                                     -1, # "shelf and coastal fishes" 
+                                     0.2, # "flying birds"
+                                     -0.4, # "small divers"             
+                                     -0.8, # "squids"                  
+                                     -2, # "toothfishes"              
+                                     -1.9, # "leopard seals"           
+                                     -0.4, # "medium divers"            
+                                     0.1, # "large divers"             
+                                     0.2, # "minke whales"             
+                                     0.3, # "orca"                     
+                                     0.3, # "sperm whales"             
+                                     0.2) # "baleen whales"
+
+species_params(so_params)$temp_max <- c(1.6, # euphausiids
+                                     5, # mesopelagic fishes
+                                     5, # bathypelagic fishes
+                                     5, # "shelf and coastal fishes" 
+                                     18.2, # "flying birds"
+                                     1, # "small divers"             
+                                     1.1, # "squids"                  
+                                     5, # "toothfishes"              
+                                     1.4, # "leopard seals"           
+                                     1, # "medium divers"            
+                                     1.6, # "large divers"             
+                                     7, # "minke whales"             
+                                     13.1, # "orca"                     
+                                     3.8, # "sperm whales"             
+                                     10.2) # "baleen whales"
+```
+
+
+```{r}
+# Have a peek at the first few rows
+head(species_params(so_params))
+
+sim = project(so_params, t_max = 200) # run simulation
+plotSpectra(sim) # check size spectrum
+plotBiomass(sim) # check biomasses are constant
+
+```
+Check the existing depth variable included in `species_params`
+
+```{r}
+unique(so_params@species_params$water.column.use)
+print("min depth")
+so_params@species_params$min_depth
+print("max depth")
+so_params@species_params$max_depth
+so_params@species_params$species
+so_params@species_params$water.column.use
+```
+
+Now we will set up the `vertical_migration` array. We'll assume that:
+- species with `w_mat` under 500g stay mostly in the top 50m until maturity, after which they move to 50-500m;
+- species with `w_mat` between 500g and 1kg stay mostly in the 50-500m range until maturity, after which they move to the bottom;
+- species with `w_mat` larger than 1kg have a 30/30/40 distribution for all weights.
+
+```{r}
+params <- so_params
+
+realm_names <- c("upper50m","bottom","DVM_day","DVM_night","ontogenetic","diving")
+species_names <- as.character(params@species_params$species)
+sizes <- params@w
+
+# Create the vertical migration array and fill it
+vertical_migration_array <- array(0, dim = (c(length(realm_names), 
+                                  length(species_names), length(sizes))), 
+                                  dimnames = list(realm = realm_names, sp = species_names, 
+                                  w = signif(sizes,3))) # realm x species x size
+
+upp <- which(realm_names == "upper50m") # 0 - 50m average
+btm <- which(realm_names == "bottom") # sea floor
+DVMd <- which(realm_names == "DVM_day") # 200 - 500m average
+DVMn <- which(realm_names == "DVM_night") # 0 - 100m average
+ont <- which(realm_names == "ontogenetic") # deeper after w_mat
+dive <- which(realm_names == "diving") # evenly spread across entire realm
+
+# Set all sizes below w_mat for euphausiids to "upper50m" and all sizes above w_mat to "bottom
+spA <- which(species_names == "euphausiids")
+vertical_migration_array[upp, spA, sizes < params@species_params$w_mat[spA]] <- 1
+vertical_migration_array[btm, spA, sizes >= params@species_params$w_mat[spA]] <- 1
+
+# Have mesopelagic fishes split its time equally using DVM
+spB <- which(species_names == "mesopelagic fishes")
+vertical_migration_array[DVMd, spB, ] <- 0.5
+vertical_migration_array[DVMn, spB, ] <- 0.5
+
+# Set all sizes below w_mat for bathypelagic fishes to "upper50m" and split time equally using DVM for sizes above w_mat
+spC <- which(species_names == "bathypelagic fishes")
+vertical_migration_array[upp, spC, sizes < params@species_params$w_mat[spC]] <- 1
+vertical_migration_array[DVMd, spC, sizes >= params@species_params$w_mat[spC]] <- 0.5
+vertical_migration_array[DVMn, spC, sizes >= params@species_params$w_mat[spC]] <- 0.5
+
+# Set all sizes below w_mat for shelf and coastal fishes to "upper50m" and all sizes above w_mat to "bottom"
+spD <- which(species_names == "shelf and coastal fishes")
+vertical_migration_array[upp, spD, sizes < params@species_params$w_mat[spD]] <- 1
+vertical_migration_array[btm, spD, sizes >= params@species_params$w_mat[spD]] <- 1
+
+# Have flying birds spend all their time in "diving"
+spE <- which(species_names == "flying birds")
+vertical_migration_array[dive, spE, ] <- 1
+
+# Have small divers spend all their time in "diving"
+spF <- which(species_names == "small divers")
+vertical_migration_array[dive, spF, ] <- 1
+
+# Set all sizes below w_mat for squids to "upper50m" and split time equally using DVM for sizes above w_mat
+spG <- which(species_names == "squids")
+vertical_migration_array[upp, spG, sizes < params@species_params$w_mat[spG]] <- 1
+vertical_migration_array[DVMd, spG, sizes >= params@species_params$w_mat[spG]] <- 0.5
+vertical_migration_array[DVMn, spG, sizes >= params@species_params$w_mat[spG]] <- 0.5
+
+# Set all sizes below w_mat for toothfishes to "upper50m" and all sizes above w_mat to "bottom
+spH <- which(species_names == "toothfishes")
+vertical_migration_array[upp, spH, sizes < params@species_params$w_mat[spH]] <- 1
+vertical_migration_array[btm, spH, sizes >= params@species_params$w_mat[spH]] <- 1
+
+# Have leopard seals spend all their time in "diving"
+spI <- which(species_names == "leopard seals")
+vertical_migration_array[dive, spI, ] <- 1
+
+# Have medium divers spend all their time in "diving"
+spJ <- which(species_names == "medium divers")
+vertical_migration_array[dive, spJ, ] <- 1
+
+# Have large divers spend all their time in "diving"
+spK <- which(species_names == "large divers")
+vertical_migration_array[dive, spK, ] <- 1
+
+# Have minke whales spend all their time in "diving"
+spL <- which(species_names == "minke whales")
+vertical_migration_array[dive, spL, ] <- 1
+
+# Have orca spend all their time in "diving"
+spM <- which(species_names == "orca")
+vertical_migration_array[dive, spM, ] <- 1
+
+# Have sperm whales spend all their time in "diving"
+spN <- which(species_names == "sperm whales")
+vertical_migration_array[dive, spN, ] <- 1
+
+# Have baleen whales spend all their time in "diving"
+spO <- which(species_names == "baleen whales")
+vertical_migration_array[dive, spO, ] <- 1
+
+```
+
+
+
+
+
+Using the same scenario, everything is present in all layers, so the `exposure` array is all 1s.
+
+```{r}
+exposure_array <- array(1, dim = (c(length(realm_names),
+                                    length(species_names))), 
+                        dimnames = list (realm = realm_names, sp = species_names)) #realm x species
+
+exposure_array
+```
+
+Create the temperatures for each realm.
+
+
+```{r}
+# Create temperature array and fill it
+times <- 0:500
+ocean_temp_array <- array(NA, dim = c(length(times), length(realm_names)), 
+                    dimnames = list(time = times, realm = realm_names))
+temp_inc <- 0
+for (i in 1:501) {
+  ocean_temp_array[i,] <- c(2 + temp_inc, -2 + temp_inc, 2 + temp_inc, -1 + temp_inc, -1 + temp_inc, -1 + temp_inc)
+  temp_inc <- temp_inc + 0.01
+}
+
+```
+
+Create a dynamic, time-varying resource spectra.
+
+```{r}
+
+x <- params@w_full
+slope <- -1
+intercept <- -5
+
+# Create resource array and fill it
+n_pp_array <- array(NA, dim = c(length(times), length(x)), 
+                    dimnames = list(time = times, w = signif(x,3)))
+
+for (i in 1:501) {
+  # Add some noise around the slope and intercept as we fill the array
+  n_pp_array[i,] <- (slope * runif(1, min = 0.95, max = 1.05) * log10(x)) + 
+                    (intercept * runif(1, min = 0.95, max = 1.05))
+}
+
+
+```
+
+## Running a scenario
+
+The `upgradeTherParams` function combines a standard `mizerParams` object with the therMizer objects described above.
+
+```{r}
+so_therm_model <-  upgradeTherParams(params, 
+                            temp_min = temp_min,
+                            temp_max = temp_max,
+                            ocean_temp_array = ocean_temp_array,
+                            n_pp_array = n_pp_array, 
+                            vertical_migration_array = vertical_migration_array,
+                            exposure_array = exposure_array, 
+                            aerobic_effect = TRUE, 
+                            metabolism_effect = TRUE)
+                                
+```
+
+Let's look at the thermal tolerances of all the species in the model.
+
+```{r}
+plotThermPerformance(so_therm_model)
+```
+
+Now let us have a look what happens when we run a scenario with these parameters.
+
+```{r}
+rownames(so_therm_model@other_params$other$ocean_temp) <- 1:501
+
+so_therm_model@other_params$other$ocean_temp
+
+
+sim <- therProject(so_therm_model) 
+
+sim <- project(params, 
+               t_start = as.numeric(1),
+               t_max = as.numeric(500))
+plotSpectra(sim)
+plotBiomass(sim)
+
+```
+
+

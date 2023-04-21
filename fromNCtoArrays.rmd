@@ -1,0 +1,1001 @@
+---
+title: How to fishmip
+author: RF
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(ncdf4)
+library(ncdf4.helpers)
+library(tictoc)
+# library(raster)
+library(terra)
+```
+
+
+
+
+### Load ipsl and do annual means 
+
+
+Manipulating data
+
+This block was made with Rich's help. He uses the package terra to work (raster doesn't do the job)
+```{r}
+shape<-sf::st_read("fromNicole/HIMI_EEZ_polygon/HIMI_EEZ_polygon.shp")
+
+expc <- terra::rast("data/ISPL/historical/ipsl-cm6a-lr_r1i1p1f1_historical_expc-bot_onedeg_global_monthly_1850_2014.nc")
+
+slice <- terra::rast("fromNicole/HIMI_Mask/Bathy_mask.grd")
+cropped_area <- terra::crop(expc,terra::ext(slice))
+masked_area <- terra::mask(cropped_area,terra::vect(shape))
+
+plot(masked_area)
+
+```
+
+masked area is including the right bathymetry. However the following code uses raster so it's not compatible yet ^^
+
+
+Calculating area of the shape file
+```{r}
+
+
+sqm<- sf::st_area(shape)
+
+area <- terra::expanse(slice, unit = "km")
+```
+
+
+```{r}
+extractTimeSeries<-function(shape, file_annual, units){
+  
+  # extrapolate LME data 
+  file_annual_crop <- mask(file_annual, extent(shape), updatevalue=NA)
+
+  # experiment
+  # raster with latitude cell values 
+  w <- init(file_annual_crop, 'y')
+  # cosine after transforming to radians
+  w <- cos(w  * (pi/180))
+  # multiply weights with values
+
+  x <- file_annual_crop * w
+
+  w2<-mask(w, shape, updatevalue=NA)
+  # compute weighted average - WARNING is na.rm = TRUE ok??  
+  weighted_mean<-cellStats(x, sum, na.rm = TRUE) / cellStats(w2, sum, na.rm = TRUE)
+ file_annual_crop_weighted<-data.frame(Year = unique(indices), weighted_mean = weighted_mean)
+
+  # # with area 
+  # a <- area(intpp_exp_annual_lme) / 10000
+  # a <- mask(a, lme, updatevalue=NA)
+  # y <- intpp_exp_annual_lme * a
+  # cellStats(y, sum) / cellStats(a, sum)
+  
+  return(file_annual_crop_weighted) 
+  
+}
+```
+
+
+```{r}
+folder_list <- c("historical","picontrol", "ssp126", "ssp585") 
+
+for(iFolder in folder_list){
+  
+file_list <- dir(paste0("data/ISPL/",iFolder,"/"))
+
+fishmip_df <- NULL
+
+for(iFile in file_list){
+
+# extract nc file
+file_name<- paste0("data/ISPL/",iFolder,"/",iFile)
+file_raster <- brick(file_name)
+# dim(file_raster)
+# plot(file_raster[[600]]) # access rater layer 600
+
+# get time vector from nc - WARNING - this should be done with the raster package and should be the same for all files.
+# https://pjbartlein.github.io/REarthSysSci/netCDF.html
+nc_data <- nc_open(file_name)
+
+print(nc_data)
+
+varName <- names(nc_data$var)
+print(varName)
+varName <- varName[length(varName)] # sometimes there is a time_bnds name where I just want the actual name of the variable
+
+# lon <- ncvar_get(nc_data, "lon")
+# lat <- ncvar_get(nc_data, "lat", verbose = F)
+# t <- ncvar_get(nc_data, "time")
+# t_units<-ncatt_get(nc_data, "time", "units")
+Time_in_Date_format <- nc.get.time.series(nc_data)
+Time_in_Date_format <- as.character(Time_in_Date_format)
+
+units<-ncatt_get(nc_data, varName, "units")$value
+
+# print(file_name)
+# print(units)
+
+nc_close(nc_data)
+rm(nc_data)
+
+# calculate annual means - it is better to calculate annual means first as this step takes a while and can be done only once before extracting lme data. 
+# https://gis.stackexchange.com/questions/257090/calculating-and-displaying-mean-annual-precipitation-from-cru-data
+# create vector to serve as index
+indices<-as.Date(Time_in_Date_format)
+indices<-format(indices, format = "%Y")
+indices <- as.numeric(indices)
+# unique(indices)
+
+# experiment 
+print("annual mean")
+tic()
+file_annual <- stackApply(file_raster, indices=indices, fun=mean, na.rm = TRUE) # WARNING - check this - also na.rm should be on? 
+toc() # 26''
+
+rm(file_raster)
+
+# extract LME data ----
+
+
+
+# shape <- sf::st_read("fromNicole/HIMI_EEZ_polygon/HIMI_EEZ_polygon.shp") # read in the shp file
+shape <- raster::brick("~/RstudioProjects/FISHMIP/fromNicole/HIMI_Mask/Bathy_mask.grd")
+
+print("extract time series")
+tic()
+res <-extractTimeSeries(shape = shape, file_annual = file_annual, units = units)
+toc()
+
+# check that res is of the right format:
+if(is.null(fishmip_df)) fishmip_df <- data.frame("Year" = res$Year) # need to get an initial dimension at some point...
+
+if(dim(res)[1] < dim(fishmip_df)[1]){
+ res[which(!fishmip_df$Year %in% res$Year),] <- NA
+}
+
+
+fishmip_df <- cbind(fishmip_df,res$weighted_mean)
+colnames(fishmip_df)[[dim(fishmip_df)[2]]] <- varName
+}
+
+# saveRDS(fishmip_df, file = paste0("data/processed/",iFolder,"_avg.rds"))
+}
+
+```
+
+
+## Thermizer
+
+Now let's adapt it to Phoebe's code
+
+
+Purpose
+
+The purpose of this script is to create time series of temperature for the therMizer FishMIP runs.  There are four climate scenarios:
+* picontrol: pre-industrial climate as simulated by the Earth System Models (ESMs)
+* historical: historical climate as simulated by the ESMs, starting in 1950
+* ssp126: SSP1-RCP2.6 climate as simulated by the ESMs
+* ssp585" SSP5-RCP8.5 climate as simulated by the ESMs
+and both ssp126 and ssp585 will be appended to historical.  Note that only the years 1950 - 2100 are needed.
+
+## Ocean Temperature
+
+To facilitate comparison with the previous FishMIP simulations, we'll use the same approach: annual data, with surface and bottom temperatures averaged for all species except mahi, wahoo, blue marlin, and striped marlin (for which we'll use only surface temperatures).  Time-permitting, it would be worthwhile to use species-specific depth-averaged temperatures is in [Woodworth-Jefcoats et al. 2019](https://www.frontiersin.org/articles/10.3389/fmars.2019.00383/full) and compare the results.  Likewise for monthly data.
+
+```{r}
+no_sp <- 9
+first_year <- 1950
+last_year <- 2093
+### Load IPSL-CM6A-LR data
+picon <- readRDS("data/processed/picontrol_avg.rds")
+hist <- readRDS("data/processed/historical_avg.rds")
+ssp126 <- readRDS("data/processed/ssp126_avg.rds")
+ssp585 <- readRDS("data/processed/ssp585_avg.rds")
+
+# removing last line of hist (2009) as this is where ssp starts and some values are missing
+hist <- hist[-dim(hist)[1],]
+
+# Create array and fill 
+# historical stops at 2009, projections stop at 2093
+picon_out <- array(numeric(), c(last_year-first_year+1,no_sp)) # years 1950 - 2100 
+hist_out <- array(numeric(), c(2008-first_year+1,no_sp)) # years 1950 - 2008
+ssp126_out <- array(numeric(), c(last_year-2009+1,no_sp)) # years 2009 - 2100 
+ssp585_out <- array(numeric(), c(last_year-2009+1,no_sp)) # years 2009 - 2100 
+
+# Identify the years of interest
+picon_yrs <- which(picon$Year >= first_year)
+hist_yrs <- which(hist$Year >= first_year)
+
+# Loop through the 12 species in the Hawaii longline simulation
+for (s in 1:no_sp) {
+#   # Based on how species are ordered in the model parameter table, 
+#   # species 2 (Mahi), 7 (StripedMarin), 8 (Wahoo), and 10 (BlueMarlin)
+#   # will be affected by surface temperature only
+#   # whereas the others will experience the water column average
+# 	if (s == 2 | s == 7 | s == 8 | s == 10) {
+# 		picon_out[,s] <- picon$tos..degC.[picon_yrs]
+# 		hist_out[,s] <- hist$tos..degC.[hist_yrs]
+# 		ssp126_out[,s] <- ssp126$tos..degC.
+# 		ssp585_out[,s] <- ssp585$tos..degC.
+# 	} else {
+
+# This is the average of surface and depth temperature, may need to adpat it a bit later
+		picon_out[,s] <- ((picon$tos[picon_yrs] + picon$tob[picon_yrs]) / 2)
+		hist_out[,s] <- ((hist$tos[hist_yrs] + hist$tob[hist_yrs]) / 2)
+		ssp126_out[,s] <- ((ssp126$tos + ssp126$tob) / 2)
+		ssp585_out[,s] <- ((ssp585$tos + ssp585$tob) / 2)
+# 	}
+}
+
+### Save output for input into mizerNPAC
+picon_times <- seq(first_year,last_year,1)
+hist_times <- seq(first_year,2008,1)
+ssp126_times <- seq(2009,last_year,1)
+ssp585_times <- seq(2009,last_year,1)
+
+realm_names <- c("D.ele", "C.gun", "C.rhi", "L.squ","M.cam","B.eat","B.irr","G.acu","B.mur") # to match case with therMizer parameters
+
+picon_ocean_temp_array <- array(NA, dim = c(length(picon_times), length(realm_names)), dimnames = list(time = picon_times, realm = realm_names))
+
+hist_ocean_temp_array <- array(NA, dim = c(length(hist_times), length(realm_names)), dimnames = list(time = hist_times, realm = realm_names))
+
+ssp126_ocean_temp_array <- array(NA, dim = c(length(ssp126_times), length(realm_names)), dimnames = list(time = ssp126_times, realm = realm_names))
+
+ssp585_ocean_temp_array <- array(NA, dim = c(length(ssp585_times), length(realm_names)), dimnames = list(time = ssp585_times, realm = realm_names))
+
+picon_ocean_temp_array[,] <- picon_out[,]
+hist_ocean_temp_array[,] <- hist_out[,]
+ssp126_ocean_temp_array[,] <- ssp126_out[,]
+ssp585_ocean_temp_array[,] <- ssp585_out[,]
+
+# Concatonate historical and climate change scenarios
+CCscenario_126 <- rbind(hist_ocean_temp_array,ssp126_ocean_temp_array)
+CCscenario_585 <- rbind(hist_ocean_temp_array,ssp585_ocean_temp_array)
+
+# Plot to check
+
+picon_plot <- reshape2::melt(picon_ocean_temp_array)
+colnames(picon_plot) <- c("Year", "Species", "Temperature")
+picon_plot$scenario <- "picon"
+ssb126_plot <- reshape2::melt(CCscenario_126)
+colnames(ssb126_plot) <- c("Year", "Species", "Temperature")
+ssb126_plot$scenario <- "ssb126"
+ssb585_plot <- reshape2::melt(CCscenario_585)
+colnames(ssb585_plot) <- c("Year", "Species", "Temperature")
+ssb585_plot$scenario <- "ssb585"
+
+plot_dat <- rbind(picon_plot,ssb126_plot,ssb585_plot)
+
+ggplot(plot_dat) +
+  geom_line(aes(x = Year, y = Temperature, color = scenario))
+# no species identity as no differences between them yet
+
+saveRDS(picon_ocean_temp_array,file = "data/processed/IPSL_ocean_temp_array_PIcontrol.RDS")
+saveRDS(hist_ocean_temp_array, file = "data/processed/IPSL_ocean_temp_array_hist.RDS")
+saveRDS(ssp126_ocean_temp_array, file = "data/processed/IPSL_ocean_temp_array_ssp126.RDS")
+saveRDS(ssp585_ocean_temp_array, file = "data/processed/IPSL_ocean_temp_array_ssp585.RDS")
+saveRDS(CCscenario_126, file = "data/processed/IPSL_ocean_temp_array_CCscenario_126.RDS")
+saveRDS(CCscenario_585, file = "data/processed/IPSL_ocean_temp_array_CCscenario_585.RDS")
+
+```
+
+
+## Plankton community
+
+To facilitate comparison with the previous FishMIP simulations, we'll use the same approach as with the previous FishMIP contribution, which follows that of [Woodworth-Jefcoats et al. 2019](https://www.frontiersin.org/articles/10.3389/fmars.2019.00383/full).  We'll use the same assumptions about plankton size classes, as this doesn't appear to have changed between CMIP5 and CMIP6 for either model we're using.  The GFDL-ESM4 includes small, large, and diazotrophic phytoplankton, as well as three classes of zooplankton [Dunne et al. 2020](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2019MS002015).  The IPSL-CM6A-LR includes nanophytoplankton, diatoms, microzooplankton, and mesozooplankton [Boucher et al. 2020](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019MS002010).  
+
+## Preparing CMIP6 model output for therMizer
+
+The general approach we'll take to convert the CMIP6 plankton data in to resource spectra includes these steps:  
+
+* Convert from moles C to grams wet weight  
+  + mol C m^-2^ $\times$ 12.011 g mol^-1^ = g C m^-2^    
+  + g C m^-2^ $\times$ 10 = gww m^-2^  
+* Determine total biomass over model domain  
+  + gww m^-2^ $\times$ km^2^ $\times$ 10^6^ = gww  
+* Calculate abundance in each plankton size class  
+  + gww / median size of size class = abundance in size class  
+  + To convert size from $\mu$m ESD to gww: (4/3) $\times$ $\pi$ $\times$ (0.5 $\times$ ESD $\times$ 0.0001)^3^ = gww
+* Determine linear abundance spectra  
+* Use the slope and intercept from the linear abundance to determine the resource spectra over the full size range
+* If necessary, scale the resulting resource spectra to obtain similiar levels of food limition as those that arise from the mizer-calculated resource spectra  
+
+Note that the CMIP6 data don't include values for the smaller phytoplankton size classes.  These will have to be derived by subtracting the larger size class from total plankton.
+
+
+
+
+``` {r}
+
+# First, let's create the values we'll need.  See Woodworth-Jefcoats et al. 2019 for references.
+#	nano = 2 - 20 um ESD (mid-point size = 11 um ESD)
+#	smallGFDL = 0.2 - 5 um ESD (mid-point size = 2.4 um ESD)
+#	large (diatoms and diazotrophs) = 20 - 200 um ESD (mid-point size = 110 um ESD)
+#	largeGDFL = 5 - 200 um ESD (mid-point = 102.5 um ESD)
+#	zmicro = 2 - 20 um ESD (mid-point size = 11 um ESD)
+#	zmeso = 20 - 500 um ESD (mid-point size = 260 um ESD)
+
+nano <- (4/3)*pi*((0.5*11*0.0001)^3)
+smallGFDL <- (4/3)*pi*((0.5*2.4*0.0001)^3)
+large <- (4/3)*pi*((0.5*110*0.0001)^3)
+largeGFDL <- (4/3)*pi*((0.5*102.5*0.0001)^3)
+zmicro <- (4/3)*pi*((0.5*11*0.0001)^3)
+zmeso <- (4/3)*pi*((0.5*260*0.0001)^3)
+
+area = 1e6 #20527092 * 10^6 # just going from m2 to km2
+
+IPSL_picon <- readRDS("data/processed/picontrol_avg.rds")
+IPSL_hist <- readRDS("data/processed/historical_avg.rds")
+IPSL_ssp126 <- readRDS("data/processed/ssp126_avg.rds")
+IPSL_ssp585 <- readRDS("data/processed/ssp585_avg.rds")
+
+#
+colnames(IPSL_picon) <- c("Year", "expc", "intpp", "intppdiat", "phycVint", "phydiatVint", "tob", "tos", "zmesoVint", "zmicroVint", "zoocVint")
+colnames(IPSL_hist) <- c("Year", "expc", "intpp", "intppdiat", "phycVint", "phydiatVint", "tob", "tos", "zmesoVint", "zmicroVint", "zoocVint")
+colnames(IPSL_ssp126) <- c("Year", "expc", "intpp", "intppdiat", "phycVint", "phydiatVint", "tob", "tos", "zmesoVint", "zmicroVint", "zoocVint")
+colnames(IPSL_ssp585) <- c("Year", "expc", "intpp", "intppdiat", "phycVint", "phydiatVint", "tob", "tos", "zmesoVint", "zmicroVint", "zoocVint")
+
+# Calculate numerical abundance in each size class, for only the years we're interested in
+IPSL_picon_yrs <- which(IPSL_picon$Year >= 1950)
+IPSL_hist_yrs <- which(IPSL_hist$Year >= 1950)
+
+IPSL_picon_nano_num <- ((IPSL_picon$phycVint[IPSL_picon_yrs] - IPSL_picon$phydiatVint[IPSL_picon_yrs]) * 12.011 * 10 * area) / nano
+IPSL_picon_lg_num <- (IPSL_picon$phydiatVint[IPSL_picon_yrs] * 12.011 * 10 * area) / large
+IPSL_picon_zmicro_num <- (IPSL_picon$zmicroVint[IPSL_picon_yrs] * 12.011 * 10 * area) / zmicro
+IPSL_picon_zmeso_num <- (IPSL_picon$zmesoVint[IPSL_picon_yrs] * 12.011 * 10 * area) / zmeso
+
+IPSL_hist_nano_num <- ((IPSL_hist$phycVint[IPSL_hist_yrs] - IPSL_hist$phydiatVint[IPSL_hist_yrs]) * 12.011 * 10 * area) / nano
+IPSL_hist_lg_num <- (IPSL_hist$phydiatVint[IPSL_hist_yrs] * 12.011 * 10 * area) / large
+IPSL_hist_zmicro_num <- (IPSL_hist$zmicroVint[IPSL_hist_yrs] * 12.011 * 10 * area) / zmicro
+IPSL_hist_zmeso_num <- (IPSL_hist$zmesoVint[IPSL_hist_yrs] * 12.011 * 10 * area) / zmeso
+
+IPSL_ssp126_nano_num <- ((IPSL_ssp126$phycVint - IPSL_ssp126$phydiatVint) * 12.011 * 10 * area) / nano
+IPSL_ssp126_lg_num <- (IPSL_ssp126$phydiatVint * 12.011 * 10 * area) / large
+IPSL_ssp126_zmicro_num <- (IPSL_ssp126$zmicroVint * 12.011 * 10 * area) / zmicro
+IPSL_ssp126_zmeso_num <- (IPSL_ssp126$zmesoVint * 12.011 * 10 * area) / zmeso
+
+IPSL_ssp585_nano_num <- ((IPSL_ssp585$phycVint - IPSL_ssp585$phydiatVint) * 12.011 * 10 * area) / nano
+IPSL_ssp585_lg_num <- (IPSL_ssp585$phydiatVint * 12.011 * 10 * area) / large
+IPSL_ssp585_zmicro_num <- (IPSL_ssp585$zmicroVint * 12.011 * 10 * area) / zmicro
+IPSL_ssp585_zmeso_num <- (IPSL_ssp585$zmesoVint * 12.011 * 10 * area) / zmeso
+
+# Combine size classes for initial linear spectra
+IPSL_x <- log10(c(nano, large, zmicro, zmeso))
+
+```
+
+In order to make sure that the spectra we create from the CMIP6 data match our therMizer simulations, we're going to load `mizer` and generate a parameter object.  This will allow us to use `w_full` for the x values in the new linear spectra.
+
+``` {r message = FALSE}
+
+# library(mizer)
+# 
+# # Load species parameters
+# species_params <- read.csv('NPac_species_params.csv')
+# 
+# # Load interaction matrix
+# inter <- read.csv('inter_NPAC.csv', row.names = 1)
+# inter <- as(inter, "matrix")
+# 
+# # Create the params object 
+# # Since we're not going to run mizer, we'll ignore the column about the selectivity function so we don't get an error
+# params <- newMultispeciesParams(species_params[,1:14], interaction = inter, min_w_pp = 1e-14, no_w = 100, kappa = 1e12, w_pp_cutoff = 455400*1.1)
+
+```
+
+Now we can carry on with the CMIP6 data.
+
+``` {r}
+
+first_year <- 1950
+hist_stop <- 2008
+last_year <- 2093
+sim <- readRDS("~/RstudioProjects/HIMI/params/params10.RDS")
+params <- sim@params
+# Create arrays to fill
+# historical stops at 2009, projections stop at 2093
+IPSL_picon_out <- array(numeric(), c(last_year-first_year+1,length(params@w_full))) # years 1950 - 2100 
+IPSL_hist_out <- array(numeric(), c(2008-first_year+1,length(params@w_full))) # years 1950 - 2008
+IPSL_ssp126_out <- array(numeric(), c(last_year-2009+1,length(params@w_full))) # years 2009 - 2100 
+IPSL_ssp585_out <- array(numeric(), c(last_year-2009+1,length(params@w_full))) # years 2009 - 2100 
+
+# We're also going to save the slopes and intercept from the linear fits, because this information is helpful in ensuring we've come up with something reasonable.
+IPSL_picon_coefs <- array(numeric(), c(last_year-first_year+1,2)) # years 1950 - 2100 by 2 coefficients
+IPSL_hist_coefs <- array(numeric(), c(2008-first_year+1,2)) # years 1950 - 2014 by 2 coefficients
+IPSL_ssp126_coefs <- array(numeric(),c(last_year-2009+1,2)) # years 2015 - 2100 by 2 coefficients
+IPSL_ssp585_coefs <- array(numeric(), c(last_year-2009+1,2)) # years 2015 - 2100 by 2 coefficients
+
+
+# Pre-industrial control runs
+for (t in seq(first_year, last_year, 1)){
+  IPSL_picon_plankton <- log10(c(IPSL_picon_nano_num[t- (first_year - 1)], IPSL_picon_lg_num[t-(first_year - 1)], IPSL_picon_zmicro_num[t-(first_year - 1)], IPSL_picon_zmeso_num[t-(first_year - 1)]))
+  
+  # Calculate the slopes and intercept for ESM size range
+  IPSL_picon_lm <- lm(IPSL_picon_plankton ~ IPSL_x)
+  
+  # Expand to full size range
+  full_x <- log10(params@w_full)
+  
+  IPSL_picon_out[t-(first_year - 1),] <- IPSL_picon_lm$coefficients[2] * full_x + IPSL_picon_lm$coefficients[1]
+  
+  # Keep track of the coefficients for the linear model
+  IPSL_picon_coefs[t-(first_year - 1),] <- IPSL_picon_lm$coefficients
+}
+
+# Historical runs
+for (t in seq(first_year, hist_stop, 1)){
+  IPSL_hist_plankton <- log10(c(IPSL_hist_nano_num[t-(first_year - 1)], IPSL_hist_lg_num[t-(first_year - 1)], IPSL_hist_zmicro_num[t-(first_year - 1)], IPSL_hist_zmeso_num[t-(first_year - 1)]))
+  
+  # Calculate the sloes and intercept for ESM size range
+  IPSL_hist_lm <- lm(IPSL_hist_plankton ~ IPSL_x)
+  
+  # Expand to full size range
+  full_x <- log10(params@w_full)
+  
+  IPSL_hist_out[t-(first_year - 1),] <- IPSL_hist_lm$coefficients[2] * full_x + IPSL_hist_lm$coefficients[1]
+  
+  # Keep track of the coefficients for the linear model
+  IPSL_hist_coefs[t-(first_year - 1),] <- IPSL_hist_lm$coefficients
+}
+
+# Projections
+for (t in seq(hist_stop + 1, last_year, 1)){
+  IPSL_ssp126_plankton <- log10(c(IPSL_ssp126_nano_num[t-hist_stop], IPSL_ssp126_lg_num[t-hist_stop], IPSL_ssp126_zmicro_num[t-hist_stop], IPSL_ssp126_zmeso_num[t-hist_stop]))
+  
+  IPSL_ssp585_plankton <- log10(c(IPSL_ssp585_nano_num[t-hist_stop], IPSL_ssp585_lg_num[t-hist_stop], IPSL_ssp585_zmicro_num[t-hist_stop], IPSL_ssp585_zmeso_num[t-hist_stop]))
+  
+  # Calculate the sloes and intercept for ESM size range
+  IPSL_ssp126_lm <- lm(IPSL_ssp126_plankton ~ IPSL_x)
+  
+  IPSL_ssp585_lm <- lm(IPSL_ssp585_plankton ~ IPSL_x)
+  
+  # Expand to full size range
+  full_x <- log10(params@w_full)
+  
+  IPSL_ssp126_out[t-hist_stop,] <- IPSL_ssp126_lm$coefficients[2] * full_x + IPSL_ssp126_lm$coefficients[1]
+  
+  IPSL_ssp585_out[t-hist_stop,] <- IPSL_ssp585_lm$coefficients[2] * full_x + IPSL_ssp585_lm$coefficients[1]
+
+  # Keep track of the coefficients for the linear model
+  IPSL_ssp126_coefs[t-hist_stop,] <- IPSL_ssp126_lm$coefficients
+  
+  IPSL_ssp585_coefs[t-hist_stop,] <- IPSL_ssp585_lm$coefficients
+
+}
+
+# Save for input into therMizer
+# Time dimension
+picon_times <- seq(first_year,last_year,1)
+hist_times <- seq(first_year,hist_stop,1)
+ssp_times <- seq(hist_stop + 1,last_year,1)
+
+# Size dimension
+size <- params@w_full
+
+# Create appropriately defined arrays
+IPSL_picon_n_pp_array = array(NA, dim = c(length(picon_times), length(size)), dimnames = list(time = picon_times, w = size))
+IPSL_hist_n_pp_array = array(NA, dim = c(length(hist_times), length(size)), dimnames = list(time = hist_times, w = size))
+IPSL_ssp126_n_pp_array = array(NA, dim = c(length(ssp_times), length(size)), dimnames = list(time = ssp_times, w = size))
+IPSL_ssp585_n_pp_array = array(NA, dim = c(length(ssp_times), length(size)), dimnames = list(time = ssp_times, w = size))
+
+# Fill them
+IPSL_picon_n_pp_array[,] <- IPSL_picon_out[,]
+IPSL_hist_n_pp_array[,] <- IPSL_hist_out[,]
+IPSL_ssp126_n_pp_array[,] <- IPSL_ssp126_out[,]
+IPSL_ssp585_n_pp_array[,] <- IPSL_ssp585_out[,]
+
+# Concatonate historical runs and projections
+IPSL_CCscenario_126 <- rbind(IPSL_hist_n_pp_array, IPSL_ssp126_n_pp_array)
+IPSL_CCscenario_585 <- rbind(IPSL_hist_n_pp_array, IPSL_ssp585_n_pp_array)
+
+# Let's create some plots to make sure things look reasonable
+
+plot_picon <- data.frame("Year" = picon_times, IPSL_picon_coefs, "scenario" = "picon") 
+plot_hist <- data.frame("Year" = hist_times, IPSL_hist_coefs, "scenario" = "hist") 
+plot_ssp126 <- data.frame("Year" = ssp_times, IPSL_ssp126_coefs, "scenario" = "ssp126") 
+plot_ssp585 <- data.frame("Year" = ssp_times, IPSL_ssp585_coefs, "scenario" = "ssp585") 
+
+plot_dat <- rbind(plot_picon, plot_hist, plot_ssp126, plot_ssp585)
+colnames(plot_dat)[c(2,3)] <- c("intercept", "slope")
+
+ggplot(plot_dat) +
+  geom_line(aes(x = Year, y = intercept, color = scenario))
+ggplot(plot_dat) +
+  geom_line(aes(x = Year, y = slope, color = scenario))
+
+
+```
+
+Let's also plot the size spectra.
+
+``` {r}
+
+# Plot spectra, looping through time steps
+
+size_picon <- reshape2::melt(IPSL_picon_n_pp_array)
+size_picon$scenario <- "picon"
+size_ssp126 <- reshape2::melt(IPSL_CCscenario_126)
+size_ssp126$scenario <- "ssp126"
+colnames(size_ssp126)[c(1,2)] <- c("time","w")
+size_ssp585 <- reshape2::melt(IPSL_CCscenario_585)
+size_ssp585$scenario <- "ssp585"
+colnames(size_ssp585)[c(1,2)] <- c("time","w")
+plot_dat2 <- rbind(size_picon,size_ssp126,size_ssp585)
+
+
+ggplot(dplyr::filter(plot_dat2, time == 2000))+
+  geom_line(aes(x = w, y = value))+
+  scale_x_continuous(trans = "log10")
+  # scale_y_continuous(trans = "log10")
+
+
+library(plotly)
+plot_ly(x=log10(plot_dat2$w), y=plot_dat2$value, z=plot_dat2$time, type="scatter3d", mode="lines", color=plot_dat2$scenario) #
+
+a <- filter(plot_dat2, time == 2000)
+res <- lm(a$value~log10(a$w))
+
+```
+
+That looks alright, too.  Units on the axis are in log10!!  Should I divide by w_full to get abundance?
+
+
+```{r}
+
+saveRDS(IPSL_picon_n_pp_array, file = "data/processed/IPSL_n_pp_array_PIcontrol.RDS")
+saveRDS(IPSL_hist_n_pp_array, file = "data/processed/IPSL_n_pp_array_hist.RDS")
+saveRDS(IPSL_ssp126_n_pp_array, file = "data/processed/IPSL_n_ppp_array_ssp126.RDS")
+saveRDS(IPSL_ssp585_n_pp_array, file = "data/processed/IPSL_n_pp_array_ssp585.RDS")
+saveRDS(IPSL_CCscenario_126, file = "data/processed/IPSL_n_pp_array_CCscenario_126.RDS")
+saveRDS(IPSL_CCscenario_585, file = "data/processed/IPSL_n_pp_array_CCscenario_585.RDS")
+
+```
+
+```{r}
+
+IPSL_picon_n_pp_array <- readRDS( file = "data/processed/IPSL_n_pp_array_PIcontrol.RDS")
+IPSL_hist_n_pp_array<- readRDS( file = "data/processed/IPSL_n_pp_array_hist.RDS")
+IPSL_ssp126_n_pp_array<- readRDS( file = "data/processed/IPSL_n_ppp_array_ssp126.RDS")
+IPSL_ssp585_n_pp_array<- readRDS( file = "data/processed/IPSL_n_pp_array_ssp585.RDS")
+IPSL_CCscenario_126<- readRDS( file = "data/processed/IPSL_n_pp_array_CCscenario_126.RDS")
+IPSL_CCscenario_585<- readRDS( file = "data/processed/IPSL_n_pp_array_CCscenario_585.RDS")
+
+
+```
+
+
+
+## Time to run therMizer
+
+
+
+ Purpose
+The purpose of this script is to run the FishMIP simulations using therMizer.  These runs are for the regional model of Hawaii's longline fishery.  They include temperature and plankton forcing from the CMIP6 models.  Many thanks to Gustav Delius for several tips on improving earlier versions of the code used here.
+
+## Set up multispecies model 
+For the FishMIP simulations, we'll be using the species parameters in [Woodworth-Jefcoats et al. 2019](https://www.frontiersin.org/articles/10.3389/fmars.2019.00383/full).  We'll also follow their implemetation of fishing mortality, so we'll need to create a selectivity function which we'll call `knife_edge_phased`.  We're doing this before creating the `params` object so that the fishing selectivity parameter is recognized.
+
+In order to use the therMizer extension, two additional species parameters are needed: `temp_min` and `temp_max`.  These represent the thermal tolerance limits for each species.  You could find these in the literature in physiological or tagging studies.  Alternatively, they can be assumed based on species' vertical and geographic ranges, that of their prey species, or some other information.  Note that these are only needed for the therMizer extention functions that relate to temperature, not those that relate to plankton.
+
+```{r message = FALSE}
+
+# Create the selectivity function:
+
+#' Size based knife-edge selectivity function that is phased in 
+#'
+#' A knife-edge selectivity function where only sizes greater or equal to
+#' \code{knife_edge_size1} are selected.  Selectivity is then phased in through
+#' size \code{knife_edge_size2}.  This simulates the reduced effectiveness of 
+#' longline gear for smaller fish
+#'
+#' @param w The size of the individual.
+#' @param knife_edge_size1 The size at which the knife-edge is initiated.
+#' @param knife_edge_size2 The size at which selectivity is fully realized.
+#' @export
+knife_edge_phased <- function(w, knife_edge_size1, knife_edge_size2, ...) { 
+	sel <- rep(0, length(w)) 
+	
+	# Phased in linearly
+	F0 <- which(w < knife_edge_size1) # to find one size smaller than that fished, for the 0 value 
+	F1 <- which(w < knife_edge_size2) # to find end of escalation size range 
+	lo_sel <- max(F0):max(F1) 
+	sel[lo_sel] <- seq(0, 1, length = length(lo_sel)) # linear increase from 0 to F 
+	sel[w >= knife_edge_size2] <- 1 
+	return(sel) 
+	
+} 
+
+# Load species parameters
+species_params <- read.csv('NPac_species_params.csv')
+
+# Load interaction matrix
+inter <- read.csv('inter_NPAC.csv', row.names = 1)
+inter <- as(inter, "matrix")
+
+# Create the params object
+params <- newMultispeciesParams(species_params, interaction = inter, min_w_pp = 1e-14, no_w = 100, kappa = 1e12, w_pp_cutoff = 455400*1.1)
+```
+
+## Load data needed for FishMIP scenarios
+This round of FishMIP simulations includes three forcing inputs: fishing mortality, temperature, plankton.  We'll load them in that order.
+
+#### Fishing 
+There are two fishing scenarios:
+
+* histsoc: Historical effort until 2015, then fixed at 2015 levels   
+* nat: No fishing  
+
+The time series of fishing mortality, "FishingEffort.dat" was created with "CreateF.Rmd".  We're also going to create another time series with F = 0 so that we can use the same years for all our scenarios.  This makes incorporating the temperature functions easier later on because all the time values will agree.
+
+```{r}
+
+# Load fishing scenario
+effort_Fhistsoc <- read.table("FishingEffort.dat", sep = " ")
+effort_Fhistsoc <- effort_Fhistsoc[,2] # Column 1 = year, which we won't need
+effort_Fhistsoc <- as(effort_Fhistsoc, "matrix")
+
+# Build fishing effort arrays
+# Since we're following the approach of Woodworth-Jefcoats et al. 2019, we'll begin the model with 600 years of constant input for spinup.  This means the first year will be 1350 (1950 - 600).
+times <- seq(1350, 2100, by = 1)
+gear_names <- c("Longline")
+effort_array_Fhistsoc <- array(NA, dim = c(length(times), length(gear_names)), dimnames = list(time = times, gear = gear_names))
+effort_array_Fnat <- array(NA, dim = c(length(times), length(gear_names)), dimnames = list(time = times, gear = gear_names))
+
+# Now fill the array
+# Remember, the first 600 years are for spin-up
+# During this time, the first input value is repeated at each time step
+for (t in (times - 1349)) {
+	if (t <= 601) { 
+		effort_array_Fhistsoc[t,"Longline"] <- effort_Fhistsoc[1]
+		effort_array_Fnat[t,"Longline"] <- 0
+	} else {
+		effort_array_Fhistsoc[t,"Longline"] <- effort_Fhistsoc[t - 600]
+		effort_array_Fnat[t,"Longline"] <- 0
+		}
+}
+
+```
+
+#### Temperature
+
+There are three climate scenarios, with different temperature forcing for each:  
+
+* picontrol: Pre-industrial control  
+* ssp126: Simulated historical climate, then SSP1-RCP2.6 climate  
+* ssp585: Simulated historical climate, then SSP5-RCP8.5 climate
+
+Note that only the years 1950 - 2100 are needed.  Temperature forcing files were created with "PrepTemperature_GFDL.Rmd" and "PrepTemperature_IPSL.Rmd".  
+
+```{r}
+
+# Load data for each CMIP6 model: GFDL-ESM4 and IPSL-CM6A-LR
+GFDL_temperature_PIcontrol <- read.table("GFDL_ocean_temp_array_PIcontrol.dat")
+GFDL_temperature_CC126 <- read.table("GFDL_ocean_temp_array_CCscenario_126.dat")
+GFDL_temperature_CC585 <- read.table("GFDL_ocean_temp_array_CCscenario_585.dat")
+
+IPSL_temperature_PIcontrol <- read.table("IPSL_ocean_temp_array_PIcontrol.dat")
+IPSL_temperature_CC126 <- read.table("IPSL_ocean_temp_array_CCscenario_126.dat")
+IPSL_temperature_CC585 <- read.table("IPSL_ocean_temp_array_CCscenario_585.dat")
+
+GFDL_temperature_PIcontrol <- as(GFDL_temperature_PIcontrol, "matrix")
+GFDL_temperature_CC126 <- as(GFDL_temperature_CC126, "matrix")
+GFDL_temperature_CC585 <- as(GFDL_temperature_CC585, "matrix")
+
+IPSL_temperature_PIcontrol <- as(IPSL_temperature_PIcontrol, "matrix")
+IPSL_temperature_CC126 <- as(IPSL_temperature_CC126, "matrix")
+IPSL_temperature_CC585 <- as(IPSL_temperature_CC585, "matrix")
+
+# Build temperature arrays following methods used above
+species <- params@species_params$species
+ocean_temp_array_GFDL_PIcontrol <- array(NA, dim = c(length(times), length(species)), dimnames = list(time = times, sp = species))
+ocean_temp_array_GFDL_CC126 <- array(NA, dim = c(length(times), length(species)), dimnames = list(time = times, sp = species))
+ocean_temp_array_GFDL_CC585 <- array(NA, dim = c(length(times), length(species)), dimnames = list(time = times, sp = species))
+ocean_temp_array_IPSL_PIcontrol <- array(NA, dim = c(length(times), length(species)), dimnames = list(time = times, sp = species))
+ocean_temp_array_IPSL_CC126 <- array(NA, dim = c(length(times), length(species)), dimnames = list(time = times, sp = species))
+ocean_temp_array_IPSL_CC585 <- array(NA, dim = c(length(times), length(species)), dimnames = list(time = times, sp = species))
+
+for (t in (times - 1349)) {
+	if (t <= 601) { 
+		ocean_temp_array_GFDL_PIcontrol[t,] <- GFDL_temperature_PIcontrol[1,]
+		ocean_temp_array_GFDL_CC126[t,] <- GFDL_temperature_CC126[1,]
+		ocean_temp_array_GFDL_CC585[t,] <- GFDL_temperature_CC585[1,]
+		ocean_temp_array_IPSL_PIcontrol[t,] <- IPSL_temperature_PIcontrol[1,]
+		ocean_temp_array_IPSL_CC126[t,] <- IPSL_temperature_CC126[1,]
+		ocean_temp_array_IPSL_CC585[t,] <- IPSL_temperature_CC585[1,]
+	} else {
+		ocean_temp_array_GFDL_PIcontrol[t,] <- GFDL_temperature_PIcontrol[t - 600,]
+		ocean_temp_array_GFDL_CC126[t,] <- GFDL_temperature_CC126[t - 600,]
+		ocean_temp_array_GFDL_CC585[t,] <- GFDL_temperature_CC585[t - 600,]
+		ocean_temp_array_IPSL_PIcontrol[t,] <- IPSL_temperature_PIcontrol[t - 600,]
+		ocean_temp_array_IPSL_CC126[t,] <- IPSL_temperature_CC126[t - 600,]
+		ocean_temp_array_IPSL_CC585[t,] <- IPSL_temperature_CC585[t - 600,]
+		}
+}
+
+```
+
+
+## Write parameters and functions for therMizer extension
+
+The therMizer extension that allows us to use the temperature and plankton forcings includes a few new parameters that we can determine based on the user input above.  There are also several functions that we'll write, too.
+
+#### Parameters
+
+The parameter `t_idx` will help with the simulations by providing the correct time index for the plankton and temperature forcing during the simulations.
+
+``` {r}
+
+# Time indexing parameter
+# This will be added to t to convert the year into an index for the n_pp and ocean_temp arrays
+if (min(times) == 0) {
+  other_params(params)$t_idx = 1
+} else if (min(times) == 1) {
+  other_params(params)$t_idx = 0
+} else {
+  other_params(params)$t_idx = -(min(times) - 1)
+}
+
+```
+
+To scale the effect of temperature on encounter rate to a value ranging from 0 - 1, it is necessary to divide by the maximum possible value for each species.  To scale the effect of temperature on metabolism to a value ranging from 0 - 1, it is necessary to subtract the minimum vaule for each species and then divide by the range.  This requires a bit of straightforward arithmetic, and users could do this on their end if they're so inclined.  These parameters handle that math so the user doesn't have to.
+
+```{r}
+
+species_params(params)$encounter_scale <- rep(NA, length(params@species_params$temp_min))
+
+for (indv in seq(1:length(params@species_params$temp_min))) {
+  
+  # Create a vector of all temperatures each species might encounter
+  temperature <- seq(params@species_params$temp_min[indv], params@species_params$temp_max[indv], by = 0.1)
+  
+  # Find the maximum value of the unscaled effect of temperature on encounter rate for each species 
+  species_params(params)$encounter_scale[indv] <- max((temperature) * (temperature - params@species_params$temp_min[indv]) * (params@species_params$temp_max[indv] - temperature))
+}
+
+# Determine the minimum, maximum, and range of value for the effect of temperature on metabolism
+min_metab_value <- (exp(25.22 - (0.63/((8.62e-5)*(273 + params@species_params$temp_min)))))
+max_metab_value <- (exp(25.22 - (0.63/((8.62e-5)*(273 + params@species_params$temp_max)))))
+		
+species_params(params)$metab_min <- min_metab_value
+species_params(params)$metab_range <- max_metab_value - min_metab_value
+
+```
+
+#### Functions
+
+Temperature will be added to the fuctions that determine encounter rate and energy available for growth and reproduction.
+
+To scale encounter rate with temperature, we're essentially taking a temperature-dependent proportion of the value calculated by the mizerEncounter function.  If species are at their thermal optimum, we take the full value.  Elsewhere in their thermal range, we take a proportion that goes to zero at the limits of species' thermal tolerence.  
+```{r message = FALSE, warning = FALSE}
+
+therMizerEncounter <- function(params, n, n_pp, n_other, t, ...) {
+  
+  # Access the correct element
+  temp_at_t <- params@other_params$other$ocean_temp[t + params@other_params$other$t_idx,]
+  
+  # Calculate unscaled temperature effect using a generic polynomial rate equation
+  unscaled_temp_effect <- temp_at_t * (temp_at_t - params@species_params$temp_min) * (params@species_params$temp_max - temp_at_t)
+  
+  # Scale using encounter_scale parameter
+  scaled_temp_effect <- unscaled_temp_effect / params@species_params$encounter_scale
+  
+  # Set the encounter rate to zero if temperature is outside species' thermal tolerance
+  above_max <- which(temp_at_t > params@species_params$temp_max)
+  below_min <- which(temp_at_t < params@species_params$temp_min)
+  
+  if (length(above_max) > 0)
+    scaled_temp_effect[above_max] = 0
+  
+  if (length(below_min) > 0)
+    scaled_temp_effect[below_min] = 0
+  
+  # Calculate maximum possible encounter rate
+  max_encounter <- mizerEncounter(params, n = n, n_pp = n_pp, n_other = n_other, ...)
+  
+  # Apply temperature effect
+  return(max_encounter * scaled_temp_effect)
+      
+}
+
+```
+
+To calculate the effect of temperature on metabolim, we use an Arrhenius function to scale the cost of metabolism.  When species are at their thermal maximum, the cost of metabolism is at its maximum.  When species are at their thermal minimum, the cost of metabolism is at its minimum
+
+```{r message = FALSE, warning = FALSE}
+
+therMizerEReproAndGrowth <- function(params, n, n_pp, n_other, t, encounter,
+                                 feeding_level, ...) {
+  
+  # Access the correct element
+  temp_at_t <- params@other_params$other$ocean_temp[t + params@other_params$other$t_idx,]
+  
+  # Arrhenius equation
+  unscaled_temp_effect <- (exp(25.22 - (0.63/((8.62e-5)*(273 + temp_at_t)))))
+  
+  # Arrhenius equation scaled to a value between 0 and 1
+  temp_effect_metabolism <- (unscaled_temp_effect - params@species_params$metab_min) / params@species_params$metab_range
+  
+  # Set the EReproAndGrowth to zero if temperature is outside species' thermal tolerance
+  Emultiplier <- rep(1, length(params@species_params$species))
+  
+  above_max <- which(temp_at_t > params@species_params$temp_max)
+  below_min <- which(temp_at_t < params@species_params$temp_min)
+  
+  if (length(above_max) > 0)
+    Emultiplier[above_max] = 0
+  
+  if (length(below_min) > 0)
+    Emultiplier[below_min] = 0
+  
+  # Apply scaled Arrhenius value to metabolism
+  (sweep((1 - feeding_level) * encounter, 1, params@species_params$alpha, "*", check.margin = FALSE) - params@metab*temp_effect_metabolism)*Emultiplier  
+  
+}
+
+```
+
+Now we'll write a function to use the CMIP6 plankton densities rather than the mizer resource dynamics.  Code for this was informed by the approach used in: <https://rpubs.com/gustav/plankton-anchovy>.  
+
+``` {r}
+
+# Set up new resource forcing "function" - just changes to different time slot in the n_pp_array array
+plankton_forcing <- function(params, t, ...) {
+  return(other_params(params)$n_pp_array[t + params@other_params$other$t_idx,])  
+}
+
+```
+
+Set the new rate functions and new resource
+
+```{r}
+
+params <- setRateFunction(params, "Encounter", "therMizerEncounter")
+params <- setRateFunction(params, "EReproAndGrowth", "therMizerEReproAndGrowth")
+
+params <- setResource(params, resource_dynamics = "plankton_forcing")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Run the simulations
+
+Because temperature and n_pp forcing are parameters, we'll need to make unique `params` objects for each CMIP6 model and climate scenario.  This means we'll have six new `params` objects (2 models x 3 climate scenarios).
+
+``` {r}
+
+# Create parameter objects
+params_GFDL_picontrol <- params
+params_GFDL_ssp1rcp26 <- params
+params_GFDL_ssp5rcp85 <- params
+
+params_IPSL_picontrol <- params
+params_IPSL_ssp1rcp26 <- params
+params_IPSL_ssp5rcp85 <- params
+
+# Attach temperature
+other_params(params_GFDL_picontrol)$ocean_temp <- ocean_temp_array_GFDL_PIcontrol
+other_params(params_GFDL_ssp1rcp26)$ocean_temp <- ocean_temp_array_GFDL_CC126
+other_params(params_GFDL_ssp5rcp85)$ocean_temp <- ocean_temp_array_GFDL_CC585
+
+other_params(params_IPSL_picontrol)$ocean_temp <- ocean_temp_array_IPSL_PIcontrol
+other_params(params_IPSL_ssp1rcp26)$ocean_temp <- ocean_temp_array_IPSL_CC126
+other_params(params_IPSL_ssp5rcp85)$ocean_temp <- ocean_temp_array_IPSL_CC585
+
+# Attach plankton
+other_params(params_GFDL_picontrol)$n_pp_array <- n_pp_array_GFDL_PIcontrol
+other_params(params_GFDL_ssp1rcp26)$n_pp_array <- n_pp_array_GFDL_CC126
+other_params(params_GFDL_ssp5rcp85)$n_pp_array <- n_pp_array_GFDL_CC585
+
+other_params(params_IPSL_picontrol)$n_pp_array <- n_pp_array_IPSL_PIcontrol
+other_params(params_IPSL_ssp1rcp26)$n_pp_array <- n_pp_array_IPSL_CC126
+other_params(params_IPSL_ssp5rcp85)$n_pp_array <- n_pp_array_IPSL_CC585
+
+```
+
+Now we can run the simulations.  There are 12 runs here: 3 climate scenarios x 2 fishing scenarios x 2 CMIP6 models.
+
+When running calling `project`, we'll also provide the vector for `initial_n_pp`, which is simply the first value from the n_pp arrays.
+
+``` {r message = FALSE}
+
+# GFDL-ESM4
+sim_GFDL_picontrol_histsoc <- project(params_GFDL_picontrol, initial_n_pp = n_pp_array_GFDL_PIcontrol[1,], t_max = length(times), effort = effort_array_Fhistsoc)
+sim_GFDL_picontrol_nat <- project(params_GFDL_picontrol, initial_n_pp = n_pp_array_GFDL_PIcontrol[1,], t_max = length(times), effort = effort_array_Fnat)
+
+sim_GFDL_ssp1rcp26_histsoc <- project(params_GFDL_ssp1rcp26, initial_n_pp = n_pp_array_GFDL_CC126[1,], t_max = length(times), effort = effort_array_Fhistsoc)
+sim_GFDL_ssp1rcp26_nat <- project(params_GFDL_ssp1rcp26, initial_n_pp = n_pp_array_GFDL_CC126[1,], t_max = length(times), effort = effort_array_Fnat)
+
+sim_GFDL_ssp5rcp85_histsoc <- project(params_GFDL_ssp5rcp85, initial_n_pp = n_pp_array_GFDL_CC585[1,], t_max = length(times), effort = effort_array_Fhistsoc)
+sim_GFDL_ssp5rcp85_nat <- project(params_GFDL_ssp5rcp85, initial_n_pp = n_pp_array_GFDL_CC585[1,], t_max = length(times), effort = effort_array_Fnat)
+
+# IPSL-CM6A-LR
+sim_IPSL_picontrol_histsoc <- project(params_IPSL_picontrol, initial_n_pp = n_pp_array_IPSL_PIcontrol[1,], t_max = length(times), effort = effort_array_Fhistsoc)
+sim_IPSL_picontrol_nat <- project(params_IPSL_picontrol, initial_n_pp = n_pp_array_IPSL_PIcontrol[1,], t_max = length(times), effort = effort_array_Fnat)
+
+sim_IPSL_ssp1rcp26_histsoc <- project(params_IPSL_ssp1rcp26, initial_n_pp = n_pp_array_IPSL_CC126[1,], t_max = length(times), effort = effort_array_Fhistsoc)
+sim_IPSL_ssp1rcp26_nat <- project(params_IPSL_ssp1rcp26, initial_n_pp = n_pp_array_IPSL_CC126[1,], t_max = length(times), effort = effort_array_Fnat)
+
+sim_IPSL_ssp5rcp85_histsoc <- project(params_IPSL_ssp5rcp85, initial_n_pp = n_pp_array_IPSL_CC585[1,], t_max = length(times), effort = effort_array_Fhistsoc)
+sim_IPSL_ssp5rcp85_nat <- project(params_IPSL_ssp5rcp85, initial_n_pp = n_pp_array_IPSL_CC585[1,], t_max = length(times), effort = effort_array_Fnat)
+
+```
+And plot the results to get a sense of what things look like.
+
+``` {r}
+
+plot(sim_GFDL_picontrol_histsoc)
+plot(sim_GFDL_picontrol_nat)
+
+plot(sim_GFDL_ssp1rcp26_histsoc)
+plot(sim_GFDL_ssp1rcp26_nat)
+
+plot(sim_GFDL_ssp5rcp85_histsoc)
+plot(sim_GFDL_ssp5rcp85_nat)
+
+# IPSL-CM6A-LR
+plot(sim_IPSL_picontrol_histsoc)
+plot(sim_IPSL_picontrol_nat)
+
+plot(sim_IPSL_ssp1rcp26_histsoc)
+plot(sim_IPSL_ssp1rcp26_nat)
+
+plot(sim_IPSL_ssp5rcp85_histsoc)
+plot(sim_IPSL_ssp5rcp85_nat)
+
+```
+After checking through the code and results to make sure everything worked, we'll save the `sim` objects so that we can prepare the output as FishMIP requests.
+
+```{r}
+
+# GFDL-ESM4
+save(sim_GFDL_picontrol_histsoc, file = "sim_GFDL_picontrol_histsoc.Rdata", ascii = TRUE)
+save(sim_GFDL_picontrol_nat, file = "sim_GFDL_picontrol_nat.Rdata", ascii = TRUE)
+
+save(sim_GFDL_ssp1rcp26_histsoc, file = "sim_GFDL_ssp1rcp26_histsoc.Rdata", ascii = TRUE)
+save(sim_GFDL_ssp1rcp26_nat, file = "sim_GFDL_ssp1rcp26_nat.Rdata", ascii = TRUE)
+
+save(sim_GFDL_ssp5rcp85_histsoc, file = "sim_GFDL_ssp5rcp85_histsoc.Rdata", ascii = TRUE)
+save(sim_GFDL_ssp5rcp85_nat, file = "sim_GFDL_ssp5rcp85_nat.Rdata", ascii = TRUE)
+
+# IPSL-CM6A-LR
+save(sim_IPSL_picontrol_histsoc, file = "sim_IPSL_picontrol_histsoc.Rdata", ascii = TRUE)
+save(sim_IPSL_picontrol_nat, file = "sim_IPSL_picontrol_nat.Rdata", ascii = TRUE)
+
+save(sim_IPSL_ssp1rcp26_histsoc, file = "sim_IPSL_ssp1rcp26_histsoc.Rdata", ascii = TRUE)
+save(sim_IPSL_ssp1rcp26_nat, file = "sim_IPSL_ssp1rcp26_nat.Rdata", ascii = TRUE)
+
+save(sim_IPSL_ssp5rcp85_histsoc, file = "sim_IPSL_ssp5rcp85_histsoc.Rdata", ascii = TRUE)
+save(sim_IPSL_ssp5rcp85_nat, file = "sim_IPSL_ssp5rcp85_nat.Rdata", ascii = TRUE)
+
+```
+
+
