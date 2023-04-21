@@ -1,0 +1,59 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Prydz Bay model domain 1,433,028 km2
+
+From km2 to m2 1433028 * 1e6 = 1.433028e+12
+
+Check the area for the model domain that gfdl ISIMIP data has been extracted for Prydz Bay
+
+```{r}
+# Load surface temperature data
+df_gfdl_tos <- read.csv("gfdl-mom6-cobalt2_obsclim_tos_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+
+head(df_gfdl_tos)
+```
+
+
+```{r}
+
+
+
+df_Prydz_Bay_area <- df_gfdl_tos %>% 
+  select(area_m2) %>% 
+  melt() %>% 
+  group_by(variable) %>% 
+  summarise(total_area_m2 = sum(value))
+
+head(df_Prydz_Bay_area)
+```
+The model domain area (1.433028e+12 m^2) from previous notes is a close match to the model domain area used for Prydz Bay data extraction (1.454146e+12 m^2)
+
+Check the size of Phoebe's model domain, as the value for total carbon in moles is two orders of magnitude higher for the Prydz Bay model domain, at least according to my current calculations
+
+```{r}
+# Load surface temperature data for Hawai'i model
+df_gfdl_tos_hawaii <- read.csv("gfdl-mom6-cobalt2_obsclim_tos_15arcmin_hawaiian-longline_monthly_1961_2010.csv") 
+
+head(df_gfdl_tos_hawaii)
+```
+
+
+```{r}
+df_hawaii_area <- df_gfdl_tos_hawaii %>% 
+  select(area_m2) %>% 
+  melt() %>% 
+  group_by(variable) %>% 
+  summarise(total_area_m2 = sum(value))
+
+head(df_hawaii_area)
+```
+
+
+
+
+
+
+
