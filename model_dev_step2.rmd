@@ -1164,7 +1164,7 @@ params_tuned_v07@species_params$erepro
 params_tuned_v07@species_params$R_max
 
 # saveRDS(params_tuned_v07, file="params_optim_v04_w_pp_100.rds")
-
+params_tuned_v07 <- readRDS("params/params_optim_v04_w_pp_100.rds")
 ```
 
 
@@ -1196,8 +1196,6 @@ params_loop <- params_tuned_v07 |>
     matchBiomasses() |> steady() |> matchBiomasses() |> steady()
 
 params_loop@species_params$erepro
-plotBiomassObservedVsModel(params_loop)
-
 ```
 
 
@@ -1205,28 +1203,36 @@ plotBiomassObservedVsModel(params_loop)
 sim_v17 <- project(params_loop, t_max = 500)
 plotlyBiomass(sim_v17)
 plotBiomassObservedVsModel(sim_v17)
-plotBiomassObservedVsModelCustom(sim_v17)
+# plotBiomassObservedVsModelCustom(sim_v17)
 plotBiomassRelative(sim_v17)
 plotDiet(params_loop)
 ```
 
-```{r}
-initialN(params_loop) <- sim_v17@n[dim(sim_v17@n)[1],,]
-```
 
 
 ```{r}
-sim_v18 <- project(params_loop, t_max = 1000)
-plotlyBiomass(sim_v18)
-plotBiomassObservedVsModel(sim_v18)
-plotBiomassObservedVsModelCustom(sim_v18)
-plotBiomassRelative(sim_v18)
-plotDiet(params_loop)
+params_loop <- steady(params_loop)
+```
+Reduce interaction with resource gradually to see if that can increase predation on euphausiids
+
+
+```{r}
+box.params <- params_loop
+
+box.params@species_params$ppmr_min[box.params@species_params$species == "baleen whales"]  <- 4e6
+box.params@species_params$ppmr_max[box.params@species_params$species == "baleen whales"] <-5e6
+# box.params@species_params$pred_kernel_type[box.params@species_params$species == "baleen whales"] <- "box"
+
+box.params <- setParams(box.params)
 ```
 
 
 
 
+```{r}
+params_v15 <- steady(box.params)
+params_v15 <- tuneParams(box.params)
+```
 
 
 

@@ -1804,51 +1804,16 @@ parameters (mesopelagic biomass, kappa etc)</p>
 <p>Load libraries</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyByZW1vdGVzOjppbnN0YWxsX2dpdGh1YihcInNpemVzcGVjdHJ1bS90aGVyTWl6ZXJcIikgIyBpZiBuZWVkZWRcbiMgbGlicmFyeSh0aGVyTWl6ZXIpXG5yZW1vdGVzOjppbnN0YWxsX2dpdGh1YihcInNpemVzcGVjdHJ1bS9taXplckV4cGVyaW1lbnRhbFwiKVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyByZW1vdGVzOjppbnN0YWxsX2dpdGh1YihcInNpemVzcGVjdHJ1bS90aGVyTWl6ZXJcIikgIyBpZiBuZWVkZWRcbiMgbGlicmFyeSh0aGVyTWl6ZXIpXG5yZW1vdGVzOjppbnN0YWxsX2dpdGh1YihcInNpemVzcGVjdHJ1bS9taXplckV4cGVyaW1lbnRhbFwiKVxubGlicmFyeShtaXplckV4cGVyaW1lbnRhbClcbiMgcmVtb3Rlczo6aW5zdGFsbF9naXRodWIoXCJzaXplc3BlY3RydW0vbWl6ZXJNUlwiKVxuIyBsaWJyYXJ5KG1pemVyKVxuIyBsaWJyYXJ5KG1pemVyTVIpXG5saWJyYXJ5KHRpZHl2ZXJzZSlcbiMgbGlicmFyeShwbG90bHkpXG4jIGxpYnJhcnkobGhzKVxuYGBgIn0= -->
 <pre class="r"><code># remotes::install_github(&quot;sizespectrum/therMizer&quot;) # if needed
 # library(therMizer)
-remotes::install_github(&quot;sizespectrum/mizerExperimental&quot;)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiU2tpcHBpbmcgaW5zdGFsbCBvZiAnbWl6ZXJFeHBlcmltZW50YWwnIGZyb20gYSBnaXRodWIgcmVtb3RlLCB0aGUgU0hBMSAoODI3OWFjMGQpIGhhcyBub3QgY2hhbmdlZCBzaW5jZSBsYXN0IGluc3RhbGwuXG4gIFVzZSBgZm9yY2UgPSBUUlVFYCB0byBmb3JjZSBpbnN0YWxsYXRpb25cbiJ9 -->
-<pre><code>Skipping install of &#39;mizerExperimental&#39; from a github remote, the SHA1 (8279ac0d) has not changed since last install.
-  Use `force = TRUE` to force installation</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShtaXplckV4cGVyaW1lbnRhbClcbmBgYCJ9 -->
-<pre class="r"><code>library(mizerExperimental)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBtaXplclxuUmVnaXN0ZXJlZCBTMyBtZXRob2Qgb3ZlcndyaXR0ZW4gYnkgJ2RhdGEudGFibGUnOlxuICBtZXRob2QgICAgICAgICAgIGZyb21cbiAgcHJpbnQuZGF0YS50YWJsZSAgICAgXG5SZWdpc3RlcmVkIFMzIG1ldGhvZHMgb3ZlcndyaXR0ZW4gYnkgJ2h0bWx0b29scyc6XG4gIG1ldGhvZCAgICAgICAgICAgICAgIGZyb20gICAgICAgICBcbiAgcHJpbnQuaHRtbCAgICAgICAgICAgdG9vbHM6cnN0dWRpb1xuICBwcmludC5zaGlueS50YWcgICAgICB0b29sczpyc3R1ZGlvXG4gIHByaW50LnNoaW55LnRhZy5saXN0IHRvb2xzOnJzdHVkaW9cblJlZ2lzdGVyZWQgUzMgbWV0aG9kIG92ZXJ3cml0dGVuIGJ5ICdodG1sd2lkZ2V0cyc6XG4gIG1ldGhvZCAgICAgICAgICAgZnJvbSAgICAgICAgIFxuICBwcmludC5odG1sd2lkZ2V0IHRvb2xzOnJzdHVkaW9cbiJ9 -->
-<pre><code>Loading required package: mizer
-Registered S3 method overwritten by &#39;data.table&#39;:
-  method           from
-  print.data.table     
-Registered S3 methods overwritten by &#39;htmltools&#39;:
-  method               from         
-  print.html           tools:rstudio
-  print.shiny.tag      tools:rstudio
-  print.shiny.tag.list tools:rstudio
-Registered S3 method overwritten by &#39;htmlwidgets&#39;:
-  method           from         
-  print.htmlwidget tools:rstudio</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyByZW1vdGVzOjppbnN0YWxsX2dpdGh1YihcInNpemVzcGVjdHJ1bS9taXplck1SXCIpXG4jIGxpYnJhcnkobWl6ZXIpXG4jIGxpYnJhcnkobWl6ZXJNUilcbmxpYnJhcnkodGlkeXZlcnNlKVxuYGBgIn0= -->
-<pre class="r"><code># remotes::install_github(&quot;sizespectrum/mizerMR&quot;)
+remotes::install_github(&quot;sizespectrum/mizerExperimental&quot;)
+library(mizerExperimental)
+# remotes::install_github(&quot;sizespectrum/mizerMR&quot;)
 # library(mizer)
 # library(mizerMR)
-library(tidyverse)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiV2FybmluZzogcGFja2FnZSDigJh0aWR5dmVyc2XigJkgd2FzIGJ1aWx0IHVuZGVyIFIgdmVyc2lvbiA0LjIuM1dhcm5pbmc6IHBhY2thZ2Ug4oCYZ2dwbG90MuKAmSB3YXMgYnVpbHQgdW5kZXIgUiB2ZXJzaW9uIDQuMi4zV2FybmluZzogcGFja2FnZSDigJhyZWFkcuKAmSB3YXMgYnVpbHQgdW5kZXIgUiB2ZXJzaW9uIDQuMi4zV2FybmluZzogcGFja2FnZSDigJhmb3JjYXRz4oCZIHdhcyBidWlsdCB1bmRlciBSIHZlcnNpb24gNC4yLjPilIDilIAgQXR0YWNoaW5nIGNvcmUgdGlkeXZlcnNlIHBhY2thZ2VzIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgCB0aWR5dmVyc2UgMi4wLjAg4pSA4pSAXG7inJQgZHBseXIgICAgIDEuMS4wICAgICDinJQgcmVhZHIgICAgIDIuMS40XG7inJQgZm9yY2F0cyAgIDEuMC4wICAgICDinJQgc3RyaW5nciAgIDEuNS4wXG7inJQgZ2dwbG90MiAgIDMuNC4yICAgICDinJQgdGliYmxlICAgIDMuMS43XG7inJQgbHVicmlkYXRlIDEuOS4yICAgICDinJQgdGlkeXIgICAgIDEuMy4wXG7inJQgcHVycnIgICAgIDEuMC4xICAgICDilIDilIAgQ29uZmxpY3RzIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgCB0aWR5dmVyc2VfY29uZmxpY3RzKCkg4pSA4pSAXG7inJYgZHBseXI6OmZpbHRlcigpIG1hc2tzIHN0YXRzOjpmaWx0ZXIoKVxu4pyWIGRwbHlyOjpsYWcoKSAgICBtYXNrcyBzdGF0czo6bGFnKClcbuKEuSBVc2UgdGhlIFx1MDAxYl04OztodHRwOi8vY29uZmxpY3RlZC5yLWxpYi5vcmcvXHUwMDA3Y29uZmxpY3RlZCBwYWNrYWdlXHUwMDFiXTg7O1x1MDAwNyB0byBmb3JjZSBhbGwgY29uZmxpY3RzIHRvIGJlY29tZSBlcnJvcnNcbiJ9 -->
-<pre><code>Warning: package ‘tidyverse’ was built under R version 4.2.3Warning: package ‘ggplot2’ was built under R version 4.2.3Warning: package ‘readr’ was built under R version 4.2.3Warning: package ‘forcats’ was built under R version 4.2.3── Attaching core tidyverse packages ──────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.0     ✔ readr     2.1.4
-✔ forcats   1.0.0     ✔ stringr   1.5.0
-✔ ggplot2   3.4.2     ✔ tibble    3.1.7
-✔ lubridate 1.9.2     ✔ tidyr     1.3.0
-✔ purrr     1.0.1     ── Conflicts ────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
-✖ dplyr::filter() masks stats::filter()
-✖ dplyr::lag()    masks stats::lag()
-ℹ Use the ]8;;http://conflicted.r-lib.org/conflicted package]8;; to force all conflicts to become errors</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBsaWJyYXJ5KHBsb3RseSlcbiMgbGlicmFyeShsaHMpXG5gYGAifQ== -->
-<pre class="r"><code># library(plotly)
+library(tidyverse)
+# library(plotly)
 # library(lhs)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
@@ -1863,13 +1828,6 @@ c(0.4,0.3608333,0.1825,0.15,1,0.2,0.5,0.06,0.2,0.2,0.2,0.2,0.2,0.2,0.2)
 # to use all k_vb values and instead of h</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibnJvdyI6MTksIm5jb2wiOjEzLCJzdW1tYXJ5Ijp7IkRlc2NyaXB0aW9uIjpbImRmIFsxOSDDlyAxM10iXX19LCJyZGYiOiJINHNJQUFBQUFBQUFCcTFXZTJ3VVJSamZYbnVXSGkwVXJvcVNDS2VZV2tHcWVCcWtwZDI1Y1BKSWFYaUlUWTJZNjl6ZDNOM1NmYkc3MXhkSlFaUUNXcUVHZ2xJU29RMS9TTk5VR2lWV2dzZ2pLU1JpaWthaElUWlNXa01KYWdBZkdGUndkbWZtMmp1djRJTkpOci81ZnQvTU45L01mdk45czl4YjduYVVPemlPUytYU2JEWXUxWTY3blAyRkZmTm5Qc3RoQmdzcFhCcVhZV0lOSHVURW5TejhaZVBQU1JYWmtoRFFsRHBGVVVVb1Z4cUtUUG54RXRLVDBQY3BSZ1JwTGdrbW5UUVdSZFVJak9xQ0VOUXBaZGVocURKaG9tbFVSU0lNQ3dGWFNOQWppR21jZm1oRWFwT3E3c2Q5TWVTQ2N0QVZVS0J1UURGZW54a1Nhd1U1N1BJTFdtelZURjJDb3VnS0NsVklZOXc5K3Vyb3NGOWpEUVZ2SmM1UWxvZ1VGV3BCbDQ2Z0dDTWxGQlNpVXJ5cFRCRnFZWlRBU1lKY2lWelZFU2pHTEtZcFdnREdYRktSSnNYcnMveFlRRElqT1c2Y2VSUkZzTFVrWi9hamJ4ZFgzSEJ2UG5QWlV6ejQyNEZOQTVHcmZQYnJDNnVPenByS2M5dkxWdXpxUDh3djlaZCtlWFhmSC96OE01T1BYK2w1bDVjcVcvdXVuWGdaZURtcmdjN3RGaktlYjhtYjE1UGU4cGhuekNxaVA3N0pRZzlYZDhUQ2g1ZXNzL0RCSVdCaFNlK1FoWjdwWkNEMXIvaTUyaTBYbm13c2lQbnhXbDMvZ282Y05YeFR3UWRmekRoMmtEL3RyTjNZcHk0R3VZMm5jUHNjTEprZk1odFlVRUhXYlQ0M3ZhMnQ3V093djgxc0hhQWk1VkRydE0vODRPU1BPM0ZyOXR4YlJQeVk4R2VOaGNVWGlEOWxBNVlCei9MT1BBdGZDYjlsNGFiSHI4ZjV0Ny83K3A0RFA3ekpDeGU3QjkxTlhmd1ZlaDRaaThzTHpyMjBBc3laSWcwdXVsVUZaTXF2NzdQV0JhM2ZFei8zKzZ6MXdFY3EwWDlWdUtPK3Z2RVRUK3BjaDZtUCtlZmUxcFhVUDRiTXYzZTI3QjdwMzFyTG4vUldzQllRKzRtNGxlS2Fadk44T2tGZEU1R2o1d21XVGxoNHROQ25BbTNscnNpeWJhK0NSWFFmTDFMTXJlbDVZR0J1Rkd4WXZiNGc3ZElBYUg5NnR0NlE4cTNuK2NKZWQwdjVNM3ovdWZlN3ZiMEMrSzdCbTNZTkJUMk9UNzA5Y3dKN0UvMjdFL0puSncxMjFwZE01RStzelB2bDJOYVYvSEczMVVZZDM5RzE3UEtHS1YzLzFINGlNdjhBV0VmMmVRY2N6UTRJN3lIamxpWWZGN016ai80SEw1V2Y0dUl4NXhTSmI5ZE9LMzQ0a2wyZDNOMXQxR2JLeitSTHhYY3lxNTMwY3o3RWlScHZ4dGFMeDVoMUlJajlQNDA1MnJkL1F6N085UGdrMFprWVZ3SFNaVVYyZWN0Szc0S1ltclE3VnBFTkpZeGtaQWdCbG90eDZzUTVPNmwwK3lWdU4vUC9TalMrV0w3NHo5aEw0b0lmd01HT0kvNXYraUdLL2RQT09vclV2ZnpYMXJDcE1aN0o1Nmw4UGhZTC8rcCtqbm9QbWQyQjVQYzFVWi9veDJqSS9BTjVSQUNQVUh5STNBOHdpU0EvMlBmRTVOMkhxL21mcVAyYlp2bW82K2N2N2Z2OW92aUdsNDlzTXc2dHFyL0JOOUg2UnZOSzdId3FLSC9hekRwNXYvSTdOczZ3WlM0NnlEZTJqNW1WZTZtV3I2SHpHeWgveExONWRrbjNld2xQSXJzTUphdm9ablBtSmFQUmhxdDBRSWdWYUh1MUQ1ZjFFUUkwUmdvMXJNNzdrY0hxZkZxbHI4clBYbDBSMnNuQVZueEJwQnJEQkt5Skk3S3JvWUcwL0lBaVJpVTVQNm9qOW14UWZZWWdJWitxMVFicjJHTkpEZmlnTEVlaDZGTkNJVjNWaGtNNTJ5OG9FdFIxbitMWGtWYUZnZ21ienRDVTZueTJjVE96Mk5hUlEzVW1uazVBeEdibzZURFNFWVFHekE5cGVENldiaVpNU1ZkVVExQmtQTWxtNWtCN3d1UVVMWUVZSDVWTlQ0SXpBNUdvWERuVHpaRWNsa0pqS1l2Mm5TUDZXV1JKMnkxcXlzNXVNSkxEZ3N6T3pDNUNQeEtwTUE3djJOcHd2bmxPN1BjNU1Ldm5Hd3ArVFRJR0h6MWpyTDF4Ti84Q3czSnh3V0FMQUFBPSJ9 -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["species"],"name":[1],"type":["chr"],"align":["left"]},{"label":["w_min"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["w_mat"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["w_max"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["beta"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["k_vb"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["h"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["min_depth"],"name":[8],"type":["int"],"align":["right"]},{"label":["max_depth"],"name":[9],"type":["int"],"align":["right"]},{"label":["water.column.use"],"name":[10],"type":["chr"],"align":["left"]},{"label":["p_time_prydz"],"name":[11],"type":["dbl"],"align":["right"]},{"label":["pc_annual_offspring"],"name":[12],"type":["dbl"],"align":["right"]},{"label":["biomass_observed"],"name":[13],"type":["dbl"],"align":["right"]}],"data":[{"1":"microzooplankton","2":"5.011872e-13","3":"1.000000e-08","4":"1.000000e-06","5":"NA","6":"NA","7":"33.0","8":"0","9":"500","10":"non DVM","11":"1.000000","12":"NA","13":"12.000"},{"1":"mesozooplankton","2":"3.162278e-08","3":"3.162278e-05","4":"3.162278e-03","5":"5.000000e+02","6":"NA","7":"33.0","8":"0","9":"500","10":"non DVM","11":"1.000000","12":"NA","13":"10.000"},{"1":"other macrozooplankton","2":"1.000000e-05","3":"1.000000e-02","4":"1.000000e+00","5":"5.000000e+02","6":"NA","7":"33.0","8":"0","9":"1000","10":"non DVM","11":"1.000000","12":"NA","13":"8.800"},{"1":"euphausiids","2":"6.309573e-05","3":"1.584893e-02","4":"3.162278e+00","5":"5.000000e+02","6":"NA","7":"33.0","8":"0","9":"3500","10":"non DVM","11":"1.000000","12":"NA","13":"5.900"},{"1":"salps","2":"3.162278e-05","3":"2.511886e-01","4":"2.511886e+01","5":"1.000000e+03","6":"NA","7":"33.0","8":"0","9":"500","10":"non DVM","11":"1.000000","12":"NA","13":"0.652"},{"1":"mesopelagic fishes","2":"1.000000e-03","3":"1.127500e+01","4":"2.400000e+02","5":"4.416667e+02","6":"0.3608333","7":"NA","8":"0","9":"5300","10":"DVM","11":"1.000000","12":"NA","13":"1.200"},{"1":"bathypelagic fishes","2":"6.969100e-04","3":"6.255000e+01","4":"6.037000e+02","5":"4.250000e+02","6":"0.1825000","7":"NA","8":"0","9":"4000","10":"DVM","11":"1.000000","12":"NA","13":"1.930"},{"1":"shelf and coastal fishes","2":"3.591364e-03","3":"4.675000e+01","4":"2.422200e+03","5":"3.500000e+02","6":"0.1500000","7":"NA","8":"0","9":"728","10":"ontogenetic","11":"1.000000","12":"NA","13":"0.802"},{"1":"flying birds","2":"4.000000e+01","3":"1.718542e+03","4":"4.191250e+03","5":"5.813503e+01","6":"NA","7":"189.0","8":"0","9":"10","10":"diving","11":"0.387500","12":"0.5","13":"0.003"},{"1":"small divers","2":"4.500000e+03","3":"4.266667e+03","4":"6.000000e+03","5":"2.937879e+02","6":"NA","7":"66.0","8":"0","9":"100","10":"diving","11":"0.610000","12":"0.6","13":"0.016"},{"1":"squids","2":"3.591364e-03","3":"1.280543e+02","4":"2.071835e+04","5":"5.000000e+01","6":"NA","7":"NA","8":"0","9":"2000","10":"non DVM","11":"1.000000","12":"NA","13":"0.150"},{"1":"toothfishes","2":"3.351032e-02","3":"1.276520e+04","4":"1.575693e+05","5":"1.000000e+02","6":"0.0600000","7":"NA","8":"0","9":"3850","10":"non DVM","11":"1.000000","12":"NA","13":"0.750"},{"1":"leopard seals","2":"2.000000e+05","3":"3.480000e+05","4":"3.480000e+05","5":"1.123596e+01","6":"NA","7":"33.0","8":"0","9":"100","10":"diving","11":"0.750000","12":"0.5","13":"0.002"},{"1":"medium divers","2":"1.000000e+04","3":"2.947500e+05","4":"1.283000e+06","5":"6.861886e+02","6":"NA","7":"38.5","8":"0","9":"1500","10":"diving","11":"0.535625","12":"0.6","13":"0.265"},{"1":"large divers","2":"1.350000e+05","3":"2.024000e+06","4":"2.024000e+06","5":"3.610108e+03","6":"NA","7":"41.0","8":"0","9":"1500","10":"diving","11":"0.330000","12":"0.5","13":"0.022"},{"1":"minke whales","2":"6.000000e+05","3":"6.000000e+06","4":"6.000000e+06","5":"5.042017e+06","6":"NA","7":"18.0","8":"0","9":"50","10":"diving","11":"0.750000","12":"0.5","13":"0.014"},{"1":"orca","2":"4.900000e+05","3":"4.900000e+06","4":"6.000000e+06","5":"5.579451e-01","6":"NA","7":"18.0","8":"0","9":"200","10":"diving","11":"0.330000","12":"0.5","13":"0.006"},{"1":"sperm whales","2":"3.650000e+06","3":"3.650000e+07","4":"3.650000e+07","5":"4.408213e+04","6":"NA","7":"5.2","8":"0","9":"2000","10":"diving","11":"0.500000","12":"0.5","13":"0.011"},{"1":"baleen whales","2":"2.250000e+06","3":"5.070000e+07","4":"1.030000e+08","5":"2.191126e+05","6":"NA","7":"8.3","8":"0","9":"200","10":"diving","11":"0.500000","12":"0.5","13":"0.127"}],"options":{"columns":{"min":{},"max":[10],"total":[13]},"rows":{"min":[10],"max":[10],"total":[19]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Fill in missing and adjust beta values for zooplankton groups using
@@ -1890,86 +1848,35 @@ salps</p>
 446.6836</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzFdICMgbWljcm96b29wbGFudGtvblxuYGBgIn0= -->
-<pre class="r"><code>groups_raw$beta[1] # microzooplantkon</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIE5BXG4ifQ== -->
-<pre><code>[1] NA</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzJdICMgbWVzb3pvb3BsYW50a29uLCBleGlzaXRuZyB2YWx1ZSBvZiA1MDAgaXMgc3VpdGFibGVcbmBgYCJ9 -->
-<pre class="r"><code>groups_raw$beta[2] # mesozooplantkon, exisitng value of 500 is suitable</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDUwMFxuIn0= -->
-<pre><code>[1] 500</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzNdICMgb3RoZXIgbWFjcm96b29wbGFudGtvbiwgZXhpc2l0bmcgdmFsdWUgb2YgNTAwIGlzIHN1aXRhYmxlXG5gYGAifQ== -->
-<pre class="r"><code>groups_raw$beta[3] # other macrozooplantkon, exisitng value of 500 is suitable</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDUwMFxuIn0= -->
-<pre><code>[1] 500</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzRdICMgZXVwaGF1c2lpZHMgXG5gYGAifQ== -->
-<pre class="r"><code>groups_raw$beta[4] # euphausiids </code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDUwMFxuIn0= -->
-<pre><code>[1] 500</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzVdICMgc2FscHNcbmBgYCJ9 -->
-<pre class="r"><code>groups_raw$beta[5] # salps</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDEwMDBcbiJ9 -->
-<pre><code>[1] 1000</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzFdIDwtIDM4LjAxODk0ICMgbWljcm96b29wbGFudGtvbiAjZ3JvdXBzX3JhdyRiZXRhWzFdIDwtIDM4LjAxODk0ICMgbWljcm96b29wbGFudGtvblxuIyBncm91cHNfcmF3JGJldGFbMl0gIyBtZXNvem9vcGxhbnRrb24gXG4jIGdyb3Vwc19yYXckYmV0YVszXSAjIG90aGVyIG1hY3Jvem9vcGxhbnRrb25cbmdyb3Vwc19yYXckYmV0YVs0XSA8LSAxNTg0ODkzMiAjIGV1cGhhdXNpaWRzXG5ncm91cHNfcmF3JGJldGFbNV0gPC0gIDE3NzgyNzk0MTAgIyBzYWxwc1xuXG5ncm91cHNfcmF3JGJldGFbMV0gIyBtaWNyb3pvb3BsYW50a29uXG5gYGAifQ== -->
-<pre class="r"><code>groups_raw$beta[1] &lt;- 38.01894 # microzooplantkon #groups_raw$beta[1] &lt;- 38.01894 # microzooplantkon
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzFdICMgbWljcm96b29wbGFudGtvblxuZ3JvdXBzX3JhdyRiZXRhWzJdICMgbWVzb3pvb3BsYW50a29uLCBleGlzaXRuZyB2YWx1ZSBvZiA1MDAgaXMgc3VpdGFibGVcbmdyb3Vwc19yYXckYmV0YVszXSAjIG90aGVyIG1hY3Jvem9vcGxhbnRrb24sIGV4aXNpdG5nIHZhbHVlIG9mIDUwMCBpcyBzdWl0YWJsZVxuZ3JvdXBzX3JhdyRiZXRhWzRdICMgZXVwaGF1c2lpZHMgXG5ncm91cHNfcmF3JGJldGFbNV0gIyBzYWxwc1xuXG5ncm91cHNfcmF3JGJldGFbMV0gPC0gMzguMDE4OTQgIyBtaWNyb3pvb3BsYW50a29uICNncm91cHNfcmF3JGJldGFbMV0gPC0gMzguMDE4OTQgIyBtaWNyb3pvb3BsYW50a29uXG4jIGdyb3Vwc19yYXckYmV0YVsyXSAjIG1lc296b29wbGFudGtvbiBcbiMgZ3JvdXBzX3JhdyRiZXRhWzNdICMgb3RoZXIgbWFjcm96b29wbGFudGtvblxuZ3JvdXBzX3JhdyRiZXRhWzRdIDwtIDE1ODQ4OTMyICMgZXVwaGF1c2lpZHNcbmdyb3Vwc19yYXckYmV0YVs1XSA8LSAgMTc3ODI3OTQxMCAjIHNhbHBzXG5cbmdyb3Vwc19yYXckYmV0YVsxXSAjIG1pY3Jvem9vcGxhbnRrb25cbmdyb3Vwc19yYXckYmV0YVsyXSAjIG1lc296b29wbGFudGtvbiwgZXhpc2l0bmcgdmFsdWUgb2YgNTAwIGlzIHN1aXRhYmxlXG5ncm91cHNfcmF3JGJldGFbM10gIyBvdGhlciBtYWNyb3pvb3BsYW50a29uLCBleGlzaXRuZyB2YWx1ZSBvZiA1MDAgaXMgc3VpdGFibGVcbmdyb3Vwc19yYXckYmV0YVs0XSAjIGV1cGhhdXNpaWRzIFxuZ3JvdXBzX3JhdyRiZXRhWzVdICMgc2FscHNcbmBgYCJ9 -->
+<pre class="r"><code>groups_raw$beta[1] # microzooplantkon
+groups_raw$beta[2] # mesozooplantkon, exisitng value of 500 is suitable
+groups_raw$beta[3] # other macrozooplantkon, exisitng value of 500 is suitable
+groups_raw$beta[4] # euphausiids 
+groups_raw$beta[5] # salps
+
+groups_raw$beta[1] &lt;- 38.01894 # microzooplantkon #groups_raw$beta[1] &lt;- 38.01894 # microzooplantkon
 # groups_raw$beta[2] # mesozooplantkon 
 # groups_raw$beta[3] # other macrozooplantkon
 groups_raw$beta[4] &lt;- 15848932 # euphausiids
 groups_raw$beta[5] &lt;-  1778279410 # salps
 
-groups_raw$beta[1] # microzooplantkon</code></pre>
+groups_raw$beta[1] # microzooplantkon
+groups_raw$beta[2] # mesozooplantkon, exisitng value of 500 is suitable
+groups_raw$beta[3] # other macrozooplantkon, exisitng value of 500 is suitable
+groups_raw$beta[4] # euphausiids 
+groups_raw$beta[5] # salps</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDM4LjAxODk0XG4ifQ== -->
-<pre><code>[1] 38.01894</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzJdICMgbWVzb3pvb3BsYW50a29uLCBleGlzaXRuZyB2YWx1ZSBvZiA1MDAgaXMgc3VpdGFibGVcbmBgYCJ9 -->
-<pre class="r"><code>groups_raw$beta[2] # mesozooplantkon, exisitng value of 500 is suitable</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDUwMFxuIn0= -->
-<pre><code>[1] 500</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzNdICMgb3RoZXIgbWFjcm96b29wbGFudGtvbiwgZXhpc2l0bmcgdmFsdWUgb2YgNTAwIGlzIHN1aXRhYmxlXG5gYGAifQ== -->
-<pre class="r"><code>groups_raw$beta[3] # other macrozooplantkon, exisitng value of 500 is suitable</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDUwMFxuIn0= -->
-<pre><code>[1] 500</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzRdICMgZXVwaGF1c2lpZHMgXG5gYGAifQ== -->
-<pre class="r"><code>groups_raw$beta[4] # euphausiids </code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDE1ODQ4OTMyXG4ifQ== -->
-<pre><code>[1] 15848932</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRiZXRhWzVdICMgc2FscHNcbmBgYCJ9 -->
-<pre class="r"><code>groups_raw$beta[5] # salps</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDE3NzgyNzk0MTBcbiJ9 -->
-<pre><code>[1] 1778279410</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBncm91cHNfcmF3Wyw4XSAjIGNvbmZpcm0gd2hhdCBjb2x1bW4gYGhgIGlzXG5cbmdyb3Vwc19yYXckaFxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBncm91cHNfcmF3Wyw4XSAjIGNvbmZpcm0gd2hhdCBjb2x1bW4gYGhgIGlzXG5cbmdyb3Vwc19yYXckaFxuXG5oX3VwZGF0ZSA8LSBjKDMzLjAsICAzMy4wLCAgMzMuMCwgIDMzLjAsICAzMy4wLCAgICBOQSwgICAgTkEsICAgIE5BLCAxODkuMCwgIDY2LjAsICAgIE5BLCAgICBOQSwgIE5BLCAgTkEsICBOQSwgIE5BLCAgTkEsICAgTkEsICAgTkEpXG5cbmdyb3Vwc19yYXckaCA8LSBoX3VwZGF0ZVxuXG4jIGdyb3Vwc19ub19oIDwtIGdyb3Vwc19yYXdbLC04XVxuXG4jIGdyb3Vwc19ub19oJGJpb21hc3Nfb2JzZXJ2ZWRcblxuIyBncm91cHMgPC0gZ3JvdXBzX25vX2hcblxua192Yl9zdHJpbmcgPC0gYygwLjYsMC40LDAuNCwwLjQsMC40LDAuMzYwODMzMywwLjE4MjUsMC4xNSwxLDAuMiwwLjUsMC4wNiwwLjIsMC4yLDAuMiwwLjIsMC4yLDAuMiwwLjIpICMgdG8gdXNlIGFsbCBrX3ZiIHZhbHVlcyBhbmQgaW5zdGVhZCBvZiBoXG5cbmdyb3Vwc19yYXcka192YiA8LSBrX3ZiX3N0cmluZ1xuIyBncm91cHMka192YiA8LSBrX3ZiX3N0cmluZ1xuXG4jIHNwZWNpZXNfcGFyYW1zIDwtIGdyb3Vwc1xuXG4jIHNwZWNpZXNfcGFyYW1zWzYsNF0gI21heCBzaXplIGZvciBzbWFsbCBkaXZlcnNcbiMgc3BlY2llc19wYXJhbXNbNiwzXSAjbWF0dXJhdGlvbiBzaXplXG4jIHNwZWNpZXNfcGFyYW1zWzYsMl0gI21pbmltdW0gc2l6ZVxuIyBcbiMgc3BlY2llc19wYXJhbXNbNiwzXSA8LSAwLjg1KnNwZWNpZXNfcGFyYW1zWzYsNF1cbiMgc3BlY2llc19wYXJhbXNbOSwzXSA8LSAwLjk5KnNwZWNpZXNfcGFyYW1zWzksNF1cbiMgXG4jIGdyb3Vwc19yYXdbNiwzXSA8LSAwLjg1Kmdyb3Vwc19yYXdbNiw0XVxuIyBncm91cHNfcmF3WzksM10gPC0gMC45OSpncm91cHNfcmF3WzksNF1cbmxlbmd0aChncm91cHNfcmF3JHNwZWNpZXMpXG5sZW5ndGgoZ3JvdXBzX3JhdyRoKVxubGVuZ3RoKGdyb3Vwc19yYXcka192YilcblxuZ3JvdXBzX3JhdyRoXG5ncm91cHNfcmF3JGtfdmJcbiMgZ3JvdXBzIDwtIGdyb3Vwc19yYXdcbmdyb3VwcyA8LSBncm91cHNfcmF3ICU+JSBcbiAgc2VsZWN0KCFoKSAjIHJlbW92ZSBgaGAgc28gdGhhdCBrX3ZiIGlzIHVzZWQgaW5zdGVhZCBmb3IgZmVlZGluZyByYXRlc1xuYGBgIn0= -->
 <pre class="r"><code># groups_raw[,8] # confirm what column `h` is
 
-groups_raw$h</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiIFsxXSAgMzMgIDMzICAzMyAgMzMgIDMzICBOQSAgTkEgIE5BIDE4OSAgNjYgIE5BICBOQSAgTkEgIE5BICBOQSAgTkEgIE5BICBOQSAgTkFcbiJ9 -->
-<pre><code> [1]  33  33  33  33  33  NA  NA  NA 189  66  NA  NA  NA  NA  NA  NA  NA  NA  NA</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaF91cGRhdGUgPC0gYygzMy4wLCAgMzMuMCwgIDMzLjAsICAzMy4wLCAgMzMuMCwgICAgTkEsICAgIE5BLCAgICBOQSwgMTg5LjAsICA2Ni4wLCAgICBOQSwgICAgTkEsICBOQSwgIE5BLCAgTkEsICBOQSwgIE5BLCAgIE5BLCAgIE5BKVxuXG5ncm91cHNfcmF3JGggPC0gaF91cGRhdGVcblxuIyBncm91cHNfbm9faCA8LSBncm91cHNfcmF3WywtOF1cblxuIyBncm91cHNfbm9faCRiaW9tYXNzX29ic2VydmVkXG5cbiMgZ3JvdXBzIDwtIGdyb3Vwc19ub19oXG5cbmtfdmJfc3RyaW5nIDwtIGMoMC42LDAuNCwwLjQsMC40LDAuNCwwLjM2MDgzMzMsMC4xODI1LDAuMTUsMSwwLjIsMC41LDAuMDYsMC4yLDAuMiwwLjIsMC4yLDAuMiwwLjIsMC4yKSAjIHRvIHVzZSBhbGwga192YiB2YWx1ZXMgYW5kIGluc3RlYWQgb2YgaFxuXG5ncm91cHNfcmF3JGtfdmIgPC0ga192Yl9zdHJpbmdcbiMgZ3JvdXBzJGtfdmIgPC0ga192Yl9zdHJpbmdcblxuIyBzcGVjaWVzX3BhcmFtcyA8LSBncm91cHNcblxuIyBzcGVjaWVzX3BhcmFtc1s2LDRdICNtYXggc2l6ZSBmb3Igc21hbGwgZGl2ZXJzXG4jIHNwZWNpZXNfcGFyYW1zWzYsM10gI21hdHVyYXRpb24gc2l6ZVxuIyBzcGVjaWVzX3BhcmFtc1s2LDJdICNtaW5pbXVtIHNpemVcbiMgXG4jIHNwZWNpZXNfcGFyYW1zWzYsM10gPC0gMC44NSpzcGVjaWVzX3BhcmFtc1s2LDRdXG4jIHNwZWNpZXNfcGFyYW1zWzksM10gPC0gMC45OSpzcGVjaWVzX3BhcmFtc1s5LDRdXG4jIFxuIyBncm91cHNfcmF3WzYsM10gPC0gMC44NSpncm91cHNfcmF3WzYsNF1cbiMgZ3JvdXBzX3Jhd1s5LDNdIDwtIDAuOTkqZ3JvdXBzX3Jhd1s5LDRdXG5sZW5ndGgoZ3JvdXBzX3JhdyRzcGVjaWVzKVxuYGBgIn0= -->
-<pre class="r"><code>h_update &lt;- c(33.0,  33.0,  33.0,  33.0,  33.0,    NA,    NA,    NA, 189.0,  66.0,    NA,    NA,  NA,  NA,  NA,  NA,  NA,   NA,   NA)
+groups_raw$h
+
+h_update &lt;- c(33.0,  33.0,  33.0,  33.0,  33.0,    NA,    NA,    NA, 189.0,  66.0,    NA,    NA,  NA,  NA,  NA,  NA,  NA,   NA,   NA)
 
 groups_raw$h &lt;- h_update
 
@@ -1995,38 +1902,13 @@ groups_raw$k_vb &lt;- k_vb_string
 # 
 # groups_raw[6,3] &lt;- 0.85*groups_raw[6,4]
 # groups_raw[9,3] &lt;- 0.99*groups_raw[9,4]
-length(groups_raw$species)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDE5XG4ifQ== -->
-<pre><code>[1] 19</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGVuZ3RoKGdyb3Vwc19yYXckaClcbmBgYCJ9 -->
-<pre class="r"><code>length(groups_raw$h)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDE5XG4ifQ== -->
-<pre><code>[1] 19</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGVuZ3RoKGdyb3Vwc19yYXcka192YilcbmBgYCJ9 -->
-<pre class="r"><code>length(groups_raw$k_vb)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDE5XG4ifQ== -->
-<pre><code>[1] 19</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRoXG5gYGAifQ== -->
-<pre class="r"><code>groups_raw$h</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiIFsxXSAgMzMgIDMzICAzMyAgMzMgIDMzICBOQSAgTkEgIE5BIDE4OSAgNjYgIE5BICBOQSAgTkEgIE5BICBOQSAgTkEgIE5BICBOQSAgTkFcbiJ9 -->
-<pre><code> [1]  33  33  33  33  33  NA  NA  NA 189  66  NA  NA  NA  NA  NA  NA  NA  NA  NA</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX3JhdyRrX3ZiXG5gYGAifQ== -->
-<pre class="r"><code>groups_raw$k_vb</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiIFsxXSAwLjYwMDAwMDAgMC40MDAwMDAwIDAuNDAwMDAwMCAwLjQwMDAwMDAgMC40MDAwMDAwIDAuMzYwODMzMyAwLjE4MjUwMDAgMC4xNTAwMDAwIDEuMDAwMDAwMCAwLjIwMDAwMDAgMC41MDAwMDAwIDAuMDYwMDAwMCAwLjIwMDAwMDAgMC4yMDAwMDAwXG5bMTVdIDAuMjAwMDAwMCAwLjIwMDAwMDAgMC4yMDAwMDAwIDAuMjAwMDAwMCAwLjIwMDAwMDBcbiJ9 -->
-<pre><code> [1] 0.6000000 0.4000000 0.4000000 0.4000000 0.4000000 0.3608333 0.1825000 0.1500000 1.0000000 0.2000000 0.5000000 0.0600000 0.2000000 0.2000000
-[15] 0.2000000 0.2000000 0.2000000 0.2000000 0.2000000</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBncm91cHMgPC0gZ3JvdXBzX3Jhd1xuZ3JvdXBzIDwtIGdyb3Vwc19yYXcgJT4lIFxuICBzZWxlY3QoIWgpICMgcmVtb3ZlIGBoYCBzbyB0aGF0IGtfdmIgaXMgdXNlZCBpbnN0ZWFkIGZvciBmZWVkaW5nIHJhdGVzXG5gYGAifQ== -->
-<pre class="r"><code># groups &lt;- groups_raw
+length(groups_raw$species)
+length(groups_raw$h)
+length(groups_raw$k_vb)
+
+groups_raw$h
+groups_raw$k_vb
+# groups &lt;- groups_raw
 groups &lt;- groups_raw %&gt;% 
   select(!h) # remove `h` so that k_vb is used instead for feeding rates</code></pre>
 <!-- rnb-source-end -->
@@ -2036,46 +1918,19 @@ groups &lt;- groups_raw %&gt;%
 the previous w_max of 6t</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHNwZWNpZXNbMTddXG5gYGAifQ== -->
-<pre class="r"><code>groups$species[17]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwib3JjYVwiXG4ifQ== -->
-<pre><code>[1] &quot;orca&quot;</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF4WzE3XVxuYGBgIn0= -->
-<pre class="r"><code>groups$w_max[17]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDZlKzA2XG4ifQ== -->
-<pre><code>[1] 6e+06</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF0WzE3XVxuYGBgIn0= -->
-<pre class="r"><code>groups$w_mat[17]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDQ5MDAwMDBcbiJ9 -->
-<pre><code>[1] 4900000</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF4WzE3XSA8LSAxMDYyODAzNFxuXG5ncm91cHMkd19tYXRbMTddIDwtIDMxOTg4NTVcblxuZ3JvdXBzJHdfbWF4WzE3XVxuYGBgIn0= -->
-<pre class="r"><code>groups$w_max[17] &lt;- 10628034
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHNwZWNpZXNbMTddXG5ncm91cHMkd19tYXhbMTddXG5ncm91cHMkd19tYXRbMTddXG5cbmdyb3VwcyR3X21heFsxN10gPC0gMTA2MjgwMzRcblxuZ3JvdXBzJHdfbWF0WzE3XSA8LSAzMTk4ODU1XG5cbmdyb3VwcyR3X21heFsxN11cbmdyb3VwcyR3X21hdFsxN11cbmdyb3VwcyR3X21hdDI1WzE3XVxuYGBgIn0= -->
+<pre class="r"><code>groups$species[17]
+groups$w_max[17]
+groups$w_mat[17]
+
+groups$w_max[17] &lt;- 10628034
 
 groups$w_mat[17] &lt;- 3198855
 
-groups$w_max[17]</code></pre>
+groups$w_max[17]
+groups$w_mat[17]
+groups$w_mat25[17]</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDEwNjI4MDM0XG4ifQ== -->
-<pre><code>[1] 10628034</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF0WzE3XVxuYGBgIn0= -->
-<pre class="r"><code>groups$w_mat[17]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDMxOTg4NTVcbiJ9 -->
-<pre><code>[1] 3198855</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF0MjVbMTddXG5gYGAifQ== -->
-<pre class="r"><code>groups$w_mat25[17]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTlVMTFxuIn0= -->
-<pre><code>NULL</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Update max and mat size for leopard seal using sealifebase values.
@@ -2084,95 +1939,38 @@ L-W conversion and max length results in an estimated max weight of
 545875.2g, which is too high above the max weight observed.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHNwZWNpZXNbMTNdXG5gYGAifQ== -->
-<pre class="r"><code>groups$species[13]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwibGVvcGFyZCBzZWFsc1wiXG4ifQ== -->
-<pre><code>[1] &quot;leopard seals&quot;</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF4WzEzXVxuYGBgIn0= -->
-<pre class="r"><code>groups$w_max[13]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDM0ODAwMFxuIn0= -->
-<pre><code>[1] 348000</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF0WzEzXVxuYGBgIn0= -->
-<pre class="r"><code>groups$w_mat[13]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDM0ODAwMFxuIn0= -->
-<pre><code>[1] 348000</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF4WzEzXSA8LSA0NTAwMDBcbiBcbmdyb3VwcyR3X21heFsxM11cbmBgYCJ9 -->
-<pre class="r"><code>groups$w_max[13] &lt;- 450000
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHNwZWNpZXNbMTNdXG5ncm91cHMkd19tYXhbMTNdXG5ncm91cHMkd19tYXRbMTNdXG5cbmdyb3VwcyR3X21heFsxM10gPC0gNDUwMDAwXG4gXG5ncm91cHMkd19tYXhbMTNdXG5ncm91cHMkd19tYXRbMTNdXG5ncm91cHMkd19tYXQyNVsxM11cbmBgYCJ9 -->
+<pre class="r"><code>groups$species[13]
+groups$w_max[13]
+groups$w_mat[13]
+
+groups$w_max[13] &lt;- 450000
  
-groups$w_max[13]</code></pre>
+groups$w_max[13]
+groups$w_mat[13]
+groups$w_mat25[13]</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDQ1MDAwMFxuIn0= -->
-<pre><code>[1] 450000</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF0WzEzXVxuYGBgIn0= -->
-<pre class="r"><code>groups$w_mat[13]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDM0ODAwMFxuIn0= -->
-<pre><code>[1] 348000</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzJHdfbWF0MjVbMTNdXG5gYGAifQ== -->
-<pre class="r"><code>groups$w_mat25[13]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTlVMTFxuIn0= -->
-<pre><code>NULL</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>If <code>h</code> has not already been removed</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzWyw3XSAjIGNvbmZpcm0gd2hhdCBjb2x1bW4gYGhgIGlzXG5gYGAifQ== -->
-<pre class="r"><code>groups[,7] # confirm what column `h` is</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiIFsxXSAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwXG4ifQ== -->
-<pre><code> [1] 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBncm91cHNfbm9faCA8LSBncm91cHNbLC03XVxuYGBgIn0= -->
-<pre class="r"><code># groups_no_h &lt;- groups[,-7]</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzWyw3XSAjIGNvbmZpcm0gd2hhdCBjb2x1bW4gYGhgIGlzXG5cbiMgZ3JvdXBzX25vX2ggPC0gZ3JvdXBzWywtN11cbmBgYCJ9 -->
+<pre class="r"><code>groups[,7] # confirm what column `h` is
+
+# groups_no_h &lt;- groups[,-7]</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGZfaW5kX0NQVUUgPC0gcmVhZFJEUyhcImluZF9jYXRjaF93ZWlnaHRfQmFuemFyZUJhbmtfMTkzMF8yMDE5X0NQVUUucmRzXCIpXG5kZl9DUFVFX2tnX2RheSA8LSByZWFkUkRTKFwiY2F0Y2hfdGltZXNlcmllc19CYW56YXJlQmFua18xOTMwXzIwMTlfQ1BVRS5yZHNcIilcblxuZ2xpbXBzZShkZl9pbmRfQ1BVRSlcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGZfaW5kX0NQVUUgPC0gcmVhZFJEUyhcImluZF9jYXRjaF93ZWlnaHRfQmFuemFyZUJhbmtfMTkzMF8yMDE5X0NQVUUucmRzXCIpXG5kZl9DUFVFX2tnX2RheSA8LSByZWFkUkRTKFwiY2F0Y2hfdGltZXNlcmllc19CYW56YXJlQmFua18xOTMwXzIwMTlfQ1BVRS5yZHNcIilcblxuZ2xpbXBzZShkZl9pbmRfQ1BVRSlcbmdsaW1wc2UoZGZfQ1BVRV9rZ19kYXkpXG5gYGAifQ== -->
 <pre class="r"><code>df_ind_CPUE &lt;- readRDS(&quot;ind_catch_weight_BanzareBank_1930_2019_CPUE.rds&quot;)
 df_CPUE_kg_day &lt;- readRDS(&quot;catch_timeseries_BanzareBank_1930_2019_CPUE.rds&quot;)
 
-glimpse(df_ind_CPUE)</code></pre>
+glimpse(df_ind_CPUE)
+glimpse(df_CPUE_kg_day)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiUm93czogMTA3LDAzMlxuQ29sdW1uczogOVxuR3JvdXBzOiBFeHAubm8sIFNwZWNpZXMgWzEwNF1cbiQgSUQgICAgICAgICAgPGludD4gODE2ODEsIDgxNjg3LCA4MTY4OSwgMTA0ODY4LCAxMDQ4NjksIDEwNDg3OSwgMTA0ODgxLCAxMDQ4ODYsIDEwNDkwNywgMTA0OTA4LCAxMDQ5MDksIDEwNDkxMCwgMTA0OTE2LCAxMDQ5MjEsIDEwNDk1OSwgMTA0OTYwLCAxMDQ5NuKAplxuJCBFeHAubm8gICAgICA8aW50PiA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1NzgxLCA1Nzgx4oCmXG4kIFllYXIgICAgICAgIDxpbnQ+IDE5MzIsIDE5MzIsIDE5MzIsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzMsIDE5MzPigKZcbiQgU3BlY2llcyAgICAgPGNocj4gXCJTcGVybVwiLCBcIlNwZXJtXCIsIFwiU3Blcm1cIiwgXCJTcGVybVwiLCBcIlNwZXJtXCIsIFwiU3Blcm1cIiwgXCJTcGVybVwiLCBcIlNwZXJtXCIsIFwiU3Blcm1cIiwgXCJTcGVybVwiLCBcIlNwZXJtXCIsIFwiU3Blcm1cIiwgXCJTcGVybVwiLCBcIlNwZXJtXCIsIFwiU3Bl4oCmXG4kIExlbmd0aCAgICAgIDxkYmw+IDE3MzcuMzYsIDE0OTMuNTIsIDE2NDUuOTIsIDE2NDUuOTIsIDE1ODQuOTYsIDE0OTMuNTIsIDE2NDUuOTIsIDE2MTUuNDQsIDE3MDYuODgsIDE1NTQuNDgsIDE2MTUuNDQsIDE2NDUuOTIsIDE2NDUuOTIsIDE3MDYuODgsIDE2NzbigKZcbiQgTGVuZ3RoLnVuaXQgPGludD4gMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMiwgMuKAplxuJCBXZWlnaHRfa2cgICA8ZGJsPiA1NzE2MC40OSwgMzYzMTIuNzksIDQ4NjAxLjgzLCA0ODYwMS44MywgNDMzOTkuMTcsIDM2MzEyLjc5LCA0ODYwMS44MywgNDU5NTEuNDMsIDU0MjA0LjUyLCA0MDk0My4yMSwgNDU5NTEuNDMsIDQ4NjAxLjgzLCA0ODYwMS44Mywg4oCmXG4kIGRhdGUgICAgICAgIDxkYXRlPiAxOTMyLTEyLTEwLCAxOTMyLTEyLTEwLCAxOTMyLTEyLTEwLCAxOTMzLTEyLTEyLCAxOTMzLTEyLTEyLCAxOTMzLTEyLTEyLCAxOTMzLTEyLTEyLCAxOTMzLTEyLTEzLCAxOTMzLTEyLTE0LCAxOTMzLTEyLTE0LCAxOTMzLTEyLTHigKZcbiQgRHVyYXRpb24gICAgPGludD4gMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNCwgMTQsIDE0LCAxNOKAplxuIn0= -->
-<pre><code>Rows: 107,032
-Columns: 9
-Groups: Exp.no, Species [104]
-$ ID          &lt;int&gt; 81681, 81687, 81689, 104868, 104869, 104879, 104881, 104886, 104907, 104908, 104909, 104910, 104916, 104921, 104959, 104960, 10496…
-$ Exp.no      &lt;int&gt; 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781, 5781…
-$ Year        &lt;int&gt; 1932, 1932, 1932, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933, 1933…
-$ Species     &lt;chr&gt; &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Sperm&quot;, &quot;Spe…
-$ Length      &lt;dbl&gt; 1737.36, 1493.52, 1645.92, 1645.92, 1584.96, 1493.52, 1645.92, 1615.44, 1706.88, 1554.48, 1615.44, 1645.92, 1645.92, 1706.88, 1676…
-$ Length.unit &lt;int&gt; 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2…
-$ Weight_kg   &lt;dbl&gt; 57160.49, 36312.79, 48601.83, 48601.83, 43399.17, 36312.79, 48601.83, 45951.43, 54204.52, 40943.21, 45951.43, 48601.83, 48601.83, …
-$ date        &lt;date&gt; 1932-12-10, 1932-12-10, 1932-12-10, 1933-12-12, 1933-12-12, 1933-12-12, 1933-12-12, 1933-12-13, 1933-12-14, 1933-12-14, 1933-12-1…
-$ Duration    &lt;int&gt; 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14…</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ2xpbXBzZShkZl9DUFVFX2tnX2RheSlcbmBgYCJ9 -->
-<pre class="r"><code>glimpse(df_CPUE_kg_day)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiUm93czogMTMyXG5Db2x1bW5zOiA1XG5Hcm91cHM6IFllYXIgWzc0XVxuJCBZZWFyICAgICAgICAgICA8aW50PiAxOTMwLCAxOTMxLCAxOTMyLCAxOTMyLCAxOTMzLCAxOTMzLCAxOTM0LCAxOTM0LCAxOTM1LCAxOTM1LCAxOTM2LCAxOTM2LCAxOTM3LCAxOTM3LCAxOTM4LCAxOTM4LCAxOTM5LCAxOTM5LCAxOTQwLCAxOTQwLCAxOTQ2LCAx4oCmXG4kIFNwZWNpZXMgICAgICAgIDxjaHI+IFwiQmFsZWVuXCIsIFwiQmFsZWVuXCIsIFwiQmFsZWVuXCIsIFwiU3Blcm1cIiwgXCJCYWxlZW5cIiwgXCJTcGVybVwiLCBcIkJhbGVlblwiLCBcIlNwZXJtXCIsIFwiQmFsZWVuXCIsIFwiU3Blcm1cIiwgXCJCYWxlZW5cIiwgXCJTcGVybVwiLCBcIkJhbGVlblwiLCBcIlPigKZcbiQgdG90YWxfY2F0Y2hfa2cgPGRibD4gNTAxNTU2ODguMSwgMzM1Mzc0MDgwLjEsIDMwNjYxMTczNS4wLCAxNDIwNzUuMSwgNDk2NTE1MzI2LjcsIDMxMDg5MTUuOCwgMjc5NDkyNTQzLjUsIDU5OTMyNjcuMCwgMjIwOTkxMDAzLjUsIDM3MDEzOTEuMCwgMTg0NTMxMuKAplxuJCBlZmZvcnRfZGF5cyAgICA8ZGJsPiA3OS41MjY1OTQyLCAzNzMuNDU1NDc0MSwgMjYwLjg2OTIyOTUsIDAuNzkzMTc5MiwgNDcxLjg2MDE5OTEsIDE2LjQyOTQ3NjUsIDMwOS45MzMyNjQ4LCAyNi44NjI4Mzk1LCAyNDEuODkyNDQ1MywgMTguNDcyNDk2NywgMjEx4oCmXG4kIENQVUUgICAgICAgICAgIDxkYmw+IDYzMDY3OC4yLCA4OTgwMjkuNiwgMTE3NTM0Ni41LCAxNzkxMjEuMSwgMTA1MjI1MC45LCAxODkyMjcuOSwgOTAxNzgzLjAsIDIyMzEwNi4yLCA5MTM1OTIuMCwgMjAwMzczLjEsIDg3MDczMi4xLCAyMTk0ODUuNiwgOTEwNjfigKZcbiJ9 -->
-<pre><code>Rows: 132
-Columns: 5
-Groups: Year [74]
-$ Year           &lt;int&gt; 1930, 1931, 1932, 1932, 1933, 1933, 1934, 1934, 1935, 1935, 1936, 1936, 1937, 1937, 1938, 1938, 1939, 1939, 1940, 1940, 1946, 1…
-$ Species        &lt;chr&gt; &quot;Baleen&quot;, &quot;Baleen&quot;, &quot;Baleen&quot;, &quot;Sperm&quot;, &quot;Baleen&quot;, &quot;Sperm&quot;, &quot;Baleen&quot;, &quot;Sperm&quot;, &quot;Baleen&quot;, &quot;Sperm&quot;, &quot;Baleen&quot;, &quot;Sperm&quot;, &quot;Baleen&quot;, &quot;S…
-$ total_catch_kg &lt;dbl&gt; 50155688.1, 335374080.1, 306611735.0, 142075.1, 496515326.7, 3108915.8, 279492543.5, 5993267.0, 220991003.5, 3701391.0, 1845312…
-$ effort_days    &lt;dbl&gt; 79.5265942, 373.4554741, 260.8692295, 0.7931792, 471.8601991, 16.4294765, 309.9332648, 26.8628395, 241.8924453, 18.4724967, 211…
-$ CPUE           &lt;dbl&gt; 630678.2, 898029.6, 1175346.5, 179121.1, 1052250.9, 189227.9, 901783.0, 223106.2, 913592.0, 200373.1, 870732.1, 219485.6, 91067…</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Yield for the period that matches Ecopath model, post 2000 annual
@@ -2187,13 +1985,6 @@ average</p>
 
 df_yield_2000_2019</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbInRibF9kZiIsInRibCIsImRhdGEuZnJhbWUiXSwibnJvdyI6MiwibmNvbCI6Miwic3VtbWFyeSI6eyJBIHRpYmJsZSI6WyIyIMOXIDIiXX19LCJyZGYiOiJINHNJQUFBQUFBQUFCbDFRc1U3RE1CQzl1alZWSTdWVVlrZVZXRmdTQ1pXQmtTTEV4bEtvMU5VNEJxd2FPM0pjQVJ2OEFnc1Q0bzhZbWZnUmxvWnphZy9ZZysvZHUzdDNmcDZmTDZmWk1nT0FMdlFJZ1M1RkNIUnhmWkdmQURLWWRLQUhBeCtmc0drUGdTZkhiZHdXZG1mYU1jdWQ1Sk5McVZjaTBEdG5UQW1oRVkxODgyei85NGQ4SEI2ZmZyMStIcnkvZlNmVHFXWVBvazRtOTY4cXdTWFNvZWRaQ2xVbXdvRTFqMFVVRDczNEJhK21hVGJwQnE1WUhUZEVNaXVaWThXdFJUMW1xYVJ2S2llTlJoSHh4bWtpN3RpRUdLKzFmMG1aOC91MVh1VkhVNytoclcvUE1HRHlIL3VkcEFtemFQdytvZStranA5SkZic1JLaVFqdE53Nkxpb3J0WXRXa0swTFp4eUxmUmszS2pLdE9kajhBU0hFWC9id0FRQUEifQ== -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["Species"],"name":[1],"type":["chr"],"align":["left"]},{"label":["yield"],"name":[2],"type":["dbl"],"align":["right"]}],"data":[{"1":"Antarctic Minke","2":"507511.00"},{"1":"Baleen","2":"15619.24"}],"options":{"columns":{"min":{},"max":[10],"total":[2]},"rows":{"min":[10],"max":[10],"total":[2]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Add yield in tonnes per km2, same as g m2 and it is consistent with
@@ -2233,24 +2024,15 @@ groups$biomass_cutoffHigh &lt;- groups$w_max</code></pre>
 <!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzIHw+IGRwbHlyOjpzZWxlY3Qoc3BlY2llcywgeWllbGRfb2JzZXJ2ZWQsIGJpb21hc3Nfb2JzZXJ2ZWQsIGJpb21hc3NfY3V0b2ZmLCB3X21pbilcbmBgYCJ9 -->
 <pre class="r"><code>groups |&gt; dplyr::select(species, yield_observed, biomass_observed, biomass_cutoff, w_min)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibnJvdyI6MTksIm5jb2wiOjUsInN1bW1hcnkiOnsiRGVzY3JpcHRpb24iOlsiZGYgWzE5IMOXIDVdIl19fSwicmRmIjoiSDRzSUFBQUFBQUFBQnNXVVRXZ1RRUlRIeHpUcFoxSkRVL3dvaUt1SVZxWFJVcWhlN0NSWXFsTDhRS3Iwb0xTVDNVbXl6ZXpPdXJ0cG1oNmtJR2lyUWhXTG9vTFNuaXlJNE1HREg1UnFRWThWRDhWTEQ4V2lMVjVhUlpFcTFjbG1OalpyUVBEaXdQRG0vZDdPZS84M21jeng1dmFHOHZaeUFFQVJjTHRjb01qRGxzQnpvcTJsYmk5Z2hEbXJnQnVVWld3UCt5aVFpYkxwWnpQQUEzNUZGblhhUzZsR2tKb3dxY3I1YWdVYkJmQWFhc2F4TGlpbzRLWUtuTlRpS0duSXNtUnc1REVRMFd5bktwTlV3d1RGWkZHSXlrWWMyNUZBQkpueGRNSFFPclltVVFHcGtpQlNaSmlJNU1lOVVaS1cxWmdRa2ZWY1ZhK2hJRUlFU2U3R3VzMktqVFBKMzdvcVRNcGF5VXZrSTVocVNKY0VBeU9TZ3dxVzVLU1NuOHBMa0I3RERxYklhZ0lMcVRnaXVZeHVxb3NvSjBuRHVwSWY5MFdZZzFVYkFsQnAvVEwvYWNER3dlcHpUNCs0bmJ6cC9lN2hxMVZkNndIWEY2ck44dEFXYmpmZHpJeGJvYlZaQzJlbmQ5WGNIVXZCenczV2dNc3pCeDVVOTg3QStkSHZIOGlsWmhpL1pqN3JPcnNFcjBRT3Yxa2MvUUVuK0hkelhFY241NisvdkJnOFZmc1ZYcit3MCtVOTlBUmV2bDlhdjNVK0RYdjQvdk9jajRjSDlyUyt2QWYrY243d01kZG4yd1hPSFRiVXpPM0RvWUx4Y0dsWE5qN1JuL1ZCNzdobE54L3RzK3lHdVpCbFc5OWFIWVhETy9xNUJFdmZQalRTV3IxbjI0Mm16cVdHZ2FtUDRhYlpiNC82MzhVWG9mL2l3ZTduOVJzaEdEclpkbnRtREI3ajU5QXlWVE94TUhrSEtvbVI2VSt2VHYraGozTTRYTHQvc21SNCs3L3J5M3N5UENwU3JFdnB6emdjbHJCYkxNcTVDMXlabGpHUk9takV3SG8zbHV3M0pTSlRCUm1HazFmYVhFeWFOQnExNjZRNjJGL0hVYnhNcDZtZ0xjREhwcXN2S3pIZ1ZDa1NscEdydEdHNWhFd1VqT3BzUC9PV0hWdEtxR2JLVkdXYlhDdGZ4TnhUcVR1QVA2bG1sRWgxWWp5cEp1cnFHek1WckhoMitQZzZzR0x0eWRaMC9YU2NYekZXWTdLS2JmRUVSVEN4VDRlMWJIVWMxSFJaTmUxV0dEV0NKbVhQbmsxRVNteGlOUWVXZndHMUhKNFhDUVlBQUE9PSJ9 -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["species"],"name":[1],"type":["chr"],"align":["left"]},{"label":["yield_observed"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["biomass_observed"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["biomass_cutoff"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["w_min"],"name":[5],"type":["dbl"],"align":["right"]}],"data":[{"1":"microzooplankton","2":"0.0000000000","3":"12.000","4":"0.00e+00","5":"5.011872e-13"},{"1":"mesozooplankton","2":"0.0000000000","3":"10.000","4":"0.00e+00","5":"3.162278e-08"},{"1":"other macrozooplankton","2":"0.0000000000","3":"8.800","4":"0.00e+00","5":"1.000000e-05"},{"1":"euphausiids","2":"0.0000000000","3":"5.900","4":"1.00e-01","5":"6.309573e-05"},{"1":"salps","2":"0.0000000000","3":"0.652","4":"1.00e-01","5":"3.162278e-05"},{"1":"mesopelagic fishes","2":"0.0000000000","3":"1.200","4":"1.00e+00","5":"1.000000e-03"},{"1":"bathypelagic fishes","2":"0.0000000000","3":"1.930","4":"1.00e+00","5":"6.969100e-04"},{"1":"shelf and coastal fishes","2":"0.0000000000","3":"0.802","4":"1.00e+00","5":"3.591364e-03"},{"1":"flying birds","2":"0.0000000000","3":"0.003","4":"4.00e+01","5":"4.000000e+01"},{"1":"small divers","2":"0.0000000000","3":"0.016","4":"4.50e+03","5":"4.500000e+03"},{"1":"squids","2":"0.0000000000","3":"0.150","4":"1.00e+00","5":"3.591364e-03"},{"1":"toothfishes","2":"0.0000000000","3":"0.750","4":"1.00e+00","5":"3.351032e-02"},{"1":"leopard seals","2":"0.0000000000","3":"0.002","4":"2.00e+05","5":"2.000000e+05"},{"1":"medium divers","2":"0.0000000000","3":"0.265","4":"1.00e+04","5":"1.000000e+04"},{"1":"large divers","2":"0.0000000000","3":"0.022","4":"1.35e+05","5":"1.350000e+05"},{"1":"minke whales","2":"0.0003442216","3":"0.014","4":"6.00e+05","5":"6.000000e+05"},{"1":"orca","2":"0.0000000000","3":"0.006","4":"4.90e+05","5":"4.900000e+05"},{"1":"sperm whales","2":"0.0000000000","3":"0.011","4":"3.65e+06","5":"3.650000e+06"},{"1":"baleen whales","2":"0.0000105810","3":"0.127","4":"2.25e+06","5":"2.250000e+06"}],"options":{"columns":{"min":{},"max":[10],"total":[5]},"rows":{"min":[10],"max":[10],"total":[19]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX2ZpbmFsWzUsXVxuXG5gYGAifQ== -->
-<pre class="r"><code>groups_final[5,]
-</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JvdXBzX2ZpbmFsIDwtIGdyb3Vwc1stYygxOjMpLF1cblxuZ3JvdXBzX2ZpbmFsWzUsXVxuYGBgIn0= -->
+<pre class="r"><code>groups_final &lt;- groups[-c(1:3),]
+
+groups_final[5,]</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3I6IG9iamVjdCAnZ3JvdXBzX2ZpbmFsJyBub3QgZm91bmRcbiJ9 -->
-<pre><code>Error: object &#39;groups_final&#39; not found</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Run a range of models to different biomass estimates Use an ensemble
@@ -2259,13 +2041,10 @@ functions</p>
 <p>Load interaction matrix</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibnJvdyI6MTksIm5jb2wiOjE5LCJzdW1tYXJ5Ijp7IkRlc2NyaXB0aW9uIjpbImRmIFsxOSDDlyAxOV0iXX19LCJyZGYiOiJINHNJQUFBQUFBQUFCdFZYdTI0VFFSVGRPRmxRbmdRaUFaRkFtalIwV1FsUlFPY0cwUk9JbElKbXZEdTJWNW1kV2ZaQkNNb1BSRXFiSWlnVk5MaWxjeGNzVWFRelJTUlNJSVUvOEJjRVp1MjVnL1o2Tnp6aUFvOWtuYjNuM3BrNU0rZnVLbGw3dlBGZ1ptUEdzcXhKYTZwU3NTWnQ5V2paNjgrZnJENnlGS09DQ1d2S21zN3d0U3BhVWcvWmJ5SERhcy9xRDRObktBWThRdmhwZi9ucC92SmF0WFdRamJmVnRzYXV6Z01DLzNtOVB3ekN2R09Oc0s2T3gwWWY2TUc2TUkvMzdieTNuOTI3MWFrZTZQVmhQendQK0JPdEN4RG00WE8xeCt6Ky9uZDllTjh1aWdHeDNvL2EzMTI5UHZnRjV3TUUvcXVPQVdFZTdvdldtT2tEbndDaDd6RVBlZ0JCNTg1SzU4NUs1MjUxVHlPdUEvN0Q2UXZ4TFowMENQTU9OYjdUOVRvMitscm9IUGg5Qk54RnVHUFd5UTFjaC9OL01RYjZvSC9iU0EvbUR4RHVsZWpEZGIyTFJWeVFIK2pyNmpyQU14UmpIckNzLzNyNWZTL2RmLys3dmhINU82UUg2LzF5dlQ4TTRuTWNEL1hEUUIvK2JwNmdHQkNmWDcrSEZocERkVm9QcmpQMTMwdno0NkVQL0d3aFh6Qy9pL0FQdnkrWGZuL0JkOEEyaWdHeDNzT1Mvc04xd090N010aEQ4MDVMK3U5STV3RzdLQVk4UTZpLzkwUDNnZXVPemZ0WU9FQlhRV3FrOTJmMks3bS9VbjJsK2R3Zi9yYWdBWXZWdzJJbVdwT0xnZTlHOG8yVUlhZGlNNUZDODlkVWFRRjlVeVpORmprQkxadzB5OUt3U2RQWTk3MFlObzBwRHlHNGtTMGFNazRidnV2VS9iakpJTE5VbzBsenV6QjFXejN6dWtPRjU3aVN4Z25sK2Z4Y25XLzdvdUhVL01qc09oY0hsSFBIODEreENMZ3I4Y3YwbDY3WlJLcWo1QmFhNTB5R05QS2NtRkZ1eUlCNWZocmtsNXJqTkdvd3hBVysyR1RPVnBOeXMrS1VqRnhxSklVc0N2TDUrWm9LbUFBeWI5ZDBKTGVja1ZsR1JtQVpLYmVNRkZoR2xHVkVXMGFLTENQRGxwRi9zNHdVV0VZS0xDTUZscEhmV0VhS0xDT0ZsdGt1cHpIWUJlU01SeFBxMUNQbHBJck8wWlNyTWt4OEtkU2tTdmIvdUkwbVQwU0lXRXhGMWhQZXF0dE14ZWJxL1lmWkR2Mzg0RGV2Y1NuL25PMVorYUhYc3VGNm1XajRnb0Y0VG11TTYyQkJOVisvOTV3dzhrVUNSMUZzN0NSU0dRcU1Lemt3L2NOWjV6OEJOQ1NVZ0lzUUFBQT0ifQ== -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["microzooplankton"],"name":[1],"type":["dbl"],"align":["right"]},{"label":["mesozooplankton"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["other.macrozooplankton"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["euphausiids"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["salps"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["mesopelagic.fishes"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["bathypelagic.fishes"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["shelf.and.coastal.fishes"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["flying.birds"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["small.divers"],"name":[10],"type":["dbl"],"align":["right"]},{"label":["squids"],"name":[11],"type":["dbl"],"align":["right"]},{"label":["toothfishes"],"name":[12],"type":["dbl"],"align":["right"]},{"label":["leopard.seals"],"name":[13],"type":["dbl"],"align":["right"]},{"label":["medium.divers"],"name":[14],"type":["dbl"],"align":["right"]},{"label":["large.divers"],"name":[15],"type":["dbl"],"align":["right"]},{"label":["minke.whales"],"name":[16],"type":["dbl"],"align":["right"]},{"label":["orca"],"name":[17],"type":["dbl"],"align":["right"]},{"label":["sperm.whales"],"name":[18],"type":["dbl"],"align":["right"]},{"label":["baleen.whales"],"name":[19],"type":["dbl"],"align":["right"]}],"data":[{"1":"1.0000000","2":"1.0000000","3":"0.5000000","4":"1.0000000","5":"1.0000000","6":"0.1250","7":"0.1250","8":"0.137362637","9":"0.050000000","10":"0.10000000","11":"0.2500","12":"0.2500","13":"0.10000000","14":"0.16666667","15":"0.16666667","16":"0.050000000","17":"0.20000000","18":"0.1250","19":"0.20000000","_rn_":"microzooplankton"},{"1":"1.0000000","2":"1.0000000","3":"0.5000000","4":"1.0000000","5":"1.0000000","6":"0.1250","7":"0.1250","8":"0.137362637","9":"0.050000000","10":"0.10000000","11":"0.2500","12":"0.2500","13":"0.10000000","14":"0.16666667","15":"0.16666667","16":"0.050000000","17":"0.20000000","18":"0.1250","19":"0.20000000","_rn_":"mesozooplankton"},{"1":"0.5000000","2":"0.5000000","3":"1.0000000","4":"0.5000000","5":"0.5000000","6":"0.2500","7":"0.2500","8":"0.145600000","9":"0.025000000","10":"0.05000000","11":"0.5000","12":"0.5000","13":"0.05000000","14":"0.33333333","15":"0.33333333","16":"0.025000000","17":"0.10000000","18":"0.2500","19":"0.10000000","_rn_":"other macrozooplankton"},{"1":"1.0000000","2":"1.0000000","3":"0.5000000","4":"1.0000000","5":"1.0000000","6":"0.1250","7":"0.1250","8":"0.137362637","9":"0.050000000","10":"0.10000000","11":"0.2500","12":"0.2500","13":"0.10000000","14":"0.16666667","15":"0.16666667","16":"0.050000000","17":"0.20000000","18":"0.1250","19":"0.20000000","_rn_":"euphausiids"},{"1":"1.0000000","2":"1.0000000","3":"0.5000000","4":"1.0000000","5":"1.0000000","6":"0.1250","7":"0.1250","8":"0.137362637","9":"0.050000000","10":"0.10000000","11":"0.2500","12":"0.2500","13":"0.10000000","14":"0.16666667","15":"0.16666667","16":"0.050000000","17":"0.20000000","18":"0.1250","19":"0.20000000","_rn_":"salps"},{"1":"0.1250000","2":"0.1250000","3":"0.2500000","4":"0.1250000","5":"0.1250000","6":"1.0000","7":"1.0000","8":"0.072800000","9":"0.012500000","10":"0.02500000","11":"0.5000","12":"0.5000","13":"0.02500000","14":"0.37500000","15":"0.37500000","16":"0.012500000","17":"0.05000000","18":"0.5000","19":"0.05000000","_rn_":"mesopelagic fishes"},{"1":"0.1250000","2":"0.1250000","3":"0.2500000","4":"0.1250000","5":"0.1250000","6":"1.0000","7":"1.0000","8":"0.072800000","9":"0.012500000","10":"0.02500000","11":"0.5000","12":"0.5000","13":"0.02500000","14":"0.37500000","15":"0.37500000","16":"0.012500000","17":"0.05000000","18":"0.5000","19":"0.05000000","_rn_":"bathypelagic fishes"},{"1":"0.1373626","2":"0.1373626","3":"0.1456000","4":"0.1373626","5":"0.1373626","6":"0.0728","7":"0.0728","8":"1.000000000","9":"0.006868132","10":"0.01373626","11":"0.0728","12":"0.0728","13":"0.01373626","14":"0.04853333","15":"0.04853333","16":"0.006868132","17":"0.02747253","18":"0.0364","19":"0.02747253","_rn_":"shelf and coastal fishes"},{"1":"0.0500000","2":"0.0500000","3":"0.0250000","4":"0.0500000","5":"0.0500000","6":"0.0125","7":"0.0125","8":"0.006868132","9":"0.000000000","10":"0.00000000","11":"0.0125","12":"0.0125","13":"0.00000000","14":"0.00000000","15":"0.00000000","16":"0.000000000","17":"0.00000000","18":"0.0000","19":"0.00000000","_rn_":"flying birds"},{"1":"0.1000000","2":"0.1000000","3":"0.0500000","4":"0.1000000","5":"0.1000000","6":"0.0250","7":"0.0250","8":"0.013736264","9":"0.000000000","10":"0.00000000","11":"0.0250","12":"0.0250","13":"1.00000000","14":"0.00000000","15":"0.00000000","16":"0.000000000","17":"1.00000000","18":"0.0000","19":"0.00000000","_rn_":"small divers"},{"1":"0.2500000","2":"0.2500000","3":"0.5000000","4":"0.2500000","5":"0.2500000","6":"0.5000","7":"0.5000","8":"0.072800000","9":"0.012500000","10":"0.02500000","11":"1.0000","12":"1.0000","13":"0.02500000","14":"0.37500000","15":"0.37500000","16":"0.012500000","17":"0.05000000","18":"0.5000","19":"0.05000000","_rn_":"squids"},{"1":"0.2500000","2":"0.2500000","3":"0.5000000","4":"0.2500000","5":"0.2500000","6":"0.5000","7":"0.5000","8":"0.072800000","9":"0.012500000","10":"0.02500000","11":"1.0000","12":"1.0000","13":"0.02500000","14":"0.37500000","15":"0.37500000","16":"0.012500000","17":"0.05000000","18":"0.5000","19":"0.05000000","_rn_":"toothfishes"},{"1":"0.1000000","2":"0.1000000","3":"0.0500000","4":"0.1000000","5":"0.1000000","6":"0.0250","7":"0.0250","8":"0.013736264","9":"0.000000000","10":"1.00000000","11":"0.0250","12":"0.0250","13":"1.00000000","14":"0.26666667","15":"0.26666667","16":"1.000000000","17":"1.00000000","18":"0.2000","19":"1.00000000","_rn_":"leopard seals"},{"1":"0.1666667","2":"0.1666667","3":"0.3333333","4":"0.1666667","5":"0.1666667","6":"0.3750","7":"0.3750","8":"0.048533333","9":"0.000000000","10":"0.00000000","11":"0.3750","12":"0.3750","13":"0.26666667","14":"0.00000000","15":"0.00000000","16":"0.000000000","17":"0.53333333","18":"0.0000","19":"0.00000000","_rn_":"medium divers"},{"1":"0.1666667","2":"0.1666667","3":"0.3333333","4":"0.1666667","5":"0.1666667","6":"0.3750","7":"0.3750","8":"0.048533333","9":"0.000000000","10":"0.00000000","11":"0.3750","12":"0.3750","13":"0.26666667","14":"0.00000000","15":"0.00000000","16":"0.000000000","17":"0.53333333","18":"0.0000","19":"0.00000000","_rn_":"large divers"},{"1":"0.0500000","2":"0.0500000","3":"0.0250000","4":"0.0500000","5":"0.0500000","6":"0.0125","7":"0.0125","8":"0.006868132","9":"0.000000000","10":"0.00000000","11":"0.0125","12":"0.0125","13":"1.00000000","14":"0.00000000","15":"0.00000000","16":"0.000000000","17":"1.00000000","18":"0.0000","19":"0.00000000","_rn_":"minke whales"},{"1":"0.2000000","2":"0.2000000","3":"0.1000000","4":"0.2000000","5":"0.2000000","6":"0.0500","7":"0.0500","8":"0.027472527","9":"0.000000000","10":"1.00000000","11":"0.0500","12":"0.0500","13":"1.00000000","14":"0.53333333","15":"0.53333333","16":"1.000000000","17":"1.00000000","18":"0.4000","19":"1.00000000","_rn_":"orca"},{"1":"0.1250000","2":"0.1250000","3":"0.2500000","4":"0.1250000","5":"0.1250000","6":"0.5000","7":"0.5000","8":"0.036400000","9":"0.000000000","10":"0.00000000","11":"0.5000","12":"0.5000","13":"0.20000000","14":"0.00000000","15":"0.00000000","16":"0.000000000","17":"0.40000000","18":"0.0000","19":"0.00000000","_rn_":"sperm whales"},{"1":"0.2000000","2":"0.2000000","3":"0.1000000","4":"0.2000000","5":"0.2000000","6":"0.0500","7":"0.0500","8":"0.027472527","9":"0.000000000","10":"0.00000000","11":"0.0500","12":"0.0500","13":"1.00000000","14":"0.00000000","15":"0.00000000","16":"0.000000000","17":"1.00000000","18":"0.0000","19":"0.00000000","_rn_":"baleen whales"}],"options":{"columns":{"min":{},"max":[10],"total":[19]},"rows":{"min":[10],"max":[10],"total":[19]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGhldGEgPC0gcmVhZFJEUyhcInRyYWl0X2dyb3Vwc19pbnRlcmFjdGlvbl9tYXRyaXhfdkNXQ192Mi5SRFNcIilcbnRoZXRhXG5gYGAifQ== -->
+<pre class="r"><code>theta &lt;- readRDS(&quot;trait_groups_interaction_matrix_vCWC_v2.RDS&quot;)
+theta</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
@@ -2278,27 +2057,23 @@ salp_col &lt;- as.numeric(theta[,5])</code></pre>
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc2FscF9yb3cgPC0gc2FscF9yb3dbLWMoMTozLDUpXVxuYGBgIn0= -->
+<pre class="r"><code>salp_row &lt;- salp_row[-c(1:3,5)]</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Interaction between orca should be 0, so this needs to be adjusted
 from original</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyB0aGV0YVsxMywxM11cbnRoZXRhWzE3LDE3XVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyB0aGV0YVsxMywxM11cbnRoZXRhWzE3LDE3XVxuXG50aGV0YVsxNywxN10gPC0gMFxuXG50aGV0YVsxNywxN11cbmBgYCJ9 -->
 <pre class="r"><code># theta[13,13]
-theta[17,17]</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDFcbiJ9 -->
-<pre><code>[1] 1</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGhldGFbMTcsMTddIDwtIDBcblxudGhldGFbMTcsMTddXG5gYGAifQ== -->
-<pre class="r"><code>theta[17,17] &lt;- 0
+theta[17,17]
+
+theta[17,17] &lt;- 0
 
 theta[17,17]</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDBcbiJ9 -->
-<pre><code>[1] 0</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
@@ -2308,408 +2083,74 @@ theta[17,17]</code></pre>
 
 theta_final</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibnJvdyI6MTYsIm5jb2wiOjE2LCJzdW1tYXJ5Ijp7IkRlc2NyaXB0aW9uIjpbImRmIFsxNiDDlyAxNl0iXX19LCJyZGYiOiJINHNJQUFBQUFBQUFCczFXUFc4VFFSRGQyRDVRSERzeXBJQklJRzBhT3ArRW9LQnpnK2dKUkVwQnMvYXRmYWZzZlhBZkpKSHlCeUtsVFdHVUNocmMwdEdGU0JUdVFrY0tKUE1QL0FzQ2UvYk9vaHZmQlFXbjhFaW50enN6dS9QMjdkenBOcDl2UDZsdVZ3a2haVklwbFVqWmtFTmliTDErMFh4R3BFZE9sa2lGTEtlNEo1UFc1S0FobjlVVVcyTXlNWTJuQ0w4ZXI3ODhYdDlzRGZxcHZXOTlVWGl1NG9EZy83WTFNWTJ3YnFnUTlsWHpoZU9CNjJKZW56OGFyeDdkTzJzZHFuMzZDa2NxRGdqK0gyb09DT3NHYU4xZ1FYbUE3b0JRRnhENEhHeWNQZGc0ZTlnNlVvanp3UC9wNG8zM015bHJoSFVuQ2orb2ZEWFhQQWFJN3lIQ0E1MmZNWnlINDlld0tRL29MOEErd3FNQ0hqaHZmSFd4SytKVEh1Y3FEM0NFc0tnL3h0bjk1KzZQUmVGeHpYdVpxWXQ1ZmI4ek1ZMlk3M0RtSHFjODhIY0huMGYxUFVFMms2ZnE0anlkLzZzd3ZsZzhidWk5bmZ0OWdmc2FJajZBSndYOWdmUEFyODZ0RWRWdlhSVDB4Nm1LQTQ0UXF1L2Z6UGx3M2xEM2Y2NUIvWnZTUSs5Ym9FY2hqOEo0NXNmRThKakxJekw5TVdrbzV3cFBBcHNsa2VOWUVlUkZUQVF3dVN1WCtBRVhyT2Qweks0VDJSd2lhMjBXMi91NW9mdHlMTG9tOHl5ejQ3TW9aaUlicjNYRnZ1UDF6TFlUNnFxMXlHVkNtSmJ6am9mZ3V4VzlUZjd5V29sOVA3WXpHOVVGOXdNV1dtYkVtZEJPbDF0TzRtYTNxZ2tXOWpqeXVZNjN3ODFkbXdtOVk4VVBPMHhUQ25qb1p1UDF0cHh3RDV4WmhaZERmOWVjVjJWYXJETE5VWmxLbGFsU21lYXBUR2RWcHYrbk1zMVJtZWFvVEhOVXB2OVFtZWFwVEhOVk5qcUNSYUF3T0tzV2k1blpEYVg0Y25hSmx0ejJnOWp4UGJtb2xQNlpHMmp4VW9nY2pjUkxyOUZxZHV6RTIyaytmWnhXbU1TblQxMWhJenRPYTVaK0s3OEI4bkt2NTNnY3lBdlc1a0pOVm1XL1ROckZERUxIaStFbzBodVpzUzh2RkR3ZFg0Qm5jamh5K1Fmc3RYa21rUXdBQUE9PSJ9 -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["euphausiids"],"name":[1],"type":["dbl"],"align":["right"]},{"label":["salps"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["mesopelagic.fishes"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["bathypelagic.fishes"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["shelf.and.coastal.fishes"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["flying.birds"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["small.divers"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["squids"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["toothfishes"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["leopard.seals"],"name":[10],"type":["dbl"],"align":["right"]},{"label":["medium.divers"],"name":[11],"type":["dbl"],"align":["right"]},{"label":["large.divers"],"name":[12],"type":["dbl"],"align":["right"]},{"label":["minke.whales"],"name":[13],"type":["dbl"],"align":["right"]},{"label":["orca"],"name":[14],"type":["dbl"],"align":["right"]},{"label":["sperm.whales"],"name":[15],"type":["dbl"],"align":["right"]},{"label":["baleen.whales"],"name":[16],"type":["dbl"],"align":["right"]}],"data":[{"1":"1.0000000","2":"1.0000000","3":"0.1250","4":"0.1250","5":"0.137362637","6":"0.050000000","7":"0.10000000","8":"0.2500","9":"0.2500","10":"0.10000000","11":"0.16666667","12":"0.16666667","13":"0.050000000","14":"0.20000000","15":"0.1250","16":"0.20000000","_rn_":"euphausiids"},{"1":"1.0000000","2":"1.0000000","3":"0.1250","4":"0.1250","5":"0.137362637","6":"0.050000000","7":"0.10000000","8":"0.2500","9":"0.2500","10":"0.10000000","11":"0.16666667","12":"0.16666667","13":"0.050000000","14":"0.20000000","15":"0.1250","16":"0.20000000","_rn_":"salps"},{"1":"0.1250000","2":"0.1250000","3":"1.0000","4":"1.0000","5":"0.072800000","6":"0.012500000","7":"0.02500000","8":"0.5000","9":"0.5000","10":"0.02500000","11":"0.37500000","12":"0.37500000","13":"0.012500000","14":"0.05000000","15":"0.5000","16":"0.05000000","_rn_":"mesopelagic fishes"},{"1":"0.1250000","2":"0.1250000","3":"1.0000","4":"1.0000","5":"0.072800000","6":"0.012500000","7":"0.02500000","8":"0.5000","9":"0.5000","10":"0.02500000","11":"0.37500000","12":"0.37500000","13":"0.012500000","14":"0.05000000","15":"0.5000","16":"0.05000000","_rn_":"bathypelagic fishes"},{"1":"0.1373626","2":"0.1373626","3":"0.0728","4":"0.0728","5":"1.000000000","6":"0.006868132","7":"0.01373626","8":"0.0728","9":"0.0728","10":"0.01373626","11":"0.04853333","12":"0.04853333","13":"0.006868132","14":"0.02747253","15":"0.0364","16":"0.02747253","_rn_":"shelf and coastal fishes"},{"1":"0.0500000","2":"0.0500000","3":"0.0125","4":"0.0125","5":"0.006868132","6":"0.000000000","7":"0.00000000","8":"0.0125","9":"0.0125","10":"0.00000000","11":"0.00000000","12":"0.00000000","13":"0.000000000","14":"0.00000000","15":"0.0000","16":"0.00000000","_rn_":"flying birds"},{"1":"0.1000000","2":"0.1000000","3":"0.0250","4":"0.0250","5":"0.013736264","6":"0.000000000","7":"0.00000000","8":"0.0250","9":"0.0250","10":"1.00000000","11":"0.00000000","12":"0.00000000","13":"0.000000000","14":"1.00000000","15":"0.0000","16":"0.00000000","_rn_":"small divers"},{"1":"0.2500000","2":"0.2500000","3":"0.5000","4":"0.5000","5":"0.072800000","6":"0.012500000","7":"0.02500000","8":"1.0000","9":"1.0000","10":"0.02500000","11":"0.37500000","12":"0.37500000","13":"0.012500000","14":"0.05000000","15":"0.5000","16":"0.05000000","_rn_":"squids"},{"1":"0.2500000","2":"0.2500000","3":"0.5000","4":"0.5000","5":"0.072800000","6":"0.012500000","7":"0.02500000","8":"1.0000","9":"1.0000","10":"0.02500000","11":"0.37500000","12":"0.37500000","13":"0.012500000","14":"0.05000000","15":"0.5000","16":"0.05000000","_rn_":"toothfishes"},{"1":"0.1000000","2":"0.1000000","3":"0.0250","4":"0.0250","5":"0.013736264","6":"0.000000000","7":"1.00000000","8":"0.0250","9":"0.0250","10":"1.00000000","11":"0.26666667","12":"0.26666667","13":"1.000000000","14":"1.00000000","15":"0.2000","16":"1.00000000","_rn_":"leopard seals"},{"1":"0.1666667","2":"0.1666667","3":"0.3750","4":"0.3750","5":"0.048533333","6":"0.000000000","7":"0.00000000","8":"0.3750","9":"0.3750","10":"0.26666667","11":"0.00000000","12":"0.00000000","13":"0.000000000","14":"0.53333333","15":"0.0000","16":"0.00000000","_rn_":"medium divers"},{"1":"0.1666667","2":"0.1666667","3":"0.3750","4":"0.3750","5":"0.048533333","6":"0.000000000","7":"0.00000000","8":"0.3750","9":"0.3750","10":"0.26666667","11":"0.00000000","12":"0.00000000","13":"0.000000000","14":"0.53333333","15":"0.0000","16":"0.00000000","_rn_":"large divers"},{"1":"0.0500000","2":"0.0500000","3":"0.0125","4":"0.0125","5":"0.006868132","6":"0.000000000","7":"0.00000000","8":"0.0125","9":"0.0125","10":"1.00000000","11":"0.00000000","12":"0.00000000","13":"0.000000000","14":"1.00000000","15":"0.0000","16":"0.00000000","_rn_":"minke whales"},{"1":"0.2000000","2":"0.2000000","3":"0.0500","4":"0.0500","5":"0.027472527","6":"0.000000000","7":"1.00000000","8":"0.0500","9":"0.0500","10":"1.00000000","11":"0.53333333","12":"0.53333333","13":"1.000000000","14":"0.00000000","15":"0.4000","16":"1.00000000","_rn_":"orca"},{"1":"0.1250000","2":"0.1250000","3":"0.5000","4":"0.5000","5":"0.036400000","6":"0.000000000","7":"0.00000000","8":"0.5000","9":"0.5000","10":"0.20000000","11":"0.00000000","12":"0.00000000","13":"0.000000000","14":"0.40000000","15":"0.0000","16":"0.00000000","_rn_":"sperm whales"},{"1":"0.2000000","2":"0.2000000","3":"0.0500","4":"0.0500","5":"0.027472527","6":"0.000000000","7":"0.00000000","8":"0.0500","9":"0.0500","10":"1.00000000","11":"0.00000000","12":"0.00000000","13":"0.000000000","14":"1.00000000","15":"0.0000","16":"0.00000000","_rn_":"baleen whales"}],"options":{"columns":{"min":{},"max":[10],"total":[16]},"rows":{"min":[10],"max":[10],"total":[16]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <div id="running-a-scenario" class="section level2">
 <h2>Running a scenario</h2>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFyYW1zIDwtIG5ld011bHRpc3BlY2llc1BhcmFtcyhzcGVjaWVzX3BhcmFtcyA9IGdyb3Vwc19maW5hbCwgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGludGVyYWN0aW9uID0gdGhldGFfZmluYWwsIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBrYXBwYSA9IDIuNjM5MDdlKzEzLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB3X3BwX2N1dG9mZiA9IDEwMCxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbWluX3dfcHAgPSAxZS0xNClcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFyYW1zIDwtIG5ld011bHRpc3BlY2llc1BhcmFtcyhzcGVjaWVzX3BhcmFtcyA9IGdyb3Vwc19maW5hbCwgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGludGVyYWN0aW9uID0gdGhldGFfZmluYWwsIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBrYXBwYSA9IDIuNjM5MDdlKzEzLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB3X3BwX2N1dG9mZiA9IDEwMCxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbWluX3dfcHAgPSAxZS0xNClcblxuIyBzYXZlUkRTKHBhcmFtcywgXCJiYXNlX3BhcmFtcy5yZHNcIilcbmBgYCJ9 -->
 <pre class="r"><code>params &lt;- newMultispeciesParams(species_params = groups_final, 
                                 interaction = theta_final, 
                                 kappa = 2.63907e+13,
                                 w_pp_cutoff = 100,
-                                min_w_pp = 1e-14)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRm9yIHRoZSBzcGVjaWVzIGxhcmdlIGRpdmVycywgbWlua2Ugd2hhbGVzLCBzcGVybSB3aGFsZXMgdGhlIHZhbHVlIGZvciBgd19tYXRgIGlzIG5vdCBzbWFsbGVyIHRoYW4gdGhhdCBvZiBgd19tYXhgLiBJIGhhdmUgY29ycmVjdGVkIHRoYXQgYnkgc2V0dGluZyBpdCB0byBhYm91dCAyNSUgb2YgYHdfbWF0LlxuRm9yIHRoZSBzcGVjaWVzIHNtYWxsIGRpdmVycyB0aGUgdmFsdWUgZm9yIGB3X21pbmAgaXMgbm90IHNtYWxsZXIgdGhhbiB0aGF0IG9mIGB3X21hdGAuIEkgaGF2ZSByZWR1Y2VkIHRoZSB2YWx1ZXMuXG5CZWNhdXNlIHlvdSBoYXZlIG4gIT0gcCwgdGhlIGRlZmF1bHQgdmFsdWUgZm9yIGBoYCBpcyBub3QgdmVyeSBnb29kLlxuQmVjYXVzZSB0aGUgYWdlIGF0IG1hdHVyaXR5IGlzIG5vdCBrbm93biwgSSBuZWVkIHRvIGZhbGwgYmFjayB0byB1c2luZyB2b24gQmVydGFsYW5mZnkgcGFyYW1ldGVycywgd2hlcmUgYXZhaWxhYmxlLCBhbmQgdGhpcyBpcyBub3RcbnJlbGlhYmxlLlxuTm8ga3MgY29sdW1uIHNvIGNhbGN1bGF0aW5nIGZyb20gY3JpdGljYWwgZmVlZGluZyBsZXZlbC5cblVzaW5nIHowID0gejBwcmUgKiB3X21heCBeIHowZXhwIGZvciBtaXNzaW5nIHowIHZhbHVlcy5cblVzaW5nIGYwLCBoLCBsYW1iZGEsIGthcHBhIGFuZCB0aGUgcHJlZGF0aW9uIGtlcm5lbCB0byBjYWxjdWxhdGUgZ2FtbWEuXG4ifQ== -->
-<pre><code>For the species large divers, minke whales, sperm whales the value for `w_mat` is not smaller than that of `w_max`. I have corrected that by setting it to about 25% of `w_mat.
-For the species small divers the value for `w_min` is not smaller than that of `w_mat`. I have reduced the values.
-Because you have n != p, the default value for `h` is not very good.
-Because the age at maturity is not known, I need to fall back to using von Bertalanffy parameters, where available, and this is not
-reliable.
-No ks column so calculating from critical feeding level.
-Using z0 = z0pre * w_max ^ z0exp for missing z0 values.
-Using f0, h, lambda, kappa and the predation kernel to calculate gamma.</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBzYXZlUkRTKHBhcmFtcywgXCJiYXNlX3BhcmFtcy5yZHNcIilcbmBgYCJ9 -->
-<pre class="r"><code># saveRDS(params, &quot;base_params.rds&quot;)</code></pre>
+                                min_w_pp = 1e-14)
+
+# saveRDS(params, &quot;base_params.rds&quot;)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY2wgPC0gcGFyYWxsZWw6Om1ha2VDbHVzdGVyKG5vQ29yZXMsIHNldHVwX3RpbWVvdXQgPSAwLjUpXG5jbCA8LSBwYXJhbGxlbDo6bWFrZUNsdXN0ZXIobm9Db3Jlcywgc2V0dXBfdGltZW91dCA9IDAuNSlcbnNldERlZmF1bHRDbHVzdGVyKGNsID0gY2wpXG5zZXREZWZhdWx0Q2x1c3RlcihjbCA9IGNsKVxuY2x1c3RlckV4cG9ydChjbCwgdmFybGlzdCA9IFwiY2xcIixlbnZpcj1lbnZpcm9ubWVudCgpKVxuY2x1c3RlckV2YWxRKGNsLCB7XG4gIGxpYnJhcnkobWl6ZXJFeHBlcmltZW50YWwpXG4gIGxpYnJhcnkob3B0aW1QYXJhbGxlbClcbn0pXG5cbmBgYCJ9 -->
-<pre class="r"><code>cl &lt;- parallel::makeCluster(noCores, setup_timeout = 0.5)
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWN0b2MpXG5saWJyYXJ5KHBhcmFsbGVsKVxuIyBjcmVhdGUgc2V0IG9mIHBhcmFtcyBmb3IgdGhlIG9wdGltaXNhdGlvbiBwcm9jZXNzXG50aWMoKVxuXG5wYXJhbXNfb3B0aW0gPC0gcGFyYW1zXG5cbnZhcnkgPC0gYyhsb2cxMChwYXJhbXNfb3B0aW1Ac3BlY2llc19wYXJhbXMkUl9tYXgpLFxuICAgICAgICAgIHBhcmFtc19vcHRpbUBzcGVjaWVzX3BhcmFtcyRlcmVwcm8sXG4gICAgICAgICAgcGFyYW1zX29wdGltQHNwZWNpZXNfcGFyYW1zJGludGVyYWN0aW9uX3Jlc291cmNlKVxuXG5wYXJhbXNfb3B0aW08LXNldFBhcmFtcyhwYXJhbXNfb3B0aW0pXG5cbiMgc2V0IHVwIHdvcmtlcnNcbm5vQ29yZXMgPC0gcGFyYWxsZWw6OmRldGVjdENvcmVzKCkgLSAxICMga2VlcCBzb21lIHNwYXJlIGNvcmVcbmNsIDwtIHBhcmFsbGVsOjptYWtlQ2x1c3Rlcihub0NvcmVzLCBzZXR1cF90aW1lb3V0ID0gMC41KVxuc2V0RGVmYXVsdENsdXN0ZXIoY2wgPSBjbClcbmNsdXN0ZXJFeHBvcnQoY2wsIHZhcmxpc3QgPSBcImNsXCIsZW52aXI9ZW52aXJvbm1lbnQoKSlcbmNsdXN0ZXJFdmFsUShjbCwge1xuICBsaWJyYXJ5KG1pemVyRXhwZXJpbWVudGFsKVxuICBsaWJyYXJ5KG9wdGltUGFyYWxsZWwpXG59KVxuXG5vcHRpbV9yZXN1bHQgPC0gb3B0aW1QYXJhbGxlbDo6b3B0aW1QYXJhbGxlbChwYXI9dmFyeSxnZXRFcnJvckN1c3RvbSxwYXJhbXM9cGFyYW1zX29wdGltLCBcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGRhdCA9IHBhcmFtc19vcHRpbUBzcGVjaWVzX3BhcmFtcyRiaW9tYXNzX29ic2VydmVkLCBtZXRob2QgPVwiTC1CRkdTLUJcIiwgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBsb3dlcj1jKHJlcCgzLDE2KSxyZXAoMWUtNywxNikscmVwKC4xLDE2KSksXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB1cHBlcj0gYyhyZXAoMTUsMTYpLHJlcCgxLDE2KSxyZXAoLjk5LDE2KSksXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwYXJhbGxlbD1saXN0KGxvZ2luZm89VFJVRSwgZm9yd2FyZD1UUlVFKSlcbnN0b3BDbHVzdGVyKGNsKVxuXG50b2MoKVxuXG4jIHNhdmVSRFMob3B0aW1fcmVzdWx0LCBmaWxlPVwib3B0aW1fcmVzdWx0X3YwMC5SRFNcIilcbiMgb3B0aW1fcmVzdWx0IDwtIHJlYWRSRFMoXCJvcHRpbV9yZXN1bHRfdjAwLlJEU1wiKVxuYGBgIn0= -->
+<pre class="r"><code>library(tictoc)
+library(parallel)
+# create set of params for the optimisation process
+tic()
+
+params_optim &lt;- params
+
+vary &lt;- c(log10(params_optim@species_params$R_max),
+          params_optim@species_params$erepro,
+          params_optim@species_params$interaction_resource)
+
+params_optim&lt;-setParams(params_optim)
+
+# set up workers
+noCores &lt;- parallel::detectCores() - 1 # keep some spare core
 cl &lt;- parallel::makeCluster(noCores, setup_timeout = 0.5)
-setDefaultCluster(cl = cl)
 setDefaultCluster(cl = cl)
 clusterExport(cl, varlist = &quot;cl&quot;,envir=environment())
 clusterEvalQ(cl, {
   library(mizerExperimental)
   library(optimParallel)
 })
-</code></pre>
+
+optim_result &lt;- optimParallel::optimParallel(par=vary,getErrorCustom,params=params_optim, 
+                                             dat = params_optim@species_params$biomass_observed, method =&quot;L-BFGS-B&quot;, 
+                                             lower=c(rep(3,16),rep(1e-7,16),rep(.1,16)),
+                                             upper= c(rep(15,16),rep(1,16),rep(.99,16)),
+                                             parallel=list(loginfo=TRUE, forward=TRUE))
+stopCluster(cl)
+
+toc()
+
+# saveRDS(optim_result, file=&quot;optim_result_v00.RDS&quot;)
+# optim_result &lt;- readRDS(&quot;optim_result_v00.RDS&quot;)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiW1sxXV1cbiBbMV0gXCJvcHRpbVBhcmFsbGVsXCIgICAgIFwicGFyYWxsZWxcIiAgICAgICAgICBcIm1pemVyRXhwZXJpbWVudGFsXCIgXCJtaXplclwiICAgICAgICAgICAgIFwic3RhdHNcIiAgICAgICAgICAgICBcImdyYXBoaWNzXCIgICAgICAgICAgXCJnckRldmljZXNcIiAgICAgICAgXG4gWzhdIFwidXRpbHNcIiAgICAgICAgICAgICBcImRhdGFzZXRzXCIgICAgICAgICAgXCJtZXRob2RzXCIgICAgICAgICAgIFwiYmFzZVwiICAgICAgICAgICAgIFxuXG5bWzJdXVxuIFsxXSBcIm9wdGltUGFyYWxsZWxcIiAgICAgXCJwYXJhbGxlbFwiICAgICAgICAgIFwibWl6ZXJFeHBlcmltZW50YWxcIiBcIm1pemVyXCIgICAgICAgICAgICAgXCJzdGF0c1wiICAgICAgICAgICAgIFwiZ3JhcGhpY3NcIiAgICAgICAgICBcImdyRGV2aWNlc1wiICAgICAgICBcbiBbOF0gXCJ1dGlsc1wiICAgICAgICAgICAgIFwiZGF0YXNldHNcIiAgICAgICAgICBcIm1ldGhvZHNcIiAgICAgICAgICAgXCJiYXNlXCIgICAgICAgICAgICAgXG5cbltbM11dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1s0XV1cbiBbMV0gXCJvcHRpbVBhcmFsbGVsXCIgICAgIFwicGFyYWxsZWxcIiAgICAgICAgICBcIm1pemVyRXhwZXJpbWVudGFsXCIgXCJtaXplclwiICAgICAgICAgICAgIFwic3RhdHNcIiAgICAgICAgICAgICBcImdyYXBoaWNzXCIgICAgICAgICAgXCJnckRldmljZXNcIiAgICAgICAgXG4gWzhdIFwidXRpbHNcIiAgICAgICAgICAgICBcImRhdGFzZXRzXCIgICAgICAgICAgXCJtZXRob2RzXCIgICAgICAgICAgIFwiYmFzZVwiICAgICAgICAgICAgIFxuXG5bWzVdXVxuIFsxXSBcIm9wdGltUGFyYWxsZWxcIiAgICAgXCJwYXJhbGxlbFwiICAgICAgICAgIFwibWl6ZXJFeHBlcmltZW50YWxcIiBcIm1pemVyXCIgICAgICAgICAgICAgXCJzdGF0c1wiICAgICAgICAgICAgIFwiZ3JhcGhpY3NcIiAgICAgICAgICBcImdyRGV2aWNlc1wiICAgICAgICBcbiBbOF0gXCJ1dGlsc1wiICAgICAgICAgICAgIFwiZGF0YXNldHNcIiAgICAgICAgICBcIm1ldGhvZHNcIiAgICAgICAgICAgXCJiYXNlXCIgICAgICAgICAgICAgXG5cbltbNl1dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1s3XV1cbiBbMV0gXCJvcHRpbVBhcmFsbGVsXCIgICAgIFwicGFyYWxsZWxcIiAgICAgICAgICBcIm1pemVyRXhwZXJpbWVudGFsXCIgXCJtaXplclwiICAgICAgICAgICAgIFwic3RhdHNcIiAgICAgICAgICAgICBcImdyYXBoaWNzXCIgICAgICAgICAgXCJnckRldmljZXNcIiAgICAgICAgXG4gWzhdIFwidXRpbHNcIiAgICAgICAgICAgICBcImRhdGFzZXRzXCIgICAgICAgICAgXCJtZXRob2RzXCIgICAgICAgICAgIFwiYmFzZVwiICAgICAgICAgICAgIFxuXG5bWzhdXVxuIFsxXSBcIm9wdGltUGFyYWxsZWxcIiAgICAgXCJwYXJhbGxlbFwiICAgICAgICAgIFwibWl6ZXJFeHBlcmltZW50YWxcIiBcIm1pemVyXCIgICAgICAgICAgICAgXCJzdGF0c1wiICAgICAgICAgICAgIFwiZ3JhcGhpY3NcIiAgICAgICAgICBcImdyRGV2aWNlc1wiICAgICAgICBcbiBbOF0gXCJ1dGlsc1wiICAgICAgICAgICAgIFwiZGF0YXNldHNcIiAgICAgICAgICBcIm1ldGhvZHNcIiAgICAgICAgICAgXCJiYXNlXCIgICAgICAgICAgICAgXG5cbltbOV1dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1sxMF1dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1sxMV1dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1sxMl1dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1sxM11dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1sxNF1dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcblxuW1sxNV1dXG4gWzFdIFwib3B0aW1QYXJhbGxlbFwiICAgICBcInBhcmFsbGVsXCIgICAgICAgICAgXCJtaXplckV4cGVyaW1lbnRhbFwiIFwibWl6ZXJcIiAgICAgICAgICAgICBcInN0YXRzXCIgICAgICAgICAgICAgXCJncmFwaGljc1wiICAgICAgICAgIFwiZ3JEZXZpY2VzXCIgICAgICAgIFxuIFs4XSBcInV0aWxzXCIgICAgICAgICAgICAgXCJkYXRhc2V0c1wiICAgICAgICAgIFwibWV0aG9kc1wiICAgICAgICAgICBcImJhc2VcIiAgICAgICAgICAgICBcbiJ9 -->
-<pre><code>[[1]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[2]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[3]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[4]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[5]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[6]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[7]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[8]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[9]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[10]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[11]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[12]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[13]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[14]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             
-
-[[15]]
- [1] &quot;optimParallel&quot;     &quot;parallel&quot;          &quot;mizerExperimental&quot; &quot;mizer&quot;             &quot;stats&quot;             &quot;graphics&quot;          &quot;grDevices&quot;        
- [8] &quot;utils&quot;             &quot;datasets&quot;          &quot;methods&quot;           &quot;base&quot;             </code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI3B1dCB0aGVzZSBuZXcgdmFscyBpbnRvc3BlY2llc19wYXJhbXMgYW5kIGdvIGJhY2sgdG8gdGhlIHRvcCBvZiB0aGlzIHBhZ2UgdG8gcmUtY2hlY2sgdGhlIGNhbGlicmF0aW9uIFxuc3BlY2llc19wYXJhbXMocGFyYW1zX29wdGltKSRSX21heDwtMTBeb3B0aW1fcmVzdWx0JHBhclsxOjE2XVxuc3BlY2llc19wYXJhbXMocGFyYW1zX29wdGltKSRlcmVwcm88LW9wdGltX3Jlc3VsdCRwYXJbMTc6MzJdXG5zcGVjaWVzX3BhcmFtcyhwYXJhbXNfb3B0aW0pJGludGVyYWN0aW9uX3Jlc291cmNlIDwtb3B0aW1fcmVzdWx0JHBhclszMzo0OF1cbiBcbnNpbV9vcHRpbSA8LSBwcm9qZWN0KHBhcmFtc19vcHRpbSwgdF9tYXggPSAyMDAwKVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI3B1dCB0aGVzZSBuZXcgdmFscyBpbnRvc3BlY2llc19wYXJhbXMgYW5kIGdvIGJhY2sgdG8gdGhlIHRvcCBvZiB0aGlzIHBhZ2UgdG8gcmUtY2hlY2sgdGhlIGNhbGlicmF0aW9uIFxuc3BlY2llc19wYXJhbXMocGFyYW1zX29wdGltKSRSX21heDwtMTBeb3B0aW1fcmVzdWx0JHBhclsxOjE2XVxuc3BlY2llc19wYXJhbXMocGFyYW1zX29wdGltKSRlcmVwcm88LW9wdGltX3Jlc3VsdCRwYXJbMTc6MzJdXG5zcGVjaWVzX3BhcmFtcyhwYXJhbXNfb3B0aW0pJGludGVyYWN0aW9uX3Jlc291cmNlIDwtb3B0aW1fcmVzdWx0JHBhclszMzo0OF1cbiBcbnNpbV9vcHRpbSA8LSBwcm9qZWN0KHBhcmFtc19vcHRpbSwgdF9tYXggPSAyMDAwKVxucGxvdEJpb21hc3Moc2ltX29wdGltKVxuYGBgIn0= -->
 <pre class="r"><code>#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
 species_params(params_optim)$R_max&lt;-10^optim_result$par[1:16]
 species_params(params_optim)$erepro&lt;-optim_result$par[17:32]
 species_params(params_optim)$interaction_resource &lt;-optim_result$par[33:48]
  
-sim_optim &lt;- project(params_optim, t_max = 2000)</code></pre>
+sim_optim &lt;- project(params_optim, t_max = 2000)
+plotBiomass(sim_optim)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMzIgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDMxICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAzMCAoPC1JTUEtMUtOSDZKMy51dGFzLmFkLmludGVybmFsOjExNjI0KVxuV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMjkgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDI4ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAyNyAoPC1JTUEtMUtOSDZKMy51dGFzLmFkLmludGVybmFsOjExNjI0KVxuV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMjYgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDI1ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAyNCAoPC1JTUEtMUtOSDZKMy51dGFzLmFkLmludGVybmFsOjExNjI0KVxuV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMjMgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDIyICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAyMSAoPC1JTUEtMUtOSDZKMy51dGFzLmFkLmludGVybmFsOjExNjI0KVxuV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMjAgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDE5ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAxOCAoPC1JTUEtMUtOSDZKMy51dGFzLmFkLmludGVybmFsOjExNjI0KVxuV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMTcgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDE2ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAxNSAoPC1JTUEtMUtOSDZKMy51dGFzLmFkLmludGVybmFsOjExNjI0KVxuV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMTQgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDEzICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAxMiAoPC1JTUEtMUtOSDZKMy51dGFzLmFkLmludGVybmFsOjExNjI0KVxuV2FybmluZyBpbiBmb3IgKGkgaW4gc2VxX2xlbihuKSkgeyA6XG4gIGNsb3NpbmcgdW51c2VkIGNvbm5lY3Rpb24gMTEgKDwtSU1BLTFLTkg2SjMudXRhcy5hZC5pbnRlcm5hbDoxMTYyNClcbldhcm5pbmcgaW4gZm9yIChpIGluIHNlcV9sZW4obikpIHsgOlxuICBjbG9zaW5nIHVudXNlZCBjb25uZWN0aW9uIDEwICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiA5ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiA4ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiA3ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiA2ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiA1ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiA0ICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5XYXJuaW5nIGluIGZvciAoaSBpbiBzZXFfbGVuKG4pKSB7IDpcbiAgY2xvc2luZyB1bnVzZWQgY29ubmVjdGlvbiAzICg8LUlNQS0xS05INkozLnV0YXMuYWQuaW50ZXJuYWw6MTE2MjQpXG5cblstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gICAwJSBFVEE6ICAybVxuWy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgIDElIEVUQTogIDJtXG5bPi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAgMSUgRVRBOiAgMm1cbls+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gICAyJSBFVEE6ICAybVxuWz4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgIDIlIEVUQTogIDFtXG5bPi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAgMyUgRVRBOiAgMW1cbls9Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gICAzJSBFVEE6ICAxbVxuWz0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgIDQlIEVUQTogIDFtXG5bPT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAgNSUgRVRBOiAgMW1cbls9Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gICA2JSBFVEE6ICAxbVxuWz09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgIDYlIEVUQTogIDFtXG5bPT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAgNyUgRVRBOiAgMW1cbls9PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gICA4JSBFVEE6ICAxbVxuWz09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgIDglIEVUQTogIDFtXG5bPT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAgOSUgRVRBOiAgMW1cbls9PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDEwJSBFVEE6ICAxbVxuWz09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTAlIEVUQTogIDFtXG5bPT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxMSUgRVRBOiAgMW1cbls9PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDEyJSBFVEE6ICAxbVxuWz09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTMlIEVUQTogIDFtXG5bPT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxNCUgRVRBOiAgMW1cbls9PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDE0JSBFVEE6IDUwc1xuWz09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTQlIEVUQTogIDFtXG5bPT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxNCUgRVRBOiA1MHNcbls9PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDE1JSBFVEE6IDUwc1xuWz09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTUlIEVUQTogNTBzXG5bPT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxNSUgRVRBOiA0OXNcbls9PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDE1JSBFVEE6ICAxbVxuWz09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTUlIEVUQTogNTBzXG5bPT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxNSUgRVRBOiA0OXNcbls9PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDE2JSBFVEE6IDQ5c1xuWz09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTclIEVUQTogNDhzXG5bPT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxNyUgRVRBOiA0OHNcbls9PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDE4JSBFVEE6IDQ4c1xuWz09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTglIEVUQTogNDdzXG5bPT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxOCUgRVRBOiA0OHNcbls9PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDE4JSBFVEE6IDQ3c1xuWz09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTklIEVUQTogNDdzXG5bPT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxOSUgRVRBOiA0NnNcbls9PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDE5JSBFVEE6IDQ3c1xuWz09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMTklIEVUQTogNDdzXG5bPT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAxOSUgRVRBOiA0NnNcbls9PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDIwJSBFVEE6IDQ2c1xuWz09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjAlIEVUQTogNDVzXG5bPT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyMCUgRVRBOiA0NnNcbls9PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDIxJSBFVEE6IDQ2c1xuWz09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjElIEVUQTogNDVzXG5bPT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyMiUgRVRBOiA0NXNcbls9PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDIyJSBFVEE6IDQ1c1xuWz09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjIlIEVUQTogNDRzXG5bPT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyMyUgRVRBOiA0NHNcbls9PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDIzJSBFVEE6IDQzc1xuWz09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjQlIEVUQTogNDNzXG5bPT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyNCUgRVRBOiA0M3Ncbls9PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDI0JSBFVEE6IDQyc1xuWz09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjQlIEVUQTogNDNzXG5bPT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyNSUgRVRBOiA0MnNcbls9PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDI2JSBFVEE6IDQyc1xuWz09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjYlIEVUQTogNDFzXG5bPT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyNiUgRVRBOiA0MXNcbls9PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDI3JSBFVEE6IDQxc1xuWz09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjclIEVUQTogNDBzXG5bPT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyNyUgRVRBOiA0MXNcbls9PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDI4JSBFVEE6IDQxc1xuWz09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjglIEVUQTogNDBzXG5bPT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAyOCUgRVRBOiA0MHNcbls9PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDI5JSBFVEE6IDQwc1xuWz09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMjklIEVUQTogMzlzXG5bPT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzMCUgRVRBOiAzOXNcbls9PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDMwJSBFVEE6IDM4c1xuWz09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzElIEVUQTogMzlzXG5bPT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzMSUgRVRBOiAzOHNcbls9PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDMyJSBFVEE6IDM4c1xuWz09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzIlIEVUQTogMzdzXG5bPT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzMyUgRVRBOiAzN3Ncbls9PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDMzJSBFVEE6IDM3c1xuWz09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzMlIEVUQTogMzZzXG5bPT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzNCUgRVRBOiAzNnNcbls9PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDM0JSBFVEE6IDM3c1xuWz09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzQlIEVUQTogMzZzXG5bPT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzNSUgRVRBOiAzNnNcbls9PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDM1JSBFVEE6IDM1c1xuWz09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzUlIEVUQTogMzVzXG5bPT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzNiUgRVRBOiAzNXNcbls9PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDM3JSBFVEE6IDM1c1xuWz09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzclIEVUQTogMzRzXG5bPT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzNyUgRVRBOiAzNXNcbls9PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDM3JSBFVEE6IDM0c1xuWz09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzglIEVUQTogMzRzXG5bPT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzOSUgRVRBOiAzNHNcbls9PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDM5JSBFVEE6IDMzc1xuWz09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgMzklIEVUQTogMzRzXG5bPT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICAzOSUgRVRBOiAzM3Ncbls9PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQwJSBFVEE6IDMzc1xuWz09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNDAlIEVUQTogMzNzXG5bPT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA0MSUgRVRBOiAzM3Ncbls9PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQxJSBFVEE6IDMyc1xuWz09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNDElIEVUQTogMzNzXG5bPT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA0MSUgRVRBOiAzMnNcbls9PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQyJSBFVEE6IDMyc1xuWz09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNDIlIEVUQTogMzJzXG5bPT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA0MyUgRVRBOiAzMXNcbls9PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQ0JSBFVEE6IDMxc1xuWz09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNDQlIEVUQTogMzBzXG5bPT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA0NSUgRVRBOiAzMHNcbls9PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQ2JSBFVEE6IDMwc1xuWz09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNDYlIEVUQTogMjlzXG5bPT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA0NiUgRVRBOiAzMHNcbls9PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQ2JSBFVEE6IDI5c1xuWz09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNDclIEVUQTogMjlzXG5bPT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA0NyUgRVRBOiAyOXNcbls9PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQ4JSBFVEE6IDI5c1xuWz09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNDglIEVUQTogMjhzXG5bPT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA0OSUgRVRBOiAyOHNcbls9PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDQ5JSBFVEE6IDI4c1xuWz09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNTAlIEVUQTogMjhzXG5bPT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA1MCUgRVRBOiAyN3Ncbls9PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDUxJSBFVEE6IDI3c1xuWz09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNTElIEVUQTogMjdzXG5bPT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA1MSUgRVRBOiAyNnNcbls9PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDUyJSBFVEE6IDI2c1xuWz09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNTMlIEVUQTogMjZzXG5bPT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLS1dICA1MyUgRVRBOiAyNXNcbls9PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDUzJSBFVEE6IDI1c1xuWz09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNTQlIEVUQTogMjVzXG5bPT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLS1dICA1NSUgRVRBOiAyNXNcbls9PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tLV0gIDU1JSBFVEE6IDI0c1xuWz09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNTYlIEVUQTogMjRzXG5bPT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS1dICA1NiUgRVRBOiAyNHNcbls9PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tLV0gIDU3JSBFVEE6IDI0c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS0tXSAgNTclIEVUQTogMjNzXG5bPT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLS1dICA1OCUgRVRBOiAyM3Ncbls9PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLV0gIDU4JSBFVEE6IDIzc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS0tXSAgNTklIEVUQTogMjNzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLS1dICA1OSUgRVRBOiAyMnNcbls9PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tLV0gIDYwJSBFVEE6IDIyc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tXSAgNjAlIEVUQTogMjJzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS1dICA2MCUgRVRBOiAyMXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLV0gIDYxJSBFVEE6IDIyc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS0tXSAgNjElIEVUQTogMjFzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLS1dICA2MiUgRVRBOiAyMXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tLV0gIDYyJSBFVEE6IDIwc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tXSAgNjMlIEVUQTogMjBzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLS1dICA2NCUgRVRBOiAyMHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tLV0gIDY0JSBFVEE6IDE5c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS0tXSAgNjUlIEVUQTogMTlzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS1dICA2NSUgRVRBOiAxOXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tLV0gIDY2JSBFVEE6IDE5c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS0tXSAgNjYlIEVUQTogMThzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLS1dICA2NyUgRVRBOiAxOHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLV0gIDY3JSBFVEE6IDE4c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS0tXSAgNjglIEVUQTogMThzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLS1dICA2OCUgRVRBOiAxN3Ncbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tLV0gIDY5JSBFVEE6IDE3c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tXSAgNjklIEVUQTogMTdzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS1dICA3MCUgRVRBOiAxNnNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tLV0gIDcxJSBFVEE6IDE2c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS0tXSAgNzElIEVUQTogMTVzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLS1dICA3MiUgRVRBOiAxNXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLV0gIDcyJSBFVEE6IDE1c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS0tXSAgNzMlIEVUQTogMTVzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLS1dICA3MyUgRVRBOiAxNHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tLV0gIDc0JSBFVEE6IDE0c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tXSAgNzQlIEVUQTogMTRzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLS1dICA3NSUgRVRBOiAxNHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tLV0gIDc1JSBFVEE6IDEzc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS0tXSAgNzYlIEVUQTogMTNzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS1dICA3NiUgRVRBOiAxM3Ncbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tLV0gIDc3JSBFVEE6IDEzc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS0tXSAgNzclIEVUQTogMTJzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLS1dICA3OCUgRVRBOiAxMnNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLV0gIDc4JSBFVEE6IDEyc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tXSAgNzklIEVUQTogMTJzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLS1dICA3OSUgRVRBOiAxMXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tLV0gIDgwJSBFVEE6IDExc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS0tXSAgODElIEVUQTogMTBzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS1dICA4MSUgRVRBOiAxMHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tLV0gIDgyJSBFVEE6IDEwc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS0tXSAgODIlIEVUQTogIDlzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLS1dICA4MyUgRVRBOiAgOXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLV0gIDgzJSBFVEE6ICA5c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS0tXSAgODQlIEVUQTogIDlzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLS1dICA4NCUgRVRBOiAgOHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tLV0gIDg1JSBFVEE6ICA4c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tXSAgODUlIEVUQTogIDhzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLS1dICA4NiUgRVRBOiAgOHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tLV0gIDg2JSBFVEE6ICA3c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS0tXSAgODclIEVUQTogIDdzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS1dICA4OCUgRVRBOiAgN3Ncbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tLV0gIDg4JSBFVEE6ICA2c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS0tXSAgODklIEVUQTogIDZzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLS1dICA5MCUgRVRBOiAgNnNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLV0gIDkwJSBFVEE6ICA1c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS0tXSAgOTElIEVUQTogIDVzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLS1dICA5MiUgRVRBOiAgNXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tLV0gIDkyJSBFVEE6ICA0c1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS0tXSAgOTIlIEVUQTogIDRzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLS1dICA5MyUgRVRBOiAgNHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tLV0gIDk0JSBFVEE6ICAzc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tXSAgOTQlIEVUQTogIDNzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS1dICA5NSUgRVRBOiAgM3Ncbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tLV0gIDk1JSBFVEE6ICAyc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi0tXSAgOTYlIEVUQTogIDJzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LS1dICA5NyUgRVRBOiAgMnNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LV0gIDk3JSBFVEE6ICAyc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT4tXSAgOTclIEVUQTogIDFzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pi1dICA5OCUgRVRBOiAgMXNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+LV0gIDk5JSBFVEE6ICAxc1xuWz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0+XSAgOTklIEVUQTogIDFzXG5bPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT5dICA5OSUgRVRBOiAgMHNcbls9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pl0gMTAwJSBFVEE6ICAwc1xuIn0= -->
-<pre><code>Warning in for (i in seq_len(n)) { :
-  closing unused connection 32 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 31 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 30 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 29 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 28 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 27 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 26 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 25 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 24 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 23 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 22 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 21 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 20 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 19 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 18 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 17 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 16 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 15 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 14 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 13 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 12 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 11 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 10 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 9 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 8 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 7 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 6 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 5 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 4 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-Warning in for (i in seq_len(n)) { :
-  closing unused connection 3 (&lt;-IMA-1KNH6J3.utas.ad.internal:11624)
-
-[--------------------------------------------]   0% ETA:  2m
-[--------------------------------------------]   1% ETA:  2m
-[&gt;-------------------------------------------]   1% ETA:  2m
-[&gt;-------------------------------------------]   2% ETA:  2m
-[&gt;-------------------------------------------]   2% ETA:  1m
-[&gt;-------------------------------------------]   3% ETA:  1m
-[=&gt;------------------------------------------]   3% ETA:  1m
-[=&gt;------------------------------------------]   4% ETA:  1m
-[=&gt;------------------------------------------]   5% ETA:  1m
-[=&gt;------------------------------------------]   6% ETA:  1m
-[==&gt;-----------------------------------------]   6% ETA:  1m
-[==&gt;-----------------------------------------]   7% ETA:  1m
-[==&gt;-----------------------------------------]   8% ETA:  1m
-[===&gt;----------------------------------------]   8% ETA:  1m
-[===&gt;----------------------------------------]   9% ETA:  1m
-[===&gt;----------------------------------------]  10% ETA:  1m
-[====&gt;---------------------------------------]  10% ETA:  1m
-[====&gt;---------------------------------------]  11% ETA:  1m
-[====&gt;---------------------------------------]  12% ETA:  1m
-[=====&gt;--------------------------------------]  13% ETA:  1m
-[=====&gt;--------------------------------------]  14% ETA:  1m
-[=====&gt;--------------------------------------]  14% ETA: 50s
-[=====&gt;--------------------------------------]  14% ETA:  1m
-[=====&gt;--------------------------------------]  14% ETA: 50s
-[=====&gt;--------------------------------------]  15% ETA: 50s
-[======&gt;-------------------------------------]  15% ETA: 50s
-[======&gt;-------------------------------------]  15% ETA: 49s
-[======&gt;-------------------------------------]  15% ETA:  1m
-[======&gt;-------------------------------------]  15% ETA: 50s
-[======&gt;-------------------------------------]  15% ETA: 49s
-[======&gt;-------------------------------------]  16% ETA: 49s
-[======&gt;-------------------------------------]  17% ETA: 48s
-[=======&gt;------------------------------------]  17% ETA: 48s
-[=======&gt;------------------------------------]  18% ETA: 48s
-[=======&gt;------------------------------------]  18% ETA: 47s
-[=======&gt;------------------------------------]  18% ETA: 48s
-[=======&gt;------------------------------------]  18% ETA: 47s
-[=======&gt;------------------------------------]  19% ETA: 47s
-[=======&gt;------------------------------------]  19% ETA: 46s
-[=======&gt;------------------------------------]  19% ETA: 47s
-[========&gt;-----------------------------------]  19% ETA: 47s
-[========&gt;-----------------------------------]  19% ETA: 46s
-[========&gt;-----------------------------------]  20% ETA: 46s
-[========&gt;-----------------------------------]  20% ETA: 45s
-[========&gt;-----------------------------------]  20% ETA: 46s
-[========&gt;-----------------------------------]  21% ETA: 46s
-[========&gt;-----------------------------------]  21% ETA: 45s
-[========&gt;-----------------------------------]  22% ETA: 45s
-[=========&gt;----------------------------------]  22% ETA: 45s
-[=========&gt;----------------------------------]  22% ETA: 44s
-[=========&gt;----------------------------------]  23% ETA: 44s
-[=========&gt;----------------------------------]  23% ETA: 43s
-[=========&gt;----------------------------------]  24% ETA: 43s
-[==========&gt;---------------------------------]  24% ETA: 43s
-[==========&gt;---------------------------------]  24% ETA: 42s
-[==========&gt;---------------------------------]  24% ETA: 43s
-[==========&gt;---------------------------------]  25% ETA: 42s
-[==========&gt;---------------------------------]  26% ETA: 42s
-[==========&gt;---------------------------------]  26% ETA: 41s
-[===========&gt;--------------------------------]  26% ETA: 41s
-[===========&gt;--------------------------------]  27% ETA: 41s
-[===========&gt;--------------------------------]  27% ETA: 40s
-[===========&gt;--------------------------------]  27% ETA: 41s
-[===========&gt;--------------------------------]  28% ETA: 41s
-[===========&gt;--------------------------------]  28% ETA: 40s
-[============&gt;-------------------------------]  28% ETA: 40s
-[============&gt;-------------------------------]  29% ETA: 40s
-[============&gt;-------------------------------]  29% ETA: 39s
-[============&gt;-------------------------------]  30% ETA: 39s
-[============&gt;-------------------------------]  30% ETA: 38s
-[============&gt;-------------------------------]  31% ETA: 39s
-[=============&gt;------------------------------]  31% ETA: 38s
-[=============&gt;------------------------------]  32% ETA: 38s
-[=============&gt;------------------------------]  32% ETA: 37s
-[=============&gt;------------------------------]  33% ETA: 37s
-[==============&gt;-----------------------------]  33% ETA: 37s
-[==============&gt;-----------------------------]  33% ETA: 36s
-[==============&gt;-----------------------------]  34% ETA: 36s
-[==============&gt;-----------------------------]  34% ETA: 37s
-[==============&gt;-----------------------------]  34% ETA: 36s
-[==============&gt;-----------------------------]  35% ETA: 36s
-[==============&gt;-----------------------------]  35% ETA: 35s
-[===============&gt;----------------------------]  35% ETA: 35s
-[===============&gt;----------------------------]  36% ETA: 35s
-[===============&gt;----------------------------]  37% ETA: 35s
-[===============&gt;----------------------------]  37% ETA: 34s
-[===============&gt;----------------------------]  37% ETA: 35s
-[===============&gt;----------------------------]  37% ETA: 34s
-[================&gt;---------------------------]  38% ETA: 34s
-[================&gt;---------------------------]  39% ETA: 34s
-[================&gt;---------------------------]  39% ETA: 33s
-[================&gt;---------------------------]  39% ETA: 34s
-[================&gt;---------------------------]  39% ETA: 33s
-[================&gt;---------------------------]  40% ETA: 33s
-[=================&gt;--------------------------]  40% ETA: 33s
-[=================&gt;--------------------------]  41% ETA: 33s
-[=================&gt;--------------------------]  41% ETA: 32s
-[=================&gt;--------------------------]  41% ETA: 33s
-[=================&gt;--------------------------]  41% ETA: 32s
-[=================&gt;--------------------------]  42% ETA: 32s
-[==================&gt;-------------------------]  42% ETA: 32s
-[==================&gt;-------------------------]  43% ETA: 31s
-[==================&gt;-------------------------]  44% ETA: 31s
-[===================&gt;------------------------]  44% ETA: 30s
-[===================&gt;------------------------]  45% ETA: 30s
-[===================&gt;------------------------]  46% ETA: 30s
-[===================&gt;------------------------]  46% ETA: 29s
-[===================&gt;------------------------]  46% ETA: 30s
-[===================&gt;------------------------]  46% ETA: 29s
-[===================&gt;------------------------]  47% ETA: 29s
-[====================&gt;-----------------------]  47% ETA: 29s
-[====================&gt;-----------------------]  48% ETA: 29s
-[====================&gt;-----------------------]  48% ETA: 28s
-[====================&gt;-----------------------]  49% ETA: 28s
-[=====================&gt;----------------------]  49% ETA: 28s
-[=====================&gt;----------------------]  50% ETA: 28s
-[=====================&gt;----------------------]  50% ETA: 27s
-[=====================&gt;----------------------]  51% ETA: 27s
-[======================&gt;---------------------]  51% ETA: 27s
-[======================&gt;---------------------]  51% ETA: 26s
-[======================&gt;---------------------]  52% ETA: 26s
-[======================&gt;---------------------]  53% ETA: 26s
-[======================&gt;---------------------]  53% ETA: 25s
-[=======================&gt;--------------------]  53% ETA: 25s
-[=======================&gt;--------------------]  54% ETA: 25s
-[=======================&gt;--------------------]  55% ETA: 25s
-[=======================&gt;--------------------]  55% ETA: 24s
-[=======================&gt;--------------------]  56% ETA: 24s
-[========================&gt;-------------------]  56% ETA: 24s
-[========================&gt;-------------------]  57% ETA: 24s
-[========================&gt;-------------------]  57% ETA: 23s
-[========================&gt;-------------------]  58% ETA: 23s
-[=========================&gt;------------------]  58% ETA: 23s
-[=========================&gt;------------------]  59% ETA: 23s
-[=========================&gt;------------------]  59% ETA: 22s
-[=========================&gt;------------------]  60% ETA: 22s
-[==========================&gt;-----------------]  60% ETA: 22s
-[==========================&gt;-----------------]  60% ETA: 21s
-[==========================&gt;-----------------]  61% ETA: 22s
-[==========================&gt;-----------------]  61% ETA: 21s
-[==========================&gt;-----------------]  62% ETA: 21s
-[==========================&gt;-----------------]  62% ETA: 20s
-[===========================&gt;----------------]  63% ETA: 20s
-[===========================&gt;----------------]  64% ETA: 20s
-[===========================&gt;----------------]  64% ETA: 19s
-[===========================&gt;----------------]  65% ETA: 19s
-[============================&gt;---------------]  65% ETA: 19s
-[============================&gt;---------------]  66% ETA: 19s
-[============================&gt;---------------]  66% ETA: 18s
-[============================&gt;---------------]  67% ETA: 18s
-[=============================&gt;--------------]  67% ETA: 18s
-[=============================&gt;--------------]  68% ETA: 18s
-[=============================&gt;--------------]  68% ETA: 17s
-[=============================&gt;--------------]  69% ETA: 17s
-[==============================&gt;-------------]  69% ETA: 17s
-[==============================&gt;-------------]  70% ETA: 16s
-[==============================&gt;-------------]  71% ETA: 16s
-[==============================&gt;-------------]  71% ETA: 15s
-[==============================&gt;-------------]  72% ETA: 15s
-[===============================&gt;------------]  72% ETA: 15s
-[===============================&gt;------------]  73% ETA: 15s
-[===============================&gt;------------]  73% ETA: 14s
-[===============================&gt;------------]  74% ETA: 14s
-[================================&gt;-----------]  74% ETA: 14s
-[================================&gt;-----------]  75% ETA: 14s
-[================================&gt;-----------]  75% ETA: 13s
-[================================&gt;-----------]  76% ETA: 13s
-[=================================&gt;----------]  76% ETA: 13s
-[=================================&gt;----------]  77% ETA: 13s
-[=================================&gt;----------]  77% ETA: 12s
-[=================================&gt;----------]  78% ETA: 12s
-[==================================&gt;---------]  78% ETA: 12s
-[==================================&gt;---------]  79% ETA: 12s
-[==================================&gt;---------]  79% ETA: 11s
-[==================================&gt;---------]  80% ETA: 11s
-[==================================&gt;---------]  81% ETA: 10s
-[===================================&gt;--------]  81% ETA: 10s
-[===================================&gt;--------]  82% ETA: 10s
-[===================================&gt;--------]  82% ETA:  9s
-[===================================&gt;--------]  83% ETA:  9s
-[====================================&gt;-------]  83% ETA:  9s
-[====================================&gt;-------]  84% ETA:  9s
-[====================================&gt;-------]  84% ETA:  8s
-[====================================&gt;-------]  85% ETA:  8s
-[=====================================&gt;------]  85% ETA:  8s
-[=====================================&gt;------]  86% ETA:  8s
-[=====================================&gt;------]  86% ETA:  7s
-[=====================================&gt;------]  87% ETA:  7s
-[======================================&gt;-----]  88% ETA:  7s
-[======================================&gt;-----]  88% ETA:  6s
-[======================================&gt;-----]  89% ETA:  6s
-[======================================&gt;-----]  90% ETA:  6s
-[=======================================&gt;----]  90% ETA:  5s
-[=======================================&gt;----]  91% ETA:  5s
-[=======================================&gt;----]  92% ETA:  5s
-[=======================================&gt;----]  92% ETA:  4s
-[========================================&gt;---]  92% ETA:  4s
-[========================================&gt;---]  93% ETA:  4s
-[========================================&gt;---]  94% ETA:  3s
-[=========================================&gt;--]  94% ETA:  3s
-[=========================================&gt;--]  95% ETA:  3s
-[=========================================&gt;--]  95% ETA:  2s
-[=========================================&gt;--]  96% ETA:  2s
-[=========================================&gt;--]  97% ETA:  2s
-[==========================================&gt;-]  97% ETA:  2s
-[==========================================&gt;-]  97% ETA:  1s
-[==========================================&gt;-]  98% ETA:  1s
-[==========================================&gt;-]  99% ETA:  1s
-[===========================================&gt;]  99% ETA:  1s
-[===========================================&gt;]  99% ETA:  0s
-[===========================================&gt;] 100% ETA:  0s</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGxvdEJpb21hc3Moc2ltX29wdGltKVxuYGBgIn0= -->
-<pre class="r"><code>plotBiomass(sim_optim)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-plot-begin eyJoZWlnaHQiOjQzMi42MzI5LCJ3aWR0aCI6NzAwLCJzaXplX2JlaGF2aW9yIjowLCJjb25kaXRpb25zIjpbXX0= -->
-<p><img src="data:image/png;base64,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" /></p>
-<!-- rnb-plot-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
