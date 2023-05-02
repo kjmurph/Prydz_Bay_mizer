@@ -4,6 +4,9 @@ output: html_notebook
 ---
 This version includes params_v2, which has the expanded number of zooplankton groups
 
+Thinking about endortherm representation:
+https://besjournals.onlinelibrary.wiley.com/doi/10.1111/1365-2435.13869
+
 Phase 1
 Kappa starting point: use value of 10 t/km^2 from McCormack et al. 2020 to establish a steady model.
 Match model to time-averaged fishing (catch)
