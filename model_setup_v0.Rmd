@@ -7,6 +7,17 @@ This version includes params_v2, which has the expanded number of zooplankton gr
 Thinking about endortherm representation:
 https://besjournals.onlinelibrary.wiley.com/doi/10.1111/1365-2435.13869
 
+FishMIP Protocol:
+https://github.com/Fish-MIP/FishMIP_2022_3a_Protocol
+
+FishMIP Forcing data:
+http://portal.sf.utas.edu.au/thredds/catalog/gem/fishmip/ISIMIP3a/InputData/climate/ocean/catalog.html
+
+Temperature data sources to normalise the temperature forcing:
+https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_PHY_001_030/description
+https://psl.noaa.gov/data/gridded/data.godas.html
+https://www.ncei.noaa.gov/products/world-ocean-atlas
+
 Phase 1
 Kappa starting point: use value of 10 t/km^2 from McCormack et al. 2020 to establish a steady model.
 Match model to time-averaged fishing (catch)
