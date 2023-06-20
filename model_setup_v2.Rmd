@@ -307,6 +307,15 @@ theta_final <- theta[-(1:3),-(1:3)]
 theta_final
 ```
 
+
+
+```{r}
+params <- readRDS("params/params_optim_v04_w_pp_100.rds")
+
+params@species_params$species
+params@species_params$yield_observed
+```
+
 Adding min and max temp for each group
 
 Using sealifebase for all non-fish species/groups. In most cases, there are no listed Temperature values in the 'Environment' section, like there is for more data-rich species, e.g., cod
@@ -345,8 +354,7 @@ Emperor penguin (no data on sealifebase)
 [15]"baleen whales" 
 
 ```{r}
-groups_final$temp_min <- c(-1.8, # euphausiids
-                           -2, # salps
+temp_min <- c(-1.8, # euphausiids
                                      -2, # mesopelagic fishes
                                      -2, # bathypelagic fishes
                                      -1, # "shelf and coastal fishes" 
@@ -360,10 +368,10 @@ groups_final$temp_min <- c(-1.8, # euphausiids
                                      0.2, # "minke whales"             
                                      0.3, # "orca"                     
                                      0.3, # "sperm whales"             
-                                     0.2) # "baleen whales"
+                                     0.2,# "baleen whales"
+                                      -2) # salps
 
-groups_final$temp_max <- c(1.6, # euphausiids
-                           5, #salps
+temp_max <- c(1.6, # euphausiids
                                      5, # mesopelagic fishes
                                      5, # bathypelagic fishes
                                      5, # "shelf and coastal fishes" 
@@ -377,7 +385,15 @@ groups_final$temp_max <- c(1.6, # euphausiids
                                      7, # "minke whales"             
                                      13.1, # "orca"                     
                                      3.8, # "sperm whales"             
-                                     10.2) # "baleen whales"
+                                     10.2, # "baleen whales"
+                                      5) # salps
+```
+
+
+```{r}
+species_params(params)$temp_min <- temp_min
+species_params(params)$temp_max <- temp_max
+
 ```
 
 
@@ -387,38 +403,36 @@ head(groups_final)
 ```
 Create params to get w values
 ```{r}
-params <- newMultispeciesParams(species_params = groups_final, 
-                                interaction = theta_final, 
-                                kappa = 10,
-                                w_pp_cutoff = 100,
+params <- setParams(params,
                                 min_w_pp = 1e-14)
 
 # saveRDS(params, "base_params.rds")
 ```
 
+
 Set up time steps:
 ```{r}
-# time_steps <- seq(0,600,1)
-# # I ran into trouble using any time steps that didn't start with 0.
-# # I also had trouble using fractional time steps.  
-# # So, what's here as year is really a month.  
-# # Suggestions for a better solution welcome
+time_steps <- seq(0,600,1)
+# I ran into trouble using any time steps that didn't start with 0.
+# I also had trouble using fractional time steps.
+# So, what's here as year is really a month.
+# Suggestions for a better solution welcome
 ```
 
 Set up the resource:
 ```{r}
-# # Load resource spectra 
-# # Note: You may need to update this path
-# isimip_plankton <- read.table("GFDL_resource_spectra.dat")
-# isimip_plankton <- as(isimip_plankton, "matrix")
-# sizes <- names(params@initial_n_pp)
-# n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes))
-# # Fill array
-# # Need an extra time step preceding the simulation
-# n_pp_array[1,] <- isimip_plankton[1,]
-# for (t in seq(1,length(time_steps) - 1,1)) {
-#   n_pp_array[t + 1,] <- isimip_plankton[t,]
-# }
+# Load resource spectra
+# Note: You may need to update this path
+isimip_plankton <- read.table("GFDL_resource_spectra.dat")
+isimip_plankton <- as(isimip_plankton, "matrix")
+sizes <- names(params@initial_n_pp)
+n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes))
+# Fill array
+# Need an extra time step preceding the simulation
+n_pp_array[1,] <- isimip_plankton[1,]
+for (t in seq(1,length(time_steps) - 1,1)) {
+  n_pp_array[t + 1,] <- isimip_plankton[t,]
+}
 ```
 
 Set up temperature-related information:
