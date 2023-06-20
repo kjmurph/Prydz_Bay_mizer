@@ -1,13 +1,14 @@
 ---
 title: "Preparing_Plankton_Prydz_Bay"
-author: "Phoebe.Woodworth-Jefcoats@noaa.gov"
-date: '2022-07-05'
+author: "Kieran editing Phoebe's script"
+date: '04 May 2023'
 output: html_document
 ---
 
 
 ```{r}
 library(tidyverse)
+library(reshape2)
 ```
 
 
@@ -32,12 +33,12 @@ Conversions used:
 Inspect raw file that Phoebe used originally to compare dataframe with my csv files
 
 ```{r}
-df_test_Phoebe <- read.table("GFDL_PHYPICO_totC.dat", skip = 6, header = FALSE)
-# df_test_Phoebe <- read.table("GFDL_PHYDIAT_totC.dat", skip = 6, header = FALSE)
-
-dim(df_test_Phoebe)
-glimpse(df_test_Phoebe)
-head(df_test_Phoebe)
+# df_test_Phoebe <- read.table("GFDL_PHYPICO_totC.dat", skip = 6, header = FALSE)
+# # df_test_Phoebe <- read.table("GFDL_PHYDIAT_totC.dat", skip = 6, header = FALSE)
+# 
+# dim(df_test_Phoebe)
+# glimpse(df_test_Phoebe)
+# head(df_test_Phoebe)
 ```
 
 
@@ -52,59 +53,59 @@ Hawaiian Model Domain is larger 1.945232e+13 m^2 > 1.454146e+12 m^2
 Check the phyto pico vint values for Hawaiin Model using the data extracted and available on: http://portal.sf.utas.edu.au/thredds/catalog/gem/fishmip/ISIMIP3a/InputData/climate/ocean/obsclim/regional/monthly/historical/GFDL-MOM6-COBALT2/catalog.html
 
 ```{r}
-# Load total carbon data for picoplankton and reformat dataframe
-df_GFDL_Hawaii_pico_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_Hawaiian-Longline_monthly_1961_2010.csv") 
-
-dim(df_GFDL_Hawaii_pico_raw)
+# # Load total carbon data for picoplankton and reformat dataframe
+# df_GFDL_Hawaii_pico_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_Hawaiian-Longline_monthly_1961_2010.csv") 
+# 
+# dim(df_GFDL_Hawaii_pico_raw)
 ```
 
 ```{r}
-head(df_GFDL_Hawaii_pico_raw)
+# head(df_GFDL_Hawaii_pico_raw)
 ```
 
 
 ```{r}
-df_GFDL_Hawaii_pico_long <- df_GFDL_Hawaii_pico_raw %>%
-  select(!c(lat,lon)) %>% # remove lat, lon
-  melt() %>%
-  mutate(C_g_m2 = value * 12.001) %>% 
-  mutate(C_g = C_g_m2*593057357) %>% 
-  group_by(variable) %>%
-  summarise(total_C_g = sum(C_g))
-
-dim(df_GFDL_Hawaii_pico_long)
-head(df_GFDL_Hawaii_pico_long)
-summary(df_GFDL_Hawaii_pico_long)
+# df_GFDL_Hawaii_pico_long <- df_GFDL_Hawaii_pico_raw %>%
+#   select(!c(lat,lon)) %>% # remove lat, lon
+#   melt() %>%
+#   mutate(C_g_m2 = value * 12.001) %>% 
+#   mutate(C_g = C_g_m2*593057357) %>% 
+#   group_by(variable) %>%
+#   summarise(total_C_g = sum(C_g))
+# 
+# dim(df_GFDL_Hawaii_pico_long)
+# head(df_GFDL_Hawaii_pico_long)
+# summary(df_GFDL_Hawaii_pico_long)
 ```
 
 
 The values from Phoebe's original repo and the values I caluclated from the thredds data are slighlty different, but same order of magnitude. Likely a slight difference in extraction related to different grid cell avergaing or something similar.
 
 ```{r}
-df_test_PrydzBay <- read.csv("gfdl-mom6-cobalt2_obsclim_phydiat-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
-
-dim(df_test_PrydzBay)
-head(df_test_PrydzBay)
+# df_test_PrydzBay <- read.csv("gfdl-mom6-cobalt2_obsclim_phydiat-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+# 
+# dim(df_test_PrydzBay)
+# head(df_test_PrydzBay)
 ```
 Grid cell area = 422292280 m^2
 
 ```{r}
-df_test_PrydzBay_long <- df_test_PrydzBay %>%
-  select(!c(lat,lon, area_m2)) %>% # remove lat, lon and area_m2
-  melt() %>% 
-  mutate(C_g_m2 = value*12.001) %>% # value is carbon in mol C m^2, so this step converts to g C m^2
-  mutate(C_g = C_g_m2*422292280) %>% # multiply the m^2 value by the grid cell area to get total C per grid cell
-  group_by(variable) %>% # group by month
-  summarise(total_C_mol = sum(C_g)) # sum the carbon across all grid cells by each month
-
 # df_test_PrydzBay_long <- df_test_PrydzBay %>%
-#   select(!c(lat,lon)) %>%
-#   group_by(lat,lon) %>%
-#   summarise(total_C_mol = sum(value * area_m2))
-
-dim(df_test_PrydzBay_long)
-head(df_test_PrydzBay_long)
-summary(df_test_PrydzBay_long)
+#   select(!c(lat,lon, area_m2)) %>% # remove lat, lon and area_m2
+#   melt() %>% 
+#   mutate(C_g_m2 = value*12.001) %>% # value is carbon in mol C m^2, so this step converts to g C m^2
+#   mutate(C_g = C_g_m2*422292280) %>% # multiply the m^2 value by the grid cell area to get total C per grid cell
+#   group_by(variable) %>% # group by month
+#   summarise(total_C_mol = sum(C_g)) # sum the carbon across all grid cells by each month
+# 
+# # df_test_PrydzBay_long <- df_test_PrydzBay %>%
+# #   select(!c(lat,lon)) %>%
+# #   group_by(lat,lon) %>%
+# #   summarise(total_C_mol = sum(value * area_m2))
+# 
+# dim(df_test_PrydzBay_long)
+# head(df_test_PrydzBay_long)
+# summary(df_test_PrydzBay_long)
 ```
 
 Prydz Bay data is in wide format and is presented as total carbon per 0.25 degree spatial resolution
@@ -115,7 +116,7 @@ I need to aggregate all rows into a single value for the whole model domain and 
 
 ```{r}
 # Load total carbon data for picoplankton and reformat dataframe
-GFDL_pico_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+GFDL_pico_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
 
 dim(GFDL_pico_raw)
 ```
@@ -144,34 +145,34 @@ summary(GFDL_pico_long)
 ```{r}
 
 # Load total carbon data for picoplankton and reformat dataframe
-GFDL_pico_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+GFDL_pico_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
 dim(GFDL_pico_raw)
 head(GFDL_pico_raw)
 ```
 
 ```{r}
-GFDL_diat_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_phydiat-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+GFDL_diat_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phydiat-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
 dim(GFDL_diat_raw)
 head(GFDL_diat_raw)
 ```
 
 
 ```{r}
-GFDL_diaz_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_phydiaz-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+GFDL_diaz_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phydiaz-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
 dim(GFDL_diaz_raw)
 head(GFDL_diaz_raw)
 ```
 
 
 ```{r}
-GFDL_zmicro_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_zmicro-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+GFDL_zmicro_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_zmicro-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
 dim(GFDL_zmicro_raw)
 head(GFDL_zmicro_raw)
 ```
 
 
 ```{r}
-GFDL_zmeso_raw <- read.csv("gfdl-mom6-cobalt2_obsclim_zmeso-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+GFDL_zmeso_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_zmeso-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
 dim(GFDL_zmeso_raw)
 head(GFDL_zmeso_raw)
 ```
@@ -280,7 +281,8 @@ plankton_x <- log10(c(pico_mid, micro_mid, large_mid, meso_mid))
 ```
 
 ```{r}
-params <- newMultispeciesParams(mizer::NS_params@species_params, min_w_pp = 1e-14)
+# library(mizer)
+# params <- newMultispeciesParams(mizer::NS_params@species_params, min_w_pp = 1e-14)
 ```
 
 
@@ -288,10 +290,11 @@ params <- newMultispeciesParams(mizer::NS_params@species_params, min_w_pp = 1e-1
 # The full spectrum sizes were generated by setting up a mizer params:
 # params <- newMultispeciesParams(HIparams, interaction = HIinter, kappa = 1e12, min_w_pp = 1e-14)
 # so_params <- readRDS("params_16_March_2023.rds")
-so_params <- readRDS("base_params.rds")
+so_params <- readRDS("params/base_params.rds")
 # and accessing the full size range
 full_x <- log10(so_params@w_full)
 # full_x <- c(-14.01977294, -13.93231443, -13.84485591, -13.75739740, -13.66993888, -13.58248037, -13.49502185, -13.40756333, -13.32010482, -13.23264630, -13.14518779, -13.05772927, -12.97027076, -12.88281224, -12.79535373, -12.70789521, -12.62043670, -12.53297818, -12.44551967, -12.35806115, -12.27060263, -12.18314412, -12.09568560, -12.00822709, -11.92076857, -11.83331006, -11.74585154, -11.65839303, -11.57093451, -11.48347600, -11.39601748, -11.30855896, -11.22110045, -11.13364193, -11.04618342, -10.95872490, -10.87126639, -10.78380787, -10.69634936, -10.60889084, -10.52143233, -10.43397381, -10.34651530, -10.25905678, -10.17159826, -10.08413975, -9.99668123,  -9.90922272, -9.82176420, -9.73430569, -9.64684717, -9.55938866, -9.47193014, -9.38447163, -9.29701311, -9.20955459, -9.12209608, -9.03463756, -8.94717905, -8.85972053, -8.77226202, -8.68480350, -8.59734499, -8.50988647, -8.42242796, -8.33496944, -8.24751093, -8.16005241, -8.07259389, -7.98513538, -7.89767686, -7.81021835, -7.72275983, -7.63530132, -7.54784280, -7.46038429, -7.37292577, -7.28546726, -7.19800874, -7.11055022, -7.02309171, -6.93563319, -6.84817468, -6.76071616, -6.67325765, -6.58579913, -6.49834062, -6.41088210, -6.32342359, -6.23596507, -6.14850656, -6.06104804, -5.97358952, -5.88613101, -5.79867249, -5.71121398, -5.62375546, -5.53629695, -5.44883843, -5.36137992, -5.27392140, -5.18646289, -5.09900437, -5.01154585, -4.92408734, -4.83662882, -4.74917031, -4.66171179, -4.57425328, -4.48679476, -4.39933625, -4.31187773, -4.22441922, -4.13696070, -4.04950219, -3.96204367, -3.87458515, -3.78712664, -3.69966812, -3.61220961, -3.52475109, -3.43729258, -3.34983406, -3.26237555, -3.17491703, -3.08745852, -3.00000000, -2.91254148, -2.82508297, -2.73762445, -2.65016594, -2.56270742, -2.47524891, -2.38779039, -2.30033188, -2.21287336, -2.12541485, -2.03795633, -1.95049781, -1.86303930, -1.77558078, -1.68812227, -1.60066375, -1.51320524, -1.42574672, -1.33828821, -1.25082969, -1.16337118, -1.07591266, -0.98845415, -0.90099563, -0.81353711, -0.72607860, -0.63862008, -0.55116157, -0.46370305, -0.37624454, -0.28878602, -0.20132751, -0.11386899, -0.02641048,  0.06104804, 0.14850656, 0.23596507, 0.32342359, 0.41088210, 0.49834062, 0.58579913, 0.67325765, 0.76071616, 0.84817468, 0.93563319, 1.02309171, 1.11055022, 1.19800874, 1.28546726, 1.37292577, 1.46038429, 1.54784280, 1.63530132, 1.72275983, 1.81021835, 1.89767686, 1.98513538, 2.07259389, 2.16005241, 2.24751093, 2.33496944, 2.42242796, 2.50988647, 2.59734499, 2.68480350, 2.77226202, 2.85972053, 2.94717905, 3.03463756, 3.12209608, 3.20955459, 3.29701311, 3.38447163, 3.47193014, 3.55938866, 3.64684717, 3.73430569, 3.82176420, 3.90922272, 3.99668123, 4.08413975, 4.17159826, 4.25905678, 4.34651530, 4.43397381, 4.52143233, 4.60889084, 4.69634936, 4.78380787, 4.87126639, 4.95872490, 5.04618342, 5.13364193, 5.22110045, 5.30855896, 5.39601748, 5.48347600, 5.57093451, 5.65839303)
+length(full_x)
 ```
 
 
@@ -306,9 +309,11 @@ out_isimip <- array(numeric(), c(600,176)) # 600 time steps by 176 size classes
 isimip_slope <- array(numeric(), c(600,1)) # 600 time steps
 isimip_intercept <- array(numeric(), c(600,1)) # 600 time steps
 
+
+
 # y values
 for (t in seq(1,600,1)) {
-	isimip_plankton <- log10(c(pico_abund[t], micro_abund[t], large_abund[t], meso_abund[t]))
+	isimip_plankton <- log10(c(pico_abund$total_C_mol[t], micro_abund$total_C_mol[t], large_abund$total_C_mol[t], meso_abund$total_C_mol[t]))
 		
 	# Calculate slope and intercept, expand spectra for full size range
 	# Linear fits
@@ -335,9 +340,9 @@ for (t in seq(1,600,1)) {
 # write.table(isimip_slope, file = "GFDL_resource_slope_S1.03I0.85.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 # write.table(isimip_intercept, file = "GFDL_resource_intercept_S1.03I0.85.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 
-write.table(out_isimip, file = "GFDL_resource_spectra.dat", quote = FALSE, row.names = TRUE, col.names = TRUE)
-write.table(isimip_slope, file = "GFDL_resource_slope.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-write.table(isimip_intercept, file = "GFDL_resource_intercept.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+# write.table(out_isimip, file = "GFDL_resource_spectra.dat", quote = FALSE, row.names = TRUE, col.names = TRUE)
+# write.table(isimip_slope, file = "GFDL_resource_slope.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+# write.table(isimip_intercept, file = "GFDL_resource_intercept.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 
 ```
 
