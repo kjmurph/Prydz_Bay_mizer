@@ -259,6 +259,7 @@ yield_observed <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0003442216, 0
 groups$yield_observed <- yield_observed
 ```
 
+Adding minimum sizes for the mammals etc for the biomass cutoff
 ```{r}
 biomass_cutoff <- c(0, 0, 0, 0.1, 0.1, 1, 1, 1, 40, 4500, 1, 1, 200000, 10000, 135000, 600000, 490000, 3650000, 2250000) # to add a biomass_cutoff column in species_params
 
@@ -274,6 +275,7 @@ groups |> dplyr::select(species, yield_observed, biomass_observed, biomass_cutof
 ```{r}
 groups_final <- groups[-c(1:3),]
 
+length(groups_final$species)
 groups_final
 ```
 
@@ -307,6 +309,9 @@ theta_final <- theta[-(1:3),-(1:3)]
 theta_final
 ```
 
+I couldn't get steady-state starting with salps in the initial model.
+I got a steady state without salps and then used `addSpecies()` to put them in.
+They are included in the file `params_optim_v04_w_pp_100.rds` at the end of the list, haven't had a chance to reorder and correct interaction matrix accordingly.
 
 
 ```{r}
@@ -315,6 +320,32 @@ params <- readRDS("params/params_optim_v04_w_pp_100.rds")
 params@species_params$species
 params@species_params$yield_observed
 ```
+
+```{r}
+plotSpectra(params)
+
+```
+
+
+
+```{r}
+sim <- project(params, t_max = 200)
+plotBiomass(sim)
+```
+
+
+
+Krill yield_observed
+
+Add yield in tonnes per km2, same as g m2 and it is consistent with `biomass_observed` 
+
+1.474341e+12 m^2 for model domain
+
+1.474341e+12/1e+6 = 1474341 km^2
+
+4480.873 kg of krill per year from 1974 - 1996, no krill caught in this region post 1996, according to the fishMIP hist effort
+
+
 
 Adding min and max temp for each group
 
