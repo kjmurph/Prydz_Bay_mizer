@@ -38,23 +38,51 @@ Catch data for all indivudals and summarised as totals per species each year
 
 Maybe this isn't expressing effort, rather fishing mortality
 
+```{r}
+
+# df_ind_CPUE <- as.data.frame(df_ind) %>% 
+#   dplyr::select(ID, Exp.no, Year, Species, Length, Length.unit, Weight_kg, date) %>% 
+#   group_by(Exp.no, Species) %>% 
+#   mutate(Duration = length(unique(date)))
+
+df_ind_CPUE <- readRDS("ind_catch_weight_BanzareBank_1930_2019_CPUE.rds")
+
+glimpse(df_ind_CPUE)
+
+```
 
 ```{r}
-# df_ind_CPUE <- readRDS("ind_catch_weight_BanzareBank_1930_2019_CPUE.rds")
+
+df_CPUE_kg_day <- df_ind_CPUE %>% 
+  group_by(Exp.no, Species) %>% 
+  mutate(Sp_total_kg = sum(Weight_kg)) %>% 
+  ungroup() %>% 
+  mutate(Ind_UnitEffort_day = Weight_kg/(Sp_total_kg/Duration)) %>% 
+  group_by(Year, Species) %>% 
+  summarise(total_catch_kg = sum(Weight_kg),
+            effort_days = sum(Ind_UnitEffort_day),
+            CPUE = total_catch_kg/effort_days)
+
 # df_CPUE_kg_day <- readRDS("catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
-# 
-# glimpse(df_ind_CPUE)
-# glimpse(df_CPUE_kg_day)
+```
+
+
+
+```{r}
+
+df_CPUE_kg_day <- readRDS("catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
+
+glimpse(df_CPUE_kg_day)
 ```
 
 Yield for the period that matches Ecopath model, post 2000 annual average
 ```{r}
-# df_yield_2000 <- df_CPUE_kg_day %>% 
-#   filter(Year > 2009) %>% 
-#   group_by(Species) %>% 
-#   summarise(yield = sum(total_catch_kg)/10)
-# 
-# df_yield_2000
+df_yield_2000 <- df_CPUE_kg_day %>%
+  filter(Year > 2009) %>%
+  group_by(Species) %>%
+  summarise(yield = sum(total_catch_kg)/10)
+
+df_yield_2000
 ```
 
 
@@ -62,22 +90,24 @@ Yield for the period that matches Ecopath model, post 2000 annual average
 effort_days/max value plotted by species
 This might indicate the effort curve required, especially if there is a difference between different species
 ```{r}
-# df_plot <- df_CPUE_kg_day %>% 
-#   filter(Year > 2000) %>% 
-#   group_by(Species) %>% 
-#   mutate(max_effort = max(effort_days)) %>% 
-#   group_by(Species,Year) %>% 
-#   mutate(effort_standard = effort_days/max_effort)
+df_plot <- df_CPUE_kg_day %>%
+  filter(Year > 2000) %>%
+  group_by(Species) %>%
+  mutate(max_effort = max(effort_days)) %>%
+  group_by(Species,Year) %>%
+  mutate(effort_standard = effort_days/max_effort)
+
+df_plot
 ```
 
 Relative change in catch pre-1930, could inform the relative change in effort
 Ask Cami, how could I reconstruct the effort to the initial point of catch when effort = 0...i.e., approx 1850 
 ```{r}
-# df_plot %>% 
-#   ggplot(aes(x = Year, y = effort_standard, colour = Species)) +
-#   geom_smooth() +
-#   geom_line()
-#   # facet_wrap(~Species) 
+df_plot %>%
+  ggplot(aes(x = Year, y = effort_standard, colour = Species)) +
+  geom_smooth() +
+  geom_line()
+  # facet_wrap(~Species)
 ```
 
 ```{r}
