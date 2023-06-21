@@ -8,6 +8,8 @@ There is also a small chunk where krill catch for the Prydz Bay region has been 
 `model_setup_v2.Rmd` has a lot of the same setup, but can skip to line 318 where a near-steady state model, that includes salps is loaded.
 Then the attempts to upgrade to a therMizer object
 
+I think `params/params_optim_v04_w_pp_100.rds` is the best param object to work from
+
 For the initial time-averaged steady state model I've been tryign to achieve, there is only catch data for minke whales and baleen whales, as they are the only whaling catch data from the time period that the Ecopath model we're basing this model on
 Krill catch in this region from FishMIP hist effort is only available from 1974-1996, nothing beyond 1996 in this region according to the hist effort.
 
