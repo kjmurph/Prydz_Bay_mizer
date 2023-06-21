@@ -1,0 +1,471 @@
+---
+title: "Exploring the IWC catch database"
+author: "Kieran Murphy"
+date:  "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+To do:
+
+Add in krill fishing `fish_catch.csv` 
+
+Model domain: 1.474341e+12
+
+Seaaroundus for fish and krill catch
+
+PNAS South China Sea logistic effort curve
+
+Match toothfish fishing effort to match McCormack et al. 2020 as a starting point?
+
+```{r}
+library(tidyverse)
+library(mizerExperimental)
+```
+
+
+```{r}
+# # df_hist_catch <- read.csv("effort_histsoc_1841_2010_regional_models.csv")# historical catch from seaaroundus and fishmip
+# 
+# df_hist_PB <- df_hist_catch %>% 
+#   filter(region == "Prydz.Bay")
+# 
+# # write.csv(df_hist_PB, "effort_histsoc_1841_2010_regional_models_Prydz.Bay.csv")
+# 
+# 
+# glimpse(df_hist_PB)
+# unique(df_hist_PB$FGroup)
+# 
+# df_hist_PB_krill <- df_hist_PB %>% 
+#   filter(FGroup == "krill")
+# 
+# unique(df_hist_PB_krill$Year)
+
+```
+
+```{r}
+df_Prydz.Bay <- read.csv("fish_catch.csv") # seaaroundus/FishMIP fish catch from Prydz Bay model domain
+
+df_krill_raw <- df_Prydz.Bay %>% 
+  filter(FGroup == "krill") %>% #Extract only the krill data
+  group_by(Year,SAUP,) %>% 
+  mutate(catch_comb = sum(Reported,IUU,Discards)) %>%  # Add the three catch columns together to create a total catch variable. Need to determine the unit catch is reported in
+  group_by(Year,FGroup) %>% 
+  summarise(catch_total = sum(catch_comb))
+
+
+ggplot(df_krill_raw, aes(x=Year, y=catch_total))+
+  geom_line()
+  
+sum(df_krill_raw$catch_total) # 98579.21
+
+# Time series 1974 - 1996 = 22 years
+
+# 98579.21/22 = 4480.873
+```
+
+
+```{r}
+df_catch <- readRDS("ind_catch_weight_BanzareBank_1930_2019.rds")
+
+df_catch <- as.data.frame(df_catch)
+
+df_yield <- dplyr::select(df_catch, Weight_kg, Species, Year, Length)
+
+glimpse(df_yield)
+```
+
+```{r}
+catch_tidy <- df_yield %>% 
+  group_by(Species) %>% 
+  mutate(new_bin = cut(Length, breaks= seq(0,3020, by=10), include.lowest = TRUE, labels=F)) %>% 
+  group_by(Species, new_bin) %>% 
+  summarise(catch = n()) %>% 
+  mutate(length = new_bin * 10)
+
+catch_tidy$dl <- 10
+```
+
+
+```{r}
+catch_lengths <- catch_tidy %>% 
+  filter(!Species == "Bottlenose") %>% 
+dplyr::mutate(species = case_when(Species == "Antarctic Minke" ~ "minke whales",
+                             Species == "Sperm" ~ "sperm whales",
+                             Species == "Killer" ~ "orca",
+                             Species == "Baleen" ~ "baleen whales")) %>% 
+  dplyr::select(species,catch,length,dl)
+
+glimpse(catch_lengths)
+# saveRDS(catch_lengths, "catch_lengths.rds")
+```
+
+
+```{r}
+yield_summary <- df_yield %>% 
+  group_by(Year, Species) %>% 
+  summarise(yield_kg = sum(Weight_kg),
+            yield_g = yield_kg * 1000)
+
+glimpse(yield_summary)
+```
+
+```{r}
+mean_yield_observed <- yield_summary %>% 
+  group_by(Species) %>% 
+  summarise(yield_observed_v1 = mean(yield_g),
+            yield_observed = sum(yield_g)/89) # total values by each species divided by number of years in the time series
+
+glimpse(mean_yield_observed)
+```
+
+[1] "euphausiids"              "mesopelagic fishes"       "bathypelagic fishes"      "shelf and coastal fishes" "flying birds"            
+ [6] "small divers"             "squids"                   "toothfishes"              "leopard seals"            "medium divers"           
+[11] "large divers"             "minke whales"             "orca"                     "sperm whales"             "baleen whales" 
+
+
+```{r}
+# obs_yield <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2175476136, 19923729, 4062177445, 50341696055) # to add a yield_observed column in species_params
+obs_yield <- c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, 2175476136, 19923729, 4062177445, 50341696055) # to add a yield_observed column in species_params
+# obs_yield_m2 <- obs_yield/1.474341e+12
+```
+
+
+
+```{r}
+params <-  readRDS("stage1_steady_vXX.rds")
+
+params <- setParams(setFishing(params, initial_effort = 0.2))
+
+species_params(params)$yield_observed <- obs_yield
+
+species_params(params) |> dplyr::select(species, yield_observed)
+```
+
+Update max and mat size for orca
+```{r}
+species_params(params)$w_max[13]
+species_params(params)$w_mat[13]
+
+species_params(params)$w_max[13] <- 10628034
+species_params(params)$w_mat[13] <- 3198855
+
+species_params(params)$w_max[13]
+species_params(params)$w_mat[13]
+ 
+```
+
+Update max size for leopard seal
+```{r}
+species_params(params)$species
+species_params(params)$w_max[9]
+species_params(params)$w_mat[9]
+
+species_params(params)$w_max[9] <- 545875.2
+
+species_params(params)$w_max[9]
+ 
+```
+
+
+```{r}
+params <- steady(params)
+```
+
+
+```{r}
+params <- params |>
+    calibrateYield() |> steady() |> matchBiomasses() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+  calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> matchBiomasses() |> steady()
+
+plotBiomassVsSpecies(params)
+```
+```{r}
+params_tuned_v1 <- tuneParams(params)
+
+params_v2 <- steady(params_tuned_v1)
+
+params_v2@species_params$erepro
+
+params_tuned_v2 <- tuneParams(params_v2)
+
+params_v3 <- steady(params_tuned_v2)
+
+params_v3@species_params$erepro
+
+plotlySpectra(params_v3)
+```
+Save species params to work with in therMizer workshop
+```{r}
+# saveRDS(params_v3, "params_16_March_2023.rds")
+```
+
+
+```{r}
+gear_params(params)
+```
+
+Adjust catchability to only select fishing on species with catch data
+```{r}
+gear_params(params)$catchability <-  c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1)
+```
+
+
+Find minimum sizes caught to adjust knife_edge_size
+
+Exclude bottlenose for now, something not right Bottlenose whales, not dolphins as I previously thought
+
+```{r}
+df_catch_size <- df_yield %>% 
+  group_by(Species) %>% 
+  summarise(median_size = median(Weight_kg),
+            median_size_g = median_size * 1000)
+
+df_catch_size
+```
+
+Catchability: 1 value 
+Effort changes through time (voyage frequency and length)
+
+```{r}
+gear_params(params)$gear <-  c("Main", "Main", "Main", "Main", "Main", "Main",
+                                   "Main", "Main", "Main", "Main", "Main", "Main",
+                                   "Main", "Main", "Main")
+
+gear_params(params)$l50 <-  c(1, 5, 5, 5, 10, 10, 10, 20, 20, 20, 20, 850, 600, 1500, 2200)
+
+gear_params(params)$l25 <-  c(0.8, 4, 4, 4, 8, 8, 8, 16, 16, 16, 16, 800, 500, 1400, 1500)
+
+gear_params(params)$sel_func <-  c("sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length",
+                                   "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length", "sigmoid_length",
+                                   "sigmoid_length", "sigmoid_length", "sigmoid_length")
+
+gear_params(params)
+# gp <- gear_params(params)
+
+# saveRDS(gp, "gear_params_v1.rds")
+```
+
+```{r}
+params <- setParams(setFishing(params, initial_effort = 0.2))
+
+params_v1 <- steady(params)
+
+model <- project(params_v1, effort=1)
+plot(model)
+```
+
+
+```{r}
+plotYieldVsSize(model, species = "baleen whales",
+                x_var = "Length")
+
+plotYieldVsSize(model, species = "sperm whales",
+                x_var = "Length")
+
+plotYieldVsSize(model, species = "minke whales",
+                x_var = "Length")
+
+plotYieldVsSize(model, species = "orca",
+                x_var = "Length")
+```
+
+```{r}
+plotYieldVsSpecies(params_v1)
+model_c1 <- calibrateYield(params_v1)
+plotYieldVsSpecies(model_c1)
+
+```
+
+
+```{r}
+scaling_factor <- initialN(model_c1)[1, 1] / initialN(model)[1, 1]
+scaling_factor
+```
+
+
+```{r}
+# Rescale the observed biomass values by that factor
+species_params(model_c1)$biomass_observed <- 
+    species_params(model_c1)$biomass_observed * scaling_factor
+```
+
+
+```{r}
+plotBiomassVsSpecies(model_c1)
+model_c1 <- matchBiomasses(model_c1)
+model_c1 <- steady(model_c1)
+plotBiomassVsSpecies(model_c1)
+
+```
+
+```{r}
+model_s1 <- steady(model_c1)
+plotBiomassVsSpecies(model_s1)
+
+```
+
+
+```{r}
+plotYieldVsSize(model_s1, species = "baleen whales", catch = catch_lengths, 
+                x_var = "Length")
+```
+```{r}
+plotYieldVsSize(model_s1, species = "sperm whales", catch = catch_lengths, 
+                x_var = "Length")
+```
+
+```{r}
+plotYieldVsSize(model_s1, species = "minke whales", catch = catch_lengths, 
+                x_var = "Length")
+```
+
+
+```{r}
+plotYieldVsSize(model_s1, species = "orca", catch = catch_lengths, 
+                x_var = "Length")
+```
+
+```{r}
+
+# Modify the l50 and l25 for breams
+gear_params(model_s1)["orca, Main", "l25"] <- 550
+gear_params(model_s1)["orca, Main", "l50"] <- 650
+
+#check the match between model and observed catch size distributions
+plotYieldVsSize(model_s1, species = "orca", catch = catch_lengths, 
+                x_var = "Length")
+
+
+```
+
+```{r}
+model_s2 <- steady(model_s1)
+plotBiomassVsSpecies(model_s2)
+```
+
+
+
+```{r}
+model_tuned_v1 <- tuneParams(model_s2)
+
+model_tuned_v1 <- tuneParams(model_tuned_v1)
+
+model_tuned_v1 <- tuneParams(model_tuned_v1)
+
+model_tuned_v1 <- tuneParams(model_tuned_v1)
+```
+
+
+
+
+
+```{r}
+model_tuned_v2 <- tuneParams(model_tuned_v1)
+
+model_tuned_v2 <- tuneParams(model_tuned_v2)
+
+# saveRDS(model_tuned_v2, "model_tuned_catch_vXX.rds")
+
+```
+
+
+
+
+
+```{r}
+params_cy_v2 <- model_tuned_v2 |>
+    calibrateYield() |> steady() |> matchBiomasses() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+  calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> steady() |>
+    calibrateYield() |> steady() |> calibrateYield() |> matchBiomasses() |> steady()
+
+plotBiomassVsSpecies(params_cy_v2)
+```
+
+
+
+```{r}
+model_proj_v2 <- project(params_cy_v2, t_max = 200)
+
+plot(model_proj_v2)
+```
+
+
+```{r}
+plotYieldVsSize(model_proj_v2, species = "baleen whales", catch = catch_lengths, 
+                x_var = "Length")
+```
+
+
+```{r}
+plotYieldVsSize(model_proj_v2, species = "sperm whales", catch = catch_lengths, 
+                x_var = "Length")
+```
+
+
+Effort through time: sigmoidal size selectivity curve: hand calibrate or fit curve to it with (week 2 of course 1plotYieldvsSize) Size selectivity Approach
+
+Or stylised effort function and test multiple hypothesis of what that looked like to match the catch timeseries: effort evolution through time approach
+
+Progressive depletion of the whale abundance (existing papers)
+Caused by collapse?
+Shift in effort or did they reach a tipping point or was it a progressive reduction of larger
+
+Does a shift in body size distributions emerge from the inclusion of fishing
+
+Shift from one species to another versus equal effort and then the vulnerability would lead to differences in response.
+
+Dynamics of effort curve and what curve 'shape' matches the catch data the best? Is it a long drawn out max effort or a rapid shift (i.e., steep inflection point) 
+
+To add stochasticity: check github (https://github.com/juliablanchard/fisheries_stability)
+
+```{r}
+df_yield %>% 
+  filter(!Species == "Bottlenose") %>%
+ggplot(aes(x=Weight_kg, fill=Species)) + 
+ geom_histogram(position = 'identity') +
+  facet_wrap(~Species, scales = "free")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
