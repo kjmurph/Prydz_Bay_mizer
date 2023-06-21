@@ -1,6 +1,13 @@
 ---
-title: "Explore catch"
-output: html_notebook
+title: "Exploring the IWC catch database"
+author: "Kieran Murphy"
+date:  "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 To do:
