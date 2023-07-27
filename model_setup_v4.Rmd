@@ -838,90 +838,177 @@ params_v8 <- setParams(params_tune_05)
 sim_v8 <- project(params_v8, effort=0.2, t_max = 500)
 
 plot(sim_v8)
+plotlyBiomass(sim_v8)
+plotlyBiomassObservedVsModel(sim_v8)
+
+# saveRDS(params_v8, "steady_phase1_group_params_v3.RDS")
+```
+
+```{r}
+params_v9 <- params_v8 |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady() |>
+    matchBiomasses() |> steady() |> matchBiomasses() |> steady()
+```
+
+```{r}
+plotlyBiomassObservedVsModel(params_v9)
 ```
 
 
 
+```{r}
+params_v9 <- setParams(params_v9)
+
+sim_v9 <- project(params_v9, effort=0.2, t_max = 500)
+
+plot(sim_v9)
+plotlyBiomass(sim_v9)
+plotlyBiomassObservedVsModel(sim_v9)
+
+# saveRDS(params_v8, "steady_phase1_group_params_v3.RDS")
+```
 
 
 ```{r}
-getErrorCustom <- function(vary, params, dat, tol = 0.001,
-    timetorun = 10)
-{
-  params@species_params$R_max[1:19]<-10^vary[1:15] # R_max for 15 species
-  params@species_params$erepro[1:19]<-vary[20:38] # erepro for 15 species
-  params@species_params$interaction_resource[1:19] <- vary[39:57] # interaction_resource for 15 species
-  params <- setParams(params)
-  # interaction <- params@interaction
-  # interaction[] <- matrix(vary[28:108],nrow = 9) # stop at 54 if looking only at 3 biggest species
+remotes::install_github("sizespectrum/mizerHowTo") # if needed
+library(mizerHowTo)
+```
+```{r}
+params_optim_v01 <- params_v9
+log10(max(params_optim_v01@species_params$R_max))
+log10(min(params_optim_v01@species_params$R_max))
 
-  # params <- setInteraction(params,interaction)
-    params <- projectToSteady(params, distance_func = distanceSSLogN,
-        tol = tol, t_max = 200, return_sim = F)
 
-    sim <- project(params, t_max = timetorun, progress_bar = F)
+vary_df <- data.frame("name" = c("R_max","erepro","interaction_resource"),
+                      "length" = c(19,19,19),
+                      "lower" = c(-20,0.0001,.05), 
+                      "upper" = c(20,1,.95),
+                      "slot" = rep("species_params",3),
+                      "unit" = c("log10","linear","linear"))
 
-    sim_biomass = rep(0, length(params@species_params$species))
+vary <- c(log10(params_optim_v01@species_params$R_max), params_optim_v01@species_params$erepro, params_optim_v01@species_params$interaction_resource)
+```
 
-        cutoffLow <- params@species_params$biomass_cutoffLow
-    if (is.null(cutoffLow))
-        cutoffLow <- rep(0, no_sp)
-    cutoffLow[is.na(cutoffLow)] <- 0
 
-        cutoffHigh <- params@species_params$biomass_cutoffHigh
-    if (is.null(cutoffHigh))
-        cutoffHigh <- rep(0, no_sp)
-    cutoffHigh[is.na(cutoffHigh)] <- 0
+```{r}
+# tic()
+# res <- mizerHowTo::fastOptim(params = params_optim_v01, 
+#                  vary = vary,
+#                  vary_df = vary_df,
+#                  errorFun = mizerHowTo::getErrorCustom,
+#                  data_type = "biomass_observed")
+# toc()
+```
+Took 1975.71 seconds for fastOptim
 
-    for (j in 1:length(sim_biomass)) {
-        sim_biomass[j] = sum((sim@n[dim(sim@n)[1],j,] * params@w *
-            params@dw)[params@w >= cutoffLow[j] & cutoffHigh[j] >= params@w])
-    }
+Skip optim step and read in results below
 
-     pred <- log(sim_biomass)
-    dat <- log(dat)
-    discrep <- pred - dat
-    discrep <- (sum(discrep^2))
-    return(discrep)
-}
+```{r}
+# saveRDS(res, "optimPar_params_v1.RDS")
+optim_res <- readRDS("optimPar_params_v1.RDS")
+```
 
+
+```{r}
+params_v9@species_params$R_max
+10^optim_res$par[1:19]
+```
+
+
+```{r}
+params_v9@species_params$erepro
+optim_res$par[20:38]
 ```
 
 ```{r}
-library(tictoc)
-library(parallel)
-# create set of params for the optimisation process
-tic()
+params_v9@species_params$interaction_resource
+optim_res$par[39:57]
+```
 
-params_optim <- params_v8
+```{r}
+params_optim_v02 <- params_v9
 
-vary <- c(log10(params_optim@species_params$R_max),
-          params_optim@species_params$erepro,
-          params_optim@species_params$interaction_resource)
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim_v02)$R_max <- 10^optim_res$par[1:19]
+species_params(params_optim_v02)$erepro <- optim_res$par[20:38]
+species_params(params_optim_v02)$interaction_resource <- optim_res$par[39:57]
+```
 
-params_optim<-setParams(params_optim)
+```{r}
+params_optim_v02 <- setParams(params_optim_v02)
 
-# set up workers
-noCores <- parallel::detectCores() - 1 # keep some spare core
-cl <- parallel::makeCluster(noCores, setup_timeout = 0.5)
-setDefaultCluster(cl = cl)
-clusterExport(cl, varlist = "cl",envir=environment())
-clusterEvalQ(cl, {
-  library(mizerExperimental)
-  library(optimParallel)
-})
+sim_optim <- project(params_optim_v02, t_max = 2000)
+plotBiomass(sim_optim)
+```
 
-optim_result <- optimParallel::optimParallel(par=vary,getErrorCustom,params=params_optim,
-                                             dat = params_optim@species_params$biomass_observed, method ="L-BFGS-B",
-                                             lower=c(rep(3,19),rep(1e-7,19),rep(.1,19)),
-                                             upper= c(rep(15,19),rep(1,19),rep(.99,19)),
-                                             parallel=list(loginfo=TRUE, forward=TRUE))
-stopCluster(cl)
+Optim round 2
 
-toc()
+```{r}
+# log10(max(params_optim_v02@species_params$R_max))
+# log10(min(params_optim_v02@species_params$R_max))
+# 
+# max(params_optim_v02@species_params$erepro)
+# min(params_optim_v02@species_params$erepro)
+# 
+# vary_df <- data.frame("name" = c("R_max","erepro","interaction_resource"),
+#                       "length" = c(19,19,19),
+#                       "lower" = c(-12,0.01, 0), 
+#                       "upper" = c(12, 1, 1),
+#                       "slot" = rep("species_params",3),
+#                       "unit" = c("log10","linear","linear"))
+# 
+# vary <- c(log10(params_optim_v01@species_params$R_max), params_optim_v01@species_params$erepro, params_optim_v01@species_params$interaction_resource)
+```
+```{r}
+vary_df <- data.frame("name" = c("interaction"),
+                      "length" = c(361),
+                      "lower" = c(0), 
+                      "upper" = c(1),
+                      "slot" = "interaction",
+                      "unit" = "linear")
 
-# saveRDS(optim_result, file="optim_result_v00.RDS")
-# optim_result <- readRDS("optim_result_v00.RDS")
+vary <- as.vector(sim_optim@params@interaction)
+```
+
+
+```{r}
+# tic()
+# res_int <- mizerHowTo::fastOptim(params = params_optim_v02,
+#                  vary = vary,
+#                  vary_df = vary_df,
+#                  errorFun = mizerHowTo::getErrorCustom,
+#                  data_type = "biomass_observed")
+# toc()
+```
+
+Took 4599.85 sec
+
+```{r}
+# saveRDS(res_int, "optimPar_params_v2.RDS")
+res_int <- readRDS("optimPar_params_v2.RDS")
+```
+
+```{r}
+interaction <- params_optim_v02@interaction
+interaction[] <- matrix(res_int$par[1:361],nrow = 19) 
+params_optim_v03 <- setInteraction(params_optim_v02,interaction)
+```
+
+
+```{r}
+params_optim_v03 <- setParams(params_optim_v03)
+
+sim_optim_v2 <- project(params_optim_v03, t_max = 2000)
+plotBiomass(sim_optim_v2)
+```
+
+
+```{r}
+params_s7 <- steady(params_optim_v02, t_max = 500)
+params_s7 <- tuneParams(params_optim_v02)
 ```
 
 
