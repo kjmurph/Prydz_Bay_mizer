@@ -35,7 +35,8 @@ library(tidyverse)
 
 # all.prm<- readRDS("all_groups_params_distributions.rds")
 # all.prm<- readRDS("simplified_groups_params_distributions.rds")
-all.prm<- readRDS("trait_groups_params_distributions_vCWC_v2.rds")
+# all.prm<- readRDS("trait_groups_params_distributions_vCWC_v2.rds")
+all.prm<- readRDS("trait_groups_params_distributions_vCWC_v3.rds")
 
 
 # for the interaction matrix: add phytoplankton - restricted to surface mixed layer (assumed at 50m)
@@ -51,10 +52,11 @@ ips$adj <- 1
 # adjustments before interaction calculation
 	# small nectonic squid minimum depth to 0
 	# ips[ips$species=="small nektonic squids",]$min_depth<- 0
-ips[ips$species=="squids",]$min_depth<- 0
+# ips[ips$species=="squids",]$min_depth<- 0
 	# flying birds maximum depth to 50 to enable access to resources
 	ips[ips$species=="flying birds",]$max_depth<- 50
-	ips[ips$species=="euphausiids",]$max_depth<- 500 # euphausids are mainly in top 500m; constrain this to ensure interaction with PP and surface predators
+	ips[ips$species=="other krill",]$max_depth<- 500 # euphausids are mainly in top 500m; constrain this to ensure interaction with PP and surface predators
+	ips[ips$species=="antarctic krill",]$max_depth<- 500 # euphausids are mainly in top 500m; constrain this to ensure interaction with PP and surface predators
 	ips[ips$max_depth>2000,]$max_depth<- 2000 # cap max depths, as very deep ranges artificially down-weighting interactions
 	ips$min_depth[is.na(ips$min_depth)]<-0
 
@@ -151,8 +153,8 @@ int.calc <- function(dat){
 
 int.m<- int.calc(ips)
 
-# int.m %>% saveRDS("trait_groups_interaction_matrix_vCWC.rds")
-# int.m %>% write_csv("trait_groups_interaction_matrix_vCWC.csv")
+# int.m %>% saveRDS("trait_groups_interaction_matrix_vCWC_v3.rds")
+# int.m %>% write_csv("trait_groups_interaction_matrix_vCWC_v3.csv")
 
 
 # visualise interactions as grid plot
@@ -172,7 +174,7 @@ int.m<- int.calc(ips)
 		theme_bw() +
 		theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# ggsave("interaction_matrix_trait_groups_vCWC.png")
+ggsave("interaction_matrix_trait_groups_vCWC_v3.png")
 
 
 # phytoplankton mass bins
