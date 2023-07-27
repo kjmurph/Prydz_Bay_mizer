@@ -17,3 +17,5 @@ Fishing effort/catch for the fish (i.e., toothfish and other demersal fish have 
 
 Note of caution.
 Some param files contain 15 functional groups, but I have created a newer version with salps. I used `addSpecies()` to do this and so they are stuck onto the end of the species_params list, not in the max size order
+
+Some files are too large to push to github, so the full set of files can be found here: https://universitytasmania-my.sharepoint.com/:f:/g/personal/kieran_murphy_utas_edu_au/Erx9z86b6MJIlhV83-E2qDEBkV4Gl3CUDwQHoTR_khbWtw?email=julia.blanchard%40utas.edu.au&e=e3Cvs8
