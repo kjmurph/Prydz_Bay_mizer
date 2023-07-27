@@ -101,8 +101,9 @@ k_vb_string <- c(0.4,0.3608333,0.1825,0.15,1,0.2,0.5,0.06,0.2,0.2,0.2,0.2,0.2,0.
 
 ```{r}
 # groups_raw <- read.csv("group params/trait_groups_params_vCWC.csv")
-# groups_raw <- read.csv("group params/trait_groups_params_vCWC_v2.csv")
+groups_zoo <- read.csv("group params/trait_groups_params_vCWC_v2.csv")[,-1]
 groups_raw <- read.csv("group params/trait_groups_params_vCWC_v3.csv")[,-1]
+groups_zoo
 groups_raw
 ```
 
@@ -136,11 +137,11 @@ Chaetognaths = 1.9–3.4 -> 2.65
 10^2.65 = 446.6836
 
 ```{r}
-groups_raw$beta[1] # microzooplantkon
-groups_raw$beta[2] # mesozooplantkon, exisitng value of 500 is suitable
-groups_raw$beta[3] # other macrozooplantkon, exisitng value of 500 is suitable
-groups_raw$beta[4] # euphausiids 
-groups_raw$beta[5] # salps
+groups_raw$beta[1] # other krill
+groups_raw$beta[2] # antarctic krill
+groups_raw$beta[3] # salps
+groups_raw$beta[4] # meso fish 
+groups_raw$beta[5] # bathy fish
 
 groups_raw$beta[1] <- 38.01894 # microzooplantkon #groups_raw$beta[1] <- 38.01894 # microzooplantkon
 # groups_raw$beta[2] # mesozooplantkon 

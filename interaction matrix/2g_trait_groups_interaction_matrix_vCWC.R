@@ -36,7 +36,9 @@ library(tidyverse)
 # all.prm<- readRDS("all_groups_params_distributions.rds")
 # all.prm<- readRDS("simplified_groups_params_distributions.rds")
 # all.prm<- readRDS("trait_groups_params_distributions_vCWC_v2.rds")
-all.prm<- readRDS("trait_groups_params_distributions_vCWC_v3.rds")
+# all.prm<- readRDS("trait_groups_params_distributions_vCWC_v3.rds")
+all.prm<- readRDS("group params/trait_groups_params_distributions_vCWC_v4.rds") # distinct krill groups and meso/macro zoo
+
 
 
 # for the interaction matrix: add phytoplankton - restricted to surface mixed layer (assumed at 50m)
@@ -155,6 +157,9 @@ int.m<- int.calc(ips)
 
 # int.m %>% saveRDS("trait_groups_interaction_matrix_vCWC_v3.rds")
 # int.m %>% write_csv("trait_groups_interaction_matrix_vCWC_v3.csv")
+
+# int.m %>% saveRDS("trait_groups_interaction_matrix_vCWC_v4.rds")
+# int.m %>% write_csv("trait_groups_interaction_matrix_vCWC_v4.csv")
 
 
 # visualise interactions as grid plot

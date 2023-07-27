@@ -169,7 +169,7 @@ zsp <- read_xlsx("C:/Users/kjmurphy/OneDrive - University of Tasmania/Documents/
 zsp
 
 df_z <- zsp %>% 
-  filter(group == "antarctic krill"|group == "other krill"|group == "salps") %>% 
+  filter(group == "antarctic krill"|group == "other krill"|group == "salps"|group == "mesozooplankton"|group == "other macrozooplankton") %>% 
   mutate(max_size_mm = as.numeric(max_size_mm),
          min_size_mm = as.numeric(min_size_mm),
          lw_a = as.numeric(lw_a),
@@ -531,6 +531,8 @@ all.prm.tidy
 biomass_observed <- c(4, # antarctic krill
                       1.9, # other krill
                       0.652, # salps
+                      8.8, # other mesozooplankton
+                      10, # macrozooplankton
                       0.127, # baleen whales
                       0.003, # flying birds
                       0.022, # large divers
@@ -574,15 +576,15 @@ all.prm.tidy.ordered
 ```
 
 ```{r}
-# write.csv(all.prm.tidy.ordered, "C:/Users/kjmurphy/OneDrive - University of Tasmania/Documents/R Projects/Prydz_Bay_mizer/trait_groups_params_vCWC_v3.csv") #version Commercial Whaling Calibration
-# write_rds(all.prm.tidy.ordered, "C:/Users/kjmurphy/OneDrive - University of Tasmania/Documents/R Projects/Prydz_Bay_mizer/trait_groups_params_vCWC_v3.RDS")
+# write.csv(all.prm.tidy.ordered, "trait_groups_params_vCWC_v4.csv") #version Commercial Whaling Calibration
+# write_rds(all.prm.tidy.ordered, "trait_groups_params_vCWC_v4.RDS")
 
 # all.prm.tidy.ordered <- readRDS("trait_groups_params_vCWC_v3.RDS")
 ```
 
 ```{r}
 # all.prm %>% saveRDS("all_groups_params_distributions.rds")
-# all.prm.tidy.ordered %>% saveRDS("C:/Users/kjmurphy/OneDrive - University of Tasmania/Documents/R Projects/Prydz_Bay_mizer/trait_groups_params_distributions_vCWC_v3.rds")
+# all.prm.tidy.ordered %>% saveRDS("trait_groups_params_distributions_vCWC_v4.rds")
 ```
 
 
