@@ -1004,6 +1004,62 @@ params_optim_v03 <- setParams(params_optim_v03)
 sim_optim_v2 <- project(params_optim_v03, t_max = 2000)
 plotBiomass(sim_optim_v2)
 ```
+Optim Round 3
+
+```{r}
+vary_df <- data.frame("name" = c("R_max","erepro","interaction_resource", "interaction"),
+                      "length" = c(19,19,19,361),
+                      "lower" = c(-12,0.01, 0, 0), 
+                      "upper" = c(12,1,1, 1),
+                      "slot" = c("species_params","species_params","species_params", "interaction"),
+                      "unit" = c("log10","linear","linear","linear"))
+
+vary <- c(log10(params_optim_v01@species_params$R_max), params_optim_v01@species_params$erepro, params_optim_v01@species_params$interaction_resource, as.vector(sim_optim@params@interaction))
+```
+
+
+```{r}
+# tic()
+# res_int_v2 <- mizerHowTo::fastOptim(params = params_optim_v02,
+#                  vary = vary,
+#                  vary_df = vary_df,
+#                  errorFun = mizerHowTo::getErrorCustom,
+#                  data_type = "biomass_observed")
+# toc()
+```
+21776.53 sec elapsed
+```{r}
+# saveRDS(res_int_v2, "optimPar_params_v3.RDS")
+res_int_v2 <- readRDS("optimPar_params_v3.RDS")
+```
+
+```{r}
+
+params_optim_v04 <- params_optim_v03
+
+#put these new vals intospecies_params and go back to the top of this page to re-check the calibration 
+species_params(params_optim_v04)$R_max <- 10^res_int_v2$par[1:19]
+species_params(params_optim_v04)$erepro <- res_int_v2$par[20:38]
+species_params(params_optim_v04)$interaction_resource <- res_int_v2$par[39:57]
+```
+
+```{r}
+interaction <- params_optim_v04@interaction
+interaction[] <- matrix(res_int_v2$par[58:419],nrow = 19) 
+params_optim_v04 <- setInteraction(params_optim_v04,interaction)
+```
+
+
+```{r}
+params_optim_v04 <- setParams(params_optim_v04)
+
+sim_optim_v3 <- project(params_optim_v04, t_max = 2000)
+plotBiomass(sim_optim_v3)
+```
+
+```{r}
+params_tune_06 <- tuneParams(params_optim_v04)
+```
 
 
 ```{r}
