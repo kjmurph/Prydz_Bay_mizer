@@ -1,6 +1,13 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Preparing temperature forcing data for FishMIP projections"
+author: "Kieran Murphy"
+date:  "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: inline
 ---
 
 Prydz Bay model domain 1,433,028 km2
@@ -11,7 +18,7 @@ Check the area for the model domain that gfdl ISIMIP data has been extracted for
 
 ```{r}
 # Load surface temperature data
-df_gfdl_tos <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_tos_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+df_gfdl_tos <- read.csv("FishMIP_Temperature_Forcing/gfdl-mom6-cobalt2_obsclim_tos_15arcmin_prydz-bay_monthly_1961_2010.csv") 
 
 head(df_gfdl_tos)
 ```
@@ -22,34 +29,20 @@ GFDL_tos <- df_gfdl_tos %>%
   select(!c(lat,lon,area_m2)) %>% # remove lat, lon and area_m2
   melt() %>% # surface temperature of each area for all grid cells
   group_by(variable) %>% # group by month
-  summarise(tos = mean(value)) # sum the carbon across all grid cells by each month
+  rename(date = variable) %>%  # rename variable to something meaningful
+  summarise(tos = mean(value)) # mean temperature across all grid cells in model region for each month
+
 
 glimpse(GFDL_tos)
 head(GFDL_tos)
 ```
-The model domain area (1.433028e+12 m^2) from previous notes is a close match to the model domain area used for Prydz Bay data extraction (1.454146e+12 m^2)
 
-Check the size of Phoebe's model domain, as the value for total carbon in moles is two orders of magnitude higher for the Prydz Bay model domain, at least according to my current calculations
 
-```{r}
-# Load surface temperature data for Hawai'i model
-df_gfdl_tos_hawaii <- read.csv("gfdl-mom6-cobalt2_obsclim_tos_15arcmin_hawaiian-longline_monthly_1961_2010.csv") 
-
-head(df_gfdl_tos_hawaii)
-```
-
+Save temperature file
 
 ```{r}
-df_hawaii_area <- df_gfdl_tos_hawaii %>% 
-  select(area_m2) %>% 
-  melt() %>% 
-  group_by(variable) %>% 
-  summarise(total_area_m2 = sum(value))
-
-head(df_hawaii_area)
+# write.csv(GFDL_tos, "FishMIP_Temperature_Forcing/GFDL_Prydz_Bay_tos_mean.csv")
 ```
-
-
 
 
 

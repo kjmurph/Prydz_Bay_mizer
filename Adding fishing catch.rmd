@@ -10,11 +10,51 @@ editor_options:
   chunk_output_type: inline
 ---
 
+## FishMIP Effort
+
+Select the main gear types and filter the region effort based on these
+Bottom trawl = ice fish (shelf & coastal fish + toothfish) each gear can have more than one species (see gearParams())
+Midwater/pelagic trawl = krill
+Longline = toothfish
+
+Drop effort by species, rather only include effort by type and include catchability
+
+How do we compare the modeled catch with the observed catch (CCAMLR publish the catch/but not the effort)
+Will need to establish the relative portion of catch for each gear (?) that each functional group represents
+
+Potential to get catch length distribution from CCAMLR data. Selectivity terms, example in the mizer course.
+
+WOA extraction: FishMIP_extracting-data/Scripts/Access... (Julia emailed the link)
+
+# Overall workflow for model development
+
+calibrateBiomass() adjusts overall 
+
+matchBiomass()
+steady() # repeat this stage as much as required to get to 1.5 years convergence
+
+Check reproduction
+
+rep_tuned <- rep(0.5, #number of species)
+
+You might need to adjust individual species
+
+Express effort as relative to the maximum so that max is 1 and everything else is between 0 - 1.
+Start with catchability as 0.2 with this and then can adjust manually.
+Could use optim later if required
+
+# For therMizer
+One option to adjust the plankton from steady state pre-therMizer to therMizer 
+Subtract mean plankton array (centering around 0) and add the mean from the calibrated resource plankton
+
+
+
 To do:
 
 Add in krill fishing `fish_catch.csv` 
+*Note from Kieran - 23/06/23: No krill fishing after 1996 in this region
 
-Notes:
+General Notes:
 
 Model domain: 1.474341e+12
 
@@ -115,7 +155,7 @@ effort_days/max value plotted by species
 This might indicate the effort curve required, especially if there is a difference between different species
 ```{r}
 df_plot <- df_CPUE_kg_day %>%
-  filter(Year > 2000) %>%
+  # filter(Year > 2000) %>%
   group_by(Species) %>%
   mutate(max_effort = max(effort_days)) %>%
   group_by(Species,Year) %>%
@@ -133,6 +173,13 @@ df_plot %>%
   geom_line()
   # facet_wrap(~Species)
 ```
+
+
+Need to re-build a spin up period with an effort profile, in FishMIP anything before 1861 has 1861 values before hand.
+Whales may
+
+FishMIP Large demersal expressed as the maximum effort for toothfish (maybe other fish - shelf/coastal etc)
+
 
 ```{r}
 # df_plot %>% 

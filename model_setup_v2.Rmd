@@ -2,6 +2,9 @@
 title: "MFSO Tinkering"
 output: html_notebook
 ---
+#IMPORTANT
+Update all required packages, R, RStudio etc
+
 This version includes params_v2, which has the expanded number of zooplankton groups
 
 Phase 1
@@ -66,10 +69,10 @@ How sensitive are ecosystem properties to perturbation of uncertain parameters (
 
 Load libraries 
 ```{r}
-remotes::install_github("sizespectrum/therMizer") # if needed
-library(therMizer)
-# remotes::install_github("sizespectrum/mizerExperimental")
-# library(mizerExperimental)
+# remotes::install_github("sizespectrum/therMizer") # if needed
+# library(therMizer)
+remotes::install_github("sizespectrum/mizerExperimental")
+library(mizerExperimental)
 # remotes::install_github("sizespectrum/mizerMR")
 # library(mizer)
 # library(mizerMR)
@@ -327,10 +330,20 @@ plotSpectra(params)
 ```
 
 
+```{r}
+params_steady_01 <- steady(params)
+
+plotBiomassObservedVsModel(params)
+plotSpectra(params, power = 2, total = T)
+```
+Overall community spectra suggests kappa is a bit high
+
 
 ```{r}
 sim <- project(params, t_max = 200)
 plotBiomass(sim)
+
+params_tuned_v01 <- tuneParams(params)
 ```
 
 
