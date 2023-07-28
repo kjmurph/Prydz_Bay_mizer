@@ -415,6 +415,12 @@ df_pred <- p.prm.w %>% inner_join(p.names)
 df_pred
 ```
 
+
+Crabeater Seals	medium divers: a = 0.0019 cm SL   b = 3.3789   Ref. 120859
+Antarctic Fur Seals	medium divers: a = 0.0039 cm BL b = 3.0000   Ref. 3742
+Weddell Seals	medium divers: a = 0.2023 cm BL   b = 2.5300   Ref. 3730
+
+
 Check the group means
 
 ```{r}
@@ -535,7 +541,7 @@ biomass_observed <- c(4, # antarctic krill
                       10, # macrozooplankton
                       0.127, # baleen whales
                       0.003, # flying birds
-                      0.022, # large divers
+                      0.011, # large divers
                       0.002, # leopard seals
                       0.265,  # medium divers
                       0.014, # minke whales
