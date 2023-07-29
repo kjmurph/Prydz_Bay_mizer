@@ -286,6 +286,8 @@ glimpse(df_ind_CPUE)
 glimpse(df_CPUE_kg_day)
 ```
 
+
+
 Yield for the period that matches Ecopath model, post 2000 annual average
 ```{r}
 df_yield_2000_2019 <- df_CPUE_kg_day %>% 
@@ -1422,44 +1424,47 @@ tuned_params_v09 <- tuneParams(tuned_params_v09)
 ```
 
 ```{r}
-params_copy <- setParams(tuned_params_v08)
+tuned_params_v09 <- readRDS("steady_params_x1.RDS")
+```
+
+
+```{r}
+params_copy <- setParams(tuned_params_v09)
 
 sim_optim_v11 <- project(params_copy, t_max = 200)
 plotBiomass(sim_optim_v11)
 plotlyBiomass(sim_optim_v11)
 ```
 
-
 ```{r}
-sim_optim_v12 <- project(params_v11, t_max = 100, effort = 0.2, 
-                         initial_n = sim_optim_v11@n[2000,,],
-                         initial_n_pp = sim_optim_v11@n_pp[2000,])
+params_steady <- tuneParams(tuned_params_v09)
+# params_steady <- tuneParams(params_steady)
 
-plotlyBiomass(sim_optim_v12)
-# plot(sim_optim_v12)
-# mizer::plotFMort(sim_optim_v12)
 ```
 
 
 ```{r}
-sim_optim_v12@params@species_params$erepro
-```
+sim_optim_v12 <- project(params_steady, t_max = 500)
 
-```{r}
-params_steady <- tuneParams(sim_optim_v12@params)
-```
-
-
-
-```{r}
 sim_optim_v13 <- project(params_steady, t_max = 500, effort = 0.2, 
-                         initial_n = sim_optim_v13@n[500,,],
-                         initial_n_pp = sim_optim_v13@n_pp[500,])
+                         initial_n = sim_optim_v12@n[500,,],
+                         initial_n_pp = sim_optim_v12@n_pp[500,])
 
 plotlyBiomass(sim_optim_v13)
-# plot(sim_optim_v12)
+plot(sim_optim_v13)
 # mizer::plotFMort(sim_optim_v12)
 ```
+
+
+
+
+
+
+
+```{r}
+params_steady@species_params$erepro
+```
+
 
 
 ```{r}
@@ -1468,19 +1473,127 @@ spp_params <- params_steady@species_params
 
 
 
+Add catch values for toothfish, bathypelagics and revise the whale catch to just represent the 2010-2019 period
+
+
+Yield for the period that matches Ecopath model, post 2000 annual average
 ```{r}
-params_copy <- tuneParams(params_copy)
+df_yield_2010_2019 <- df_CPUE_kg_day %>% 
+  filter(Year > 2009) %>% 
+  group_by(Species) %>% 
+  summarise(yield = sum(total_catch_kg)/9)
+
+df_yield_2010_2019
 ```
 
+Add yield in tonnes per km2, same as g m2 and it is consistent with `biomass_observed` 
+
+1.474341e+12 m^2 for model domain
+
+1.474341e+12/1e+6 = 1474341 km^2
+
+327610.762 kg of minke whale per year from 2010 - 2019
+
+327.6/1474341 = 0.000222201 tonnes Minke whale yield per km2 from 2010 - 2019
+
+3695.093 kg of baleen whale per year from 2010 - 2019
+
+3.7/1474341 = 2.509596e-06 tonnes of baleen whale per km2 from 2010 - 2019
+
+Values for toothfish compiled from CCAMLR data (https://fisheryreports.ccamlr.org/) and using areas from (https://gis.ccamlr.org/)
+
+Value represents aggregated catch for both Patagonian and Antarctic Toothfish species, as well as estimated illegal (IUU) fishing.
+The values by CCAMLR area (https://www.ccamlr.org/en/fisheries/toothfish-fisheries) does not appear to contain IUU in the catch.
+
+'Catch (tonnes) - Toothfish - TOP - All Areas' has the annual breakdown of catch for toothfish, as well as bycatch, which provides the macrourus spp. (bathypelagic fish) catch
+
+The values is a mean across the 3 divisions that are included in the model domain. 58.4.1, 58.4.2, and 58.4.3b
+Include an estimated amount of bycatch for shelf & coastal fishes, using the 'other species' bycatch values from CCAMLR
+
 ```{r}
-params_steady_v02 <- setParams(initial_effort())
+# yield_observed <- c(0, 0, 0, 0, 0, 0, 1.33363E-06, 3.84138E-07, 0, 0, 0, 4.36768E-05, 0, 0, 0, 0.000222201, 0, 0, 2.509596e-06) # to add a yield_observed column in species_params
+```
+
+
+Adjust catchability to include groups with added catch values
+```{r}
+gear_params(params_steady)$yield_observed <-  c(0, 0, 0, 0, 0, 0, 1.33363E-06, 3.84138E-07, 0, 0, 0, 4.36768E-05, 0, 0, 0, 0.000222201, 0, 0, 2.509596e-06)
+gear_params(params_steady)$catchability <-  c(0, 0, 0, 0, 0, 0, 0.0000035, 0.0000025, 0, 0, 0, 0.0003, 0, 0, 0, 0.085, 0, 0, 0.0001)
+```
+
+
+
+
+
+
+```{r}
+params_copy <- setParams(params_steady, initial_effort = 0.2)
+
+sim_optim_v14 <- project(params_copy, t_max = 500, effort = 0.2)
+
+sim_optim_v15 <- project(params_steady, t_max = 500, effort = 0.2, 
+                         initial_n = sim_optim_v14@n[500,,],
+                         initial_n_pp = sim_optim_v14@n_pp[500,])
+
+# plotlyBiomass(sim_optim_v14)
+# plot(sim_optim_v14)
+# mizer::plotFMort(sim_optim_v12)
+
+plotlyBiomass(sim_optim_v15)
+plot(sim_optim_v15)
+mizer::plotFMort(sim_optim_v15)
+```
+
+
+
+```{r}
+params_tuned_71 <- tuneParams(params_copy)
 ```
 
 
 ```{r}
-params_copy@species_params$erepro
+params_tuned_71 <- setParams(params_tuned_71)
+
+sim_optim_v16 <- project(params_tuned_71, t_max = 500)
+
+sim_optim_v17 <- project(params_steady, t_max = 500, effort = 0.2, 
+                         initial_n = sim_optim_v16@n[500,,],
+                         initial_n_pp = sim_optim_v16@n_pp[500,])
+
+plotlyBiomass(sim_optim_v16)
+plot(sim_optim_v16)
+mizer::plotFMort(sim_optim_v16)
+
+plotlyBiomass(sim_optim_v17)
+plot(sim_optim_v17)
+mizer::plotFMort(sim_optim_v17)
 ```
 
+
+```{r}
+params_tuned_72 <- tuneParams(params_tuned_71)
+
+# saveRDS(params_tuned_72, "params_latest_xx.RDS")
+```
+
+
+```{r}
+params_tuned_72 <- setParams(params_tuned_72)
+
+sim_optim_v18 <- project(params_tuned_72, t_max = 500)
+
+plotlyBiomass(sim_optim_v18)
+plot(sim_optim_v18)
+mizer::plotFMort(sim_optim_v18)
+
+sim_optim_v19 <- project(params_steady, t_max = 500, effort = 0.2, 
+                         initial_n = sim_optim_v18@n[500,,],
+                         initial_n_pp = sim_optim_v18@n_pp[500,])
+
+plotlyBiomass(sim_optim_v19)
+plot(sim_optim_v19)
+mizer::plotFMort(sim_optim_v19)
+```
 
 
 Optim Round 4
