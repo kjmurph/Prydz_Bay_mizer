@@ -1,0 +1,181 @@
+---
+title: "Wrangling FishMIP Fishing Effort"
+author: "Kieran Murphy"
+date: "Sys.Date()"
+output: rmdformats::readthedown
+---
+
+Taking fishing effort and catch from FishMIP output located at:
+
+http://portal.sf.utas.edu.au/thredds/catalog/gem/fishmip/catalog.html
+
+Follow InputData/ -> fishing/ -> histsoc/ then use the regional files filter to the Prydz Bay regional model domain
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Packages
+
+
+```{r install-packages, include = FALSE}
+# source('./R/install_required_packages.R') #run this line to install the required packages
+```
+
+```{r load-packages, warning=FALSE, message=FALSE}
+# library(palmerpenguins) #penguins data
+library(tidyverse) #wrangling
+# library(tidymodels) #modeling and machine learning
+# library(vip) #variable importance
+# library(fastshap) #SHapley Additive exPlanations
+library(janitor) #cleaning variable names
+library(lubridate) #manipulating dates
+library(tictoc) #timing computations
+# library(ggcorrplot) #correlation plots
+```
+
+## The FishMIP data
+
+Load in and inspect the master dataframes for historical catch and effort
+
+```{r FishMIP_hist_data, echo=TRUE}
+df_FishMIP_catch <- read.csv("FishMIP_fishing_data/calibration_catch_histsoc_1850_2004_regional_models.csv")
+df_FishMIP_effort <- read.csv("FishMIP_fishing_data/effort_histsoc_1841_2010_regional_models.csv")
+```
+
+And let's take a glimpse at the two datasets:
+
+```{r glimpse-FishMIP_data}
+dplyr::glimpse(df_FishMIP_catch)
+dplyr::glimpse(df_FishMIP_effort)
+```
+Check how many regions are included and identify the region of interest, Prydz Bay
+```{r unique-region}
+unique(df_FishMIP_catch$region)
+```
+Great, there it is. It's called `Prydz.Bay`
+
+
+Filter dataframe so now I have the Prydz Bay data only
+
+```{r filter-catch}
+df_Prydz_catch <- df_FishMIP_catch %>% 
+  dplyr::filter(region == "Prydz.Bay") %>% 
+  dplyr::group_by(Year,Sector,SAUP, FGroup) %>% 
+  dplyr::mutate(total_catch = sum(Reported,IUU,Discards))
+
+head(df_Prydz_catch)
+```
+
+```{r filter-effort}
+df_Prydz_effort <- df_FishMIP_effort %>% 
+  dplyr::filter(region == "Prydz.Bay")
+
+head(df_Prydz_effort)
+dplyr::glimpse(df_Prydz_effort)
+summary(df_Prydz_effort)
+```
+
+Time series of catch by functional group
+```{r}
+df_Prydz_catch %>% 
+  ggplot(aes(x = Year, y = total_catch, colour = FGroup)) +
+  geom_point() +
+  # scale_y_log10() +
+  facet_wrap(~FGroup)
+```
+
+Time series of effort by functional group
+```{r}
+df_Prydz_effort %>% 
+  ggplot(aes(x = Year, y = NomActive, colour = FGroup)) +
+  geom_point() +
+  # scale_y_log10() +
+  facet_wrap(~FGroup)
+```
+
+Aggregate `FGroup` so that they align with functional groups in the Prydz Bay size spectrum model
+
+```{r unique_FGroup}
+unique(df_Prydz_catch$FGroup)
+```
+
+
+```{r}
+params <- readRDS("params_latest_xx.RDS")
+params@species_params$species
+params@species_params$w_max
+```
+
+
+"demersal<30cm" = "shelf and coastal fishes"
+
+"rays<90cm" = NA - not represented in the current functional groups
+
+"benthopelagic30-90cm" = 
+
+"benthopelagic>=90cm" = "toothfishes"
+
+"krill" = "antarctic krill"
+
+"pelagic30-90cm" = "shelf and coastal fishes", "mesopelagic fishes", "bathypelagic fishes" (sum the total effort/catch for pelagic30-90cm and then split it proportionate to the observed biomass of the 3 mizer functional groups - biomass ratio)
+
+"bathydemersal>=90cm" = "toothfishes"
+
+"pelagic<30cm" = "mesopelagic fishes"
+
+"lobsterscrab" = NA - not represented in the current functional groups
+
+"cephalopods" = "squids"
+
+"demersal30-90cm" = "shelf and coastal fishes"
+
+"bathypelagic<30cm" = "bathypelagic fishes"
+
+"bathydemersal30-90cm" = "shelf and coastal fishes"
+
+```{r tidy-penguins}
+df_Prydz_catch_prepared <- df_Prydz_catch %>%
+  # janitor::clean_names() %>%
+  # dplyr::select(c(species, island, date_egg, culmen_length_mm:delta_13_c_o_oo)) %>%
+  dplyr::mutate(species = case_when(species == "demersal<30cm" ~ "shelf and coastal fishes",
+                             species == "rays<90cm" ~ "rays<90cm",
+                             species == "benthopelagic30-90cm" ~ "",
+                             species == "krill" ~ "antarctic krill",
+                             species == "pelagic30-90cm" ~ "",
+                             species == "bathydemersal>=90cm" ~ "",
+                             species == "pelagic<30cm" ~ "mesopelagic fishes",
+                             species == "lobsterscrab" ~ "lobsterscrab",
+                             species == "cephalopods" ~ "squids",
+                             species == "demersal30-90cm" ~ "",
+                             species == "bathypelagic<30cm" ~ "bathypelagic fishes",
+                             species == "bathydemersal30-90cm" ~ ""
+                             ))
+  # dplyr::mutate(species = factor(species),
+  #               island = factor(island),
+  #               sex = factor(sex),
+  #               year = lubridate::year(date_egg)) %>%
+  # dplyr::rename(bill_length_mm = culmen_length_mm,
+  #               bill_depth_mm = culmen_depth_mm,
+  #               delta_15_n = delta_15_n_o_oo,
+  #               delta_13_c = delta_13_c_o_oo) %>%
+  # tidyr::drop_na()
+
+```
+
+The other option is to remove effort by functional group and just use effort  gear types
+
+Select the main gear types and filter the region effort based on these
+"Trawl_Bottom" = ice fish (shelf & coastal fish + toothfish) each gear can have more than one species (see gearParams())
+Midwater/pelagic trawl = krill
+Longline = toothfish
+
+```{r unique_Gear}
+unique(df_Prydz_effort$Gear)
+```
+The gears don't seem to match up well with what should actually be catching what, i.e., "Lines_Handlines_and_poles", "Lines_Longlines", "Pots_and_Traps" etc catching krill 
+
+
+
+
+
