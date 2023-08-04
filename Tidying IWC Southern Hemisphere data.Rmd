@@ -534,7 +534,8 @@ df_harvest <- rbind(df_Sperm_Catch, df_Baleen_Catch, df_Ant_Minke_Catch, df_Orca
 
 
 ```{r}
-df_harvest <- read.csv("catch_timeseries_BanzareBank_1930_2019.csv")
+# df_harvest <- read.csv("catch_timeseries_BanzareBank_1930_2019.csv")
+# df_harvest <- read.csv("catch_timeseries_BanzareBank_1930_2019.csv")
 
 ggplot(df_harvest, aes(x=Year, y= (Catch_kg/(1000)/1e6), colour = Species)) +
   geom_line() +

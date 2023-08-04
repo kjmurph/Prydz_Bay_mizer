@@ -1436,28 +1436,69 @@ plotBiomass(sim_optim_v11)
 plotlyBiomass(sim_optim_v11)
 ```
 
+
+
 ```{r}
-params_steady <- tuneParams(tuned_params_v09)
+getReproductionLevel(params_copy)
+```
+
+
+Adjust catchability to include groups with added catch values
+```{r}
+
+gear_params(params_copy)$yield_observed <-  c(0, 0, 0, 0, 0, 0, 1.33363E-06, 3.84138E-07, 0, 0, 0, 4.36768E-05, 0, 0, 0, 0.000222201, 0, 0, 2.509596e-06)
+gear_params(params_copy)$catchability <-  c(0, 0, 0, 0, 0, 0, 0.0000035, 0.0000025, 0, 0, 0, 0.0003, 0, 0, 0, 0.085, 0, 0, 0.0001)
+```
+
+
+
+
+```{r}
+# params_steady <- tuneParams(tuned_params_v09)
 # params_steady <- tuneParams(params_steady)
 
 ```
 
 
 ```{r}
-sim_optim_v12 <- project(params_steady, t_max = 500)
+sim_optim_v12 <- project(params_copy, t_max = 500)
 
-sim_optim_v13 <- project(params_steady, t_max = 500, effort = 0.2, 
+sim_optim_v13 <- project(params_copy, t_max = 500, effort = 0.2, 
                          initial_n = sim_optim_v12@n[500,,],
                          initial_n_pp = sim_optim_v12@n_pp[500,])
 
-plotlyBiomass(sim_optim_v13)
-plot(sim_optim_v13)
-# mizer::plotFMort(sim_optim_v12)
+sim_optim_v14 <- project(params_copy, t_max = 2000, effort = 0.2, 
+                         initial_n = sim_optim_v13@n[500,,],
+                         initial_n_pp = sim_optim_v13@n_pp[500,])
+
+plotlyBiomass(sim_optim_v14)
+plot(sim_optim_v14)
+mizer::plotFMort(sim_optim_v14)
+plotBiomassObservedVsModel(sim_optim_v14)
 ```
 
 
+```{r}
+# plotYieldCurve(params_copy, species = "baleen whales", F_max = 1)
+mizerExperimental::plotYieldVsF(params_copy, species = "baleen whales", F_max = 1)
+```
 
+```{r}
+getReproductionLevel(params_copy)["baleen whales"]
+```
 
+```{r}
+# First we save current reproduction level into a vector 
+rep_level <- getReproductionLevel(params_copy)
+# then we replace our species' reproduction level with a new value 
+rep_level["baleen whales"] <- 0.9975
+# and asign it back to the model 
+params_copy <- setBevertonHolt(params_copy, 
+                                   reproduction_level = rep_level)
+
+# and plot F curves again
+mizerExperimental::plotYieldVsF(params_copy, species = "baleen whales", F_max = 1)
+```
 
 
 

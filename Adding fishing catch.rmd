@@ -110,8 +110,7 @@ Maybe this isn't expressing effort, rather fishing mortality
 #   mutate(Duration = length(unique(date)))
 
 df_ind_CPUE <- readRDS("ind_catch_weight_BanzareBank_1930_2019_CPUE.rds")
-
-glimpse(df_ind_CPUE)
+dplyr::glimpse(df_ind_CPUE)
 
 ```
 
