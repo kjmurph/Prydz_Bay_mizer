@@ -112,7 +112,7 @@ params@species_params$w_max
 
 "rays<90cm" = NA - not represented in the current functional groups
 
-"benthopelagic30-90cm" = 
+"benthopelagic30-90cm" = "shelf and coastal fishes"
 
 "benthopelagic>=90cm" = "toothfishes"
 
