@@ -541,16 +541,16 @@ biomass_observed <- c(4, # antarctic krill
                       10, # macrozooplankton
                       0.127, # baleen whales
                       0.003, # flying birds
-                      0.011, # large divers
+                      0.011, # large divers #is now only elephant seals
                       0.002, # leopard seals
                       0.265,  # medium divers
                       0.014, # minke whales
                       0.006, # orca
                       0.016,  # small divers
                       0.011, # sperm whales
-                      1.93, # bathypelagic fishes
-                      1.2,   # mesopelagic fishes
-                      0.802, # shelf and coastal fishes
+                      NA, # bathypelagic fishes
+                      2.002,   # mesopelagic fishes (balanced model biomass of mesopelagic fishes and antarctic silverfish from McCormack et al. 2020)
+                      1.93, # shelf and coastal fishes (other fish from McCormack)
                       0.75, # toothfishes
                       0.15 # squids
                       )
