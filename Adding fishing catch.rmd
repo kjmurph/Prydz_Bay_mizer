@@ -161,6 +161,7 @@ df_plot <- df_CPUE_kg_day %>%
   mutate(effort_standard = effort_days/max_effort)
 
 df_plot
+# write.csv(df_plot, "FishMIP_fishing_data/IWC_effort.csv")
 ```
 
 Relative change in catch pre-1930, could inform the relative change in effort
