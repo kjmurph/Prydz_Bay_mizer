@@ -67,6 +67,11 @@ df_Prydz_catch <- df_FishMIP_catch %>%
 head(df_Prydz_catch)
 ```
 
+```{r}
+# saveRDS(df_Prydz_catch, "FishMIP_fishing_data/calibration_catch_histsoc_1850_2004_Prydz_Bay.csv")
+```
+
+
 ```{r filter-effort}
 df_Prydz_effort <- df_FishMIP_effort %>% 
   dplyr::filter(region == "Prydz.Bay")
@@ -75,6 +80,12 @@ head(df_Prydz_effort)
 dplyr::glimpse(df_Prydz_effort)
 summary(df_Prydz_effort)
 ```
+
+```{r}
+# saveRDS(df_Prydz_effort, "FishMIP_fishing_data/effort_histsoc_1841_2010_Prydz_Bay.csv")
+```
+
+
 
 Time series of catch by functional group
 ```{r}
@@ -118,11 +129,11 @@ params@species_params$w_max
 
 "krill" = "antarctic krill"
 
-"pelagic30-90cm" = "shelf and coastal fishes", "mesopelagic fishes", "bathypelagic fishes" (sum the total effort/catch for pelagic30-90cm and then split it proportionate to the observed biomass of the 3 mizer functional groups - biomass ratio)
+"pelagic30-90cm" = "shelf and coastal fishes"
 
 "bathydemersal>=90cm" = "toothfishes"
 
-"pelagic<30cm" = "mesopelagic fishes"
+"pelagic<30cm" = "shelf and coastal fishes": When I extracted data at the Marine Ecosystem (ME) level on sea around us for East Antarctic Dronning Maud Land, East Antarctic Enderby Land, and East Antarctic Wilkes Land (which describe the model region better than using the RFMO selection of CCAMLR), all the reported catch fit into the "shelf and coastal fishes" group. At the CCAMLR level, there are significant lanternfish catches, i.e., "mesopelagic fishes"
 
 "lobsterscrab" = NA - not represented in the current functional groups
 
@@ -138,19 +149,23 @@ params@species_params$w_max
 df_Prydz_catch_prepared <- df_Prydz_catch %>%
   # janitor::clean_names() %>%
   # dplyr::select(c(species, island, date_egg, culmen_length_mm:delta_13_c_o_oo)) %>%
-  dplyr::mutate(species = case_when(species == "demersal<30cm" ~ "shelf and coastal fishes",
-                             species == "rays<90cm" ~ "rays<90cm",
-                             species == "benthopelagic30-90cm" ~ "",
-                             species == "krill" ~ "antarctic krill",
-                             species == "pelagic30-90cm" ~ "",
-                             species == "bathydemersal>=90cm" ~ "",
-                             species == "pelagic<30cm" ~ "mesopelagic fishes",
-                             species == "lobsterscrab" ~ "lobsterscrab",
-                             species == "cephalopods" ~ "squids",
-                             species == "demersal30-90cm" ~ "",
-                             species == "bathypelagic<30cm" ~ "bathypelagic fishes",
-                             species == "bathydemersal30-90cm" ~ ""
-                             ))
+  dplyr::mutate(species = case_when(FGroup == "demersal<30cm" ~ "shelf and coastal fishes",
+                             FGroup == "rays<90cm" ~ "rays<90cm",
+                             FGroup == "benthopelagic30-90cm" ~ "shelf and coastal fishes",
+                             FGroup == "benthopelagic>=90cm" ~ "toothfishes",
+                             FGroup == "krill" ~ "antarctic krill",
+                             FGroup == "pelagic30-90cm" ~ "shelf and coastal fishes",
+                             FGroup == "bathydemersal>=90cm" ~ "toothfishes",
+                             FGroup == "pelagic<30cm" ~ "shelf and coastal fishes",
+                             FGroup == "lobsterscrab" ~ "lobsterscrab",
+                             FGroup == "cephalopods" ~ "squids",
+                             FGroup == "demersal30-90cm" ~ "shelf and coastal fishes",
+                             FGroup == "bathypelagic<30cm" ~ "bathypelagic fishes",
+                             FGroup == "bathydemersal30-90cm" ~ "shelf and coastal fishes"
+                             )) %>% 
+  filter(!FGroup=="rays<90cm" & !FGroup=="lobsterscrab") %>% 
+  group_by(Year, species) %>% 
+  summarise(catch = sum(total_catch))
   # dplyr::mutate(species = factor(species),
   #               island = factor(island),
   #               sex = factor(sex),
@@ -161,6 +176,20 @@ df_Prydz_catch_prepared <- df_Prydz_catch %>%
   #               delta_13_c = delta_13_c_o_oo) %>%
   # tidyr::drop_na()
 
+glimpse(df_Prydz_catch_prepared)
+head(df_Prydz_catch_prepared)
+summary(df_Prydz_catch_prepared)
+
+# saveRDS(df_Prydz_catch_prepared, "FishMIP_fishing_data/catch_Prydz_Bay_1950_2004_resolution_v1.RDS")
+```
+
+Time series of catch by functional group
+```{r}
+df_Prydz_catch_prepared %>% 
+  ggplot(aes(x = Year, y = catch, colour = species)) +
+  geom_point() +
+  scale_y_log10() +
+  facet_wrap(~species)
 ```
 
 The other option is to remove effort by functional group and just use effort  gear types
@@ -176,6 +205,66 @@ unique(df_Prydz_effort$Gear)
 The gears don't seem to match up well with what should actually be catching what, i.e., "Lines_Handlines_and_poles", "Lines_Longlines", "Pots_and_Traps" etc catching krill 
 
 
+```{r tidy-penguins}
+df_Prydz_effort_prepared <- df_Prydz_effort %>%
+  # janitor::clean_names() %>%
+  # dplyr::select(c(species, island, date_egg, culmen_length_mm:delta_13_c_o_oo)) %>%
+  dplyr::mutate(species = case_when(FGroup == "demersal<30cm" ~ "shelf and coastal fishes",
+                             FGroup == "rays<90cm" ~ "rays<90cm",
+                             FGroup == "benthopelagic30-90cm" ~ "shelf and coastal fishes",
+                             FGroup == "benthopelagic>=90cm" ~ "toothfishes",
+                             FGroup == "krill" ~ "antarctic krill",
+                             FGroup == "pelagic30-90cm" ~ "shelf and coastal fishes",
+                             FGroup == "bathydemersal>=90cm" ~ "toothfishes",
+                             FGroup == "pelagic<30cm" ~ "shelf and coastal fishes",
+                             FGroup == "lobsterscrab" ~ "lobsterscrab",
+                             FGroup == "cephalopods" ~ "squids",
+                             FGroup == "demersal30-90cm" ~ "shelf and coastal fishes",
+                             FGroup == "bathypelagic<30cm" ~ "bathypelagic fishes",
+                             FGroup == "bathydemersal30-90cm" ~ "shelf and coastal fishes"
+                             )) %>% 
+  filter(!FGroup=="rays<90cm" & !FGroup=="lobsterscrab") %>% 
+  group_by(Year, species) %>% 
+  summarise(effort = sum(NomActive)) %>% 
+  filter(!effort < 1e-15) %>%
+  group_by(species) %>% 
+  mutate(max_effort = max(effort)) %>%
+  ungroup() %>% 
+  group_by(species,Year) %>%
+  mutate(effort_standard = effort/max_effort) %>% 
+  ungroup() %>% 
+  # dplyr::mutate(species = factor(species),
+  #               island = factor(island),
+  #               sex = factor(sex),
+  #               year = lubridate::year(date_egg)) %>%
+  # dplyr::rename(bill_length_mm = culmen_length_mm,
+  #               bill_depth_mm = culmen_depth_mm,
+  #               delta_15_n = delta_15_n_o_oo,
+  #               delta_13_c = delta_13_c_o_oo) %>%
+  tidyr::drop_na()
+
+glimpse(df_Prydz_effort_prepared)
+head(df_Prydz_effort_prepared)
+summary(df_Prydz_effort_prepared)
+
+# saveRDS(df_Prydz_effort_prepared, "FishMIP_fishing_data/effort_Prydz_Bay_1950_2010_resolution_v1.RDS")
+```
+
+Time series of effort by functional group
+```{r}
+df_Prydz_effort_prepared %>% 
+  ggplot(aes(x = Year, y = effort, colour = species)) +
+  geom_point() +
+  # scale_y_log10() +
+  facet_wrap(~species)
+```
 
 
-
+Time series of effort by functional group
+```{r}
+df_Prydz_effort_prepared %>% 
+  ggplot(aes(x = Year, y = effort_standard, colour = species)) +
+  geom_point() +
+  # scale_y_log10() +
+  facet_wrap(~species)
+```
