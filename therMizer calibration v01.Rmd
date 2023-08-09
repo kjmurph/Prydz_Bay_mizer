@@ -392,7 +392,8 @@ plotlyBiomass(sim_m3)
 
 
 ```{r}
-params <- readRDS("params_fk.RDS")
+# params <- readRDS("params_fk.RDS")
+params <- readRDS("params_latest_xx.RDS")
 ```
 
 
@@ -436,9 +437,9 @@ params <- tuneParams(params)
 
 
 ```{r}
-params@species_params$ppmr_min
-params@species_params$ppmr_max
-params@species_params$pred_kernel_type
+# params@species_params$ppmr_min
+# params@species_params$ppmr_max
+# params@species_params$pred_kernel_type
 ```
 
 
@@ -550,13 +551,13 @@ We're doing this initial spin up (using constant climate and fishing) to avoid m
 
 
 ```{r}
-params <- readRDS("params_fk_v2.RDS")
+# params <- readRDS("params_fk_v2.RDS")
 ```
 
 
 ```{r}
-species_params(params)$temp_min <- temp_min
-species_params(params)$temp_max <- temp_max
+# species_params(params)$temp_min <- temp_min
+# species_params(params)$temp_max <- temp_max
 
 ```
 
@@ -566,7 +567,7 @@ species_params(params)$temp_max <- temp_max
 ## Check gear params
 
 ```{r}
-gear_params(params)
+# gear_params(params)
 ```
 
 
@@ -575,19 +576,19 @@ gear_params(params)
 
 
 ```{r}
-sim_fishing_v01 <- project(params, t_max = 200, effort = 0.2)
+# sim_fishing_v01 <- project(params, t_max = 200, effort = 0.2)
 ```
 
 
 ```{r}
-plot(sim_fishing_v01)
+# plot(sim_fishing_v01)
 ```
 
 ```{r}
-plotYieldGear(sim_fishing_v01)
+# plotYieldGear(sim_fishing_v01)
 ```
 ```{r}
-params@species_params$species
+# params@species_params$species
 ```
 
 
@@ -605,13 +606,16 @@ params@species_params$species
 
 
 ```{r}
-plotBiomassObservedVsModel(sim_fishing_v01)
+# plotBiomassObservedVsModel(sim_fishing_v01)
 # mizerHowTo::plotBiomassVsCatch(sim_fishing_v01)
 ```
 ```{r}
-plotBiomassVsSpecies(params)
+# plotBiomassVsSpecies(params)
 ```
 
+```{r}
+# saveRDS(params, "params_latest_biomass_09_Aug_2023.RDS")
+```
 
 
 ## Skip Fishing Effort for now
@@ -627,10 +631,20 @@ library(pbapply)
 
 
 ```{r}
-new_params <- readRDS("params_latest_xx.RDS")
+new_params <- readRDS("params_latest_biomass_09_Aug_2023.RDS")
 # new_params <- readRDS("params_fk_v2.RDS")
+# new_params <- readRDS("params_fk.RDS") # Don't currently work with project() for therMizer, due to pred_kernel update
+
 ```
 
+
+
+
+
+```{r}
+params <- tuneParams(new_params)
+params@species_params$erepro
+```
 
 
 ### Adding min and max temp for each group
@@ -722,8 +736,8 @@ temp_max <- c(2, # mesozooplankton
 
 
 ```{r}
-species_params(new_params)$temp_min <- temp_min
-species_params(new_params)$temp_max <- temp_max
+species_params(params)$temp_min <- temp_min
+species_params(params)$temp_max <- temp_max
 
 ```
 
@@ -731,10 +745,99 @@ species_params(new_params)$temp_max <- temp_max
 # Effort
 ```{r}
 effort_FishMIP <- readRDS("FishMIP_fishing_data/effort_Prydz_Bay_1950_2010_resolution_v1.RDS")
-effort_IWC <- read.csv("FishMIP_fishing_data/IWC_effort.csv")
+effort_IWC <- read.csv("FishMIP_fishing_data/IWC_effort.csv")[,-1]
 
 glimpse(effort_FishMIP)
 glimpse(effort_IWC)
+```
+
+[1] "mesozooplankton"          "other krill"              "other macrozooplankton"   "antarctic krill"          "salps"                   
+ [6] "mesopelagic fishes"       "bathypelagic fishes"      "shelf and coastal fishes" "flying birds"             "small divers"            
+[11] "squids"                   "toothfishes"              "leopard seals"            "medium divers"            "large divers"            
+[16] "minke whales"             "orca"                     "sperm whales"             "baleen whales"           
+
+```{r}
+unique(effort_IWC$Species)
+```
+```{r tidy-IWC-effort}
+effort_IWC_tidy <- effort_IWC %>%
+  dplyr::mutate(species = Species) %>% 
+  dplyr::select(c(Year, species, effort_standard)) %>% 
+  dplyr::mutate(species = case_when(species == "Baleen" ~ "baleen whales",
+                             species == "Sperm" ~ "sperm whales",
+                             species == "Antarctic Minke" ~ "minke whales",
+                             species == "Killer" ~ "orca"
+                             ))
+  
+glimpse(effort_IWC_tidy)
+head(effort_IWC_tidy)
+summary(effort_IWC_tidy)
+
+# saveRDS(effort_IWC_tidy, "FishMIP_fishing_data/effort_IWC_tidy.RDS")
+```
+
+```{r tidy-FishMIP-effort}
+effort_FishMIP_tidy <- effort_FishMIP %>%
+  dplyr::select(c(Year, species, effort_standard))
+  
+glimpse(effort_FishMIP_tidy)
+head(effort_FishMIP_tidy)
+summary(effort_FishMIP_tidy)
+```
+
+```{r}
+effort <- rbind(effort_IWC_tidy, effort_FishMIP_tidy)
+
+effort <- effort %>% 
+  arrange(Year)
+
+head(effort)
+glimpse(effort)
+summary(effort)
+
+write.csv(effort, "effort.csv")
+```
+
+```{r}
+# Create a 2-dimensional array
+summary_array <- array(NA, dim = c(length(unique(effort$Year)), length(unique(effort$species))))
+
+# Loop through each combination of Year and Species
+for (i in 1:length(unique(effort$Year))) {
+  for (j in 1:length(unique(effort$species))) {
+    subset_data <- effort %>% 
+      filter(Year == unique(effort$Year)[i], species == unique(effort$species)[j])
+    if (nrow(subset_data) > 0) {
+      summary_array[i, j] <- subset_data$effort_standard
+    }
+  }
+}
+
+# Set row and column names
+dimnames(summary_array) <- list(unique(effort$Year), unique(effort$species))
+
+# Print the resulting summary array
+print(summary_array)
+
+# write.csv(summary_array, "effort_array.csv")
+```
+
+
+```{r}
+effort <- read.csv("effort_array.csv")
+
+years <- effort[,1]
+
+effort <- effort[,-1]
+rownames(effort) <- years
+
+
+# colnames(effort) <- rownames(gear_params(params))
+colnames(effort) <- gear_params(params)$gear
+
+head(effort)
+glimpse(effort)
+dim(effort)
 ```
 
 
@@ -940,17 +1043,18 @@ vertical_migration_array[zone05, Baleen, ] <- 0
 
 
 ```{r}
-paramsT <- upgradeTherParams(new_params,
+paramsT <- upgradeTherParams(params,
                              ocean_temp_array = ocean_temp,
                              n_pp_array = n_pp_array, 
                              vertical_migration_array = vertical_migration_array,
+                             
                              aerobic_effect = TRUE, metabolism_effect = TRUE)
 ```
 
 
 
 ```{r}
-new_params@w_full
+params@w_full
 names(n_pp_array)
 ```
 
@@ -971,6 +1075,7 @@ paramsT@species_params$erepro
 For this step, we re-estimate the reproduction/biomass parameters using time-averaged forcing data as near to the model reference period - 2010-19??
 
 
+
 ```{r}
 params <- paramsT
 max(time_steps)
@@ -984,12 +1089,12 @@ initialNResource(params)
 
 # initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
 initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)]
-#need to cut resource at 10g
+#need to cut resource at 100g
 initialNResource(params)[which(w_full(params) >=resource_params(params)$w_pp_cutoff)]<-0.0
 
 
 # same with initial effort
-initial_effort(params)<-colMeans(effort_array[years_to_use,])
+initial_effort(params)<-colMeans(effort[years_to_use,])
 
 # use pre-collapse plank and temperatures
 params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
@@ -1001,7 +1106,7 @@ params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_u
 
 
 ```{r}
-sim <- project(paramsT, t_max = 50)
+sim <- project(params_pre, t_max = 50)
 
 plot(sim)
 ```
