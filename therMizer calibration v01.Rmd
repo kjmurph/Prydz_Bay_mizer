@@ -637,18 +637,18 @@ new_params <- readRDS("params_latest_biomass_09_Aug_2023.RDS")
 
 ```
 
-
+Check intial plankton abundance
 ```{r}
 new_params@initial_n_pp
 ```
 
-
-
-
+Check plankton abundance through time
 ```{r}
-params <- tuneParams(new_params)
-params@species_params$erepro
+sim_initial <- project(new_params, t_max = 50)
+
+sim_initial@n_pp
 ```
+
 
 
 ### Adding min and max temp for each group
@@ -740,19 +740,26 @@ temp_max <- c(2, # mesozooplankton
 
 
 ```{r}
-species_params(params)$temp_min <- temp_min
-species_params(params)$temp_max <- temp_max
+species_params(new_params)$temp_min <- temp_min
+species_params(new_params)$temp_max <- temp_max
 
 ```
 
 
+```{r}
+# saveRDS(new_params, "therMizer_params_v1.RDS")
+```
+
+
+Raw data not pushed to github, the effort_array can be read in later if you bypass all this data prep.
+
 # Effort
 ```{r}
-effort_FishMIP <- readRDS("FishMIP_fishing_data/effort_Prydz_Bay_1950_2010_resolution_v1.RDS")
-effort_IWC <- read.csv("FishMIP_fishing_data/IWC_effort.csv")[,-1]
-
-glimpse(effort_FishMIP)
-glimpse(effort_IWC)
+# effort_FishMIP <- readRDS("FishMIP_fishing_data/effort_Prydz_Bay_1950_2010_resolution_v1.RDS")
+# effort_IWC <- read.csv("FishMIP_fishing_data/IWC_effort.csv")[,-1]
+# 
+# glimpse(effort_FishMIP)
+# glimpse(effort_IWC)
 ```
 
 [1] "mesozooplankton"          "other krill"              "other macrozooplankton"   "antarctic krill"          "salps"                   
@@ -761,69 +768,69 @@ glimpse(effort_IWC)
 [16] "minke whales"             "orca"                     "sperm whales"             "baleen whales"           
 
 ```{r}
-unique(effort_IWC$Species)
+# unique(effort_IWC$Species)
 ```
 ```{r tidy-IWC-effort}
-effort_IWC_tidy <- effort_IWC %>%
-  dplyr::mutate(species = Species) %>% 
-  dplyr::select(c(Year, species, effort_standard)) %>% 
-  dplyr::mutate(species = case_when(species == "Baleen" ~ "baleen whales",
-                             species == "Sperm" ~ "sperm whales",
-                             species == "Antarctic Minke" ~ "minke whales",
-                             species == "Killer" ~ "orca"
-                             ))
-  
-glimpse(effort_IWC_tidy)
-head(effort_IWC_tidy)
-summary(effort_IWC_tidy)
-
-# saveRDS(effort_IWC_tidy, "FishMIP_fishing_data/effort_IWC_tidy.RDS")
+# effort_IWC_tidy <- effort_IWC %>%
+#   dplyr::mutate(species = Species) %>% 
+#   dplyr::select(c(Year, species, effort_standard)) %>% 
+#   dplyr::mutate(species = case_when(species == "Baleen" ~ "baleen whales",
+#                              species == "Sperm" ~ "sperm whales",
+#                              species == "Antarctic Minke" ~ "minke whales",
+#                              species == "Killer" ~ "orca"
+#                              ))
+#   
+# glimpse(effort_IWC_tidy)
+# head(effort_IWC_tidy)
+# summary(effort_IWC_tidy)
+# 
+# # saveRDS(effort_IWC_tidy, "FishMIP_fishing_data/effort_IWC_tidy.RDS")
 ```
 
 ```{r tidy-FishMIP-effort}
-effort_FishMIP_tidy <- effort_FishMIP %>%
-  dplyr::select(c(Year, species, effort_standard))
-  
-glimpse(effort_FishMIP_tidy)
-head(effort_FishMIP_tidy)
-summary(effort_FishMIP_tidy)
+# effort_FishMIP_tidy <- effort_FishMIP %>%
+#   dplyr::select(c(Year, species, effort_standard))
+#   
+# glimpse(effort_FishMIP_tidy)
+# head(effort_FishMIP_tidy)
+# summary(effort_FishMIP_tidy)
 ```
 
 ```{r}
-effort <- rbind(effort_IWC_tidy, effort_FishMIP_tidy)
-
-effort <- effort %>% 
-  arrange(Year)
-
-head(effort)
-glimpse(effort)
-summary(effort)
-
-write.csv(effort, "effort.csv")
+# effort <- rbind(effort_IWC_tidy, effort_FishMIP_tidy)
+# 
+# effort <- effort %>% 
+#   arrange(Year)
+# 
+# head(effort)
+# glimpse(effort)
+# summary(effort)
+# 
+# # write.csv(effort, "effort.csv")
 ```
 
 ```{r}
-# Create a 2-dimensional array
-summary_array <- array(NA, dim = c(length(unique(effort$Year)), length(unique(effort$species))))
-
-# Loop through each combination of Year and Species
-for (i in 1:length(unique(effort$Year))) {
-  for (j in 1:length(unique(effort$species))) {
-    subset_data <- effort %>% 
-      filter(Year == unique(effort$Year)[i], species == unique(effort$species)[j])
-    if (nrow(subset_data) > 0) {
-      summary_array[i, j] <- subset_data$effort_standard
-    }
-  }
-}
-
-# Set row and column names
-dimnames(summary_array) <- list(unique(effort$Year), unique(effort$species))
-
-# Print the resulting summary array
-print(summary_array)
-
-# write.csv(summary_array, "effort_array.csv")
+# # Create a 2-dimensional array
+# summary_array <- array(NA, dim = c(length(unique(effort$Year)), length(unique(effort$species))))
+# 
+# # Loop through each combination of Year and Species
+# for (i in 1:length(unique(effort$Year))) {
+#   for (j in 1:length(unique(effort$species))) {
+#     subset_data <- effort %>% 
+#       filter(Year == unique(effort$Year)[i], species == unique(effort$species)[j])
+#     if (nrow(subset_data) > 0) {
+#       summary_array[i, j] <- subset_data$effort_standard
+#     }
+#   }
+# }
+# 
+# # Set row and column names
+# dimnames(summary_array) <- list(unique(effort$Year), unique(effort$species))
+# 
+# # Print the resulting summary array
+# print(summary_array)
+# 
+# # write.csv(summary_array, "effort_array.csv")
 ```
 
 
@@ -844,8 +851,6 @@ glimpse(effort)
 dim(effort)
 ```
 
-
-
 Set up time steps
 ```{r}
 time_steps <- 1961:2010
@@ -855,11 +860,17 @@ time_steps <- 1961:2010
 
 #input temperature data 
 ```{r}
-tos <- readRDS("FishMIP_Temperature_Forcing/tos_annual.rds")
-t500m <- readRDS("FishMIP_Temperature_Forcing/t500m_annual.rds")
-t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m_annual.rds")
-t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m_annual.rds")
-tob <- readRDS("FishMIP_Temperature_Forcing/tob_annual.rds")
+# tos <- readRDS("FishMIP_Temperature_Forcing/tos_annual.rds")
+# t500m <- readRDS("FishMIP_Temperature_Forcing/t500m_annual.rds")
+# t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m_annual.rds")
+# t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m_annual.rds")
+# tob <- readRDS("FishMIP_Temperature_Forcing/tob_annual.rds")
+
+tos <- readRDS("tos_annual.rds")
+t500m <- readRDS("t500m_annual.rds")
+t1000m <- readRDS("t1000m_annual.rds")
+t1500m <- readRDS("t1500m_annual.rds")
+tob <- readRDS("tob_annual.rds")
 ocean_temp <- abind::abind(tos,t500m,t1000m, t1500m, tob, along = 2)
 realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
 colnames(ocean_temp) <- realm_names
@@ -873,7 +884,9 @@ rownames(ocean_temp) <- time_steps
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra.dat")
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_164.dat")
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_142.dat")
-isimip_plankton <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_annual.dat")
+# isimip_plankton <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_annual.dat")
+isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat")
+
 
 isimip_plankton <- as(isimip_plankton, "matrix")
 
@@ -883,49 +896,56 @@ sizes <- new_params@w_full
 colnames(isimip_plankton) <- sizes # signif(sizes, 6)
 
 
-head(isimip_plankton)
+dim(isimip_plankton)
 ```
 
 
 ```{r}
-isimip_plankton_exp <- 10^(isimip_plankton)
-head(isimip_plankton_exp)
-head(sim_original@n_pp[1,])
+head(isimip_plankton[1,]) #log values
+isimip_plankton_comparison <- 10^isimip_plankton
+
+head(isimip_plankton_comparison[1,])
+
+head(isimip_plankton_comparison) # check how the plankton time series changes
 ```
 
-isimip plankton: 1.388271e+27	9.729357e+26	6.818582e+26	4.778636e+26	
-sim original:    4.485542e+29 2.140866e+29  1.021796e+29  4.876842e+28 2.327626e+28 1.110933e+28 
+Compare initial n_pp of sim using the pre-therMizer params with the isimip plankton
+```{r}
+initialNResource(sim_initial)
+```
+sim_initial: 8.29e-15     1.19e-14     1.71e-14     2.45e-14     3.51e-14     5.04e-14     7.23e-14     1.04e-13     1.49e-13     2.13e-13     3.06e-13     4.39e-13      6.3e-13     
+             4.485542e+29 2.140866e+29 1.021796e+29 4.876842e+28 2.327626e+28 1.110933e+28 5.302277e+27 2.530679e+27 1.207846e+27 5.764826e+26 2.751445e+26 1.313214e+26  6.267725e+25
+             
+isimip:      8.3e-15      1.2e-14      1.7e-14      2.4e-14      3.5e-14        5e-14      7.2e-14        1e-13      1.5e-13      2.1e-13      3.1e-13      4.4e-13       6.3e-13       
+             1.388271e+27 9.729357e+26 6.818582e+26 4.778636e+26 3.348990e+26 2.347058e+26 1.644878e+26 1.152772e+26 8.078924e+25 5.661916e+25 3.968015e+25 2.780886e+25  1.948916e+25  
+             
+
+So, the starting plankton abundance and the isimip plankton abundance are a couple orders magnitude out of line. We need to correct for this to introduce the anomaly but to scale it to the same intial n_pp, at least to get a steady state. We could then try to 'ween' the model onto the actual isimip n_pp, but may not be necessary
 
 
 ```{r}
-new_params <- readRDS("params_latest_biomass_09_Aug_2023.RDS")
-# new_params # pre-therMizer steady-state
-# paramsT # therMizer
 
-# isimip_plankton <- n_pp_array
-
-
-# n_pp_array <- isimip_plankton
-
-sizes <- names(new_params@initial_n_pp)
-n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes))
+n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes)) # setup an empty array for the corrected plankton
 
 #
 n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(new_params@initial_n_pp) #subtracting anomaly and adding back the mean
  for (t in seq(1,length(time_steps) - 1,1)) {
-   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) +  log10(new_params@initial_n_pp)
+   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) + log10(new_params@initial_n_pp)
  }
 
  # n_pp_array <- ifelse(n_pp_array == -Inf, 0, n_pp_array)
 
-# Introducing zeros which convert to -Inf 
+# Introducing zeros which convert to -Inf
 
-n_pp_array[1,]
-tail(n_pp_array[1,])
-initialNResource(new_params)
+head(n_pp_array[1,]) #make it comparible
+head(n_pp_array[50,])
+head(log10(initialNResource(new_params)))
 ```
-
+Above we changed the array that will be used to force the plankton dynamics through time.
+We also need to adjust the initial n_pp
 ```{r}
+params_updated_n_pp <- new_params
+
 years_to_use<-as.character(2000:2010)
 
 # years_to_use_v2<-as.character(2000-01-01:2010-12-01)
@@ -934,24 +954,21 @@ years_to_use<-as.character(2000:2010)
 
 
 # initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
-initialNResource(new_params)[which(w_full(new_params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(new_params) < 100)]
+initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]
 #need to cut resource at 100g
-initialNResource(new_params)[which(w_full(new_params) >=resource_params(new_params)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
+initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) >=resource_params(params_updated_n_pp)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
 
 
-
-
+head(initialNResource(new_params))
+head(initialNResource(params_updated_n_pp))
 ```
 
 
 ```{r}
-new_params <- steady(new_params)
+params_updated_n_pp <- steady(params_updated_n_pp)
 
-plotSpectra(new_params)
+plotSpectra(params_updated_n_pp)
 ```
-
-
-
 
 
 #vertical_migration array set up----
@@ -974,10 +991,6 @@ zone02 <- which(realm_names == "t500m")
 zone03 <- which(realm_names =="t1000m")
 zone04 <- which(realm_names == "t1500m")
 zone05 <- which(realm_names == "tob")
-```
-
-```{r}
-species_names
 ```
 
 
@@ -1119,19 +1132,17 @@ vertical_migration_array[zone05, Baleen, ] <- 0
 
 
 ```{r}
-paramsT <- upgradeTherParams(params,
+paramsT <- upgradeTherParams(params_updated_n_pp,
                              ocean_temp_array = ocean_temp,
                              n_pp_array = n_pp_array, 
                              vertical_migration_array = vertical_migration_array,
-                             
                              aerobic_effect = TRUE, metabolism_effect = TRUE)
 ```
 
 
 
 ```{r}
-params@w_full
-names(n_pp_array)
+initialNResource(paramsT)
 ```
 
 
@@ -1140,10 +1151,6 @@ plotTherPerformance(paramsT)
 plotTherScalar(paramsT)
 plotSpectra(paramsT, total = T, power = 2)
 plotGrowthCurves(paramsT, species_panel = T)
-```
-
-```{r}
-paramsT@species_params$erepro
 ```
 
 # Recalibrate parameters - THIS PART IS FOR THE STEADY STATE only
@@ -1155,101 +1162,58 @@ sim <- project(paramsT, t_max = 50)
 # plotBiomass(paramsT)
 plotlyBiomass(sim)
 plotSpectra(sim)
-paramsT_v2 <- steady(paramsT)
 ```
 
-
-
-
-paramsT@ini
-
-8.29e-15     1.19e-14     1.71e-14     2.45e-14     3.51e-14     5.04e-14     7.23e-14     1.04e-13     1.49e-13 
-4.485542e+29 2.140866e+29 1.021796e+29 4.876842e+28 2.327626e+28 1.110933e+28 5.302277e+27 2.530679e+27 1.207846e+27 
-
 ```{r}
-params <- paramsT
-max(time_steps)
-
-years_to_use<-as.character(2000:2010)
-
-# years_to_use_v2<-as.character(2000-01-01:2010-12-01)
-
-initialNResource(params)
-
-
-# initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
-initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)]
-#need to cut resource at 100g
-initialNResource(params)[which(w_full(params) >=resource_params(params)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
-
-
-# same with initial effort
-initial_effort(params)<-colMeans(effort[years_to_use,])
-
-# use pre-collapse plank and temperatures
-params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
-      # vertical_migration_array = vertical_migration_array,
-                            # exposure_array = ESS_exposure,
-                            aerobic_effect = TRUE, metabolism_effect = TRUE)
-
-```
-
-Plot the initia_n_pp to check it's been updated correctly
-Compare to first time step 
-units in intial_n_pp are not log values
-Values in therMizer are logged, hence the mismatch
-
-initial_n_pp vs sim@n_pp_array[1,] #first time step
-initial_
-
-```{r}
-sim_original <- project(new_params, t_max = 50)
-```
-
-
-```{r}
-head(initialNResource(new_params))
-head(initialNResource(paramsT))
-```
-
-
-```{r}
+head(sim@n_pp[1,])
 head(sim@n_pp[2,])
-head(sim_original@n_pp[2,])
-
+head(sim@n_pp[3,])
+head(sim@n_pp[50,])
 ```
 
 
 ```{r}
-sim <- project(params_pre, t_max = 50)
-
-plot(sim)
-tuneParams(params_pre)
+sim_T2 <- project(paramsT, t_max = 50, effort = 0.2, 
+                         initial_n = sim@n[1,,],
+                         initial_n_pp = sim@n_pp[1,])
 ```
 
 ```{r}
-paramsT_v1 <- steady(paramsT)
-paramsT_v1 <- calibrateBiomass(paramsT)
-
-paramsT_v1 <- steady(paramsT_v1)
-paramsT_v1 <- matchBiomasses(paramsT_v1)
+head(sim_T2@n_pp[1,])
+head(sim_T2@n_pp[2,])
+head(sim_T2@n_pp[3,])
+head(sim_T2@n_pp[50,])
 ```
 
 
+## Clear environment and start again with a reduced example.
+Only one temperature and realm
+
 ```{r}
-# # ocean_temp <- read.csv("FishMIP_Temperature_Forcing/GFDL_Prydz_Bay_tos_mean.csv")[,-1]
+new_params <- readRDS("therMizer_params_v1.RDS")
+```
+
+
+
+# Simpler version with only 1 temperature realm to see if that's differnt. Is n_pp still acting the same way?
+
+```{r}
+ocean_temp <- readRDS("tos_annual.RDS")
+ocean_temp <- as(ocean_temp, "matrix")
+
+realm_names <- "tos"
+time_steps <- 1961:2010
+# ocean_temp <- read.csv("FishMIP_Temperature_Forcing/GFDL_Prydz_Bay_tos_mean.csv")[,-1]
 # ocean_temp_all <- read.csv("FishMIP_Temperature_Forcing/GFDL_Prydz_Bay_temp_interpolate_mean.csv")[,-1]
 # 
-# # rownames(ocean_temp) <- time_steps
-# # ocean_temp <- ocean_temp[,-1]
-# # ocean_temp <- as(ocean_temp, "matrix")
-# glimpse(ocean_temp_all)
-# head(ocean_temp, 24)
+colnames(ocean_temp) <- realm_names
+rownames(ocean_temp) <- time_steps
 ```
+
 Tidy date variable so that it is numeric
 ```{r}
-ocean_temp_tidy <- ocean_temp %>%
-  mutate(date_tidy = parse_date_time(date, orders = "my"))
+# ocean_temp_tidy <- ocean_temp %>%
+#   mutate(date_tidy = parse_date_time(date, orders = "my"))
 
 
 # ocean_temp_tidy <- ocean_temp %>%
@@ -1258,34 +1222,72 @@ ocean_temp_tidy <- ocean_temp %>%
 #   mutate(date_comb = paste(year, month_numeric, sep="-")) %>% 
 #   mutate(date_comb = as.Date.character(date_comb))
 
-glimpse(ocean_temp_tidy)
+# glimpse(ocean_temp_tidy)
 ```
-
-Set up time steps
-```{r}
-time_steps <- ocean_temp_tidy$date_tidy
-```
-
-Set up sizes
-```{r}
-sizes <- signif(new_params@w_full, 3)
-```
-
 
 ### input npp data
 
 ```{r}
+isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat")
+
+isimip_plankton <- as(isimip_plankton, "matrix")
+
+sizes <- new_params@w_full
+length(sizes)
+
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra.dat")
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_164.dat")
-n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_142.dat")
-rownames(n_pp_array) <- time_steps
-colnames(n_pp_array) <- sizes
+# n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_142.dat")
+rownames(isimip_plankton) <- time_steps
+colnames(isimip_plankton) <- sizes
 
-head(n_pp_array)
+head(isimip_plankton)
 ```
 
 
 
+```{r}
+
+n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes)) # setup an empty array for the corrected plankton
+
+#
+n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(new_params@initial_n_pp) #subtracting anomaly and adding back the mean
+ for (t in seq(1,length(time_steps) - 1,1)) {
+   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) + log10(new_params@initial_n_pp)
+ }
+
+ # n_pp_array <- ifelse(n_pp_array == -Inf, 0, n_pp_array)
+
+# Introducing zeros which convert to -Inf
+
+head(n_pp_array[1,]) #make it comparible
+head(n_pp_array[50,])
+head(log10(initialNResource(new_params)))
+```
+
+
+
+Above we changed the array that will be used to force the plankton dynamics through time.
+We also need to adjust the initial n_pp
+```{r}
+params_updated_n_pp <- new_params
+
+years_to_use<-as.character(2000:2010)
+
+# years_to_use_v2<-as.character(2000-01-01:2010-12-01)
+
+# head(initialNResource(new_params))
+
+
+# initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
+initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]
+#need to cut resource at 100g
+initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) >=resource_params(params_updated_n_pp)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
+
+
+head(initialNResource(new_params))
+head(initialNResource(params_updated_n_pp))
+```
 
 ### vertical_migration array setup
 
@@ -1328,241 +1330,25 @@ See Saunders et al. 2019 (https://doi.org/10.3389/fmars.2019.00530) for mesopela
 ### set up therMizer params
 
 ```{r}
-# paramsT <- upgradeTherParams(params,
-#                              ocean_temp_array = ocean_temp,
-#                              n_pp_array = n_pp_array,
-#                              vertical_migration_array = vertical_migration_array,
-#                              aerobic_effect = TRUE, metabolism_effect = TRUE)
-```
-
-Error in upgradeTherParams(new_params, ocean_temp_array = ocean_temp_matrix, :
-The size dimension of the n_pp_array must be the same as w_full.
-
-```{r}
-# ocean_temp_matrix <- as.matrix(ocean_temp)
-# # ocean_temp_test <- abind::abind(ocean_temp, along =2)
-# ocean_temp_mat <- as(ocean_temp, "matrix")
-```
-
-
-```{r}
-# ocean_temp_date <- 1:600
-ocean_temp_date <- ocean_temp_tidy$date_comb
-# ocean_temp_date <- ocean_temp$date
-
-row.names(ocean_temp) <- ocean_temp_date
-# row.names(ocean_temp_tidy) <- ocean_temp_date
-
-ocean_temp$tos2 <- ocean_temp$tos
-
-# ocean_temp_array <- as.matrix(ocean_temp[,2:3]) # required if adding a dummy second realm
-ocean_temp_array <- as.matrix(ocean_temp_tidy[,2])
-# ocean_temp_array <- as.matrix(ocean_temp[,2])
-
-row.names(ocean_temp_array) <- time_steps
-# 
-colnames(ocean_temp_array) <- "tos"
-# row.names(ocean_temp_tidy) <- ocean_temp_date
-
-
-```
-
-
-```{r}
-rownames(ocean_temp_tidy) <- ocean_temp_tidy$date_tidy
-
-ocean_temp_tos <- ocean_temp_tidy[,2]
-names(ocean_temp_tos) <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
-
-ocean_temp_tob <- ocean_temp_tidy[,2]
-names(ocean_temp_tob) <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
-
-ocean_temp_final <- abind::abind(ocean_temp_tos,ocean_temp_tob, along = 2)
-
-```
-
-
-```{r}
-# new_params <- setParams(new_params)
-# paramsT <- upgradeTherParams(params,
-#                              ocean_temp_array = ocean_temp_array,
-#                              n_pp_array = n_pp_array, 
-#                              vertical_migration_array = vertical_migration_array,
-#                              exposure_array = exposure_array,
-#                              aerobic_effect = TRUE, metabolism_effect = TRUE)
-
-
-paramsT <- upgradeTherParams(new_params,
-                             ocean_temp_array = ocean_temp_final,
-                             n_pp_array = n_pp_array, 
-                             # vertical_migration_array = vertical_migration_array,
-                             # exposure_array = exposure_array,
+paramsT_simple <- upgradeTherParams(params_updated_n_pp,
+                             ocean_temp_array = ocean_temp,
+                             n_pp_array = n_pp_array,
                              aerobic_effect = TRUE, metabolism_effect = TRUE)
 ```
 
-```{r}
-paramsT@other_params$other$n_pp_array
-```
 
 
 ```{r}
-plotTherPerformance(paramsT)
+sim_simple <- project(paramsT_simple, t_max = 50)
+# plotBiomass(paramsT)
+plotlyBiomass(sim_simple)
+plotSpectra(sim_simple)
 ```
-
-
 
 ```{r}
-# paramsT <- therMizer::therMizerPredRate(paramsT)
-
-simT <-  project(paramsT,
-                 # t_start = as.numeric(dimnames(other_params(paramsT)$ocean_temp)[[1]][1]),
-                 t_max = 100)
-                 # dt = 1/12)
-
-paramsT <- steady(paramsT)
-
-tuneParams(paramsT)
-
-plot(simT)
-plot(paramsT)
+head(sim_simple@n_pp[1,])
+head(sim_simple@n_pp[2,])
+head(sim_simple@n_pp[3,])
+head(sim_simple@n_pp[50,])
 ```
-
-
-
-
-```{r}
-# paramsT_v1 <- calibrateBiomass(paramsT) # rescales kappa - not what we want
-# plot(paramsT_v1)
-
-paramsT_tuned <- tuneParams(paramsT)
-```
-
-
-
-Initial error as the length of n_pp_array was based on a different w_full
-
-Error in upgradeTherParams(new_params, ocean_temp_array = ocean_temp_matrix, :
-The size dimension of the n_pp_array must be the same as w_full.
-
-But now I've updated the n_pp_array based on the same w_full length (142 size classes), but it's still flagging an error
-
-Warning: The dimnames of the second dimension of n_pp_array are not the same
-      as the ones in w_full. Since the dimension size is the same, the dimnames
-      have been replaced by w_full.Error in dimnames(n_pp_array) <- `*vtmp*` : 
-  length of 'dimnames' [1] not equal to array extent
-  
-
-```{r}
-upgradeTherParams
-```
-
-
-
-```{r}
-length(params@w_full)
-dim(n_pp_array)
-length(n_pp_array)
-
-length(params@dw_full)
-```
-
-
-```{r}
-paramsT <- upgradeTherParams(new_params,
-                             ocean_temp_array = ocean_temp_matrix,
-                             n_pp_array = n_pp_array, 
-                             vertical_migration_array = vertical_migration_array,
-                             aerobic_effect = TRUE, metabolism_effect = TRUE)
-```
-
-## Troubleshooting therMizer errors
-
-To try and fix dimnames error, manually change the n_pp_array colnames with the same as params@w_full 
-(i.e., one is Vi and the other is i)
-
-## Calibration notes
-
-Can add matchGrowth() into the matchBiomass()/matchCalibrate() framework
-
-Establish criteria to constrain output
-Biomass/catch within +- xx% etc
-Diet - ontogenetic shifts for appropriate species etc.
-
-check
-
-
-### Adding min and max temp for each group
-
-Using sealifebase for all non-fish species/groups. In most cases, there are no listed Temperature values in the 'Environment' section, like there is for more data-rich species, e.g., cod
-
-Instead, there are values at the bottom of the sealifebase pages in 'Estimates of some properties based on models' with 'Preferred temperature' estimates from the AquaMaps model-based approach (https://www.gbif.org/tool/81356/aquamaps-predicted-range-maps-for-aquatic-species)  
-
-[1] "euphausiids":
-Antarctic krill - (Preferred temperature (Ref. 115969): -1.5 - 1.6, mean 0.2 (based on 535 cells))
-Crystal krill - (Preferred temperature (Ref. 115969): -1.8 - 1.1, mean -1.6 (based on 3588 cells)) 
-Thysanoessa macrura - (Preferred temperature (Ref. 115969): -1.2 - 2.8, mean 0.2 (based on 24 cells). Not included due to small number of cells and low contribution to biomass in this model domain
-[2]"mesopelagic fishes" - Electrona antarctica(nothing on fishbase)    
-[3]"bathypelagic fishes"      
-[4]"shelf and coastal fishes":
-Marbled rockcod (-1 - 5)
-[5]"flying birds":
-Southern giant petrel (Preferred temperature (Ref. 115969): 2.1 - 15.6, mean 10.1 (based on 533 cells));
-Arctic tern (Sterna paradisaea) (Preferred temperature (Ref. 115969): 0.4 - 13.3, mean 6.8 (based on 2468 cells))
-Thalassarche chrysostoma (Grey-headed petrel)  (Preferred temperature (Ref. 115969): 1.3 - 9.1, mean 5.2 (based on 263 cells))
-South polar skua (Preferred temperature (Ref. 115969): 0.2 - 18.2, mean 6.4 (based on 1318 cells))
-Diomedea exulans (Wandering albatross), (Preferred temperature (Ref. 115969): 0.5 - 12, mean 4.6 (based on 1528 cells)_
-[6]"small divers" - no info for adelie, gentoo or crested penguins on sealifebase. Guess based on medium divers       
-[7]"squids" - based on Psychroteuthis glacialis (sealifebase)                   
-[8]"toothfishes" - no data on fishbase            
-[9]"leopard seals" - Preferred temperature (Ref. 115969): -1.9 - 1.4, mean -0.5 (based on 2109 cells).          
-[10] "medium divers":
-Crabeater Seals - (Preferred temperature (Ref. 115969): -0.4 - 1, mean 0.1 (based on 9397 cells))
-Ross seals (Preferred temperature (Ref. 115969): -1.8 - 1.1, mean -1.5 (based on 2110 cells));
-Weddell seals (Preferred temperature (Ref. 115969): -1.8 - 1, mean -1.6 (based on 6026 cells));
-Hourglass dolphin (Preferred temperature (Ref. 115969): 0.1 - 2, mean 0.9 (based on 11222 cells)) # Not included in the biomass
-King penguin (no data on sealifebase)
-Emperor penguin (no data on sealifebase)
-[11]"large divers" - Southern elephant seals only in this group now that Sperm whales are also seperated         
-[12]"minke whales"             
-[13]"orca"                     
-[14]"sperm whales"             
-[15]"baleen whales" 
-
-```{r}
-# temp_min <- c(-1.8, # euphausiids
-#                                      -2, # mesopelagic fishes
-#                                      -2, # bathypelagic fishes
-#                                      -1, # "shelf and coastal fishes" 
-#                                      0.2, # "flying birds"
-#                                      -0.4, # "small divers"             
-#                                      -0.8, # "squids"                  
-#                                      -2, # "toothfishes"              
-#                                      -1.9, # "leopard seals"           
-#                                      -0.4, # "medium divers"            
-#                                      0.1, # "large divers"             
-#                                      0.2, # "minke whales"             
-#                                      0.3, # "orca"                     
-#                                      0.3, # "sperm whales"             
-#                                      0.2,# "baleen whales"
-#                                       -2) # salps
-# 
-# temp_max <- c(1.6, # euphausiids
-#                                      5, # mesopelagic fishes
-#                                      5, # bathypelagic fishes
-#                                      5, # "shelf and coastal fishes" 
-#                                      18.2, # "flying birds"
-#                                      1, # "small divers"             
-#                                      1.1, # "squids"                  
-#                                      5, # "toothfishes"              
-#                                      1.4, # "leopard seals"           
-#                                      1, # "medium divers"            
-#                                      1.6, # "large divers"             
-#                                      7, # "minke whales"             
-#                                      13.1, # "orca"                     
-#                                      3.8, # "sperm whales"             
-#                                      10.2, # "baleen whales"
-#                                       5) # salps
-```
-
-
 
