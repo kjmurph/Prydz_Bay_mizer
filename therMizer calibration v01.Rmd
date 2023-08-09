@@ -638,6 +638,10 @@ new_params <- readRDS("params_latest_biomass_09_Aug_2023.RDS")
 ```
 
 
+```{r}
+new_params@initial_n_pp
+```
+
 
 
 
@@ -869,14 +873,86 @@ rownames(ocean_temp) <- time_steps
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra.dat")
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_164.dat")
 # n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_142.dat")
-n_pp_array <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_annual.dat")
+isimip_plankton <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_annual.dat")
 
-rownames(n_pp_array) <- time_steps
+isimip_plankton <- as(isimip_plankton, "matrix")
+
+
+rownames(isimip_plankton) <- time_steps
 sizes <- new_params@w_full
-colnames(n_pp_array) <- sizes # signif(sizes, 6)
+colnames(isimip_plankton) <- sizes # signif(sizes, 6)
 
-head(n_pp_array)
+
+head(isimip_plankton)
 ```
+
+
+```{r}
+isimip_plankton_exp <- 10^(isimip_plankton)
+head(isimip_plankton_exp)
+head(sim_original@n_pp[1,])
+```
+
+isimip plankton: 1.388271e+27	9.729357e+26	6.818582e+26	4.778636e+26	
+sim original:    4.485542e+29 2.140866e+29  1.021796e+29  4.876842e+28 2.327626e+28 1.110933e+28 
+
+
+```{r}
+new_params <- readRDS("params_latest_biomass_09_Aug_2023.RDS")
+# new_params # pre-therMizer steady-state
+# paramsT # therMizer
+
+# isimip_plankton <- n_pp_array
+
+
+# n_pp_array <- isimip_plankton
+
+sizes <- names(new_params@initial_n_pp)
+n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes))
+
+#
+n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(new_params@initial_n_pp) #subtracting anomaly and adding back the mean
+ for (t in seq(1,length(time_steps) - 1,1)) {
+   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) +  log10(new_params@initial_n_pp)
+ }
+
+ # n_pp_array <- ifelse(n_pp_array == -Inf, 0, n_pp_array)
+
+# Introducing zeros which convert to -Inf 
+
+n_pp_array[1,]
+tail(n_pp_array[1,])
+initialNResource(new_params)
+```
+
+```{r}
+years_to_use<-as.character(2000:2010)
+
+# years_to_use_v2<-as.character(2000-01-01:2010-12-01)
+
+# head(initialNResource(new_params))
+
+
+# initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
+initialNResource(new_params)[which(w_full(new_params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(new_params) < 100)]
+#need to cut resource at 100g
+initialNResource(new_params)[which(w_full(new_params) >=resource_params(new_params)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
+
+
+
+
+```
+
+
+```{r}
+new_params <- steady(new_params)
+
+plotSpectra(new_params)
+```
+
+
+
+
 
 #vertical_migration array set up----
 ```{r}
@@ -1074,7 +1150,21 @@ paramsT@species_params$erepro
 
 For this step, we re-estimate the reproduction/biomass parameters using time-averaged forcing data as near to the model reference period - 2010-19??
 
+```{r}
+sim <- project(paramsT, t_max = 50)
+# plotBiomass(paramsT)
+plotlyBiomass(sim)
+plotSpectra(sim)
+paramsT_v2 <- steady(paramsT)
+```
 
+
+
+
+paramsT@ini
+
+8.29e-15     1.19e-14     1.71e-14     2.45e-14     3.51e-14     5.04e-14     7.23e-14     1.04e-13     1.49e-13 
+4.485542e+29 2.140866e+29 1.021796e+29 4.876842e+28 2.327626e+28 1.110933e+28 5.302277e+27 2.530679e+27 1.207846e+27 
 
 ```{r}
 params <- paramsT
@@ -1090,7 +1180,7 @@ initialNResource(params)
 # initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
 initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)]
 #need to cut resource at 100g
-initialNResource(params)[which(w_full(params) >=resource_params(params)$w_pp_cutoff)]<-0.0
+initialNResource(params)[which(w_full(params) >=resource_params(params)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
 
 
 # same with initial effort
@@ -1099,8 +1189,33 @@ initial_effort(params)<-colMeans(effort[years_to_use,])
 # use pre-collapse plank and temperatures
 params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
       # vertical_migration_array = vertical_migration_array,
-                            # exposure_array = ESS_exposure, 
+                            # exposure_array = ESS_exposure,
                             aerobic_effect = TRUE, metabolism_effect = TRUE)
+
+```
+
+Plot the initia_n_pp to check it's been updated correctly
+Compare to first time step 
+units in intial_n_pp are not log values
+Values in therMizer are logged, hence the mismatch
+
+initial_n_pp vs sim@n_pp_array[1,] #first time step
+initial_
+
+```{r}
+sim_original <- project(new_params, t_max = 50)
+```
+
+
+```{r}
+head(initialNResource(new_params))
+head(initialNResource(paramsT))
+```
+
+
+```{r}
+head(sim@n_pp[2,])
+head(sim_original@n_pp[2,])
 
 ```
 
@@ -1109,6 +1224,7 @@ params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_u
 sim <- project(params_pre, t_max = 50)
 
 plot(sim)
+tuneParams(params_pre)
 ```
 
 ```{r}
