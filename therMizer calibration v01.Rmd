@@ -1352,3 +1352,160 @@ head(sim_simple@n_pp[3,])
 head(sim_simple@n_pp[50,])
 ```
 
+```{r}
+n_pp_array_function <- function (params, n_pp_array, t, ...) {
+    if (!floor(t) %in% as.numeric(dimnames(other_params(params)$ocean_temp)[[1]])) 
+        t <- t%%as.numeric(dimnames(other_params(params)$ocean_temp)[[1]][dim(other_params(params)$ocean_temp)[[1]]]) + 
+            as.numeric(dimnames(other_params(params)$ocean_temp)[[1]][1])
+    w_cut_off <- params@resource_params$w_pp_cutoff
+    index_vec <- as.numeric(dimnames(other_params(params)$ocean_temp)[[1]]) - 
+        t
+    index <- which(index_vec == max(index_vec[index_vec <= 0]))
+    pkt <- 10^(n_pp_array[index, ])/params@dw_full
+    pkt[which(as.numeric(names(pkt)) >= w_cut_off)] <- 0
+    return(pkt)
+}
+
+n_pp_array_function(paramsT_simple, n_pp_array, 2)
+n_pp_array_function(paramsT_simple, sim_initial@n_pp, 2)
+n_pp_array_function(paramsT_simple, sim_simple@n_pp, 2)
+```
+
+
+```{r}
+upgradeTherParams
+
+upgradeTherParams_test <- function (params, temp_min = NULL, temp_max = NULL, ocean_temp_array = NULL, 
+    n_pp_array = NULL, vertical_migration_array = NULL, exposure_array = NULL, 
+    aerobic_effect = TRUE, metabolism_effect = TRUE)  {
+  
+    no_sp <- length(species_params(params)$species)
+    if (is.null(temp_min)) {
+        if (is.null(species_params(params)$temp_min)) 
+            stop("You need to setup min temperature for your species.")
+    }
+    else if (length(temp_min) != no_sp) {
+        stop("The length of temp_min is not the same as the number of species.")
+    }
+    else {
+        species_params(params)$temp_min <- temp_min
+    }
+    if (is.null(temp_max)) {
+        if (is.null(species_params(params)$temp_max)) 
+            stop("You need to setup max temperature for your species.")
+    }
+    else if (length(temp_max) != no_sp) {
+        stop("The length of temp_max is not the same as the number of species.")
+    }
+    else {
+        species_params(params)$temp_max <- temp_max
+    }
+    params <- setEncounterPredScale(params)
+    params <- setMetabTher(params)
+    if (is.null(ocean_temp_array)) 
+        stop("You need to specify a temperature array to do the projections.")
+    if (is.vector(ocean_temp_array)) {
+        if (is.null(names(ocean_temp_array))) {
+            warning("ocean_temp_array has no dates. They are assumed to be successive years staring from 0.")
+            names(ocean_temp_array) <- sprintf("%04d", seq(0, 
+                length.out = length(ocean_temp_array)))
+        }
+        date_vec <- names(ocean_temp_array)
+        parse_order <- ifelse(nchar(date_vec) <= 4, "%Y", ifelse(nchar(date_vec) == 
+            7, "%Y-%m", "%Y-%m-%d"))
+        if (parse_order[1] == "%Y" & any(nchar(date_vec) < 4)) 
+            date_vec <- str_pad(date_vec, 4, pad = "0")
+        date_vec <- parse_date_time(date_vec, orders = parse_order)
+        date_vec <- as.numeric(year(date_vec)) + as.numeric(yday(date_vec) - 
+            1)/as.numeric(ifelse(leap_year(date_vec), 366, 365))
+        ocean_temp_array <- matrix(ocean_temp_array, nrow = length(ocean_temp_array), 
+            ncol = dim(params@species_params)[1], byrow = F, 
+            dimnames = list(time = date_vec, species = params@species_params$species))
+    }
+    else if (is.array(ocean_temp_array)) {
+        date_vec <- dimnames(ocean_temp_array)[[1]]
+        parse_order <- ifelse(nchar(date_vec) <= 4, "%Y", ifelse(nchar(date_vec) == 
+            7, "%Y-%m", "%Y-%m-%d"))
+        if (parse_order[1] == "%Y" & any(nchar(date_vec) < 4)) 
+            date_vec <- str_pad(date_vec, 4, pad = "0")
+        date_vec <- parse_date_time(date_vec, orders = parse_order)
+        date_vec <- as.numeric(year(date_vec)) + as.numeric(yday(date_vec) - 
+            1)/as.numeric(ifelse(leap_year(date_vec), 366, 365))
+        dimnames(ocean_temp_array)[[1]] <- date_vec
+    }
+    else stop("The ocean_temp_array is of the wrong format")
+    other_params(params)$ocean_temp <- ocean_temp_array
+    if (!is.null(n_pp_array)) {
+        if (!dim(ocean_temp_array)[1] == dim(n_pp_array)[1]) 
+            stop("The time dimension of ocean_temp_array and n_pp_array must be equal.")
+        if (!dim(n_pp_array)[2] == length(params@w_full)) 
+            stop("The size dimension of the n_pp_array must be the same as w_full.")
+        if (!identical(dimnames(n_pp_array)[[2]], params@w_full)) {
+            warning("The dimnames of the second dimension of n_pp_array are not the same\n      as the ones in w_full. Since the dimension size is the same, the dimnames\n      have been replaced by w_full.")
+            dimnames(n_pp_array)[[2]] <- params@w_full
+        }
+        if (!is.array(n_pp_array) && !is.matrix(n_pp_array)) 
+            n_pp_array <- as.matrix(n_pp_array)
+        params <- setResource(params, resource_dynamics = "plankton_forcing")
+        dimnames(n_pp_array)[[1]] <- dimnames(ocean_temp_array)[[1]]
+        other_params(params)$n_pp_array <- n_pp_array
+    }
+    if (!is.null(vertical_migration_array)) {
+        params <- setVerticality(params, vertical_migration_array, 
+            exposure_array)
+    }
+    else if (!is.null(exposure_array)) {
+        vertical_fill <- 1/dim(exposure_array)[1]
+        vertical_names <- dimnames(exposure_array)[[1]]
+        vertical_dim <- c(dim(exposure_array), length(params@w))
+        vertical_migration_array <- array(vertical_fill, dim = vertical_dim, 
+            dimnames = list(realm = vertical_names, species = params@species_params$species, 
+                w = params@w))
+        message("exposure_array used to create vertical_migration_array.")
+        params <- setVerticality(params, vertical_migration_array, 
+            exposure_array)
+    }
+    else {
+        if (is.null(dim(ocean_temp_array))) {
+            vertical_fill <- rep(c(rep(c(1, rep(0, length(params@species_params$species))), 
+                length(params@species_params$species) - 1), 1), 
+                length(params@w))
+            vertical_names <- params@species_params$species
+            vertical_dim <- c(rep(length(params@species_params$species), 
+                2), length(params@w))
+            message("Assuming one realm per species to create vertical_migration_array.")
+        }
+        else if (!isTRUE(all.equal(dimnames(ocean_temp_array)[[2]], 
+            params@species_params$species))) {
+            vertical_fill <- 1/length(dimnames(ocean_temp_array)[[2]])
+            vertical_names <- dimnames(ocean_temp_array)[[2]]
+            vertical_dim <- c(dim(ocean_temp_array)[2], length(params@species_params$species), 
+                length(params@w))
+            message("Your realm names don't match your species names, so species are assumed to spend equal time in all realms.")
+        }
+        else {
+            vertical_fill <- rep(c(rep(c(1, rep(0, length(params@species_params$species))), 
+                length(params@species_params$species) - 1), 1), 
+                length(params@w))
+            vertical_names <- params@species_params$species
+            vertical_dim <- c(rep(length(params@species_params$species), 
+                2), length(params@w))
+        }
+        vertical_migration_array <- array(vertical_fill, dim = vertical_dim, 
+            dimnames = list(realm = vertical_names, species = params@species_params$species, 
+                w = params@w))
+        params <- setVerticality(params, vertical_migration_array)
+    }
+    if (aerobic_effect) {
+        params <- setRateFunction(params, "Encounter", "therMizerEncounter")
+        params <- setRateFunction(params, "PredRate", "therMizerPredRate")
+    }
+    if (metabolism_effect) 
+        params <- setRateFunction(params, "EReproAndGrowth", 
+            "therMizerEReproAndGrowth")
+    other_params(params)$t_idx = -as.numeric(dimnames(other_params(params)$ocean_temp)[[1]][1])
+    return(params)
+}
+```
+
+
