@@ -926,11 +926,16 @@ So, the starting plankton abundance and the isimip plankton abundance are a coup
 ```{r}
 
 n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes)) # setup an empty array for the corrected plankton
+#need to cut resource at 100g
+logInitialNpp<-log10(new_params@initial_n_pp)
+logInitialNpp[which(w_full(new_params) >=resource_params(new_params)$w_pp_cutoff)]<-NA # sets all above 100g to NA
 
-#
-n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(new_params@initial_n_pp) #subtracting anomaly and adding back the mean
+n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + logInitialNpp 
+
+#subtracting anomaly and adding back the mean
  for (t in seq(1,length(time_steps) - 1,1)) {
-   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) + log10(new_params@initial_n_pp)
+   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) + logInitialNpp 
+
  }
 
  # n_pp_array <- ifelse(n_pp_array == -Inf, 0, n_pp_array)
@@ -968,6 +973,25 @@ head(initialNResource(params_updated_n_pp))
 params_updated_n_pp <- steady(params_updated_n_pp)
 
 plotSpectra(params_updated_n_pp)
+
+##check the time series of n_pp_aray before upgrading params
+
+plot(as.numeric(colnames(n_pp_array)), n_pp_array[1,],log="x")
+for (i in 2:10) points(as.numeric(colnames(n_pp_array)), n_pp_array[i,], typ="l",col=i)
+#check slope on n_pp_array
+slope<-lm(n_pp_array[1,]~log10(as.numeric(sizes)))
+#check isimip plankton
+slope_isimip<-lm(isimip_plankton[10,]~log10(as.numeric(sizes)))
+# isimip plankton slopes are not normalised...
+# check initial, seem ok
+logInitN<-ifelse(!is.infinite(log10(initialNResource(new_params))),log10(initialNResource(new_params)), NA)
+slope_initial<-lm(logInitN~log10(as.numeric(names(initialNResource(new_params)))))
+
+# something weird as the isimip plankton slopes are -1 and the n_pp_array are -2 (as they should be)
+
+# check specific size
+plot(as.numeric(rownames(n_pp_array)), n_pp_array[,1],typ="l",ylim=c(25,29))
+for (i in 2:25) points(as.numeric(rownames(n_pp_array)), n_pp_array[,i], typ="l",col=i)
 ```
 
 
@@ -1162,6 +1186,8 @@ sim <- project(paramsT, t_max = 50)
 # plotBiomass(paramsT)
 plotlyBiomass(sim)
 plotSpectra(sim)
+
+plotSpectra(sim, total = T, power = 2)
 ```
 
 ```{r}
