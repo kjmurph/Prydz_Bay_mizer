@@ -202,4 +202,60 @@ saveRDS(tob, file = "FishMIP_Temperature_Forcing/tob_annual.rds")
 ```
 
 
+Load netcdf temperature of BRAN reanalysis (help used: https://rpubs.com/boyerag/297592)
+
+```{r}
+library(ncdf4) # package for netcdf manipulation
+library(raster) # package for raster manipulation
+library(rgdal) # package for geospatial analysis
+# library(ggplot2) # package for plotting
+```
+
+
+```{r}
+nc_data <- nc_open('FishMIP_Temperature_Forcing/ocean_temp_ann_2010.nc')
+# # Save the print(nc) dump to a text file
+# {
+#     sink('gimms3g_ndvi_1982-2012_metadata.txt')
+#  print(nc_data)
+#     sink()
+# }
+
+glimpse(nc_data)
+nc_data$dim
+```
+
+
+```{r}
+ndvi.array <- ncvar_get(nc_data, "NDVI") # store the data in a 3-dimensional array
+dim(ndvi.array) 
+```
+
+
+
+```{r}
+lon <- ncvar_get(nc_data, "lon")
+lat <- ncvar_get(nc_data, "lat", verbose = F)
+t <- ncvar_get(nc_data, "time")
+
+head(lon) # look at the first few entries in the longitude vector
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -175,10 +175,13 @@ head(GFDL_zmicro_raw)
 GFDL_zmeso_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_zmeso-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
 dim(GFDL_zmeso_raw)
 head(GFDL_zmeso_raw)
+
 ```
 
 
+
 ```{r}
+
 GFDL_pico_long <- GFDL_pico_raw %>%
   select(!c(lat,lon)) %>% # remove lat, lon and area_m2
   melt() %>% 
@@ -197,6 +200,16 @@ GFDL_pico_long_annual <- GFDL_pico_long[,-1] %>%
 dim(GFDL_pico_long)
 head(GFDL_pico_long)
 summary(GFDL_pico_long)
+```
+Area
+```{r}
+
+GFDL_area <- GFDL_diat_raw %>%
+  select(c(lat,lon,area_m2)) %>%  
+  mutate(total_area = sum(area_m2))
+
+
+
 ```
 
 

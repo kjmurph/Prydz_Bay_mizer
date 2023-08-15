@@ -1,0 +1,386 @@
+---
+title: "Calibrating a model within therMizer"
+author: "Kieran Murphy"
+date:  "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Load libraries
+
+```{r}
+# library(mizer)
+library(therMizer)
+library(tidyverse)
+library(mizerExperimental)
+# library(mizerHowTo)
+# library(pbapply)
+```
+
+## Load therMizer params object
+
+```{r}
+params <- readRDS("therMizer_params_v1.RDS")
+```
+
+
+## Check biomass values currently
+
+```{r}
+species_params(params)$biomass_observed
+```
+Current values are t/km2 (same as g/m2, but need to be specific for next step)
+
+Effort and catch are based on t/km2, so need to scale biomass using the model domain in km2
+
+Scale this up to biomass values for the entire model domain (1474341 km^2)
+
+
+```{r}
+species_params(params)$biomass_observed <- species_params(params)$biomass_observed * 1474341
+
+species_params(params)$biomass_observed
+```
+Still steady?
+
+```{r}
+params <- setParams(params)
+params <- steady(params)
+```
+tune params to new biomasses, make sure steady and save update
+
+```{r}
+params <- tuneParams(params)
+
+# saveRDS(params, "therMizer_params_total_area.RDS")
+```
+
+Need to scale catch to the whole area too
+
+
+
+```{r}
+species_params(params)$yield_observed
+gear_params(params)$yield_observed
+```
+
+```{r}
+species_params(params)$yield_observed <- species_params(params)$yield_observed * 1474341
+gear_params(params)$yield_observed <- gear_params(params)$yield_observed * 1474341
+
+species_params(params)$yield_observed
+gear_params(params)$yield_observed
+```
+
+```{r}
+# saveRDS(params, "therMizer_params_total_area.RDS")
+```
+
+
+```{r}
+effort <- read.csv("effort_array.csv")
+
+years <- effort[,1]
+
+effort <- effort[,-1]
+rownames(effort) <- years
+
+
+# colnames(effort) <- rownames(gear_params(params))
+colnames(effort) <- gear_params(params)$gear
+
+head(effort)
+glimpse(effort)
+dim(effort)
+```
+
+
+Set up time steps
+```{r}
+time_steps <- 1961:2010
+```
+
+### temperature data
+
+#input temperature data 
+```{r}
+tos <- readRDS("tos_annual.rds")
+t500m <- readRDS("t500m_annual.rds")
+t1000m <- readRDS("t1000m_annual.rds")
+t1500m <- readRDS("t1500m_annual.rds")
+tob <- readRDS("tob_annual.rds")
+ocean_temp <- abind::abind(tos,t500m,t1000m, t1500m, tob, along = 2)
+
+realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
+
+colnames(ocean_temp) <- realm_names
+rownames(ocean_temp) <- time_steps
+```
+
+
+### input npp data
+
+```{r}
+isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat")
+
+isimip_plankton <- as(isimip_plankton, "matrix")
+
+rownames(isimip_plankton) <- time_steps
+sizes <- params@w_full
+colnames(isimip_plankton) <- sizes # signif(sizes, 6)
+
+dim(isimip_plankton)
+```
+
+```{r}
+n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes)) # setup an empty array for the corrected plankton
+
+#
+n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp) #subtracting anomaly and adding back the mean
+ for (t in seq(1,length(time_steps) - 1,1)) {
+   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp)
+ }
+
+# Introducing zeros which convert to -Inf
+
+head(n_pp_array[1,]) #make it comparible
+head(n_pp_array[50,])
+head(log10(initialNResource(params)))
+```
+
+Above we changed the array that will be used to force the plankton dynamics through time.
+We also need to adjust the initial n_pp
+```{r}
+params_updated_n_pp <- params
+
+years_to_use<-as.character(2000:2010)
+
+# years_to_use_v2<-as.character(2000-01-01:2010-12-01)
+
+# head(initialNResource(new_params))
+
+
+# initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
+initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]
+#need to cut resource at 100g
+initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) >=resource_params(params_updated_n_pp)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
+
+
+head(initialNResource(params))
+head(initialNResource(params_updated_n_pp))
+```
+
+```{r}
+params_updated_n_pp <- steady(params_updated_n_pp)
+
+plotSpectra(params_updated_n_pp)
+```
+
+#vertical_migration array set up----
+```{r}
+realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
+colnames(ocean_temp) <- realm_names
+species_names <- as.character(params@species_params$species)
+sizes <- params@w
+
+vertical_migration_array <- array(0, dim = (c(length(realm_names),
+                                              length(species_names), length(sizes))),
+                                  dimnames = list(realm = realm_names, sp = species_names,
+                                                  w = signif(sizes, 3)))
+```
+
+
+```{r}
+zone01 <- which(realm_names =="tos")
+zone02 <- which(realm_names == "t500m")
+zone03 <- which(realm_names =="t1000m")
+zone04 <- which(realm_names == "t1500m")
+zone05 <- which(realm_names == "tob")
+```
+
+
+
+```{r}
+#mesozooplankton
+MesZoo <- which(species_names=="mesozooplankton")
+vertical_migration_array[zone01, MesZoo, ] <- 0.25
+vertical_migration_array[zone02, MesZoo, ] <- 0.25
+vertical_migration_array[zone03, MesZoo, ] <- 0.25
+vertical_migration_array[zone04, MesZoo, ] <- 0.25
+vertical_migration_array[zone05, MesZoo, ] <- 0
+#other krill
+Oth_krill <- which(species_names=="other krill")
+vertical_migration_array[zone01, Oth_krill, ] <- 0.25
+vertical_migration_array[zone02, Oth_krill, ] <- 0.25
+vertical_migration_array[zone03, Oth_krill, ] <- 0.25
+vertical_migration_array[zone04, Oth_krill, ] <- 0.25
+vertical_migration_array[zone05, Oth_krill, ] <- 0
+#other macrozooplankton
+Oth_MacroZoo <- which(species_names=="other macrozooplankton")
+vertical_migration_array[zone01, Oth_MacroZoo, ] <- 0.25
+vertical_migration_array[zone02, Oth_MacroZoo, ] <- 0.25
+vertical_migration_array[zone03, Oth_MacroZoo, ] <- 0.25
+vertical_migration_array[zone04, Oth_MacroZoo, ] <- 0.25
+vertical_migration_array[zone05, Oth_MacroZoo, ] <- 0
+#antarctic krill
+Ant_krill <- which(species_names=="antarctic krill")
+vertical_migration_array[zone01, Ant_krill, ] <- 0.25
+vertical_migration_array[zone02, Ant_krill, ] <- 0.25
+vertical_migration_array[zone03, Ant_krill, ] <- 0.25
+vertical_migration_array[zone04, Ant_krill, ] <- 0.25
+vertical_migration_array[zone05, Ant_krill, ] <- 0
+#salps
+salps <- which(species_names=="salps")
+vertical_migration_array[zone01, salps, ] <- 0.25
+vertical_migration_array[zone02, salps, ] <- 0.25
+vertical_migration_array[zone03, salps, ] <- 0.25
+vertical_migration_array[zone04, salps, ] <- 0.25
+vertical_migration_array[zone05, salps, ] <- 0
+#mesopelagic fishes
+MesoFish <- which(species_names=="mesopelagic fishes")
+vertical_migration_array[zone01, MesoFish, ] <- 0.2
+vertical_migration_array[zone02, MesoFish, ] <- 0.4
+vertical_migration_array[zone03, MesoFish, ] <- 0.4
+vertical_migration_array[zone04, MesoFish, ] <- 0
+vertical_migration_array[zone05, MesoFish, ] <- 0
+#bathypelagic fishes
+BathyFish <- which(species_names=="bathypelagic fishes")
+vertical_migration_array[zone01, BathyFish, ] <- 0
+vertical_migration_array[zone02, BathyFish, ] <- 0.15
+vertical_migration_array[zone03, BathyFish, ] <- 0.15
+vertical_migration_array[zone04, BathyFish, ] <- 0.35
+vertical_migration_array[zone05, BathyFish, ] <- 0.35
+#shelf and coastal fishes
+SCFish <- which(species_names=="shelf and coastal fishes")
+vertical_migration_array[zone01, SCFish, ] <- 0.2
+vertical_migration_array[zone02, SCFish, ] <- 0.2
+vertical_migration_array[zone03, SCFish, ] <- 0.2
+vertical_migration_array[zone04, SCFish, ] <- 0.2
+vertical_migration_array[zone05, SCFish, ] <- 0.2
+#flying birds
+Birds <- which(species_names=="flying birds")
+vertical_migration_array[zone01, Birds, ] <- 1
+vertical_migration_array[zone02, Birds, ] <- 0
+vertical_migration_array[zone03, Birds, ] <- 0
+vertical_migration_array[zone04, Birds, ] <- 0
+vertical_migration_array[zone05, Birds, ] <- 0
+#small divers
+Sm_divers <- which(species_names=="small divers")
+vertical_migration_array[zone01, Sm_divers, ] <- 1
+vertical_migration_array[zone02, Sm_divers, ] <- 0
+vertical_migration_array[zone03, Sm_divers, ] <- 0
+vertical_migration_array[zone04, Sm_divers, ] <- 0
+vertical_migration_array[zone05, Sm_divers, ] <- 0
+#squids
+squids <- which(species_names=="squids")
+vertical_migration_array[zone01, squids, ] <- 0.2
+vertical_migration_array[zone02, squids, ] <- 0.2
+vertical_migration_array[zone03, squids, ] <- 0.2
+vertical_migration_array[zone04, squids, ] <- 0.2
+vertical_migration_array[zone05, squids, ] <- 0.2
+#toothfishes
+toothfishes <- which(species_names=="toothfishes")
+vertical_migration_array[zone01, toothfishes, ] <- 0.2
+vertical_migration_array[zone02, toothfishes, ] <- 0.2
+vertical_migration_array[zone03, toothfishes, ] <- 0.2
+vertical_migration_array[zone04, toothfishes, ] <- 0.2
+vertical_migration_array[zone05, toothfishes, ] <- 0.2
+#leopard seals
+seals <- which(species_names=="leopard seals")
+vertical_migration_array[zone01, seals, ] <- 0.5
+vertical_migration_array[zone02, seals, ] <- 0.5
+vertical_migration_array[zone03, seals, ] <- 0
+vertical_migration_array[zone04, seals, ] <- 0
+vertical_migration_array[zone05, seals, ] <- 0
+#medium divers
+Md_divers <- which(species_names=="medium divers")
+vertical_migration_array[zone01, Md_divers, ] <- 0.5
+vertical_migration_array[zone02, Md_divers, ] <- 0.5
+vertical_migration_array[zone03, Md_divers, ] <- 0
+vertical_migration_array[zone04, Md_divers, ] <- 0
+vertical_migration_array[zone05, Md_divers, ] <- 0
+#large diver
+Lrg_divers <- which(species_names=="large divers")
+vertical_migration_array[zone01, Lrg_divers, ] <- 0.5
+vertical_migration_array[zone02, Lrg_divers, ] <- 0.5
+vertical_migration_array[zone03, Lrg_divers, ] <- 0
+vertical_migration_array[zone04, Lrg_divers, ] <- 0
+vertical_migration_array[zone05, Lrg_divers, ] <- 0
+#minke whales
+minke <- which(species_names=="minke whales")
+vertical_migration_array[zone01, minke, ] <- 0.4
+vertical_migration_array[zone02, minke, ] <- 0.4
+vertical_migration_array[zone03, minke, ] <- 0.1
+vertical_migration_array[zone04, minke, ] <- 0.1
+vertical_migration_array[zone05, minke, ] <- 0
+#orca
+orca <- which(species_names=="orca")
+vertical_migration_array[zone01, orca, ] <- 0.4
+vertical_migration_array[zone02, orca, ] <- 0.4
+vertical_migration_array[zone03, orca, ] <- 0.1
+vertical_migration_array[zone04, orca, ] <- 0.1
+vertical_migration_array[zone05, orca, ] <- 0
+#sperm whales
+sperm <- which(species_names=="sperm whales")
+vertical_migration_array[zone01, sperm, ] <- 0.3
+vertical_migration_array[zone02, sperm, ] <- 0.3
+vertical_migration_array[zone03, sperm, ] <- 0.2
+vertical_migration_array[zone04, sperm, ] <- 0.2
+vertical_migration_array[zone05, sperm, ] <- 0
+#baleen whales
+Baleen <- which(species_names=="baleen whales")
+vertical_migration_array[zone01, Baleen, ] <- 0.4
+vertical_migration_array[zone02, Baleen, ] <- 0.4
+vertical_migration_array[zone03, Baleen, ] <- 0.1
+vertical_migration_array[zone04, Baleen, ] <- 0.1
+vertical_migration_array[zone05, Baleen, ] <- 0
+```
+
+
+
+```{r}
+paramsT <- upgradeTherParams(params_updated_n_pp,
+                             ocean_temp_array = ocean_temp,
+                             n_pp_array = n_pp_array, 
+                             vertical_migration_array = vertical_migration_array,
+                             aerobic_effect = TRUE, metabolism_effect = TRUE)
+```
+
+
+
+```{r}
+plotTherPerformance(paramsT)
+plotTherScalar(paramsT)
+plotSpectra(paramsT, total = T, power = 2)
+plotGrowthCurves(paramsT, species_panel = T)
+```
+
+
+
+```{r}
+sim <- project(paramsT, t_max = 50)
+# plotBiomass(paramsT)
+plotlyBiomass(sim)
+plotSpectra(sim)
+```
+
+```{r}
+head(sim@n_pp[1,])
+head(sim@n_pp[2,])
+head(sim@n_pp[50,])
+```
+
+
+```{r}
+paramsT <- tuneParams(paramsT)
+```
+
+
+
+
+
+

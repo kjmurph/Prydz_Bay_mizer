@@ -1,0 +1,495 @@
+---
+title: "Distinct Feeding Kernel For MFSO Size Spectrum Model"
+output:
+  html_document:
+    df_print: paged
+---
+
+#### Original code from Ryan's PZF model that calculates the feeding kernel for species with feeding modes and betas
+```{r}
+# if(is.na(grp$m[i]) == FALSE){ # If group has an m-value (zooplankton)
+#       # Calculate PPMR for zooplankton, which changes according to body-size (Wirtz, 2012)	
+#       D.z <- 2*(3*w*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+#       betas =  (exp(0.02*log(D.z)^2 - grp$m[i] + 1.832))^3
+#       beta_mat_phyto = matrix(betas, nrow = ngrid, ncol = ngridPP)
+#       beta_mat_dynam = matrix(betas, nrow = ngrid, ncol = ngrid)
+#       
+#       sp_phyto_predkernel = exp(-0.5*(log((beta_mat_phyto*phyto_prey_weight_matrix)/
+#                                             phyto_pred_weight_matrix)/grp$sigma[i])^2)/
+#         sqrt(2*pi*grp$sigma[i]^2)
+#       sp_dynam_predkernel = exp(-0.5*(log((beta_mat_dynam*dynam_prey_weight_matrix)/
+#                                             dynam_pred_weight_matrix)/grp$sigma[i])^2)/
+#         sqrt(2*pi*grp$sigma[i]^2)
+#       
+#     } else { # If group does not have an m-value (fish)
+#       beta_mat_phyto = matrix(grp$beta[i], nrow = ngrid, ncol = ngridPP)
+#       beta_mat_dynam = matrix(grp$beta[i], nrow = ngrid, ncol = ngrid)
+#       
+#       sp_phyto_predkernel = exp(-0.5*(log((beta_mat_phyto*phyto_prey_weight_matrix)/
+#                                             phyto_pred_weight_matrix)/grp$sigma[i])^2)/
+#         sqrt(2*pi*grp$sigma[i]^2)
+#       sp_dynam_predkernel = exp(-0.5*(log((beta_mat_dynam*dynam_prey_weight_matrix)/
+#                                             dynam_pred_weight_matrix)/grp$sigma[i])^2)/
+#         sqrt(2*pi*grp$sigma[i]^2)
+#     }
+```
+    
+    
+### Setup
+```{r}
+# Read in dataframe with the range of prey weights
+# Modified to include minimum to max phytoplankton size classes and dynamic spectrum prey weight classes combined
+library(tidyverse)
+df_prey_w <- read.csv("df_weight.csv")
+```
+ 
+Log axis breaks function
+```{r}
+log_breaks <- function(n = 6){
+   n = max(1, n)  # Because n=0 could lead to R crash
+   function(x) {
+     grDevices::axisTicks(log10(range(x, na.rm = TRUE)), log = TRUE, nint = n)
+   }
+}
+```
+ 
+# Feeding Mode Species 
+
+## Feeding Mode (m) Kernel Function
+```{r}
+feeding_kernel_mode <- function(Species, w_min, w_mat, w_max, m, sigma, df_prey_w){
+  
+  df_prey_w <- df_prey_w$df_w
+  Species <- Species
+  w_min <- w_min # Minimum size of predator species/func group
+  w_mat <- w_mat # Maturation size of predator species/func group
+  w_max <- w_max # Maximum size of predator species/func group
+  m     <- m     # Feeding mode value
+  sigma <- sigma # Width of feeding kernel
+  
+      D.z_min <- 2*(3*w_min*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_min =  (exp(0.02*log(D.z_min)^2 - m + 1.832))^3 # Calculates PPMR for minimum size predator of species[i]
+      
+      D.z_mat <- 2*(3*w_mat*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_mat =  (exp(0.02*log(D.z_mat)^2 - m + 1.832))^3 # Calculates PPMR for maturation size predator of species[i]
+      
+      D.z_max <- 2*(3*w_max*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_max =  (exp(0.02*log(D.z_max)^2 - m + 1.832))^3 # Calculates PPMR for maximum size predator of species[i]
+      
+      
+    fk_value <- exp(-0.5*(log((betas_min*df_prey_w)/
+                                            w_min)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the min size feeding kernel (feeding level of  min size predator at every size class of prey)
+    
+    df_min <- as.data.frame(fk_value)
+    df_min$w_prey <- df_prey_w
+    df_min$Predator_Size <- "Minimum"
+    df_min$Species <- Species
+    
+    fk_value <- exp(-0.5*(log((betas_mat*df_prey_w)/
+                                            w_mat)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the mat size feeding kernel (feeding level of  mat size predator at every size class of prey)
+    
+    df_mat <- as.data.frame(fk_value)
+    df_mat$w_prey <- df_prey_w
+    df_mat$Predator_Size <- "Maturation"
+    df_mat$Species <- Species
+    
+    fk_value <- exp(-0.5*(log((betas_max*df_prey_w)/
+                                            w_max)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the max size feeding kernel (feeding level of  max size predator at every size class of prey)
+    
+    df_max <- as.data.frame(fk_value)
+    df_max$w_prey <- df_prey_w
+    df_max$Predator_Size <- "Maximum"
+    df_max$Species <- Species
+    
+df_plot <- do.call("rbind", list(df_min, df_mat, df_max))
+df_plot$Predator_Size <- as.factor(df_plot$Predator_Size)
+df_plot$Species <- as.factor(df_plot$Species)
+df_plot$Type <- "Mode"
+df_plot$Type <- as.factor(df_plot$Type)
+
+write.csv(df_plot, paste(Species,"fk_df.csv"))
+
+ # ggplot(filter(df_plot, fk_value >= 10^-250), aes(w_prey, fk_value, color=Size)) +
+ #   geom_line() +
+ #  geom_point(position = "jitter") +
+ #   ggtitle(paste(Species)) +
+ #  scale_x_log10() +
+ #  scale_y_log10()
+}
+
+
+feeding_kernel_mode_whale <- function(Species, w_min, w_mat, w_max, m, sigma, df_prey_w){
+  # version of feeding kernel for whales; same as above but slope of PPMR scaling is 0.03 rather than 0.02 (twice as steep as the zooplankon scaling) so that PPMR increases more rapidly with body size; making ontogenetic change in absolute prey size less marked
+  df_prey_w <- df_prey_w$df_w
+  Species <- Species
+  w_min <- w_min # Minimum size of predator species/func group
+  w_mat <- w_mat # Maturation size of predator species/func group
+  w_max <- w_max # Maximum size of predator species/func group
+  m     <- m     # Feeding mode value
+  sigma <- sigma # Width of feeding kernel
+  
+      D.z_min <- 2*(3*w_min*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_min =  (exp(0.0335*log(D.z_min)^2 - m + 1.832))^3 # Calculates PPMR for minimum size predator of species[i]
+      
+      D.z_mat <- 2*(3*w_mat*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_mat =  (exp(0.0335*log(D.z_mat)^2 - m + 1.832))^3 # Calculates PPMR for maturation size predator of species[i]
+      
+      D.z_max <- 2*(3*w_max*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_max =  (exp(0.0335*log(D.z_max)^2 - m + 1.832))^3 # Calculates PPMR for maximum size predator of species[i]
+      
+      
+    fk_value <- exp(-0.5*(log((betas_min*df_prey_w)/
+                                            w_min)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the min size feeding kernel (feeding level of  min size predator at every size class of prey)
+    
+    df_min <- as.data.frame(fk_value)
+    df_min$w_prey <- df_prey_w
+    df_min$Predator_Size <- "Minimum"
+    df_min$Species <- Species
+    
+    fk_value <- exp(-0.5*(log((betas_mat*df_prey_w)/
+                                            w_mat)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the mat size feeding kernel (feeding level of  mat size predator at every size class of prey)
+    
+    df_mat <- as.data.frame(fk_value)
+    df_mat$w_prey <- df_prey_w
+    df_mat$Predator_Size <- "Maturation"
+    df_mat$Species <- Species
+    
+    fk_value <- exp(-0.5*(log((betas_max*df_prey_w)/
+                                            w_max)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the max size feeding kernel (feeding level of  max size predator at every size class of prey)
+    
+    df_max <- as.data.frame(fk_value)
+    df_max$w_prey <- df_prey_w
+    df_max$Predator_Size <- "Maximum"
+    df_max$Species <- Species
+    
+df_plot <- do.call("rbind", list(df_min, df_mat, df_max))
+df_plot$Predator_Size <- as.factor(df_plot$Predator_Size)
+df_plot$Species <- as.factor(df_plot$Species)
+df_plot$Type <- "Mode"
+df_plot$Type <- as.factor(df_plot$Type)
+
+write.csv(df_plot, paste(Species,"fk_df.csv"))
+
+ # ggplot(filter(df_plot, fk_value >= 10^-250), aes(w_prey, fk_value, color=Size)) +
+ #   geom_line() +
+ #  geom_point(position = "jitter") +
+ #   ggtitle(paste(Species)) +
+ #  scale_x_log10() +
+ #  scale_y_log10()
+}
+
+
+feeding_kernel_mode_flying_birds <- function(Species, w_min, w_mat, w_max, m, sigma, df_prey_w){
+  # version of feeding kernel for whales; same as above but slope of PPMR scaling is 0.03 rather than 0.02 (1.5X as steep as the zooplankon scaling) so that PPMR increases more rapidly with body size; making ontogenetic change in absolute prey size less marked
+  df_prey_w <- df_prey_w$df_w
+  Species <- Species
+  w_min <- w_min # Minimum size of predator species/func group
+  w_mat <- w_mat # Maturation size of predator species/func group
+  w_max <- w_max # Maximum size of predator species/func group
+  m     <- m     # Feeding mode value
+  sigma <- sigma # Width of feeding kernel
+  
+      D.z_min <- 2*(3*w_min*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_min =  (exp(0.0435*log(D.z_min)^2 - m + 1.832))^3 # Calculates PPMR for minimum size predator of species[i]
+      
+      D.z_mat <- 2*(3*w_mat*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_mat =  (exp(0.0435*log(D.z_mat)^2 - m + 1.832))^3 # Calculates PPMR for maturation size predator of species[i]
+      
+      D.z_max <- 2*(3*w_max*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+      betas_max =  (exp(0.0435*log(D.z_max)^2 - m + 1.832))^3 # Calculates PPMR for maximum size predator of species[i]
+      
+      
+    fk_value <- exp(-0.5*(log((betas_min*df_prey_w)/
+                                            w_min)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the min size feeding kernel (feeding level of  min size predator at every size class of prey)
+    
+    df_min <- as.data.frame(fk_value)
+    df_min$w_prey <- df_prey_w
+    df_min$Predator_Size <- "Minimum"
+    df_min$Species <- Species
+    
+    fk_value <- exp(-0.5*(log((betas_mat*df_prey_w)/
+                                            w_mat)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the mat size feeding kernel (feeding level of  mat size predator at every size class of prey)
+    
+    df_mat <- as.data.frame(fk_value)
+    df_mat$w_prey <- df_prey_w
+    df_mat$Predator_Size <- "Maturation"
+    df_mat$Species <- Species
+    
+    fk_value <- exp(-0.5*(log((betas_max*df_prey_w)/
+                                            w_max)/sigma)^2)/
+        sqrt(2*pi*sigma^2)  # Calculates the max size feeding kernel (feeding level of  max size predator at every size class of prey)
+    
+    df_max <- as.data.frame(fk_value)
+    df_max$w_prey <- df_prey_w
+    df_max$Predator_Size <- "Maximum"
+    df_max$Species <- Species
+    
+df_plot <- do.call("rbind", list(df_min, df_mat, df_max))
+df_plot$Predator_Size <- as.factor(df_plot$Predator_Size)
+df_plot$Species <- as.factor(df_plot$Species)
+df_plot$Type <- "Mode"
+df_plot$Type <- as.factor(df_plot$Type)
+
+write.csv(df_plot, paste(Species,"fk_df.csv"))
+
+}
+```
+
+## Creating Feeding Kernel dataframes for the feeding mode species
+```{r}
+# feeding_kernel_mode("Jellies", 10^-3, 10^0.6, 10^2.6, 0.73, 0.5, df_prey_w)
+# feeding_kernel_mode("Microzooplankton", 10^-12.3, 10^-8, 10^-6, 0.35, 0.4, df_prey_w)
+# feeding_kernel_mode("Mesozooplankton", 10^-7.5, 10^-4.5, 10^-2.5, -0.59, 0.38, df_prey_w)
+# feeding_kernel_mode("Other Macrozooplankton", 10^-5, 10^-2, 10^1.4, -2.4, 0.7, df_prey_w)
+```
+
+
+# Feeding Mode Species Plots
+Two plots created
+  1) Only x-axis is log10() scale
+  2) Using log-log plot
+```{r, fig.width=8, fig.height=5}
+
+df_fk_Jelly <- read.csv("Old Feeding Kernel Dataframes/Jellies fk_df.csv")
+df_fk_Microzoo <- read.csv("Old Feeding Kernel Dataframes/Microzooplankton fk_df.csv")
+df_fk_Mesozoo <- read.csv("Old Feeding Kernel Dataframes/Mesozooplankton fk_df.csv")
+df_fk_Macrozoo <- read.csv("Old Feeding Kernel Dataframes/Other Macrozooplankton fk_df.csv")
+
+df_mode_plot <- do.call("rbind", list(df_fk_Microzoo,df_fk_Mesozoo, df_fk_Macrozoo,df_fk_Jelly))
+
+df_mode_plot$Predator_Size <- factor(df_mode_plot$Predator_Size,
+    levels = c('Minimum','Maturation','Maximum'),ordered = TRUE)
+
+ggplot(filter(df_mode_plot, fk_value >= 10^-250), aes(w_prey, fk_value, color=Predator_Size)) +
+   geom_line(size=.5) +
+  #geom_point(position = "jitter") +
+    scale_color_discrete() +
+  facet_wrap(~Species) +
+  xlab("Log Prey Size (g)") +
+  ylab("Feeding Level") +
+   #ggtitle(paste(Species)) +
+  scale_x_log10() +
+  #scale_y_log10() +
+  theme_classic()
+
+ggplot(filter(df_mode_plot, fk_value >= 10^-250), aes(w_prey, fk_value, color=Predator_Size)) +
+   geom_line(size=.5) +
+  #geom_point(position = "jitter") +
+    scale_color_discrete() +
+  facet_wrap(~Species) +
+  xlab("Log Prey Size (g)") +
+  ylab("Feeding Level") +
+   #ggtitle(paste(Species)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_classic()
+
+```
+
+# Beta Species
+
+## Beta Feeding Kernel Function
+Same as the previous function for feeding mode, but there is no conversion from an 'm' value to PPMR required, just use direct beta value instead.
+```{r}
+feeding_kernel_beta <- function(Species, w_min, w_mat, w_max, beta, sigma, df_prey_w){
+  
+  df_prey_w <- df_prey_w$df_w
+  Species <- Species
+  w_min <- w_min
+  w_mat <- w_mat
+  w_max <- w_max
+  beta  <- beta
+  sigma <- sigma
+      
+    # Feeding level across prey sizes at minimum predator size  
+    fk_value <- exp(-0.5*(log((beta*df_prey_w)/
+                                            w_min)/sigma)^2)/
+        sqrt(2*pi*sigma^2)
+    
+    df_min <- as.data.frame(fk_value)
+    df_min$w_prey <- df_prey_w
+    df_min$Predator_Size <- "Minimum"
+    df_min$Species <- Species
+    
+    # Feeding level across prey sizes at maturation predator size 
+    fk_value <- exp(-0.5*(log((beta*df_prey_w)/
+                                            w_mat)/sigma)^2)/
+        sqrt(2*pi*sigma^2)
+    
+    df_mat <- as.data.frame(fk_value)
+    df_mat$w_prey <- df_prey_w
+    df_mat$Predator_Size <- "Maturation"
+    df_mat$Species <- Species
+    
+    # Feeding level across prey sizes at maximum predator size 
+    fk_value <- exp(-0.5*(log((beta*df_prey_w)/
+                                            w_max)/sigma)^2)/
+        sqrt(2*pi*sigma^2)
+    
+    df_max <- as.data.frame(fk_value)
+    df_max$w_prey <- df_prey_w
+    df_max$Predator_Size <- "Maximum"
+    df_max$Species <- Species
+    
+df_plot <- do.call("rbind", list(df_min, df_mat, df_max))
+df_plot$Predator_Size <- as.factor(df_plot$Predator_Size)
+df_plot$Species <- as.factor(df_plot$Species)
+df_plot$Type <- "Beta"
+df_plot$Type <- as.factor(df_plot$Type)
+
+write.csv(df_plot, paste(Species,"fk_df.csv"))
+
+ # ggplot(filter(df_plot, fk_value >= 10^-250), aes(w_prey, fk_value, color=Size)) +
+ #   geom_line() +
+ #  geom_point(position = "jitter") +
+ #   ggtitle(paste(Species)) +
+ #  scale_x_log10() +
+ #  scale_y_log10()
+}
+```
+
+## Creating dataframes and plots with Beta Feeding Kernel Function
+Run the function for each species, which produces keeding kernel dataframe and saves as csv
+```{r}
+# feeding_kernel_mode_whale("Baleen Whales", 10^5.78, 10^7.64, 10^8.01, 1.5, 1, df_prey_w)
+# feeding_kernel_beta("Apex Predators", 10^5.3, 10^6.42, 10^6.78, 1.1, 1.3, df_prey_w)
+# feeding_kernel_mode_flying_birds("Flying Birds", 10^1.6, 10^3.24, 10^3.62, 5, 1, df_prey_w)
+# feeding_kernel_beta("Small Divers", 10^3.63, 10^3.65, 10^3.78, 293.8, 1.3, df_prey_w)
+# feeding_kernel_beta("Medium Divers", 10^4, 10^5.47, 10^6.11, 686.2, 1.3, df_prey_w)
+# feeding_kernel_beta("Large Divers", 10^5.13, 10^7.28, 10^7.56, 6673.7, 1.3, df_prey_w)
+# feeding_kernel_beta("Bathypelagic Fishes", 10^-3.16, 10^2.78, 10^1.8, 425, 1.3, df_prey_w)
+# feeding_kernel_beta("Mesopelagic Fishes", 10^-3, 10^1.05, 10^2.38, 441.7, 1.3, df_prey_w)
+# feeding_kernel_beta("Shelf and Coastal Fishes", 10^-2.44, 10^3.81, 10^5.13, 225, 1.3, df_prey_w)
+# feeding_kernel_beta("Squids", 10^-2.44, 10^2.11, 10^4.32, 50, 1.3, df_prey_w)
+```
+
+# Feeding Mode Species Plots
+Read in the saved feeding kernel csv files, rbind them into a single dataframe and create plots
+```{r, fig.width=10, fig.height=6}
+df_fk_Apex <- read.csv("Old Feeding Kernel Dataframes/Apex Predators fk_df.csv")
+df_fk_Baleen <- read.csv("Old Feeding Kernel Dataframes/Baleen Whales fk_df.csv")
+df_fk_SCFish <- read.csv("Old Feeding Kernel Dataframes/Shelf and Coastal Fishes fk_df.csv")
+df_fk_Birds <- read.csv("Old Feeding Kernel Dataframes/Flying Birds fk_df.csv")
+df_fk_Sdivers <- read.csv("Old Feeding Kernel Dataframes/Small Divers fk_df.csv")
+df_fk_Mdivers <- read.csv("Old Feeding Kernel Dataframes/Medium Divers fk_df.csv")
+df_fk_Ldivers <- read.csv("Old Feeding Kernel Dataframes/Large Divers fk_df.csv")
+df_fk_OtherMeso <- read.csv("Old Feeding Kernel Dataframes/Mesopelagic Fishes fk_df.csv")
+df_fk_OtherBathypelagics <- read.csv("Old Feeding Kernel Dataframes/Bathypelagic Fishes fk_df.csv")
+df_fk_Squids <- read.csv("Old Feeding Kernel Dataframes/Squids fk_df.csv")
+
+
+df_beta_plot <- do.call("rbind", list(df_fk_Apex, df_fk_Baleen, df_fk_SCFish, 
+                                      df_fk_Birds, df_fk_Sdivers, df_fk_Mdivers, df_fk_Ldivers,
+                                       df_fk_OtherMeso,
+                                       df_fk_OtherBathypelagics, df_fk_Squids))
+
+df_beta_plot$Predator_Size <- factor(df_beta_plot$Predator_Size,
+    levels = c('Minimum','Maturation','Maximum'),ordered = TRUE)
+
+ggplot(filter(df_beta_plot, fk_value >= 10^-250), aes(w_prey, fk_value, color=Predator_Size)) +
+   geom_line(size=.5) +
+  #geom_point(position = "jitter") +
+    scale_color_discrete() +
+  facet_wrap(~Species) +
+  xlab("Log Prey Size (g)") +
+  ylab("Feeding Level") +
+   #ggtitle(paste(Species)) +
+  scale_x_log10() +
+  #scale_y_log10() +
+  theme_classic()
+
+ggplot(filter(df_beta_plot, fk_value >= 10^-250), aes(w_prey, fk_value, color=Predator_Size)) +
+   geom_line(size=.5) +
+  #geom_point(position = "jitter") +
+    scale_color_discrete() +
+  facet_wrap(~Species) +
+  xlab("Log Prey Size (g)") +
+  ylab("Feeding Level") +
+   #ggtitle(paste(Species)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_classic()
+
+```
+
+# Combined Plot with mode and beta species
+```{r, fig.width=12, fig.height=10}
+df_combined_plot <- do.call("rbind", list(df_fk_Microzoo, df_fk_Mesozoo, df_fk_Macrozoo,
+                                          df_fk_Jelly,
+                                          df_fk_OtherMeso, df_fk_OtherBathypelagics,
+                                          df_fk_SCFish, df_fk_Squids,
+                                          df_fk_Birds,
+                                          df_fk_Sdivers, df_fk_Mdivers, df_fk_Ldivers, 
+                                          df_fk_Apex, df_fk_Baleen))
+
+#write.csv(df_combined_plot, "Combined_fk_df.csv")
+
+df_combined_plot$Predator_Size <- factor(df_combined_plot$Predator_Size,
+    levels = c('Minimum','Maturation','Maximum'),ordered = TRUE)
+
+ggplot(filter(df_combined_plot, fk_value >= 10^-300), aes(w_prey, fk_value, color=Predator_Size)) +
+   geom_line(size=.75, position = "jitter") +
+  scale_color_discrete(name="Predator Size") +
+  scale_linetype_discrete() +
+  #geom_point(size= 0.1, position = "jitter") +
+  facet_wrap(~Species, ncol = 3) +
+  scale_x_log10(name = "Log Prey Size (g)") +
+  scale_y_continuous(name = "Feeding Level", breaks=seq(0,1,0.25)) +
+  theme_classic() + theme(
+  panel.grid.major = element_line(size = 0.25, linetype = 'solid',
+                                colour = "light grey"), 
+  panel.grid.minor = element_line(size = 0.125, linetype = 'solid',
+                                colour = "light grey"),
+  axis.title = element_text(size=14, face="bold"),
+              axis.text.x=element_text(colour="black", size = 10),
+              axis.text.y=element_text(colour="black", size = 10),
+  strip.text.x = element_text(size = 10),
+  legend.position ="none")
+
+
+# ggplot(filter(df_combined_plot, fk_value >= 10^-300), aes(w_prey, fk_value, color=Predator_Size)) +
+#    geom_line(size=.75, position = "jitter") +
+#   scale_color_discrete() +
+#   #geom_point(size= 0.1, position = "jitter") +
+#   facet_wrap(~Species, ncol = 6) +
+#   xlab("Log Prey Size (g)") +
+#   ylab("Feeding Level") +
+#    #ggtitle(paste(Species)) +
+#   scale_x_log10() +
+#   scale_y_log10() +
+#   theme_classic()
+```
+
+Calculate PPMR range for zooplankton in Murphy et al. (prep for Biology Letters)
+
+```{r}
+w_min <- 10^-12.3
+w_max <- 10^2
+m <- 0
+
+D.z_min <- 2*(3*w_min*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+betas_min =  (exp(0.0335*log(D.z_min)^2 - m + 1.832))^3 # Calculates PPMR for minimum size predator of species[i]
+      
+D.z_max <- 2*(3*w_max*1e12/(4*pi))^(1/3) # convert body mass g to ESD (um)
+betas_max =  (exp(0.0335*log(D.z_max)^2 - m + 1.832))^3 # Calculates PPMR for maximum size predator of species[i]
+
+betas_min
+betas_max
+log10(betas_min)
+log10(betas_max)
+```
+
+
+```{r}
+
+```
+
+
