@@ -10,13 +10,19 @@ editor_options:
   chunk_output_type: inline
 ---
 
+If working with g m2 for biomass and yield, then I can compare as is with the plankton forcings, provided the depth itegrated plankton is divided by the area m2
+
 ## Load libraries
 
 ```{r}
+# remotes::install_github("sizespectrum/mizerExperimental", ref = "tuneMR") # need to uninstall other mizerExperimental and resinstall this to use plotYieldCurve()
+# remotes::install_github("sizespectrum/mizerExperimental")
+# remotes::install_github("sizespectrum/therMizer")
 # library(mizer)
 library(therMizer)
 library(tidyverse)
 library(mizerExperimental)
+# library(mizerMR)
 # library(mizerHowTo)
 # library(pbapply)
 ```
@@ -24,57 +30,152 @@ library(mizerExperimental)
 ## Load therMizer params object
 
 ```{r}
-params <- readRDS("therMizer_params_v1.RDS")
+# params <- readRDS("therMizer_params_v1.RDS")
 ```
 
 
-## Check biomass values currently
+## Check biomass and yield values currently
 
 ```{r}
-species_params(params)$biomass_observed
+# species_params(params)$biomass_observed
+# species_params(params)$yield_observed
+# gear_params(params)$yield_observed
 ```
-Current values are t/km2 (same as g/m2, but need to be specific for next step)
+Currently g/m2 (same as t/km2), so need to scale biomass using the model domain in m2
 
-Effort and catch are based on t/km2, so need to scale biomass using the model domain in km2
+Scale this up to biomass values for the entire model domain (1474341km^2)
 
-Scale this up to biomass values for the entire model domain (1474341 km^2)
+1474341 * 1e6 for m2 = 1.474341e+12
 
 
 ```{r}
-species_params(params)$biomass_observed <- species_params(params)$biomass_observed * 1474341
-
-species_params(params)$biomass_observed
+# species_params(params)$biomass_observed <- species_params(params)$biomass_observed * 1.474341e+12
+# species_params(params)$yield_observed <- species_params(params)$yield_observed * 1.474341e+12
+# gear_params(params)$yield_observed <- gear_params(params)$yield_observed * 1.474341e+12
+# 
+# species_params(params)$biomass_observed
+# species_params(params)$yield_observed
+# gear_params(params)$yield_observed
 ```
+
+Now biomass and yield are expressed as units (grams) per whole model domain
+
 Still steady?
 
 ```{r}
-params <- setParams(params)
-params <- steady(params)
+# params <- setParams(params)
+# params <- steady(params)
 ```
 tune params to new biomasses, make sure steady and save update
 
 ```{r}
-params <- tuneParams(params)
+# params <- tuneParams(params)
 
 # saveRDS(params, "therMizer_params_total_area.RDS")
+
+params_test <- readRDS("therMizer_params_total_area.RDS")
 ```
 
-Need to scale catch to the whole area too
+```{r}
+species_params(params_test)$biomass_observed
+species_params(params_test)$yield_observed
+gear_params(params_test)$yield_observed
+```
+
+
+```{r}
+getReproductionLevel(params_test)
+```
+
+
+```{r}
+# pdf(file = "plots/initial_yield_curves.pdf")
+# par(mfrow = c(19,1))
+plotYieldCurve(params_test, species = "mesozooplankton", F_max = 1)
+plotYieldCurve(params_test, species = "other krill", F_max = 1)
+plotYieldCurve(params_test, species = "other macrozooplankton", F_max = 1)
+plotYieldCurve(params_test, species = "antarctic krill", F_max = 1)
+plotYieldCurve(params_test, species = "salps", F_max = 1)
+plotYieldCurve(params_test, species = "mesopelagic fishes", F_max = 1)
+plotYieldCurve(params_test, species = "bathypelagic fishes", F_max = 1)
+plotYieldCurve(params_test, species = "shelf and coastal fishes", F_max = 1)
+plotYieldCurve(params_test, species = "flying birds", F_max = 1)
+plotYieldCurve(params_test, species = "small divers", F_max = 1)
+plotYieldCurve(params_test, species = "squids", F_max = 1)
+plotYieldCurve(params_test, species = "toothfishes", F_max = 1)
+plotYieldCurve(params_test, species = "leopard seals", F_max = 1)
+plotYieldCurve(params_test, species = "medium divers", F_max = 1)
+plotYieldCurve(params_test, species = "large divers", F_max = 1)
+plotYieldCurve(params_test, species = "minke whales", F_max = 1)
+plotYieldCurve(params_test, species = "orca", F_max = 1)
+plotYieldCurve(params_test, species = "sperm whales", F_max = 1)
+plotYieldCurve(params_test, species = "baleen whales", F_max = 1)
+```
+
+```{r}
+new_repro_level <- c("mesozooplankton"= 0.4,  "other krill" = 0.8,  "other macrozooplankton" = 0.8, "antarctic krill" = 0.9, salps  = 0.95,  "mesopelagic fishes"  = 0.95, "bathypelagic fishes" = 0.95, "shelf and coastal fishes" = 0.95,"flying birds"= 0.8, "small divers" = 0.8, "squids" = 0.99, "toothfishes" = 0.9, "leopard seals" = 0.8018595, "medium divers" = 0.9, "large divers" = 0.9754472, "minke whales" = 0.9252620, "orca" = 0.9,  "sperm whales" = 0.9918454, "baleen whales" = 0.9)
+```
 
 
 
 ```{r}
+params_test_v2 <- setBevertonHolt(params_test, reproduction_level = new_repro_level)
+```
+
+
+```{r}
+# pdf(file = "plots/repro_level_v2_yield_curves.pdf")
+# par(mfrow = c(19,1))
+plotYieldCurve(params_test_v2, species = "mesozooplankton", F_max = 1)
+plotYieldCurve(params_test_v2, species = "other krill", F_max = 1)
+plotYieldCurve(params_test_v2, species = "other macrozooplankton", F_max = 1)
+plotYieldCurve(params_test_v2, species = "antarctic krill", F_max = 1)
+plotYieldCurve(params_test_v2, species = "salps", F_max = 1)
+plotYieldCurve(params_test_v2, species = "mesopelagic fishes", F_max = 1)
+plotYieldCurve(params_test_v2, species = "bathypelagic fishes", F_max = 1)
+plotYieldCurve(params_test_v2, species = "shelf and coastal fishes", F_max = 1)
+plotYieldCurve(params_test_v2, species = "flying birds", F_max = 1)
+plotYieldCurve(params_test_v2, species = "small divers", F_max = 1)
+plotYieldCurve(params_test_v2, species = "squids", F_max = 1)
+plotYieldCurve(params_test_v2, species = "toothfishes", F_max = 1)
+plotYieldCurve(params_test_v2, species = "leopard seals", F_max = 1)
+plotYieldCurve(params_test_v2, species = "medium divers", F_max = 1)
+plotYieldCurve(params_test_v2, species = "large divers", F_max = 1)
+plotYieldCurve(params_test_v2, species = "minke whales", F_max = 1)
+plotYieldCurve(params_test_v2, species = "orca", F_max = 1)
+plotYieldCurve(params_test_v2, species = "sperm whales", F_max = 1)
+plotYieldCurve(params_test_v2, species = "baleen whales", F_max = 1)
+```
+
+Visual checks of yield curves look reasonable after the tweaks to reproduction level values
+
+
+```{r}
+params <- tuneParams(params_test_v2)
+```
+
+Check erepro
+
+```{r}
+params@species_params$erepro
+
+species_params(params)$erepro[species_params(params)$erepro >= 1] <- 0.999
+
+params@species_params$erepro
+```
+
+```{r}
+species_params(params)$biomass_observed
 species_params(params)$yield_observed
 gear_params(params)$yield_observed
 ```
 
 ```{r}
-species_params(params)$yield_observed <- species_params(params)$yield_observed * 1474341
-gear_params(params)$yield_observed <- gear_params(params)$yield_observed * 1474341
+params <- tuneParams(params)
 
-species_params(params)$yield_observed
-gear_params(params)$yield_observed
+species_params(params)$erepro
 ```
+
 
 ```{r}
 # saveRDS(params, "therMizer_params_total_area.RDS")
@@ -125,7 +226,9 @@ rownames(ocean_temp) <- time_steps
 ### input npp data
 
 ```{r}
-isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat")
+isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abundance
+
+# To rescale the plankton abundance to m2, will need to raise N^10, divide area and then log10 again.
 
 isimip_plankton <- as(isimip_plankton, "matrix")
 
@@ -140,9 +243,10 @@ dim(isimip_plankton)
 n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes)) # setup an empty array for the corrected plankton
 
 #
-n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp) #subtracting anomaly and adding back the mean
+n_pp_array[1,] <- isimip_plankton[1,] #subtracting anomaly and adding back the mean
+#n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp) #subtracting anomaly and adding back the mean
  for (t in seq(1,length(time_steps) - 1,1)) {
-   n_pp_array[t + 1,] <- (isimip_plankton[t + 1,]  - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp)
+   n_pp_array[t + 1,] <- isimip_plankton[t + 1,]
  }
 
 # Introducing zeros which convert to -Inf
@@ -165,7 +269,8 @@ years_to_use<-as.character(2000:2010)
 
 
 # initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
-initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]
+# initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]
+initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]/params_updated_n_pp@dw_full # normalise the plankton spectrum to match the therMizer plankton_forcing()
 #need to cut resource at 100g
 initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) >=resource_params(params_updated_n_pp)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
 
@@ -351,6 +456,23 @@ paramsT <- upgradeTherParams(params_updated_n_pp,
 ```
 
 
+```{r}
+params <- paramsT
+
+paramsT@species_params$biomass_observed
+```
+
+
+```{r}
+params <- tuneParams(params)
+```
+
+
+```{r}
+params <- params %>% 
+  steady() %>% matchBiomasses() %>% steady()
+```
+
 
 ```{r}
 plotTherPerformance(paramsT)
@@ -360,27 +482,187 @@ plotGrowthCurves(paramsT, species_panel = T)
 ```
 
 
+```{r}
+temp_min <- c(-2, # mesozooplankton
+                      -2, # other krill
+                     -2, # other macrozooplankton
+                     -2, # antarctic krill
+                                       -2,   # salps
+                                     -2, # mesopelagic fishes
+                                     -2, # bathypelagic fishes
+                                     -2, # "shelf and coastal fishes" 
+                                     -1.5, # "flying birds"
+                                     -1.5, # "small divers"             
+                                     -1.5, # "squids"                  
+                                     -1.5, # "toothfishes"              
+                                     -1.9, # "leopard seals"           
+                                     -1.8, # "medium divers"            
+                                     -1.5, # "large divers"             
+                                     -1.5, # "minke whales"             
+                                     -1.5, # "orca"                     
+                                     -1.5, # "sperm whales"             
+                                     -1.5 # "baleen whales"
+                                      ) 
+
+temp_max <- c(2, # mesozooplankton
+                      2, # other krill
+                    2,  # other macrozooplankton
+                  2, # antarctic krill
+                    8.57, # salps
+                                     5, # mesopelagic fishes
+                                     5, # bathypelagic fishes
+                                     5, # "shelf and coastal fishes" 
+                                     18.2, # "flying birds"
+                                     1, # "small divers"             
+                                     1.1, # "squids"                  
+                                     8.8, # "toothfishes"              
+                                     1.4, # "leopard seals"           
+                                     2, # "medium divers"            
+                                     1.6, # "large divers"             
+                                     7, # "minke whales"             
+                                     13.1, # "orca"                     
+                                     3.8, # "sperm whales"             
+                                     10.2 # "baleen whales"
+                                      ) 
+```
+
+
 
 ```{r}
-sim <- project(paramsT, t_max = 50)
-# plotBiomass(paramsT)
-plotlyBiomass(sim)
-plotSpectra(sim)
+species_params(paramsT)$temp_min <- temp_min
+species_params(paramsT)$temp_max <- temp_max
+
+
+paramsT <- upgradeTherParams(paramsT,
+                             ocean_temp_array = ocean_temp,
+                             n_pp_array = n_pp_array, 
+                             vertical_migration_array = vertical_migration_array,
+                             aerobic_effect = TRUE, metabolism_effect = TRUE)
+```
+
+
+```{r}
+paramsT <- paramsT %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>%
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>%
+  steady() %>% matchBiomasses() %>% steady()
+
+
+paramsT@species_params$erepro
+getReproductionLevel(paramsT)
 ```
 
 ```{r}
-head(sim@n_pp[1,])
-head(sim@n_pp[2,])
-head(sim@n_pp[50,])
+# saveRDS(paramsT, "latest_therMizer_params.RDS")
 ```
 
 
 ```{r}
-paramsT <- tuneParams(paramsT)
+params <- readRDS("latest_therMizer_params.RDS")
+
+species_params(params)
+summary(species_params(params))
+```
+
+
+```{r}
+getReproductionLevel(params)
+```
+
+
+```{r}
+params <- tuneParams(params)
+
+# saveRDS(params, "therMizer_params_v03.RDS")
+```
+
+therMizer_params_v03.RDS
+Manually tuned growth in tuneParams() after updating to therMizer params object
+
+
+Check reproduction parameters after the growth tuning
+
+```{r}
+params@species_params$erepro
+params@species_params$R_max
+getReproductionLevel(params)
+```
+
+```{r}
+# pdf(file = "plots/therMizer_initial_yield_curves.pdf")
+# par(mfrow = c(19,1))
+# plotYieldVsF(params, species = "mesozooplankton", F_max = 1)
+# plotYieldVsF(params, species = "other krill", F_max = 1)
+# plotYieldVsF(params, species = "other macrozooplankton", F_max = 1)
+# plotYieldVsF(params, species = "antarctic krill", F_max = 1)
+# plotYieldVsF(params, species = "salps", F_max = 1)
+# plotYieldVsF(params, species = "mesopelagic fishes", F_max = 1)
+# plotYieldVsF(params, species = "bathypelagic fishes", F_max = 1)
+# plotYieldVsF(params, species = "shelf and coastal fishes", F_max = 1)
+# plotYieldVsF(params, species = "flying birds", F_max = 1)
+# plotYieldVsF(params, species = "small divers", F_max = 1)
+# plotYieldVsF(params, species = "squids", F_max = 1)
+# plotYieldVsF(params, species = "toothfishes", F_max = 1)
+# plotYieldVsF(params, species = "leopard seals", F_max = 1)
+# plotYieldVsF(params, species = "medium divers", F_max = 1)
+# plotYieldVsF(params, species = "large divers", F_max = 1)
+# plotYieldVsF(params, species = "minke whales", F_max = 1)
+# plotYieldVsF(params, species = "orca", F_max = 1)
+# plotYieldVsF(params, species = "sperm whales", F_max = 1)
+# plotYieldVsF(params, species = "baleen whales", F_max = 1)
+```
+
+
+```{r}
+getReproductionLevel(params)
 ```
 
 
 
+```{r}
+new_repro_level <- c("mesozooplankton"= 0.4,  "other krill" = 0.85,  "other macrozooplankton" = 0.85, "antarctic krill" = 0.9, salps  = 0.99,  "mesopelagic fishes"  = 0.99, "bathypelagic fishes" = 0.99, "shelf and coastal fishes" = 0.99,"flying birds"= 0.8213785, "small divers" = 0.7619014, "squids" = 0.999, "toothfishes" = 0.9816799, "leopard seals" = 0.8608031, "medium divers" =  0.9633993, "large divers" = 0.9732486, "minke whales" = 0.8274689, "orca" = 0.99999999,  "sperm whales" = 0.9994376, "baleen whales" = 0.9982165)
+```
 
 
+
+```{r}
+params_v2 <- setBevertonHolt(params, reproduction_level = new_repro_level)
+```
+
+
+
+```{r}
+# pdf(file = "plots/therMizer_repro_level_v2_yield_curves.pdf")
+# par(mfrow = c(19,1))
+# plotYieldVsF(params_v2, species = "mesozooplankton", F_max = 1)
+# plotYieldVsF(params_v2, species = "other krill", F_max = 1)
+# plotYieldVsF(params_v2, species = "other macrozooplankton", F_max = 1)
+# plotYieldVsF(params_v2, species = "antarctic krill", F_max = 1)
+# plotYieldVsF(params_v2, species = "salps", F_max = 1)
+# plotYieldVsF(params_v2, species = "mesopelagic fishes", F_max = 1)
+# plotYieldVsF(params_v2, species = "bathypelagic fishes", F_max = 1)
+# plotYieldVsF(params_v2, species = "shelf and coastal fishes", F_max = 1)
+# plotYieldVsF(params_v2, species = "flying birds", F_max = 1)
+# plotYieldVsF(params_v2, species = "small divers", F_max = 1)
+# plotYieldVsF(params_v2, species = "squids", F_max = 1)
+# plotYieldVsF(params_v2, species = "toothfishes", F_max = 1)
+# plotYieldVsF(params_v2, species = "leopard seals", F_max = 1)
+# plotYieldVsF(params_v2, species = "medium divers", F_max = 1)
+# plotYieldVsF(params_v2, species = "large divers", F_max = 1)
+# plotYieldVsF(params_v2, species = "minke whales", F_max = 1)
+# plotYieldVsF(params_v2, species = "orca", F_max = 1)
+# plotYieldVsF(params_v2, species = "sperm whales", F_max = 1)
+# plotYieldVsF(params_v2, species = "baleen whales", F_max = 1)
+```
+
+
+
+```{r}
+# saveRDS(params_v2, "therMizer_params_v04.RDS")
+
+```
 
