@@ -1,0 +1,180 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Thank you María Bräuner for your guidance! (https://towardsdatascience.com/how-to-crack-open-netcdf-files-in-r-and-extract-data-as-time-series-24107b70dcd)
+
+```{r}
+library(tidyverse)
+library(ncdf4)
+library(ncdf4.helpers)
+library(tictoc)
+library(raster)
+library(terra)
+library(sf)
+```
+
+```{r}
+PrydzBay_shape<-sf::st_read("model_domains/Stacey/shapefile/Banzare_Bank.shp") # the shape file of the area
+plot(PrydzBay_shape)
+PrydzBay_shape <- sf::st_area(PrydzBay_shape)
+```
+
+
+Load masks
+```{r}
+# get the mask for regional ecosystem models
+mask <- read.csv(file="Masks_netcdf_csv/fishMIP_regional_1deg_ISIMIP3a.csv")
+regions<-unique(mask$region)
+Prydz_Mask <- mask %>% 
+  dplyr::filter(region == "Prydz.Bay")
+
+```
+
+```{r}
+# expc <- terra::rast("data/ISPL/historical/ipsl-cm6a-lr_r1i1p1f1_historical_expc-bot_onedeg_global_monthly_1850_2014.nc")
+
+nc_theta <- terra::rast("FishMIP_Temperature_Forcing/bsose_i105_2008to2012_monthly_Theta.nc")
+
+
+# nc_data <- nc_open("FishMIP_Temperature_Forcing/bsose_i105_2008to2012_monthly_Theta.nc")
+# print(nc_data)
+```
+
+
+```{r}
+gridded_ts <- brick(nc_theta)
+    # # cut selected region out
+crs(gridded_ts) = crs(Prydz_Mask)
+# crs(gridded_ts) = crs(mask_to_use)
+
+temp <- crop(gridded_ts, extent(Prydz_Mask))
+```
+
+
+Manipulating data
+
+This block was made with Rich's help. He uses the package terra to work (raster doesn't do the job)
+```{r}
+PrydzBay_shape # shape<-sf::st_read("fromNicole/HIMI_EEZ_polygon/HIMI_EEZ_polygon.shp")
+
+
+Prydz_Mask # slice <- terra::rast("fromNicole/HIMI_Mask/Bathy_mask.grd")
+cropped_area <- terra::crop(nc_theta,terra::ext(Prydz_Mask))
+masked_area <- terra::mask(cropped_area,terra::vect(shape))
+
+plot(masked_area)
+
+```
+
+
+
+
+```{r}
+attributes(our_nc_data$var)
+attributes(our_nc_data$dim)
+```
+
+Get latitude and longitude with the ncvar_get function and store each into their own object:
+
+```{r}
+lat <- ncvar_get(our_nc_data, "YC")
+nlat <- dim(lat) #to check it matches the metadata: 23
+lon <- ncvar_get(our_nc_data, "XC")
+nlon <- dim(lon) #to check, should be 24
+depth <- ncvar_get(our_nc_data, "Z")
+ndepth <- dim(depth) #to check, should be 52
+```
+
+
+Check your lat lon dimensions match the information in the metadata we explored before:
+
+```{r}
+print(c(nlon, nlat, ndepth))
+```
+
+```{r}
+depth
+```
+
+
+Get the time variable. Remember: our metadata said our time units are in seconds since 1981-01-01 00:00:00, so you will not see a recognizable date and time format, but a big number like "457185600". We will take care of this later
+
+```{r}
+time <- ncvar_get(our_nc_data, "time")
+head(time) # just to have a look at the numbers
+tunits <- ncatt_get(our_nc_data, "time", "units") #check units
+nt <- dim(time) #should be 60 for months in a 5 year timeseries
+```
+
+
+Now let’s extract the surface temperature data
+We keep using the ncvar_get() function to get the variable and ncatt_get() to get attributes.
+
+```{r}
+#get the variable in "matrix slices"
+theta_array <- ncvar_get(our_nc_data, "THETA") 
+
+fillvalue <- ncatt_get(our_nc_data, "THETA", "_FillValue")
+dim(theta_array) #to check; this should give you 1080  294   52   60
+#right away let's replace the nc FillValues with NAs
+theta_array[theta_array==fillvalue$value] <- NA
+theta_array
+```
+
+
+```{r}
+time_obs <- as.POSIXct(time, origin = "2008-01-01")
+
+dim(time_obs) #should be 2622
+range(time_obs)
+# [1] "2008-01-31 21:00:00 AEDT" 
+# [2] "2012-12-30 23:00:00 AEDT"
+#Looks good
+```
+
+
+```{r}
+dim(theta_array)
+```
+
+"time" "XC"   "YC"   "Z" 
+
+
+Dim1 = lon
+Dim2 = lat
+Dim3 = depth
+Dim4 = Time 
+
+```{r}
+# try it out:
+theta_slice <- theta_array[ , , , 59] 
+theta_slice <- theta_array[ , , , 25]
+
+
+theta_slice <- as.matrix(theta_slice)
+
+# and why not, draw it out:
+image(lon, lat, depth, theta_slice)
+```
+
+
+
+
+```{r}
+#Create 2D matrix of long, lat and time
+lonlatdepthtime <- as.matrix(tidyr::expand_grid(lon,lat,depth,time_obs)) # this might take *several* minutes
+#reshape whole lswt_array
+theta_vec_long <- as.vector(theta_array)
+length(theta_vec_long) # by now it should be 990662400
+#Create data.frame
+thetha_obs <- data.frame(cbind(lonlatdepthtime, theta_vec_long))
+```
+
+
+
+
+
+
+
