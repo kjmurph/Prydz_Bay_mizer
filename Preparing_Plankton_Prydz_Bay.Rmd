@@ -261,7 +261,8 @@ GFDL_zmicro_long <- GFDL_zmicro_raw %>%
   mutate(C_g_m2 = value*12.001) %>% # value is carbon in mol C m^2, so this step converts to g C m^2
   mutate(C_g = C_g_m2*422292280) %>% # multiply the m^2 value by the grid cell area to get total C per grid cell
   group_by(variable) %>% # group by month
-  summarise(total_C_mol = sum(C_g)) %>%  # sum the carbon across all grid cells by each month
+  summarise(total_C_g = sum(C_g)) %>%  # sum the carbon across all grid cells by each month
+  mutate(total_C_g_m2 = total_C_g/total_area) %>%  # sum the carbon across all grid cells by each month
   mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months"))
 
 
