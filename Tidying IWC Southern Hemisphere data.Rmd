@@ -248,6 +248,28 @@ ggplot(sub.dd.BB, aes(x=Year, y = Catch_individuals, colour = Species)) +
 # dev.off()
 ```
 
+
+```{r}
+# library(rgdal)
+# PB_shape <- readOG("model_domains\Stacey\shapefile\HIMI_EEZ_polygon.shp")
+# # remotes::install_github("AustralianAntarcticDivision/SOmap")
+# library(SOmap)
+# library(raster)
+# 
+# temp <- as.data.frame(expand.grid(lon = seq(60, 90, by = 0.25),
+#                                   lat = seq(-68, -60, by = 0.1)))
+# 
+# xr <- rasterFromXYZ(temp)
+# 
+# projection(xr) <- "+proj=longlat +datum=WGS84"
+# 
+# base_map <- SOmap()
+# plot(base_map)
+# SOplot(xr)
+```
+
+
+
 ```{r}
 library(SOmap)
 # tiff(file="Plots/BanzareBank_Whale_Landings_Map.tiff", width=6, height=4, units="in", res=500)
