@@ -10,9 +10,8 @@ library(remotes)
 remotes::install_github("sizespectrum/therMizer")
 library(therMizer)
 library(mizerExperimental)
+library(tidyverse)
 ```
-
-
 
 Load steady therMizer parameters:
 ```{r}
@@ -21,9 +20,32 @@ params <- readRDS("therMizer_params_v04.RDS")
 ```
 
 
+
+```{r}
+yield_timeseries <- read.csv("catch_timeseries.csv")
+
+rownames(yield_timeseries) <- yield_timeseries$Year
+
+yield_timeseries <- yield_timeseries[,-1]
+
+species_names <- species_params(params)$species
+
+colnames(yield_timeseries) <- species_names
+
+yield_array <- as(yield_timeseries, "matrix")
+```
+
+
+
+
+
+
+
 Set up time steps
 ```{r}
 time_steps <- 1961:2010
+
+# time_steps <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
 ```
 
 
@@ -33,6 +55,7 @@ Set up the resource:
 
 ```{r}
 isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abundance
+# isimip_plankton <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_142.dat") # log10 abundance
 
 isimip_plankton <- as(isimip_plankton, "matrix")
 sizes <- params@w_full
@@ -63,11 +86,24 @@ head(log10(initialNResource(params)))
 
 #input temperature data 
 ```{r}
-tos <- readRDS("tos_annual.rds")
-t500m <- readRDS("t500m_annual.rds")
-t1000m <- readRDS("t1000m_annual.rds")
-t1500m <- readRDS("t1500m_annual.rds")
-tob <- readRDS("tob_annual.rds")
+# tos <- readRDS("FishMIP_Temperature_Forcing/tos.rds")
+# t500m <- readRDS("FishMIP_Temperature_Forcing/t500m.rds")
+# t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m.rds")
+# t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m.rds")
+# tob <- readRDS("FishMIP_Temperature_Forcing/tob.rds")
+
+tos <- readRDS("FishMIP_Temperature_Forcing/tos_annual.rds")
+t500m <- readRDS("FishMIP_Temperature_Forcing/t500m_annual.rds")
+t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m_annual.rds")
+t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m_annual.rds")
+tob <- readRDS("FishMIP_Temperature_Forcing/tob_annual.rds")
+
+# tos <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tos_annual_WAO_corrected.rds")
+# t500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t500m_annual_WAO_corrected.rds")
+# t1000m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1000m_annual_WAO_corrected.rds")
+# t1500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1500m_annual_WAO_corrected.rds")
+# tob <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tob_annual_WAO_corrected.rds")
+
 ocean_temp <- abind::abind(tos,t500m,t1000m, t1500m, tob, along = 2)
 
 realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
@@ -254,6 +290,7 @@ for (r in seq(1,length(realm_names),1)) {
 
 
 ```{r}
+time_steps_effort <- 1961:2010
 isimip_effort <- read.csv("effort_array.csv")
 
 years <- isimip_effort[,1]
@@ -280,9 +317,9 @@ isimip_effort_array <- as(effort_1961_2010, "matrix")
 gear_name = colnames(isimip_effort)
 
 
-effort_array <- array(NA, c(length(time_steps), length(gear_name)), dimnames = list(time = time_steps, gear = gear_name))
+effort_array <- array(NA, c(length(time_steps_effort), length(gear_name)), dimnames = list(time = time_steps_effort, gear = gear_name))
 effort_array[1,] = isimip_effort_array[1,]
-for (t in seq(1,length(time_steps) - 1, 1)) {
+for (t in seq(1,length(time_steps_effort) - 1, 1)) {
   effort_array[t + 1,] <- isimip_effort_array[t + 1,]
 }
 
@@ -349,7 +386,9 @@ head(effort_array)
 effort_array[1,]
 
 gear_params(params_v2)$gear <- gear_params(params_v2)$species
+# gear_params(params_steady_F)$gear <- gear_params(params_steady_F)$species
 
+# gear_name = gear_params(params_steady_F)$gear
 gear_name = gear_params(params_v2)$gear
 colnames(effort_array) <- gear_name
 head(effort_array)
@@ -357,35 +396,56 @@ head(effort_array)
 # gear_params(params)$gear <- gear_name
 # gear_params(params)$gear
 # head(effort_array)
+
+# saveRDS(effort_array, "effort_array_therMizer.RDS")
 ```
+
+
+
 
 
 ```{r}
 # params_v2@initial_effort <- effort_array[1,]
 
 ref_period_effort <- colMeans(effort_array[c(40:50),])
+model_period_effort <- colMeans(effort_array)
 
-params_v2@initial_effort <- ref_period_effort
+initial_effort_updated <- ref_period_effort
+initial_effort_updated[c(4,7,17,18)] <- model_period_effort[c(4,7,17,18)]
 
-params_v2 <- steady(params_v2)
+params_v2@initial_effort <- initial_effort_updated
+# params_v2@initial_effort[c(4,7,11,18)] <- model_period_effort[c(4,7,11,18)]
 
-sim_ref <- mizer::project(params_v2, t_max = 500, effort = ref_period_effort)
+params_v2 <- steady(params_v2, t_max = 1000)
+
+sim_ref <- mizer::project(params_v2, t_max = 200, effort = initial_effort_updated)
 
 plotYieldObservedVsModel(params_v2)
 plotYieldObservedVsModel(sim_ref, ratio = T)
 gear_params(sim_ref@params)$catchability
-plotlyBiomass(params_v2)
 plotYield(sim_ref)
 ```
 
 ```{r}
 #Test ratio
 ratio<- plotYieldObservedVsModel(params_v2, return_data = TRUE)$ratio
-gear_params(params_v2)$catchability[c(8,12,16,19)]<-gear_params(params_v2)$catchability[c(8,12,16,19)]/ratio
+gear_params(params_v2)$catchability[c(7,8,12,16,19)]<-gear_params(params_v2)$catchability[c(7,8,12,16,19)]/ratio
 
 gear_params(params_v2)$catchability <- ifelse(gear_params(params_v2)$catchability == 0.5, 0, gear_params(params_v2)$catchability)
 
-gear_params(params_v2)$catchability[11] <- 0.1
+# gear_params(params_v2)$catchability[c(8)] <- gear_params(params_v2)$catchability[c(8)] * 1.5 # shelf and coastal fishes
+gear_params(params_v2)$catchability[c(8)] <- 1.267937e-05 * 3 # shelf and coastal fishes
+
+# gear_params(params_v2)$catchability[c(16)] <- gear_params(params_v2)$catchability[c(16)] * 1.5 # minke whales
+gear_params(params_v2)$catchability[c(16)] <- 0.354628 * 2 # minke whales
+
+gear_params(params_v2)$catchability[c(11)] <- 0.000005 # squids
+
+gear_params(params_v2)$catchability[c(4)] <- 0.005 # ant krill
+
+gear_params(params_v2)$catchability[c(17)] <- 0.1 # orca
+
+gear_params(params_v2)$catchability[c(18)] <- 1 # sperm whales
 
 params_v3 <- steady(params_v2)
 
@@ -395,10 +455,97 @@ plotYieldObservedVsModel(params_v3, ratio=T)
 ```
 
 
+```{r}
+ratio_v2<- plotYieldObservedVsModel(params_v3, return_data = TRUE)$ratio
+
+# gear_params(params_v3)$catchability[c(7,8,12,16,19)]<-gear_params(params_v3)$catchability[c(7,8,12,16,19)]/ratio_v2
+
+
+gear_params(params_v3)$species[12]
+gear_params(params_v3)$catchability[12]
+
+ratio_v2[3]
+
+gear_params(params_v3)$catchability[12]<-gear_params(params_v3)$catchability[c(12)]/ratio_v2[3]
+
+params_v4 <- steady(params_v3)
+
+plotYieldObservedVsModel(params_v4, ratio=T)
+
+
+ratio_v3 <- plotYieldObservedVsModel(params_v4, return_data = TRUE)$ratio
+
+gear_params(params_v4)$catchability[c(7,8,12,16,19)]<-gear_params(params_v4)$catchability[c(7,8,12,16,19)]/ratio_v3
+
+params_v5 <- steady(params_v4)
+
+plotYieldObservedVsModel(params_v5, ratio=T)
+
+```
+
+```{r}
+getReproductionLevel(params_v5)
+params_v5@species_params$erepro
+```
 
 
 ```{r}
-paramsT <- upgradeTherParams(params_v3, 
+new_repro_level <- getReproductionLevel(params_v5)
+# new_repro_level[c(17)] <- 0.999999
+
+new_erepro_level <- species_params(params_v5)$erepro
+new_erepro_level[c(17,18)] <- 0.999999
+# new_erepro_level[c(16,17,18)] <- 0.999999
+
+
+```
+
+## steady with yield
+```{r}
+params_v6 <- setBevertonHolt(params_v5, reproduction_level = new_repro_level)
+params_v7 <- setBevertonHolt(params_v6, erepro = new_erepro_level)
+
+params_v8 <- steady(params_v7, t_max = 200, preserve = c("erepro"))
+
+getReproductionLevel(params_v8)
+species_params(params_v8)$erepro
+
+params_v8 <- params_v8 %>% matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro"))
+
+plotBiomassObservedVsModel(params_v8)
+params_v8@initial_effort
+```
+
+```{r}
+# params_v9 <- tuneParams(params_v8)
+```
+
+
+
+```{r}
+IWC_effort_full <- read.csv("FishMIP_fishing_data/IWC_effort.csv")
+
+glimpse(IWC_effort_full)
+```
+
+```{r}
+IWC_effort_full_tidy <- IWC_effort_full %>% 
+  select(Year, Species, effort_standard) %>% 
+  filter(Year <= 1960) %>% 
+  group_by(Species) %>% 
+  summarise(mean_effort = mean(effort_standard))
+
+IWC_effort_full_tidy
+```
+
+
+
+```{r}
+paramsT <- upgradeTherParams(params_v8, 
                             ocean_temp_array = ocean_temp,
                             n_pp_array = n_pp_array, 
                             vertical_migration_array = vertical_migration_array,
@@ -407,24 +554,42 @@ paramsT <- upgradeTherParams(params_v3,
 
 ```
 
+## steady with biomass
 
-Project to steady-state, with and without fishing:
 ```{r}
-# Project to steady
-params_steady_F <- projectToSteady(paramsT, t_max = 50, effort = effort_array[1,]) 
-sim_steady_F <- projectToSteady(paramsT, t_max = 50, effort = effort_array[1,], return_sim = TRUE) 
-params_steady_noF <- projectToSteady(paramsT, t_max = 50, effort = 0) 
-sim_steady_noF <- projectToSteady(paramsT, t_max = 50, effort = 0, return_sim = TRUE) 
+params_steady_F <- steady(paramsT, t_max = 200, preserve = c("erepro"))
 
-# Include a validation run with F = 0.2 (the estimated F for most of the species modeled, per stock assessments)
-params_steady_validate <- projectToSteady(paramsT, t_max = 50, effort = 0.2) 
-sim_steady_validate <- projectToSteady(paramsT, t_max = 50, effort = 0.2, return_sim = TRUE) # replace this with the calibration matchBiomass() steps from Ezekiel's
+getReproductionLevel(params_steady_F)
+species_params(params_steady_F)$erepro
 
-# Test to see how things look
-plot(sim_steady_F)
-plot(sim_steady_noF)
-plot(sim_steady_validate)
+params_steady_F <- params_steady_F %>% matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro"))
+
+getReproductionLevel(params_steady_F)
+species_params(params_steady_F)$erepro
+
+plotBiomassObservedVsModel(params_steady_F)
+params_steady_F@initial_effort
 ```
+
+# Using steady-state from reference period (2010-2019)
+```{r}
+params_steady_F_init1961 <- projectToSteady(params_steady_F, t_max = 200, effort = effort_array[1,])
+params_steady_noF <- projectToSteady(params_steady_F, t_max = 200, effort = 0)
+
+# # Include a validation run with F = 0.2 (the estimated F for most of the species modeled, per stock assessments)
+# params_steady_validate <- projectToSteady(paramsT, t_max = 50, effort = 0.2) 
+# sim_steady_validate <- projectToSteady(paramsT, t_max = 50, effort = 0.2, return_sim = TRUE) # replace this with the calibration matchBiomass() steps from Ezekiel's
+# 
+# # Test to see how things look
+# plot(sim_steady_F)
+# plot(sim_steady_noF)
+# plot(sim_steady_validate)
+```
+
 
 Initial effort from the reference period used to create steady-state so that the effort 
 
@@ -433,80 +598,292 @@ Effort from 1961 to steady state and then use
 
 Run simulations:
 ```{r}
+params_steady_F <- projection_steady_F@params
+params_steady_noF <- projection_steady_noF@params
+
 # And do a simulation using the steady parameters
 projection_steady_F <- mizer::project(params_steady_F, t_max = 50, effort = effort_array)
-projection_steady_noF <- mizer::project(params_steady_noF, t_max = 50,  effort = 0)
+projection_steady_noF <- mizer::project(params_steady_noF, t_start = 1961, t_max = 49,  effort = 0)
+# projection_steady_F_init1961 <- mizer::project(params_steady_F_init1961, t_max = 50, effort = effort_array)
 
-projection_steady_validate <- mizer::project(params_steady_validate, t_max = 50,  effort = 0.2)
+# projection_steady_validate <- mizer::project(params_steady_validate, t_max = 50,  effort = 0.2)
 
 # Test to see how things look
 plot(projection_steady_F)
 plot(projection_steady_noF)
-plot(projection_steady_validate)
+# plot(projection_steady_F_init1961)
+# plot(projection_steady_validate)
 
 plotYield(projection_steady_F)
+# plotYield(projection_steady_F_init1961)
+
 plotlyBiomass(projection_steady_F)
 plotlyBiomass(projection_steady_noF)
+# plotlyBiomass(projection_steady_F_init1961)
 
-plotBiomassRelative(projection_steady_F)
-plotBiomassRelative(projection_steady_noF)
+plotlyBiomassRelative(projection_steady_F)
+plotlyBiomassRelative(projection_steady_noF)
+# plotlyBiomassRelative(projection_steady_F_init1961)
+
+
+
+# saveRDS(projection_steady_F, "ISIMIP3a_1961_2010_fishing.rds")
+# saveRDS(projection_steady_noF, "ISIMIP3a_1961_2010_no_fishing.rds")
 
 ```
-CLimate data for pre-1961
+Climate data for pre-1961
 
 Take the outputs from controlclim 
 
-```{r}
 
-```
+Yield from current reference period (2010-2019)
+Ratio of time-averaged yield in the ref period compared to the time-averaged yield in the decade prior to start of forcings (1950s) and then correct biomass according to the ratio.
 
+Assumes a linear relationship between the ratio of yield:biomass, not neccessarily linear between yield and biomass.
 
+Fmsy * unfinished biomass = msy (Can we use this to get the biomass from 1950s)?
 
-```{r}
-params_steady_noF <- projectToSteady(params, t_max = 50, effort = 0) 
-# params_steady_noF_AS_off <- projectToSteady(params_AS_off, t_max = 50, effort = 0) 
-# params_steady_noF_MET_off <- projectToSteady(params_MET_off, t_max = 50, effort = 0) 
-# params_steady_noF_BOTH_off <- projectToSteady(params_BOTH_off, t_max = 50, effort = 0) 
+To run a future projection would want to run historical scenario that ends in 2014 and then leads into the ssp2.6/8.5 GFDL scenarios
 
-projection_steady_noF <- mizer::project(params_steady_noF, t_max = 50,  effort = 0)
-# projection_steady_noF_AS_off <- mizer::project(params_steady_noF_AS_off, t_max = 50,  effort = 0)
-# projection_steady_noF_MET_off <- mizer::project(params_steady_noF_MET_off, t_max = 50,  effort = 0)
-# projection_steady_noF_BOTH_off <- mizer::project(params_steady_noF_BOTH_off, t_max = 50,  effort = 0)
-
-plot(projection_steady_noF)
-# plot(projection_steady_noF_AS_off)
-# plot(projection_steady_noF_MET_off)
-# plot(projection_steady_noF_BOTH_off)
-```
-
-
+Results for presentaiton: 
+- fished/unfished biomass. 
+- growth plots
+- barplots - comparing fished and unfished
+- Variety of realised PPMRs
+- Ecosystem indicators for mean of first 5 years to last 5 years - with and without fishing 
+Time-average biomasses start and finish of time period and with/without fishing
+mizer::getCommunitySlope()
+mizer::getProportionOfLargeFish() # large animals or select specific species
+mizer::getMeanMaxWeight()
+mizer::getMeanWeight()
 
 ```{r}
-mizerExperimental::plotSpectraRelative(projection_steady_noF,projection_steady_noF_BOTH_off)
-```
-
-
-
-
-
-
-```{r}
-params_gear_v2 <- params
-
-gear_params(params_gear_v2)$catchability <- 1
+projection_steady_F <- readRDS("ISIMIP3a_1961_2010_fishing.rds")
+projection_steady_noF <- readRDS("ISIMIP3a_1961_2010_no_fishing.rds")
 ```
 
 
 ```{r}
-params_steady_validate <- projectToSteady(params_gear_v2, t_max = 50, effort = 0.2) 
-sim_steady_validate <- projectToSteady(params_gear_v2, t_max = 50, effort = 0.2, return_sim = TRUE) 
+p_B_Fishing <- plotBiomass(projection_steady_F) +
+  theme_classic() +
+  theme(axis.title =  element_text(size=12),
+        axis.text  =  element_text(size=10))
 
+p_B_noFishing <- plotBiomass(projection_steady_noF) +
+  theme_classic() +
+  theme(axis.title =  element_text(size=12),
+        axis.text  =  element_text(size=10))
 
-sim_gear_v2_validate <- mizer::project(params_steady_validate, t_max = 50,  effort = 0.2) 
+p_B_rel_Fishing <- plotBiomassRelative(projection_steady_F) +
+  theme_classic() +
+  theme(axis.title =  element_text(size=12),
+        axis.text  =  element_text(size=10))
 
-plot(sim_gear_v2_validate)
+p_B_rel_noFishing <- plotBiomassRelative(projection_steady_noF) +
+  theme_classic() +
+  theme(axis.title =  element_text(size=12),
+        axis.text  =  element_text(size=10))
+
+p_B_Fishing
+p_B_noFishing
+p_B_rel_Fishing
+p_B_rel_noFishing
+
+ggsave("plots/Biomass_Fishing_1961_2010.tiff", plot = p_B_Fishing, units="cm", width=20, height=16, dpi =300)
+ggsave("plots/Biomass_No_Fishing_1961_2010.tiff", plot = p_B_noFishing, units="cm", width=20, height=16, dpi =300)
+ggsave("plots/Biomass_Relative_Fishing_1961_2010.tiff", plot = p_B_rel_Fishing, units="cm", width=20, height=16, dpi =300)
+ggsave("plots/Biomass_Relative_No_Fishing_1961_2010.tiff", plot = p_B_rel_noFishing, units="cm", width=20, height=16, dpi =300)
+
 ```
 
+```{r}
+plotDietX(projection_steady_F@params)
+```
+
+
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+```{r}
+effort_ts <- effort_array %>% 
+  melt()
+
+head(effort_ts)
+
+names(effort_ts) <- c("Year", "Species", "Norm_Effort")
+
+effort_ts_tidy <- effort_ts %>% 
+  filter(Species == "shelf and coastal fishes" |
+           Species == "antarctic krill" |
+           Species == "squids" |
+           Species == "bathypelagic fishes" |
+           Species == "toothfishes" |
+           Species == "minke whales" |
+           Species == "baleen whales"|
+           Species == "orca"|
+           Species == "sperm whales") %>%
+  filter(!Norm_Effort == 0)
+
+glimpse(effort_ts_tidy)
+head(effort_ts_tidy)
+```
+
+
+```{r}
+yield_ts <- yield_array %>% 
+  melt()
+
+head(yield_ts)
+
+names(yield_ts) <- c("Year", "Species", "Yield")
+
+yield_ts_tidy <- yield_ts %>% 
+  # filter(Species == "shelf and coastal fishes" |
+  #          Species == "squids" |
+  #          Species == "toothfishes" |
+  #          Species == "minke whales" |
+  #          Species == "baleen whales"|
+  #          Species == "sperm whales") %>% 
+  filter(!Yield == 0)
+
+glimpse(yield_ts_tidy)
+head(yield_ts_tidy)
+```
+
+
+Plot observed yield
+```{r}
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# df_mod_yield <- plotYield(projection_steady_F, return_data = T)
+
+p_yield <- 
+  plotYield(projection_steady_F) +
+  facet_wrap(~Species,scales="free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+  # theme_classic()
+
+p_yield_const_scale <-
+  
+  plotYield(projection_steady_F) + 
+  facet_wrap(~Species,
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  # scale_x_continuous(breaks = c(1930,1945,1961,1985,2010)) +
+  # scale_y_log10() +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+
+ggsave("plots/Compare_Modelled_Observed_Yields_low_res.tiff", plot = p_yield, units="cm", width=20, height=16, dpi =150)
+# ggsave("plots/Compare_Modelled_Observed_Yields_same_scale.tiff", plot = p_yield_const_scale, units="cm", width=20, height=16, dpi =300)
+```
+
+
+```{r}
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# df_mod_yield <- plotYield(projection_steady_F, return_data = T)
+
+p_effort <-  effort_ts_tidy %>% 
+  ggplot() +
+  
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = effort_ts_tidy, aes(x = Year, y = Norm_Effort, colour = Species), size=1) +
+  geom_point(data = effort_ts_tidy, aes(x = Year, y = Norm_Effort), shape = 1,size = 1,colour = "black") +
+    geom_line(data = effort_ts_tidy, aes(x = Year, y = Norm_Effort, colour = Species), size=1) +
+    facet_wrap(~Species,scales="free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  theme_classic() +
+  theme(
+    legend.position = "none"
+  )
+
+ggsave("plots/Effort_Forcing_low_res.tiff", plot = p_effort, units="cm", width=20, height=16, dpi =150)
+```
+
+
+```{r}
+gear_params(projection_steady_F@params)$catchability
+```
+
+
+Results for presentaiton: 
+- fished/unfished biomass. 
+- growth plots
+- barplots - comparing fished and unfished
+- Variety of realised PPMRs
+- Ecosystem indicators for mean of first 5 years to last 5 years - with and without fishing 
+Time-average biomasses start and finish of time period and with/without fishing
+
+```{r}
+
+mizer::getCommunitySlope()
+mizer::getProportionOfLargeFish() # large animals or select specific species
+mizer::getMeanMaxWeight()
+mizer::getMeanWeight()
+```
+
+
+## Mean weights
+```{r}
+years_comparison <- c("1961","2010")
+# getMeanWeight(projection_steady_F, species = c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales"))
+getMeanMaxWeight(projection_steady_F, species = c("baleen whales"))[years_comparison,]
+
+# years_comparison_noF <- c("0","50")
+# getMeanWeight(projection_steady_noF, species = c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales"))
+getMeanMaxWeight(projection_steady_noF, species = c("baleen whales"))[years_comparison,]
+
+getMeanMaxWeight(projection_steady_F, species = c("minke whales"))[years_comparison,]
+getMeanMaxWeight(projection_steady_noF, species = c("minke whales"))[years_comparison,]
+
+getMeanMaxWeight(projection_steady_F, species = c("sperm whales"))[years_comparison,]
+getMeanMaxWeight(projection_steady_noF, species = c("sperm whales"))[years_comparison,]
+
+```
+
+```{r}
+# getProportionOfLargeFish(projection_steady_F, species = c("antarctic krill"), min_w = 0.1, threshold_w = 2)
+# getProportionOfLargeFish(projection_steady_noF, species = c("antarctic krill"), min_w = 0.1, threshold_w = 2)
+
+getProportionOfLargeFish(projection_steady_F, species = c("shelf and coastal fishes"), min_w = 10, threshold_w = 1000)
+getProportionOfLargeFish(projection_steady_noF, species = c("shelf and coastal fishes"), min_w = 10, threshold_w = 1000)
+```
+
+```{r}
+getCommunitySlope(projection_steady_F)
+getCommunitySlope(projection_steady_noF)
+
+```
+-1.017799  25.79908
+-1.009425	 25.83120	
 
 
 
