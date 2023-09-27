@@ -1,0 +1,893 @@
+---
+title: "Preparing Climate Forcings"
+author: "Kieran Murphy"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: rmdformats::readthedown
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# House keeping
+
+```{r}
+library(tidyverse)
+library(reshape2)
+library(lubridate)
+```
+
+
+# Introduction
+
+The aim of this tutorial is to provide an example workflow for how to incorporate temperature and phytoplankton forcings from Earth System Models into mizer models, using the therMizer package.
+
+This script uses ISIMIP historical observed climate output for a range of phytoplankton and zooplankton products to create the background resource array that will be used by the therMizer model, in this case, the Hawaiian Longline model.
+
+The plankton products we're using have been extracted for specific model domains as vertically integrated values of carbon in mols, in this case using 1 degree resolution across the model domain.
+
+Here, we'll convert plankton carbon densities to total carbon, summed over the model domain. This is similar to, but an improvement upon, [Woodworth-Jefcoats et al. 2019](https://www.frontiersin.org/articles/10.3389/fmars.2019.00383/full).  
+
+Here, this total carbon is used to create resource spectra at each monthly time step from Jan 1961 - Dec 2010.
+
+To construct a plankton spectra, we need to assign size classes for each distinct phytoplankton and zooplankton product.
+
+# FishMIP Data Explorer
+
+https://0rl5bx-julia0blanchard.shinyapps.io/FishMIP_Input_Explorer/
+
+# Extract your own data
+
+Thanks to a great tutorial provided by Denisse Fierro Arcos, you can extract these same forcings for your own regions. All you need is a shapefile and you should be able to follow along.
+
+https://github.com/Fish-MIP/FishMIP_NOAA_workshop
+
+# Plankton Forcing
+
+## Plankton size classes
+
+Size class ranges, for reference (ESD = Equivalent Spherical Diameter):  
+- Phyto = 0.2 - 200 um ESD (mid-point size = 100.1 um ESD)  
+-	pico = 0.2 - 10 um ESD (mid-point size = 5.1 um ESD)  
+-	large (diatoms and diazotrophs) = 10 - 200 um ESD (mid-point size = 105 um ESD)  
+- Zoo = 2 - 20,000 um ESD (based on the literature)(mid-point size = 10001 um ESD)  
+-	zmicro = 2 - 200 um ESD (mid-point size = 101 um ESD)  
+-	zmeso = 200 - 20,000 um ESD (mid-point size = 10100 um ESD)  
+
+These size classes were informed by Dunne et al. [2005](https://doi.org/10.1029/2004GB002390), [2012](https://doi.org/10.1029/2010GB003935), and [2013](https://doi.org/10.1175/JCLI-D-12-00150.1), [Liu et al. 2021](https://doi.org/10.1029/2021GL094367), and [Stock et al. 2020](https://doi.org/10.1029/2019MS002043).
+
+## Conversions used:  
+
+- Convert mol C to g C --> $\times 12.001$
+
+- Convert g C to gww --> $\times 10$  
+
+- Convert um ESD to gww --> $\frac{4}{3}\pi(0.5\times0.0001\times size)^3$
+
+## Model domain
+
+### Check model domain area
+
+Need a file that has the area_m2 info.
+```{r}
+# Load total carbon data for picoplankton and reformat dataframe
+df_diat_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phydiat-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+```
+
+
+```{r}
+df_area <- df_diat_raw %>% 
+  select(area_m2)
+  
+Hawaiian_Longline_area <- df_diat_raw %>%
+  select(c(lat,lon,area_m2)) %>%  
+  mutate(total_area = sum(area_m2))
+
+head(Hawaiian_Longline_area)
+dim(Hawaiian_Longline_area)
+
+dim(df_area)
+summary(df_area)
+```
+
+Each 1 degree grid cell -->   $9540434011 m2$
+
+Total model domain -->    $1.95e+13 m2$
+
+
+# Prepare plankton forcings
+
+Need to do diatoms first to extract area vector
+
+## Diatoms
+```{r}
+# Load total carbon data for picoplankton and reformat dataframe
+# df_diat_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phydiat-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+
+# dim(df_diat_raw)
+# glimpse(df_diat_raw)
+# head(df_diat_raw)
+```
+
+
+```{r}
+df_diat_long <- df_diat_raw %>%
+  gather(Date, mol_C_m2,Jan_1961:Dec_2010) %>% # Convert from wide format to long
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  mutate(date = parse_date_time(Date, orders = "my"))
+
+df_area <- df_diat_long$area_m2
+df_date <- df_diat_long$date
+
+df_diat_long <- df_diat_long %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+
+
+# Annual
+df_diat_long_annual <- df_diat_long %>%
+  group_by(year = lubridate::floor_date(date, "year")) %>%
+    summarize(total_C_gww = mean(total_C_gww))
+
+head(df_diat_long)
+dim(df_diat_long)
+
+head(df_diat_long_annual)
+```
+
+## Picoplankton
+
+```{r}
+# Load total carbon data for picoplankton and reformat dataframe
+df_pico_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+
+dim(df_pico_raw)
+# glimpse(df_pico_raw)
+# head(df_pico_raw)
+```
+
+
+```{r}
+# df_pico_long <- df_pico_raw %>%
+#   select(!c(lat,lon)) %>% # remove lat, lon
+#   melt() %>% # melt data from a wide array to long format
+#   mutate(C_g_m2 = value * 12.001) %>% # Convert from mol C m^2 to g C m^2
+#   mutate(C_g = C_g_m2*9540434011) %>% # Calculate total g C per grid cell by multiplying by area in m^2 per grid cell
+#   group_by(variable) %>% # group by month
+#   summarise(total_C_g = sum(C_g)) %>%  # sum carbon so it is total carbon for whole model domain per month
+#   mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")) %>% # create a tidy date variable
+#   select(date, total_C_g) # select final variables
+  
+
+df_pico_long <- df_pico_raw %>%
+  gather(Date, mol_C_m2, X1961.01.01.00.00.00:X2010.12.01.00.00.00) %>% # Convert from wide format to long
+  mutate(area_m2 = df_area) %>% 
+  mutate(date = df_date) %>% 
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  # mutate(date = parse_date_time(Date, orders = "my")) %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+
+# Annual
+df_pico_long_annual <- df_pico_long %>%
+  group_by(year = lubridate::floor_date(date, "year")) %>%
+    summarize(total_C_gww = mean(total_C_gww))
+
+head(df_pico_long)
+head(df_pico_long_annual)
+```
+
+
+*Important*
+Need to update so the area is used grid cell by grid cell
+
+```{r}
+# df_diat_long <- df_diat_raw %>%
+#   select(!c(lat,lon,area_m2)) %>% # remove lat, lon, area_m2
+#   melt() %>% # melt data from a wide array to long format
+#   mutate(C_g_m2 = value * 12.001) %>% # Convert from mol C m^2 to g C m^2
+#   mutate(C_g = C_g_m2*9540434011) %>% # Calculate total g C per grid cell by multiplying by area in m^2 per grid cell
+#   group_by(variable) %>% # group by month
+#   summarise(total_C_g = sum(C_g)) %>%  # sum carbon so it is total carbon for whole model domain per month
+#   mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")) %>% # create a tidy date variable
+#   select(date, total_C_g) # select final variables
+# 
+# dim(df_diat_long)
+# head(df_diat_long)
+```
+
+## Diazotrophs
+```{r}
+# Load total carbon data for picoplankton and reformat dataframe
+df_diaz_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phydiaz-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+
+dim(df_diaz_raw)
+# glimpse(df_diaz_raw)
+# head(df_diaz_raw)
+```
+
+```{r}
+# df_diaz_long <- df_diaz_raw %>%
+#   select(!c(lat,lon)) %>% # remove lat, lon
+#   melt() %>% # melt data from a wide array to long format
+#   mutate(C_g_m2 = value * 12.001) %>% # Convert from mol C m^2 to g C m^2
+#   mutate(C_g = C_g_m2*9540434011) %>% # Calculate total g C per grid cell by multiplying by area in m^2 per grid cell
+#   group_by(variable) %>% # group by month
+#   summarise(total_C_g = sum(C_g)) %>%  # sum carbon so it is total carbon for whole model domain per month
+#   mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")) %>% # create a tidy date variable
+#   select(date, total_C_g) # select final variables
+
+df_diaz_long <- df_diaz_raw %>%
+  gather(Date, mol_C_m2, X1961.01.01.00.00.00:X2010.12.01.00.00.00) %>% # Convert from wide format to long
+  mutate(area_m2 = df_area) %>% 
+  mutate(date = df_date) %>% 
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  # mutate(date = parse_date_time(Date, orders = "my")) %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+# Annual
+df_diaz_long_annual <- df_diaz_long %>%
+  group_by(year = lubridate::floor_date(date, "year")) %>%
+    summarize(total_C_gww = mean(total_C_gww))
+
+head(df_diaz_long)
+head(df_diaz_long_annual)
+```
+
+## Microzooplankton
+```{r}
+# Load total carbon data for picoplankton and reformat dataframe
+df_zmicro_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_zmicro-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+
+dim(df_zmicro_raw)
+# glimpse(df_zmicro_raw)
+# head(df_zmicro_raw)
+```
+
+```{r}
+# df_zmicro_long <- df_zmicro_raw %>%
+#   select(!c(lat,lon, area_m2)) %>% # remove lat, lon, area_m2
+#   melt() %>% # melt data from a wide array to long format
+#   mutate(C_g_m2 = value * 12.001) %>% # Convert from mol C m^2 to g C m^2
+#   mutate(C_g = C_g_m2*9540434011) %>% # Calculate total g C per grid cell by multiplying by area in m^2 per grid cell
+#   group_by(variable) %>% # group by month
+#   summarise(total_C_g = sum(C_g)) %>%  # sum carbon so it is total carbon for whole model domain per month
+#   mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")) %>% # create a tidy date variable
+#   select(date, total_C_g) # select final variables
+
+df_zmicro_long <- df_zmicro_raw %>%
+  gather(Date, mol_C_m2,Jan_1961:Dec_2010) %>% # Convert from wide format to long
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  mutate(date = parse_date_time(Date, orders = "my")) %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+# Annual
+df_zmicro_long_annual <- df_zmicro_long %>%
+  group_by(year = lubridate::floor_date(date, "year")) %>%
+    summarize(total_C_gww = mean(total_C_gww))
+
+head(df_zmicro_long)
+head(df_zmicro_long_annual)
+```
+
+## Mesozooplankton
+```{r}
+# Load total carbon data for picoplankton and reformat dataframe
+df_zmeso_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_zmeso-vint_15arcmin_prydz-bay_monthly_1961_2010.csv")
+
+dim(df_zmeso_raw)
+# glimpse(df_zmeso_raw)
+# head(df_zmeso_raw)
+```
+
+
+```{r}
+# df_zmeso_long <- df_zmeso_raw %>%
+#   select(!c(lat,lon, area_m2)) %>% # remove lat, lon, area_m2
+#   melt() %>% # melt data from a wide array to long format
+#   mutate(C_g_m2 = value * 12.001) %>% # Convert from mol C m^2 to g C m^2
+#   mutate(C_g = C_g_m2*9540434011) %>% # Calculate total g C per grid cell by multiplying by area in m^2 per grid cell
+#   group_by(variable) %>% # group by month
+#   summarise(total_C_g = sum(C_g)) %>%  # sum carbon so it is total carbon for whole model domain per month
+#   mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")) %>% # create a tidy date variable
+#   select(date, total_C_g) # select final variables
+
+df_zmeso_long <- df_zmeso_raw %>%
+  gather(Date, mol_C_m2,Jan_1961:Dec_2010) %>% # Convert from wide format to long
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  mutate(date = parse_date_time(Date, orders = "my")) %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+# Annual
+df_zmeso_long_annual <- df_zmeso_long %>%
+  group_by(year = lubridate::floor_date(date, "year")) %>%
+    summarize(total_C_gww = mean(total_C_gww))
+
+head(df_zmeso_long,12)
+head(df_zmeso_long_annual)
+```
+
+
+
+## Create size mid points in grams wet weight (gww)
+
+```{r}
+# Create variables for referencing the size class mid points, in gww
+pico_mid <- (4/3)*pi*((0.5*0.0001*5.1)^3)
+large_mid <- (4/3)*pi*((0.5*0.0001*105)^3)
+micro_mid <- (4/3)*pi*((0.5*0.0001*101)^3)
+meso_mid <- (4/3)*pi*((0.5*0.0001*10100)^3)
+```
+
+## Convert to gww and then abundance
+
+```{r}
+# Get numerical abundance by dividing by size class mid point
+# This step assumes that all plankton are the midpoint size
+pico_abund <- df_pico_long[,2]/pico_mid
+large_abund <- (df_diat_long[,2] + df_diaz_long[,2])/large_mid
+micro_abund <- df_zmicro_long[,2]/micro_mid
+meso_abund <- df_zmeso_long[,2]/meso_mid
+
+# Combine mid-point sizes for generating the x-axis for the linear fit
+plankton_x <- log10(c(pico_mid, micro_mid, large_mid, meso_mid))
+
+# The full spectrum sizes were generated by setting up a mizer params:
+```
+
+
+
+```{r}
+# Convert total carbon to gww and then get numerical abundance by dividing by size class mid point
+# This step assumes that all plankton are the midpoint size
+pico_abund_annual <- df_pico_long_annual[,2]/pico_mid
+large_abund_annual <- (df_diat_long_annual[,2] + df_diaz_long_annual[,2])/large_mid
+micro_abund_annual <- df_zmicro_long_annual[,2]/micro_mid
+meso_abund_annual <- df_zmeso_long_annual[,2]/meso_mid
+
+# Combine mid-point sizes for generating the x-axis for the linear fit
+plankton_x <- log10(c(pico_mid, micro_mid, large_mid, meso_mid))
+```
+
+## Load mizer
+
+```{r}
+library(mizer)
+# params <- newMultispeciesParams(mizer::NS_params@species_params, min_w_pp = 1e-14)
+```
+
+## Create model params
+
+We need this to get the full size spectrum from the model
+
+```{r}
+# The full spectrum sizes were generated by setting up a mizer params:
+# params <- newMultispeciesParams(HIparams, interaction = HIinter, kappa = 1e12, min_w_pp = 1e-14)
+# so_params <- readRDS("params_16_March_2023.rds")
+# so_params <- readRDS("params/base_params.rds")
+so_params <- readRDS("params_latest_xx.rds") # w_full is 164
+# and accessing the full size range
+full_x <- log10(so_params@w_full)
+# full_x <- c(-14.01977294, -13.93231443, -13.84485591, -13.75739740, -13.66993888, -13.58248037, -13.49502185, -13.40756333, -13.32010482, -13.23264630, -13.14518779, -13.05772927, -12.97027076, -12.88281224, -12.79535373, -12.70789521, -12.62043670, -12.53297818, -12.44551967, -12.35806115, -12.27060263, -12.18314412, -12.09568560, -12.00822709, -11.92076857, -11.83331006, -11.74585154, -11.65839303, -11.57093451, -11.48347600, -11.39601748, -11.30855896, -11.22110045, -11.13364193, -11.04618342, -10.95872490, -10.87126639, -10.78380787, -10.69634936, -10.60889084, -10.52143233, -10.43397381, -10.34651530, -10.25905678, -10.17159826, -10.08413975, -9.99668123,  -9.90922272, -9.82176420, -9.73430569, -9.64684717, -9.55938866, -9.47193014, -9.38447163, -9.29701311, -9.20955459, -9.12209608, -9.03463756, -8.94717905, -8.85972053, -8.77226202, -8.68480350, -8.59734499, -8.50988647, -8.42242796, -8.33496944, -8.24751093, -8.16005241, -8.07259389, -7.98513538, -7.89767686, -7.81021835, -7.72275983, -7.63530132, -7.54784280, -7.46038429, -7.37292577, -7.28546726, -7.19800874, -7.11055022, -7.02309171, -6.93563319, -6.84817468, -6.76071616, -6.67325765, -6.58579913, -6.49834062, -6.41088210, -6.32342359, -6.23596507, -6.14850656, -6.06104804, -5.97358952, -5.88613101, -5.79867249, -5.71121398, -5.62375546, -5.53629695, -5.44883843, -5.36137992, -5.27392140, -5.18646289, -5.09900437, -5.01154585, -4.92408734, -4.83662882, -4.74917031, -4.66171179, -4.57425328, -4.48679476, -4.39933625, -4.31187773, -4.22441922, -4.13696070, -4.04950219, -3.96204367, -3.87458515, -3.78712664, -3.69966812, -3.61220961, -3.52475109, -3.43729258, -3.34983406, -3.26237555, -3.17491703, -3.08745852, -3.00000000, -2.91254148, -2.82508297, -2.73762445, -2.65016594, -2.56270742, -2.47524891, -2.38779039, -2.30033188, -2.21287336, -2.12541485, -2.03795633, -1.95049781, -1.86303930, -1.77558078, -1.68812227, -1.60066375, -1.51320524, -1.42574672, -1.33828821, -1.25082969, -1.16337118, -1.07591266, -0.98845415, -0.90099563, -0.81353711, -0.72607860, -0.63862008, -0.55116157, -0.46370305, -0.37624454, -0.28878602, -0.20132751, -0.11386899, -0.02641048,  0.06104804, 0.14850656, 0.23596507, 0.32342359, 0.41088210, 0.49834062, 0.58579913, 0.67325765, 0.76071616, 0.84817468, 0.93563319, 1.02309171, 1.11055022, 1.19800874, 1.28546726, 1.37292577, 1.46038429, 1.54784280, 1.63530132, 1.72275983, 1.81021835, 1.89767686, 1.98513538, 2.07259389, 2.16005241, 2.24751093, 2.33496944, 2.42242796, 2.50988647, 2.59734499, 2.68480350, 2.77226202, 2.85972053, 2.94717905, 3.03463756, 3.12209608, 3.20955459, 3.29701311, 3.38447163, 3.47193014, 3.55938866, 3.64684717, 3.73430569, 3.82176420, 3.90922272, 3.99668123, 4.08413975, 4.17159826, 4.25905678, 4.34651530, 4.43397381, 4.52143233, 4.60889084, 4.69634936, 4.78380787, 4.87126639, 4.95872490, 5.04618342, 5.13364193, 5.22110045, 5.30855896, 5.39601748, 5.48347600, 5.57093451, 5.65839303)
+length(full_x)
+```
+
+
+
+## Create background resource
+
+```{r}
+
+# Creating background resource for full_x, using the actual slope and intercept from the linear models.
+# Create array and fill it
+# out_isimip <- array(numeric(), c(600,226)) # 600 time steps by 226 size classes
+# out_isimip <- array(numeric(), c(600,176)) # 600 time steps by 176 size classes
+out_isimip <- array(numeric(), c(600,142)) # 600 time steps by 164 size classes
+isimip_slope <- array(numeric(), c(600,1)) # 600 time steps
+isimip_intercept <- array(numeric(), c(600,1)) # 600 time steps
+
+
+
+# y values
+for (t in seq(1,600,1)) {
+	isimip_plankton <- log10(c(pico_abund$total_C_gww[t], micro_abund$total_C_gww[t], large_abund$total_C_gww[t], meso_abund$total_C_gww[t]))
+		
+	# Calculate slope and intercept, expand spectra for full size range
+	# Linear fits
+	isimip_lm <- lm(isimip_plankton ~ plankton_x)
+	
+	# Expand to full size range
+	out_isimip[t,] <- isimip_lm$coefficients[2] * full_x + isimip_lm$coefficients[1]
+	# out_isimip[t,] <- isimip_lm$coefficients[2]*1.03 * full_x + isimip_lm$coefficients[1]*0.85
+	# The scaling for the slope and intercept were determined following the method in 
+	# Woodworth-Jefcoats et al. (2019)  More information is provided below.
+	
+	# Save slope and intercept, for diagnostics
+	isimip_intercept[t,1] <- isimip_lm$coefficients[1]
+	isimip_slope[t,1] <- isimip_lm$coefficients[2]
+	
+}
+```
+
+
+Annual means
+```{r}
+
+# Creating background resource for full_x, using the actual slope and intercept from the linear models.
+# Create array and fill it
+# out_isimip <- array(numeric(), c(600,226)) # 600 time steps by 226 size classes
+# out_isimip <- array(numeric(), c(600,176)) # 600 time steps by 176 size classes
+out_isimip <- array(numeric(), c(50,142)) # 600 time steps by 164 size classes
+isimip_slope <- array(numeric(), c(50,1)) # 600 time steps
+isimip_intercept <- array(numeric(), c(50,1)) # 600 time steps
+
+
+
+# y values
+for (t in seq(1,50,1)) {
+	isimip_plankton <- log10(c(pico_abund_annual$total_C_gww[t], micro_abund_annual$total_C_gww[t], large_abund_annual$total_C_gww[t], meso_abund_annual$total_C_gww[t]))
+		
+	# Calculate slope and intercept, expand spectra for full size range
+	# Linear fits
+	isimip_lm <- lm(isimip_plankton ~ plankton_x)
+	
+	# Expand to full size range
+	out_isimip[t,] <- isimip_lm$coefficients[2] * full_x + isimip_lm$coefficients[1]
+	# out_isimip[t,] <- isimip_lm$coefficients[2]*1.03 * full_x + isimip_lm$coefficients[1]*0.85
+	# The scaling for the slope and intercept were determined following the method in 
+	# Woodworth-Jefcoats et al. (2019)  More information is provided below.
+	
+	# Save slope and intercept, for diagnostics
+	isimip_intercept[t,1] <- isimip_lm$coefficients[1]
+	isimip_slope[t,1] <- isimip_lm$coefficients[2]
+	
+}
+```
+
+```{r}
+# # Creating background resource for full_x, using the actual slope and intercept from the linear models.
+# # Create array and fill it
+# # out_isimip <- array(numeric(), c(600,226)) # 600 time steps by 226 size classes
+# # out_isimip <- array(numeric(), c(600,176)) # 600 time steps by 176 size classes
+# out_isimip <- array(numeric(), c(50,142)) # 600 time steps by 164 size classes
+# isimip_slope <- array(numeric(), c(50,1)) # 600 time steps
+# isimip_intercept <- array(numeric(), c(50,1)) # 600 time steps
+# 
+# 
+# 
+# # y values
+# for (t in seq(1,50,1)) {
+# 	isimip_plankton <- log10(c(pico_abund_annual$total_C_mol[t], micro_abund_annual$total_C_mol[t], large_abund_annual$total_C_mol[t], meso_abund_annual$total_C_mol[t]))
+# 		
+# 	# Calculate slope and intercept, expand spectra for full size range
+# 	# Linear fits
+# 	isimip_lm <- lm(isimip_plankton ~ plankton_x)
+# 	
+# 	# Expand to full size range
+# 	out_isimip[t,] <- isimip_lm$coefficients[2] * full_x + isimip_lm$coefficients[1]
+# 	# out_isimip[t,] <- isimip_lm$coefficients[2]*1.03 * full_x + isimip_lm$coefficients[1]*0.85
+# 	# The scaling for the slope and intercept were determined following the method in 
+# 	# Woodworth-Jefcoats et al. (2019)  More information is provided below.
+# 	
+# 	# Save slope and intercept, for diagnostics
+# 	isimip_intercept[t,1] <- isimip_lm$coefficients[1]
+# 	isimip_slope[t,1] <- isimip_lm$coefficients[2]
+# 	
+# }
+```
+
+
+## Plot full spectrum
+
+```{r}
+ggplot(,aes(x = full_x, y = out_isimip[1,])) +
+  geom_point() +
+  # geom_line() +
+  # geom_smooth() +
+  scale_y_log10() +
+  xlab("Size (log10 g)") +
+  ylab("Abundance (log10)") +
+  theme_bw()
+```
+
+## Intercept timeseries 
+
+
+```{r}
+months <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months") # create a tidy date variable
+
+ggplot(,aes(x = months, y = isimip_intercept[,1])) +
+  geom_point() +
+  geom_line() +
+  geom_smooth() +
+  xlab("Year") +
+  ylab("log10 Intercept") +
+  theme_bw()
+
+```
+
+
+```{r}
+years <- seq(as.Date("1961-01-01"),as.Date("2010-01-01"),by="year") # create a tidy date variable
+
+
+p_intercept <- ggplot(,aes(x = years, y = isimip_intercept[,1])) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(colour="black", alpha = 0.2) +
+  xlab("Year") +
+  ylab("Plankton Intercept") +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 14)
+  )
+
+ggsave("plots/GFDL_ISIMIP3a_Plankton_Intercept_Prydz_Bay_Annual_Means_low_res.tiff", plot = p_intercept, units="cm", width=20, height=16, dpi =150)
+```
+
+## Slope timeseries
+
+```{r}
+ggplot(,aes(x = years, y = isimip_slope[,1])) +
+  geom_point() +
+  geom_line() +
+  geom_smooth() +
+  xlab("Year") +
+  ylab("Plankton Slope") +
+  theme_bw()
+```
+
+
+```{r}
+p_slope<- ggplot(,aes(x = years, y = isimip_slope[,1])) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(colour="black", alpha = 0.2) +
+  xlab("Year") +
+  ylab("Plankton Slope") +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 14)
+  )
+
+ggsave("plots/GFDL_ISIMIP3a_Plankton_Slope_Prydz_Bay_Annual_Means_low_res.tiff", plot = p_slope, units="cm", width=20, height=16, dpi =150)
+```
+
+## Save files
+
+```{r}
+# Save
+write.table(out_isimip, file = "FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_142.dat", quote = FALSE, row.names = TRUE, col.names = TRUE)
+write.table(isimip_slope, file = "FishMIP_Plankton_Forcing/GFDL_resource_slope_w_full_142.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(isimip_intercept, file = "FishMIP_Plankton_Forcing/GFDL_resource_intercept_w_full_142.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+```
+
+### Phoebe's notes from each scaling iteration  
+Because of differences across earth system models (ESMs), I've thus far found it necessary to scale the ESM output in order to obtain a realistic mizer model.  To do this, I run therMizer with all the species parameters and no plankton forcing.  I look at the resulting resource generated by the semi-chemostat model as a reference.  I also look at the behavior of the feeding level (FL) across species and sizes.  Then, I scale the slope and intercept iteratively, optimizing the feeding level to match that generated without plankton forcing.  I also compare modeled and observed catch, too (not shown here - see FishingForcing).  This is admittedly tedious...
+
+When multiple ESMs are used in the same simulation round or same study, the same scaling is applied to all ESMs.
+
+Slope and intercept unscaled: FL = 1 all species and sizes  
+Slope $\times$ 1.1 and intercept $\times$ 0.9: FL decreasing slightly with increasing size, still high (0.8 - 1)  
+Slope $\times$ 1.2 and intercept $\times$ 0.8: FL declines strongly with increasing size, 0.4 - 0.8 for small sizes 0 - 0.2 for large sizes.  
+Slope $\times$ 1.1 and intercept $\times$ 0.8: very similar to previous scaling (S1.2I0.2).  
+Slope $\times$ 1.2 and intercept $\times$ 0.9: similar to S1.1I0.9, but decreasing more with size  
+Slope unscaled and intercept $\times$ 0.8: FL low (0.1 sm - 0.5 lg) and increases with body size  
+Slope unscaled and intercept $\times$ 0.9: FL high (0.6 - 0.9 sm to 0.75 - 1 large) and increases with body size  
+Slope unscaled and intercept $\times$ 0.85: FL look good, albeit a bit spread across species, still increasing with increasing body size  
+Slope $\times$ 1.1 and intercept $\times$ 0.85: Closer.  FL good at larger sizes, decreasing with body size  
+Slope $\times$ 1.05 and intercept $\times$ 0.85: Even closer.  FL decreasing less with body size.  
+Slope $\times$ 1.05 and intercept $\times$ 0.9: FL high, but more consistent across body sizes  
+Slope $\times$ 1.025 and intercept $\times$ 0.85: FL good, increasing slightly with body size  
+Slope $\times$ 1.03 and intercept $\times$ 0.85: Going with this option.  FL in the same range as base run and similarly flat across body sizes.  
+
+Finally, an equally valid approach would be to save the resource spectra generated by the semi-chemostat model and to scale those spectra slopes and intercepts using the change in slope and intercept generated from the ESM at each time step (rather than scaling the ESM output).  You'd probably want to do this by comparing each time step to a baseline period, as is done with temperature.
+
+
+
+# Temperature Forcing
+
+This an example of how you would prepare temperature forcings, using the 2D surface temperature (tos) and bottom temperature (tob), but in the model run script, Phoebe has already prepared a depth resolved temperature array for the forcing, so we're going to use that in `Hawaii_Longline_Simplified_Model_Runs.Rmd`
+
+```{r}
+# Load surface temperature data
+df_gfdl_tos <- read.csv("FishMIP_Temperature_Forcing/gfdl-mom6-cobalt2_obsclim_tos_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+
+df_gfdl_tob <- read.csv("FishMIP_Temperature_Forcing/gfdl-mom6-cobalt2_obsclim_tob_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+
+head(df_gfdl_tos)
+head(df_gfdl_tob)
+
+summary(df_gfdl_tos$lat)
+summary(df_gfdl_tos$lon)
+
+summary(df_gfdl_tob$lat)
+summary(df_gfdl_tob$lon)
+
+```
+
+
+
+If you need to perform a correction for your region, the World Ocean Atlas is an example of a database you can get temperature data from
+
+World Ocean Atlas data
+https://www.ncei.noaa.gov/access/world-ocean-atlas-2023/bin/woa23.pl
+
+World Ocean Atlas data
+https://www.ncei.noaa.gov/access/world-ocean-atlas-2023/bin/woa23.pl
+
+I am using the 1/4 degree 'Objectively analyzed mean' annual value between 1991-2023
+
+Already filtered the global file to the Prydz Bay region, just load in the smaller file below
+
+```{r}
+# df_wao <- read.csv("FishMIP_Temperature_Forcing/woa23_decav91C0_t00an04.csv")
+# 
+# glimpse(df_wao)
+# head(df_wao)
+# 
+# df_wao_PB <- df_wao %>% 
+#   filter(lat >= -69.62 & lat<=-56.88) %>% 
+#   filter(lon >= 60.12 & lon <= 89.88)
+# 
+# # write.csv(df_wao_PB, "FishMIP_Temperature_Forcing/woa23_decav91C0_t00an04_Prydz_Bay.csv")
+```
+
+
+
+```{r}
+# df_WAO_PB <- read.csv("FishMIP_Temperature_Forcing/woa23_decav91C0_t00an04_Prydz_Bay.csv")[,-1]
+# 
+# head(df_WAO_PB)
+```
+
+
+```{r}
+# df_WAO_PB <- df_WAO_PB %>%
+#   select(!c(lat,lon))
+```
+
+```{r}
+# depth_str <- colnames(df_WAO_PB)
+# 
+# new_str <- str_sub(depth_str,2)
+# 
+# colnames(df_WAO_PB) <- new_str
+# 
+# head(df_WAO_PB)
+# 
+# df_WAO_PB <- df_WAO_PB %>% 
+#   filter(!is.na())
+# 
+# WAO <- colMeans(df_WAO_PB, na.rm = T)
+# 
+# WAO <- WAO %>% 
+#   melt() 
+#   
+# colnames(WAO) <- "temperature_degC"
+# 
+# WAO$depth <- as.numeric(new_str)
+# 
+# head(WAO)
+# unique(WAO$depth)
+```
+
+
+```{r}
+# WAO_tidy <- WAO %>%
+#   dplyr::mutate(realm = case_when(depth == 0 ~ "tos",
+#                                   depth > 0 & depth <= 500 ~ "500m",
+#                                   depth > 500 & depth <= 1000 ~ "1000m",
+#                                   depth > 1000 & depth <= 1500 ~ "1500m",
+#                                   depth > 1500 ~ "tob")) %>% 
+#   filter(!depth>2000) %>% 
+#   group_by(realm) %>% 
+#   summarise(temp = mean(temperature_degC)) 
+#                                   
+#  # Define the desired order
+# desired_order <- c("tos", "500m", "1000m", "1500m","tob") 
+# 
+# # Reorder the dataframe
+# WAO_final <- WAO_tidy %>%
+#   arrange(factor(realm, levels = desired_order))
+#         
+# 
+# head(WAO_tidy)
+# head(WAO_final)
+```
+
+## Tidy surface temperature
+
+```{r}
+GFDL_tos <- df_gfdl_tos %>%
+  select(!c(lat,lon,area_m2)) %>% # remove lat, lon and area_m2
+  melt() %>% # surface temperature of each area for all grid cells
+  group_by(variable) %>% # group by month
+  rename(date = variable) %>%  # rename variable to something meaningful
+  summarise(tos = mean(value)) %>% # mean temperature across all grid cells in model region for each month
+  mutate(date_tidy = parse_date_time(date, orders = "my")) %>% 
+  select(date_tidy, tos)
+
+glimpse(GFDL_tos)
+head(GFDL_tos)
+```
+
+
+```{r}
+GFDL_tos_annual <- df_gfdl_tos %>%
+  select(!c(lat,lon,area_m2)) %>% # remove lat, lon and area_m2
+  melt() %>% # surface temperature of each area for all grid cells
+  group_by(variable) %>% # group by month
+  rename(date = variable) %>%  # rename variable to something meaningful
+  summarise(tos = mean(value)) %>% # mean temperature across all grid cells in model region for each month
+  mutate(date_tidy = parse_date_time(date, orders = "my")) %>% 
+  group_by(year = lubridate::floor_date(date_tidy, "year")) %>%
+    summarize(tos_ = mean(tos))
+```
+
+
+## Tidy bottom temperature
+
+```{r}
+GFDL_tob <- df_gfdl_tob %>%
+  select(!c(lat,lon,area_m2)) %>% # remove lat, lon and area_m2
+  melt() %>% # surface temperature of each area for all grid cells
+  group_by(variable) %>% # group by month
+  rename(date = variable) %>%  # rename variable to something meaningful
+  summarise(tob = mean(value)) %>%  # mean temperature across all grid cells in model region for each month
+  mutate(date_tidy = parse_date_time(date, orders = "my")) %>% 
+  select(date_tidy, tob)
+
+glimpse(GFDL_tob)
+head(GFDL_tob)
+```
+
+To get a crude representation of temperature gradient in the water column, assume (or calculate if you have bathymetry) that the Sea Water Potential Temperature at Sea Floor `tob` is a mean depth of 2000m, then let's create values of temperature throughout the water column based on the difference between the surface temperature, `tos` and `tob`
+
+But of course, you'd be better of getting your hands on the 3D sea water potential temperature file, thetao and using this.
+
+
+```{r}
+GFDL_tob_annual <- df_gfdl_tob %>%
+  select(!c(lat,lon,area_m2)) %>% # remove lat, lon and area_m2
+  melt() %>% # surface temperature of each area for all grid cells
+  group_by(variable) %>% # group by month
+  rename(date = variable) %>%  # rename variable to something meaningful
+  summarise(tob = mean(value)) %>%  # mean temperature across all grid cells in model region for each month
+  mutate(date_tidy = parse_date_time(date, orders = "my")) %>% 
+  group_by(year = lubridate::floor_date(date_tidy, "year")) %>%
+    summarize(tob_ = mean(tob))
+```
+
+
+## Incorporate depth (poorly)
+
+```{r}
+df_temp_water_column <- left_join(GFDL_tos, GFDL_tob) %>% 
+  mutate(t500m = (tob - tos)/4 + tos,
+         t1000m = (tob - tos)/2 + tos,
+         t1500m = ((tob - tos)/4)*3 + tos) %>% 
+  select(date_tidy, tos, t500m, t1000m, t1500m, tob)
+
+
+df_temp_water_column_annual <- left_join(GFDL_tos_annual, GFDL_tob_annual) %>% 
+  mutate(t500m = (tob_ - tos_)/4 + tos_,
+         t1000m = (tob_ - tos_)/2 + tos_,
+         t1500m = ((tob_ - tos_)/4)*3 + tos_)
+
+
+glimpse(df_temp_water_column)
+head(df_temp_water_column)
+```
+
+## Check the temperature trends
+
+```{r}
+df_temp_water_column %>% 
+  ggplot(aes(x = date_tidy, y = tob), colour = "black") +
+  xlab("Year") +
+  ylab("Temperature (°C)") +
+  geom_line(aes(x = date_tidy, y = tos), colour = "grey") +
+  geom_smooth(aes(x = date_tidy, y = tos, alpha = 0.001), colour = "grey") +
+  geom_smooth(aes(x = date_tidy, y = t500m, alpha = 0.0001), colour = "red") +
+  geom_smooth(aes(x = date_tidy, y = t1000m, alpha = 0.0001), colour = "orange") +
+  geom_smooth(aes(x = date_tidy, y = t1500m, alpha = 0.0001), colour = "cyan") +
+  geom_line() + 
+  geom_smooth(colour = "black") +
+  theme_classic() +
+  theme(legend.position = "none")  
+
+df_temp_water_column %>% 
+  ggplot(aes(x = date_tidy, y = tob), colour = "black") +
+  xlab("Year") +
+  ylab("Temperature (°C)") +
+  # geom_line(aes(x = date_tidy, y = tos), colour = "grey") +
+  geom_smooth(aes(x = date_tidy, y = tos, alpha = 0.001), colour = "grey") +
+  geom_smooth(aes(x = date_tidy, y = t500m, alpha = 0.0001), colour = "red") +
+  geom_smooth(aes(x = date_tidy, y = t1000m, alpha = 0.0001), colour = "orange") +
+  geom_smooth(aes(x = date_tidy, y = t1500m, alpha = 0.0001), colour = "cyan") +
+  geom_line() + 
+  geom_smooth(colour = "black") +
+  theme_classic() +
+  theme(legend.position = "none")  
+```
+
+## Plot tos 
+
+```{r}
+df_temp_water_column %>% 
+  ggplot(aes(x = date_tidy, y = tos), colour = "black") +
+  xlab("Year") +
+  ylab("Temperature (°C)") +
+  geom_line() + 
+  geom_smooth(colour = "black") +
+  theme_classic() +
+  ggtitle("Surface Temperature") +
+  theme(legend.position = "none") 
+```
+
+
+## Plot tob
+
+```{r}
+df_temp_water_column %>% 
+  ggplot(aes(x = date_tidy, y = tob), colour = "black") +
+  xlab("Year") +
+  ylab("Temperature (°C)") +
+  geom_line() + 
+  geom_smooth(colour = "black") +
+  theme_classic() +
+  ggtitle("Bottom Temperature") +
+  theme(legend.position = "none") 
+```
+
+
+## Save in a format that will be therMizer-friendly
+
+```{r}
+tos <- df_temp_water_column$tos
+names(tos) <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
+# saveRDS(tos, file = "FishMIP_Temperature_Forcing/tos.rds")
+
+t500m <- df_temp_water_column$t500m
+names(t500m) <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
+# saveRDS(t500m, file = "FishMIP_Temperature_Forcing/t500m.rds")
+
+t1000m <- df_temp_water_column$t1000m
+names(t1000m) <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
+# saveRDS(t1000m, file = "FishMIP_Temperature_Forcing/t1000m.rds")
+
+t1500m <- df_temp_water_column$t1500m
+names(t1500m) <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
+# saveRDS(t1500m, file = "FishMIP_Temperature_Forcing/t1500m.rds")
+
+tob <- df_temp_water_column$tob
+names(tob) <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months")
+# saveRDS(tob, file = "FishMIP_Temperature_Forcing/tob.rds")
+
+```
+
+
+
+
+
+
+
+
