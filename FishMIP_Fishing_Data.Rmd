@@ -62,7 +62,8 @@ Filter dataframe so now I have the Prydz Bay data only
 df_Prydz_catch <- df_FishMIP_catch %>% 
   dplyr::filter(region == "Prydz.Bay") %>% 
   dplyr::group_by(Year,Sector,SAUP, FGroup) %>% 
-  dplyr::mutate(total_catch = sum(Reported,IUU,Discards))
+  dplyr::mutate(total_catch = sum(Reported,IUU,Discards),
+                FishMIP_yield = sum(Reported,Discards))
 
 head(df_Prydz_catch)
 ```
@@ -165,7 +166,13 @@ df_Prydz_catch_prepared <- df_Prydz_catch %>%
                              )) %>% 
   filter(!FGroup=="rays<90cm" & !FGroup=="lobsterscrab") %>% 
   group_by(Year, species) %>% 
-  summarise(catch = sum(total_catch))
+  summarise(catch = sum(FishMIP_yield),
+            catch_g = catch*1e6)
+
+            # total_catch = sum(total_catch),
+            # reported = sum(Reported),
+            # discards = sum(Discards),
+            # IUU = sum(IUU))
   # dplyr::mutate(species = factor(species),
   #               island = factor(island),
   #               sex = factor(sex),
@@ -180,8 +187,231 @@ glimpse(df_Prydz_catch_prepared)
 head(df_Prydz_catch_prepared)
 summary(df_Prydz_catch_prepared)
 
-# saveRDS(df_Prydz_catch_prepared, "FishMIP_fishing_data/catch_Prydz_Bay_1950_2004_resolution_v1.RDS")
+# saveRDS(df_Prydz_catch_prepared, "FishMIP_fishing_data/catch_Prydz_Bay_1950_2004_resolution_v1.RDS") # total catch, all 3 categories
+# saveRDS(df_Prydz_catch_prepared, "FishMIP_fishing_data/catch_Prydz_Bay_1950_2004_resolution_v2.RDS") # just reported and discards, as IUU catch possibly not accounted for in the effort * Need to confirm this
 ```
+
+```{r}
+# Load required packages
+library(tidyr)
+library(dplyr)
+
+df_catch <- df_Prydz_catch_prepared[,-3]
+
+# Assume your original dataframe is named summary_df
+
+# Pivot the dataframe to create the desired array format
+reshaped_df <- df_catch %>%
+  pivot_wider(names_from = species, values_from = catch_g, values_fill = 0)
+
+# Rename columns for cleaner names
+# colnames(reshaped_df)[-1] <- gsub(" ", "_", colnames(reshaped_df)[-1]) # Replace spaces with underscores
+# colnames(reshaped_df)[-1] <- gsub("[^[:alnum:]_]", "", colnames(reshaped_df)[-1]) # Remove non-alphanumeric characters
+
+# Display the reshaped dataframe
+print(reshaped_df)
+```
+
+# Read in IWC catch
+
+```{r}
+df_IWC_catch <- readRDS("catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
+
+glimpse(df_IWC_catch)
+```
+
+```{r}
+unique(df_IWC_catch$Species)
+```
+
+
+```{r}
+df_IWC_catch_prepared <- df_IWC_catch %>%
+  # janitor::clean_names() %>%
+  dplyr::select(c(Year, Species, total_catch_kg)) %>%
+  dplyr::mutate(species = case_when(Species == "Baleen" ~ "baleen whales",
+                             Species == "Sperm" ~ "sperm whales",
+                             Species == "Antarctic Minke" ~ "minke whales",
+                             Species == "Killer" ~ "orca")) %>% 
+  dplyr::select(c(Year, species, total_catch_kg)) %>%
+  mutate(catch_g = total_catch_kg * 1000) %>% 
+  dplyr::select(c(Year, species, catch_g))
+
+head(df_IWC_catch_prepared)
+```
+
+```{r}
+df_IWC_catch_prepared
+df_FishMIP_catch_prepared <- df_Prydz_catch_prepared[,-3]
+
+head(df_IWC_catch_prepared)
+head(df_FishMIP_catch_prepared)
+```
+
+```{r}
+df_combined <- bind_rows(df_IWC_catch_prepared, df_FishMIP_catch_prepared)
+```
+
+
+```{r}
+
+# Assume your original dataframe is named summary_df
+
+# Pivot the dataframe to create the desired array format
+reshaped_df <- df_combined %>%
+  pivot_wider(names_from = species, values_from = catch_g, values_fill = 0)
+
+# Rename columns for cleaner names
+# colnames(reshaped_df)[-1] <- gsub(" ", "_", colnames(reshaped_df)[-1]) # Replace spaces with underscores
+# colnames(reshaped_df)[-1] <- gsub("[^[:alnum:]_]", "", colnames(reshaped_df)[-1]) # Remove non-alphanumeric characters
+
+# Display the reshaped dataframe
+print(reshaped_df)
+```
+
+
+```{r}
+# Order the combined dataframe by year
+ordered_df <- reshaped_df %>%
+  arrange(Year)
+
+ordered_df
+```
+
+
+```{r}
+# List of extra species names
+extra_species <- c("mesozooplankton", "other krill", "other macrozooplankton", "salps",
+                   "mesopelagic fishes", "flying birds", "small divers", "leopard seals",
+                   "medium divers", "large divers")
+
+# Loop through the extra species and add them with 0 values
+for (species in extra_species) {
+  ordered_df[[species]] <- 0
+}
+
+# Print the extended dataframe
+print(ordered_df)
+```
+
+```{r}
+# List of desired species order
+desired_species_order <- params@species_params$species
+# desired_species_order <- c("orca", "sperm whales", "minke whales", "baleen whales", "toothfishes", "shelf and coastal fishes", "new_species1", "new_species2", "new_species3")
+
+# Reorder the columns based on the desired order
+reordered_df <- ordered_df %>%
+  dplyr::select(Year, all_of(desired_species_order))
+
+# Print the reordered dataframe
+print(reordered_df)
+summary(reordered_df)
+```
+
+
+```{r}
+# Create a sequence of years covering the entire range
+all_years <- seq(min(reordered_df$Year), max(reordered_df$Year), by = 1)
+
+
+# Create a new dataframe with the filled years
+filled_df <- data.frame(Year = all_years)
+
+# Merge the filled data with the original dataframe
+merged_df <- merge(filled_df, reordered_df, by = "Year", all.x = TRUE)
+
+# write.csv(merged_df, "catch_timeseries.csv")
+```
+
+```{r}
+# Generate a sequence of years to pad the data
+filled_years <- full_seq(reordered_df$Year)
+
+# Use complete() to fill missing years and add rows of 0 values
+filled_df <- reordered_df %>%
+  complete(Year = all_years) %>%
+  replace_na(list(across(desired_species_order, ~ 0)))
+```
+
+
+```{r}
+# Create a sequence of years from 1930 to 2019
+all_years <- seq(1930, 2019)
+
+existing_years <- ordered_df$Year
+
+# Find the missing years
+missing_years <- setdiff(all_years, existing_years)
+
+# Print the missing years
+print(missing_years)
+```
+
+
+
+
+```{r}
+
+# Assume your original dataframe is named summary_df
+
+# Pivot the dataframe to create the desired array format
+reshaped_df_IWC <- df_IWC_catch_prepared %>%
+  pivot_wider(names_from = species, values_from = catch_g, values_fill = 0)
+
+# Rename columns for cleaner names
+# colnames(reshaped_df)[-1] <- gsub(" ", "_", colnames(reshaped_df)[-1]) # Replace spaces with underscores
+# colnames(reshaped_df)[-1] <- gsub("[^[:alnum:]_]", "", colnames(reshaped_df)[-1]) # Remove non-alphanumeric characters
+
+# Display the reshaped dataframe
+print(reshaped_df_IWC)
+```
+
+
+
+
+```{r}
+# Combine the dataframes while keeping the correct order
+combined_df <- bind_rows(reshaped_df, reshaped_df_IWC)
+
+# Replace NA values with 0
+combined_df <- combined_df %>%
+  replace_na(list('shelf and coastal fishes' = 0,
+                  toothfishes = 0,
+                  'antarctic krill' = 0,
+                  squids = 0,
+                  'bathypelagic fishes' = 0,
+                  'baleen whales' = 0,
+                  'sperm whales' = 0,
+                  'minke whales' = 0,
+                  orca = 0))
+
+
+# Group by Year and summarize to merge values for all species
+merged_df <- combined_df %>%
+  group_by(Year) %>%
+  summarize(across('shelf and coastal fishes':orca, sum), .groups = "keep")
+
+# Replace NA values with 0
+merged_df <- merged_df %>%
+  replace_na(list('shelf and coastal fishes' = 0,
+                  toothfishes = 0,
+                  'antarctic krill' = 0,
+                  squids = 0,
+                  'bathypelagic fishes' = 0,
+                  'baleen whales' = 0,
+                  'sperm whales' = 0,
+                  'minke whales' = 0,
+                  orca = 0))
+
+
+ordered_df <- combined_df %>%
+  arrange(Year)
+
+head(ordered_df)
+```
+
+
+
 
 Time series of catch by functional group
 ```{r}
@@ -262,9 +492,15 @@ df_Prydz_effort_prepared %>%
 
 Time series of effort by functional group
 ```{r}
-df_Prydz_effort_prepared %>% 
+p_effort <- df_Prydz_effort_prepared %>% 
   ggplot(aes(x = Year, y = effort_standard, colour = species)) +
   geom_point() +
+  geom_line() +
   # scale_y_log10() +
-  facet_wrap(~species)
+  ylab("Normalised Effort") +
+  facet_wrap(~species) +
+  theme_classic()
+
+ggsave("plots/FishMIP_Effort_Normalised_Prydz_Bay_Annual_Means.tiff", plot = p_effort, units="cm", width=24, height=14, dpi =300)
 ```
+
