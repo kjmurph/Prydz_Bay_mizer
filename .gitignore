@@ -10,4 +10,6 @@ FishMIP_Temperature_Forcing/
 FishMIP_processed_forcings/
 Masks_netcdf_csv/
 SCAR_Diet_Energetics/
+In_prep/
+Annabelle_Network_Plots/
 *.nb.html
