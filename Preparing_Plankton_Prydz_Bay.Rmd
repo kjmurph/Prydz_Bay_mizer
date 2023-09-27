@@ -114,47 +114,69 @@ There are 4191 rows, one for each grid cell in the model domain.
 
 I need to aggregate all rows into a single value for the whole model domain and then conver from wide to long format.
 
-```{r}
-# Load total carbon data for picoplankton and reformat dataframe
-GFDL_pico_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
-
-dim(GFDL_pico_raw)
-```
-
-```{r}
-head(GFDL_pico_raw)
-```
-
-
-```{r}
-GFDL_pico_long <- GFDL_pico_raw %>%
-  select(!c(lat,lon)) %>% # remove lat, lon and area_m2
-  melt() %>% 
-  mutate(C_g_m2 = value*12.001) %>% # value is carbon in mol C m^2, so this step converts to g C m^2
-  mutate(C_g = C_g_m2*422292280) %>% # multiply the m^2 value by the grid cell area to get total C per grid cell
-  group_by(variable) %>% # group by month
-  summarise(total_C_mol = sum(C_g)) # sum the carbon across all grid cells by each month
-
-
-dim(GFDL_pico_long)
-head(GFDL_pico_long)
-summary(GFDL_pico_long)
-```
-
-
-```{r}
-
-# Load total carbon data for picoplankton and reformat dataframe
-GFDL_pico_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
-dim(GFDL_pico_raw)
-head(GFDL_pico_raw)
-```
 
 ```{r}
 GFDL_diat_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phydiat-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
 dim(GFDL_diat_raw)
 head(GFDL_diat_raw)
 ```
+
+
+```{r}
+GFDL_diat_long <- GFDL_diat_raw %>%
+  gather(Date, mol_C_m2,Jan_1961:Dec_2010) %>% # Convert from wide format to long
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  mutate(date = parse_date_time(Date, orders = "my"))
+
+df_area <- GFDL_diat_long$area_m2
+df_date <- GFDL_diat_long$date
+
+GFDL_diat_long <- GFDL_diat_long %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+head(GFDL_diat_long)
+dim(GFDL_diat_long)
+```
+
+```{r}
+# Load total carbon data for picoplankton and reformat dataframe
+GFDL_pico_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phypico-vint_15arcmin_prydz-bay_monthly_1961_2010.csv") 
+
+dim(GFDL_pico_raw)
+```
+
+```{r}
+head(GFDL_pico_raw)
+```
+
+
+```{r}
+# GFDL_pico_long <- GFDL_pico_raw %>%
+#   select(!c(lat,lon)) %>% # remove lat, lon and area_m2
+#   melt() %>% 
+#   mutate(C_g_m2 = value*12.001) %>% # value is carbon in mol C m^2, so this step converts to g C m^2
+#   mutate(C_g = C_g_m2*422292280) %>% # multiply the m^2 value by the grid cell area to get total C per grid cell
+#   group_by(variable) %>% # group by month
+#   summarise(total_C_mol = sum(C_g)) # sum the carbon across all grid cells by each month
+
+GFDL_pico_long <- GFDL_pico_raw %>%
+  gather(Date, mol_C_m2, X1961.01.01.00.00.00:X2010.12.01.00.00.00) %>% # Convert from wide format to long
+  mutate(area_m2 = df_area) %>% 
+  mutate(date = df_date) %>% 
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  # mutate(date = parse_date_time(Date, orders = "my")) %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+dim(GFDL_pico_long)
+head(GFDL_pico_long)
+```
+
 
 
 ```{r}
@@ -183,18 +205,23 @@ head(GFDL_zmeso_raw)
 ```{r}
 
 GFDL_pico_long <- GFDL_pico_raw %>%
-  select(!c(lat,lon)) %>% # remove lat, lon and area_m2
-  melt() %>% 
-  mutate(C_g_m2 = value*12.001) %>% # value is carbon in mol C m^2, so this step converts to g C m^2
-  mutate(C_g = C_g_m2*422292280) %>% # multiply the m^2 value by the grid cell area to get total C per grid cell
-  group_by(variable) %>% # group by month
-  summarise(total_C_mol = sum(C_g)) %>%  # sum the carbon across all grid cells by each month
-  mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months"))
+  gather(Date, mol_C_m2, X1961.01.01.00.00.00:X2010.12.01.00.00.00) %>% # Convert from wide format to long
+  mutate(area_m2 = df_area) %>% 
+  mutate(date = df_date) %>% 
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  # mutate(date = parse_date_time(Date, orders = "my")) %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
+
+dim(GFDL_pico_long)
+head(GFDL_pico_long)
 
 
-GFDL_pico_long_annual <- GFDL_pico_long[,-1] %>%
-  group_by(year = lubridate::floor_date(date, "year")) %>%
-    summarize(total_C_mol = mean(total_C_mol))
+# GFDL_pico_long_annual <- GFDL_pico_long[,-1] %>%
+#   group_by(year = lubridate::floor_date(date, "year")) %>%
+#     summarize(total_C_mol = mean(total_C_mol))
 
 
 dim(GFDL_pico_long)
@@ -215,14 +242,13 @@ GFDL_area <- GFDL_diat_raw %>%
 
 ```{r}
 GFDL_diat_long <- GFDL_diat_raw %>%
-  select(!c(lat,lon,area_m2)) %>% # remove lat, lon and area_m2
-  melt() %>% 
-  mutate(C_g_m2 = value*12.001) %>% # value is carbon in mol C m^2, so this step converts to g C m^2
-  mutate(C_g = C_g_m2*422292280) %>% # multiply the m^2 value by the grid cell area to get total C per grid cell
-  group_by(variable) %>% # group by month
-  summarise(total_C_mol = sum(C_g)) %>%  # sum the carbon across all grid cells by each month
-  mutate(date = seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="months"))
-
+  gather(Date, mol_C_m2,Jan_1961:Dec_2010) %>% # Convert from wide format to long
+  mutate(C_g_m2 = mol_C_m2 * 12.001) %>% # Convert from mol C m^2 to g C m^2
+  mutate(C_g = mol_C_m2*area_m2) %>% # g C per grid cell by multiplying by area in m^2 per grid cell
+  mutate(C_gww = C_g * 10) %>% # *10 to get grams wet weight
+  mutate(date = parse_date_time(Date, orders = "my")) %>% # Create a tidy date variable
+  group_by(date) %>% # group by month
+  summarise(total_C_gww = sum(C_gww)) # sum carbon so it is total carbon for whole model domain per month
 
 GFDL_diat_long_annual <- GFDL_diat_long[,-1] %>%
   group_by(year = lubridate::floor_date(date, "year")) %>%
@@ -429,6 +455,44 @@ for (t in seq(1,50,1)) {
 # write.table(out_isimip, file = "GFDL_resource_spectra_annual.dat", quote = FALSE, row.names = TRUE, col.names = TRUE)
 # write.table(isimip_slope, file = "GFDL_resource_slope_annual.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 # write.table(isimip_intercept, file = "GFDL_resource_intercept_annual.dat", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+```
+
+```{r}
+isimip_slope <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_slope_annual.dat")
+```
+
+
+```{r}
+years <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="year") # create a tidy date variable
+
+p_slope <- ggplot(,aes(x = years, y = isimip_slope[,1])) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(colour="black", alpha = 0.2) +
+  xlab("Year") +
+  ylab("Background Resource Slope") +
+  theme_classic()
+
+# ggsave("plots/GFDL_ISIMIP3a_Resource_Slope_Prydz_Bay.tiff", plot = p_slope, units="cm", width=20, height=16, dpi =300)
+```
+
+```{r}
+isimip_intercept <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_intercept_annual.dat")
+```
+
+
+```{r}
+years <- seq(as.Date("1961-01-01"),as.Date("2010-12-01"),by="year") # create a tidy date variable
+
+p_intercept <- ggplot(,aes(x = years, y = isimip_intercept[,1])) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(colour="black", alpha = 0.2) +
+  xlab("Year") +
+  ylab("Background Resource Intercept") +
+  theme_classic()
+
+ggsave("plots/GFDL_ISIMIP3a_Resource_Intercept_Prydz_Bay.tiff", plot = p_intercept, units="cm", width=20, height=16, dpi =300)
 ```
 
 ```{r}
