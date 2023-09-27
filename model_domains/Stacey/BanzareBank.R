@@ -25,7 +25,7 @@ saveRDS(domain, "/home/shared/data/ace-ecostats_model_domains_0/model_domains/St
 # library(rgdal)
 # library(sp)
 
-x <- readRDS("model_domains/Stacey/BanzareBank.rds")
+x <- readRDS("model_domains/Stacey/BanzareBank.rds") 
 
 # rgdal::writeOGR(x, "model_domains/Stacey", "BanzareBank", driver = "ESRI Shapefile")
 
