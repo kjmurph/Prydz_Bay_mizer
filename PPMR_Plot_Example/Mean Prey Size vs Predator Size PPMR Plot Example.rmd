@@ -1,0 +1,510 @@
+---
+title: "Figure: Predator-prey size relations"
+author: "Shane A. Richards + Kieran Murphy"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: show
+    highlight: tango
+    theme: cerulean
+    toc: yes
+    toc_float: no
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+This is a run through of extracting the size structured diet output from one variant of the Feeding + Growth Model. 
+After extraction, these data are reformatted to be suitable for a plot of mean prey size vs predator size to establish emergent PPMR values for each functional group
+
+## Setup workspace
+```{r}
+# install.packages('tidyverse')
+# install.packages('reshape2')
+library(tidyverse)
+library(reshape2)
+```
+
+## Import Model
+
+```{r}
+# model <-readRDS("FG_Model_v5.rds")
+
+# saveRDS(model$param, "FG_Model_v5_params.RDS")
+# model$param
+```
+
+```{r}
+##### PHYTO DIET edited by Ryan and Kieran July 2020 to save abundance of phyto at each phyto size class for each pred size class
+##### PHYTO DIET DIM1 = SAVE STEP, DIM2 = PRED GROUP, DIM3 = PRED SIZE, DIM4 = Phyto size
+##### DYNAM DIET DIM1 = SAVE STEP, DIM2 = PRED GROUP, DIM3 = PRED SIZE, DIM 4 = PREY GROUP, DIM 5 = PREY SIZE
+
+ ## Average diet array for each predator size class for the final half of the projection
+  dynamic_diet = apply(model$dynam_diet_full[c(floor(0.5*dim(model$dynam_diet_full)[1]):dim(model$dynam_diet_full)[1]),,,,], c(2,3,4,5), mean)
+  phyto_diet = apply(model$phyto_diet_full[c(floor(0.5*dim(model$phyto_diet_full)[1]):dim(model$phyto_diet_full)[1]),,,], c(2,3,4), mean)
+  
+```
+
+
+```{r}
+saveRDS(dynamic_diet, "dynamic_diet.RDS")
+saveRDS(phyto_diet, "phyto_diet.RDS")
+
+
+dynamic_diet <- readRDS("dynamic_diet.RDS")
+phyto_diet <- readRDS("phyto_diet.RDS")
+
+```
+
+
+## Phytoplankton Diet
+
+```{r}
+phytodiet <- melt(phyto_diet)
+glimpse(phytodiet)
+```
+
+
+```{r}
+  ## Assign names to all variables in phytodiet
+names(phytodiet) <- c("Predator_Species", "Predator_Size_Class", "Prey_Size_Class", "Prey_Abundance")
+glimpse(phytodiet)
+```
+
+```{r}
+## make predators and prey factor variables
+phytodiet$Predator_Species <- as.factor(phytodiet$Predator_Species)
+
+## Confirm the variables are correct
+summary(phytodiet)
+```
+
+
+```{r}
+  
+  
+  df_size_classes <- model$w # Create new object with list of size classes in log10 g
+  df_size_classes <- as.data.frame(df_size_classes) # Convert to a dataframe
+  names(df_size_classes) <- c("Predator_Size") # Create new name Size for the variable
+  df_size_classes$Predator_Size_Class <- 1:length(model$w) # Create Size_class variable to join with phytodiet by
+  
+  glimpse(df_size_classes)
+```
+
+```{r}
+  df_species_predator <- model$param$groups$species # Create new object with species names from model
+  df_species_predator <- as.data.frame((df_species_predator)) # Convert to a dataframe
+  names(df_species_predator) <- c("Predator") # Rename variable
+  df_species_predator$Predator_Species <- 1:length(model$param$groups$species) # Create new integer variable in ascending order with 'Species'
+  df_species_predator$Predator_Species <- as.factor(df_species_predator$Predator_Species) # Convert to factor
+  
+  glimpse(df_species_predator)
+```
+
+```{r}
+  df_phyto_size_classes <- model$w_phyto # Create new object with list of size classes in log10 g
+  df_phyto_size_classes <- as.data.frame(df_phyto_size_classes) # Convert to a dataframe
+  names(df_phyto_size_classes) <- c("Prey_Size") # Create new name Size for the variable
+  df_phyto_size_classes$Prey_Size_Class <- 1:length(model$w_phyto)
+ 
+glimpse(df_phyto_size_classes) 
+```
+
+```{r}
+## join phytodiet with df_size_class data in order to create log10 size classes in addition to the size class integer 1:184
+  df_combined <- left_join(phytodiet, df_size_classes,
+                           by="Predator_Size_Class")
+
+glimpse(df_combined)
+```
+
+```{r}
+## join phytodiet with df_species_predator data in order to create predator name variable in addition to the integer 1:4
+df_combined <- df_combined %>%
+    left_join(df_species_predator,
+              by="Predator_Species")
+
+glimpse(df_combined)
+```
+
+```{r}
+df_combined <- df_combined %>%
+    left_join(df_phyto_size_classes,
+              by="Prey_Size_Class")
+
+df_combined <- df_combined %>%
+    mutate(Prey_Biomass = Prey_Abundance*Prey_Size)
+
+df_combined$Prey <- c("Phyto")
+
+df_combined$Prey <- as.factor(df_combined$Prey)
+
+glimpse(df_combined)
+```
+
+```{r}
+summary(df_combined)
+```
+
+```{r}
+# df_combined <- df_combined %>%
+#   filter(Prey_Abundance > 0)
+
+summary(df_combined)
+```
+
+## Dynamic Diet
+
+```{r}
+ ### Dynamic diet dataframe
+dynamdiet <- melt(dynamic_diet)
+  
+glimpse(dynamdiet)
+```
+
+```{r}
+  ## Assign names to all variables in df_diet
+names(dynamdiet) <- c("Predator_Species", "Predator_Size_Class", "Prey_Species", "Prey_Size_Class", "Prey_Abundance")
+
+# make predators and prey factor variables
+dynamdiet$Predator_Species <- as.factor(dynamdiet$Predator_Species)
+dynamdiet$Prey_Species <- as.factor(dynamdiet$Prey_Species)
+  
+glimpse(dynamdiet)
+```
+  
+```{r}
+  # df_size_classes <- model$w # Create new object with list of size classes in log10 g
+  # df_size_classes <- as.data.frame(df_size_classes) # Convert to a dataframe
+  # names(df_size_classes) <- c("Predator_Size") # Create new name Size for the variable
+  # df_size_classes$Predator_Size_Class <- 1:length(model$w)
+```
+
+
+```{r}
+  df_species_prey <- model$param$groups$species # Create new object with species names from model
+  df_species_prey <- as.data.frame((df_species_prey)) # Convert to a dataframe
+  names(df_species_prey) <- c("Prey") # Rename variable
+  df_species_prey$Prey_Species <- 1:length(model$param$groups$species) # Create new integer variable in ascending order with 'Species'
+  df_species_prey$Prey_Species <- as.factor(df_species_prey$Prey_Species) # Convert to factor
+
+glimpse(df_species_prey)
+```
+
+```{r}
+  df_prey_size_classes <- model$w # Create new object with list of size classes in log10 g
+  df_prey_size_classes <- as.data.frame(df_prey_size_classes) # Convert to a dataframe
+  names(df_prey_size_classes) <- c("Prey_Size") # Create new name Size for the variable
+  df_prey_size_classes$Prey_Size_Class <- 1:length(model$w)
+
+glimpse(df_prey_size_classes) 
+```
+
+```{r}
+  ## join dynamdiet with df_size_class data in order to create log10 size classes in addition to size class integer 1:184 
+  df_combined_dynam <- left_join(dynamdiet, df_size_classes,
+                           by="Predator_Size_Class")
+
+glimpse(df_combined_dynam)
+```
+
+```{r}
+df_combined_dynam <- df_combined_dynam %>%
+    left_join(df_species_predator,
+              by="Predator_Species")
+
+glimpse(df_combined_dynam)
+```
+
+```{r}
+df_combined_dynam <- df_combined_dynam %>%
+  left_join(df_prey_size_classes,
+              by="Prey_Size_Class")
+
+glimpse(df_combined_dynam)
+```
+
+
+```{r}
+df_combined_dynam <- df_combined_dynam %>%
+  left_join(df_species_prey,
+              by="Prey_Species")
+
+df_combined_dynam <- df_combined_dynam %>%
+    mutate(Prey_Biomass = Prey_Abundance*Prey_Size)
+  
+glimpse(df_combined_dynam)
+```
+
+### Combine reformatted dynamic and phyto diet output into single dataframe
+
+```{r}
+
+## Remove integer variables and row bind the two dataframes
+
+  df_d <- df_combined_dynam %>%
+    select(Predator, Prey, Predator_Size, Prey_Size, Prey_Abundance, Prey_Biomass)
+  df_pd <- df_combined %>%
+    select(Predator, Prey, Predator_Size, Prey_Size, Prey_Abundance, Prey_Biomass)
+  
+  df <- rbind(df_d, df_pd) # join data frames, one on top of the other
+
+glimpse(df)
+summary(df)
+```
+
+
+
+```{r}
+# reorder factors
+df$Predator <- factor(df$Predator, 
+  levels = c("Zooplankton", "Fish", "Inactive Cephs", "Active Cephs"))
+
+df$Prey <- factor(df$Prey, 
+  levels = c("Phyto", "Zooplankton", "Fish", "Inactive Cephs", "Active Cephs"))
+
+unique_sizes <- sort(unique(c(df$Prey_Size, df$Predator_Size)))
+
+df_sizes <- tibble(
+  Prey_Size = unique_sizes, 
+  Prey_size_class = 1:length(unique_sizes)
+)
+
+df <- left_join(df, df_sizes, by = "Prey_Size") %>%
+  arrange(Predator, Prey, Predator_Size, Prey_Size)
+
+df_sizes <- tibble(
+  Predator_Size = unique_sizes, 
+  Predator_size_class = 1:length(unique_sizes)
+)
+
+df <- left_join(df, df_sizes, by = "Predator_Size") %>%
+  arrange(Predator, Prey, Predator_Size, Prey_Size)
+
+glimpse(df)
+summary(df)
+```
+
+# Prey size distributions
+
+```{r fig.width=9, fig.height=3}
+# examine prey size distribution for a specified predator-prey
+df_test <- df %>%
+  filter(Predator == "Inactive Cephs", Prey == "Zooplankton")
+  # filter(Predator == "Inactive Cephs")
+
+max_size_class <- max(df_test$Predator_size_class)
+
+class_plot <- max_size_class - 40 # predator size class to focus on
+
+df_test <- df_test %>%
+  filter(Predator_size_class == class_plot)
+
+# calculate cumulative distribution for calculating quantiles
+df_test$cumfreq <- cumsum(df_test$Prey_Abundance) /
+  sum(df_test$Prey_Abundance)
+# calculate the approximate quantiles
+q05 <- df_test$Prey_Size[df_test$cumfreq > 0.05][1]
+q50 <- df_test$Prey_Size[df_test$cumfreq > 0.5][1]
+q95 <- df_test$Prey_Size[df_test$cumfreq > 0.95][1]
+
+ggplot(df_test, aes(x = Prey_Size, y = Prey_Abundance)) +
+  geom_area(fill = "salmon") +
+  geom_point(color = "red") +
+  geom_vline(xintercept = df_sizes$Predator_Size[class_plot], 
+    color = "red") +
+  geom_vline(xintercept = q05, linetype = "dashed") +
+  geom_vline(xintercept = q50) +
+  geom_vline(xintercept = q95, linetype = "dashed") +
+  scale_x_log10() +
+  labs(x = "Prey size", y = "Prey abundance") +
+  theme_bw()
+```
+
+X-axis is prey (`Zooplankton`) size. Vertical red line is the predator (`Inactive Cephs`) size  (only one predator size class is considered for this plot). Dashed lines are the 90% prey size interval and solid black line is the median prey size.
+
+
+```{r fig.width=9, fig.height=3}
+library(viridis)
+# examine prey size distribution for a specified predator-prey
+df_test <- df %>%
+  filter(Predator == "Inactive Cephs", Prey == "Zooplankton")
+  # filter(Predator == "Inactive Cephs")
+
+df_total <- df_test %>%
+  group_by(Predator_size_class) %>%
+  summarise(
+    sum_prey_abundance = sum(Prey_Abundance)
+  )
+
+df_test <- left_join(df_test, df_total, by = "Predator_size_class") %>%
+  mutate(norm_freq = Prey_Abundance / sum_prey_abundance)
+
+ggplot(df_test, 
+  aes(x = Predator_size_class, y = Prey_size_class, fill = norm_freq)) +
+  geom_tile() +
+  scale_fill_viridis(option="magma") +
+  labs(x = "Predator size class", y = "Prey size class") +
+  theme_bw()
+```
+
+
+```{r}
+# examine prey size distribution for a specified predator-prey
+df_test <- df
+
+df_total <- df_test %>%
+  group_by(Predator_size_class, Predator, Prey) %>%
+  summarise(
+    sum_prey_abundance = sum(Prey_Abundance)
+  )
+
+df_test <- left_join(df_test, df_total, 
+    by = c("Predator_size_class", "Predator","Prey")) %>%
+  mutate(norm_freq = Prey_Abundance / sum_prey_abundance)
+
+```
+
+
+```{r}
+ggplot(df_test, 
+  aes(x = Predator_size_class, y = Prey_size_class, fill = norm_freq)) +
+  geom_tile() +
+  scale_fill_viridis(option="magma", direction = -1, na.value ="pink") +
+  labs(x = "Predator size class", y = "Prey size class") +
+  facet_grid(Prey ~ Predator) +
+  theme_bw()
+```
+
+
+```{r}
+# create a data frame for plotting
+df_plot <- df %>%
+  mutate(PySzPyAb = Prey_Size*Prey_Abundance) %>%  # total size
+  group_by(Predator, Prey, Predator_Size) %>% # groups of prey distributions
+  summarise(
+    sum_prey_abundance = sum(Prey_Abundance), # total prey numbers
+    sum_PySzPyAb       = sum(PySzPyAb), # total size
+    mean_prey_size     = sum_PySzPyAb / sum_prey_abundance # mean size
+  )
+
+# data for dashed line where expected prey size is 10% of predator size
+df_ref <- tibble(
+  Predator_Size = c(min(df$Predator_Size), max(df$Predator_Size))
+)
+df_ref$Expected_Prey_Size = 0.1*df_ref$Predator_Size
+```
+
+
+
+```{r}
+ggplot() +
+  geom_line(data = df_ref, aes(x = Predator_Size, y = Expected_Prey_Size),
+    linetype = "dashed") +
+  geom_line(data = df_plot,
+    aes(x = Predator_Size, y = mean_prey_size, color = Prey)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap( ~ Predator) +
+  labs(x = "Predator size", y = "Mean prey size") +
+  theme_bw()
+```
+
+
+```{r}
+# calculate total prey abundance for each predator size
+df_total_intake <- df %>%
+  mutate(PySzPyAb = Prey_Size*Prey_Abundance) %>% # total size
+  group_by(Predator, Predator_Size) %>%
+  summarise(
+    total_prey_size = sum(PySzPyAb)
+  )
+
+df_plot <- left_join(df_plot, df_total_intake,
+  by = c("Predator", "Predator_Size")) %>%
+  mutate(frac_total = sum_PySzPyAb / total_prey_size) # prey fraction
+
+```
+
+```{r}
+frac_keep <- 0.001 # plot prey if contributes at least this fraction of diet
+
+ggplot() +
+  geom_line(data = df_ref, aes(x = Predator_Size, y = Expected_Prey_Size),
+    linetype = "dashed") +
+  geom_line(data = filter(df_plot, frac_total > frac_keep), 
+    aes(x = Predator_Size, y = mean_prey_size, color = Prey)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap( ~ Predator) +
+  labs(x = "Predator size", y = "Mean prey size") +
+  theme_bw()
+```
+
+The horizontal lines don't appear to actually contribute to the diet , as they are less than 0.1 % for any given prey and size class.
+
+I would like to redo the combined dataframe below after removing this fraction but I haven't quite worked out how to do that yet when `df_plot` is created by using only `Predator` and `Predator_Size` in group_by below.
+
+
+## Combined Predator Diet
+
+```{r}
+# create a data frame for plotting
+df_plot <- df %>%
+  mutate(PySzPyAb = Prey_Size*Prey_Abundance) %>%  # total size
+  group_by(Predator, Predator_Size) %>% # groups of prey distributions
+  summarise(
+    sum_prey_abundance = sum(Prey_Abundance), # total prey numbers
+    sum_PySzPyAb       = sum(PySzPyAb), # total size
+    mean_prey_size     = sum_PySzPyAb / sum_prey_abundance # mean size
+  )
+
+# data for dashed line where expected prey size is 10% of predator size
+df_ref <- tibble(
+  Predator_Size = c(min(df$Predator_Size), max(df$Predator_Size))
+)
+df_ref$Expected_Prey_Size_10000 = 0.0001*df_ref$Predator_Size
+df_ref$Expected_Prey_Size_1000 = 0.001*df_ref$Predator_Size
+df_ref$Expected_Prey_Size_100 = 0.01*df_ref$Predator_Size
+df_ref$Expected_Prey_Size_10 = 0.1*df_ref$Predator_Size
+df_ref$Expected_Prey_Size_1 = 1*df_ref$Predator_Size
+```
+
+
+
+```{r fig.width=5, fig.height=5}
+ggplot() +
+  geom_line(data = df_ref, aes(x = Predator_Size, y = Expected_Prey_Size_1),
+    linetype = "solid", size = .75) +
+  geom_line(data = df_ref, aes(x = Predator_Size, y = Expected_Prey_Size_10),
+    linetype = "longdash", size = .75) +
+  geom_line(data = df_ref, aes(x = Predator_Size, y = Expected_Prey_Size_100),
+    linetype = "dashed", size = .75) +
+  geom_line(data = df_ref, aes(x = Predator_Size, y = Expected_Prey_Size_1000),
+    linetype = "dotted", size = .75) +
+  geom_line(data = df_ref, aes(x = Predator_Size, y = Expected_Prey_Size_10000),
+    linetype = "dotdash", size = .75) +
+  geom_line(data = df_plot,
+    aes(x = Predator_Size, y = mean_prey_size, color = Predator), size = 1.5) +
+  scale_x_log10() +
+  scale_y_log10() +
+  # facet_wrap( ~ Predator) +
+  labs(x = "Predator size", y = "Mean prey size") +
+  theme_bw() +
+  theme(legend.key.size = unit(1, 'lines'),
+          legend.position=c(0.25,0.8),
+          legend.background = element_blank())
+```
+
+```{r}
+# ggsave("Feeding+Growth_v5_PPMR.png",
+#        units="mm",
+#        dpi = 600,
+#        width = 90,
+#        height = 90)
+```
+
+
+
+
