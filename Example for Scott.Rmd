@@ -1,0 +1,174 @@
+---
+title: "Example for Scott"
+output: html_notebook
+---
+
+Time-averaged, steady-state size spectrum model representing Prydz Bay ecosystem using biomass values from the balanced Ecopath model published in McCormack et al. 2020 (10.1016/j.dsr2.2019.07.001) for calibration. The time-averaged steady-state roughly represents 2010-2019
+
+The size spectrum model consists of 19 species/functional groupings.
+
+Species parameters of importance:
+- Minimum, maturation, and maximum sizes (`w_min`, `w_mat`, and `w_max`)
+- predator-prey mass ratio, `beta`
+- `biomass_observed`, or in this case the balanced biomass from an Ecopath model that used compiled empirical observation of biomasses for each species
+- `Rmax`, the maximum reproduction rate
+
+## Load libraries
+
+```{r}
+# remotes::install_github("sizespectrum/mizerExperimental")
+library(mizerExperimental)
+library(therMizer)
+library(tidyverse)
+```
+
+## Load model parameter object
+
+```{r}
+projection_steady_F <- readRDS("ISIMIP3a_1961_2010_fishing.rds") # Fishing effort
+projection_steady_noF <- readRDS("ISIMIP3a_1961_2010_no_fishing.rds") # No fishing effort
+```
+
+
+
+## Inspect species params
+
+Many of these are not used and mizer has a lot of under the hood stuff going on to set a lot of rates and parameters. Happy to dig into that stuff in a meeting if you're keen to learn more.
+```{r}
+params@species_params
+```
+
+```{r}
+params_v2 <- params %>% steady() %>%  
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.0005, t_max = 2000)
+```
+Convergence was achieved in 1.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, large divers, minke whalesConvergence was achieved in 846 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, medium divers, large divers, minke whalesConvergence was achieved in 418.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krillConvergence was achieved in 426 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, medium divers, large divers, minke whalesConvergence was achieved in 400.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krillConvergence was achieved in 336 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, medium divers, large divers, minke whalesConvergence was achieved in 330 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krillConvergence was achieved in 262.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, medium divers, large divers, minke whalesConvergence was achieved in 222 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krillConvergence was achieved in 139.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, large divers, minke whalesConvergence was achieved in 46.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, large divers, minke whalesConvergence was achieved in 1.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, large divers, minke whalesConvergence was achieved in 1.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, large divers, minke whalesConvergence was achieved in 1.5 years.
+Warning: The following species require an unrealistic reproductive efficiency greater than 1: mesozooplankton, other krill, other macrozooplankton, antarctic krill, flying birds, leopard seals, large divers, minke whales
+
+
+```{r}
+initial_effort(params_v2)
+```
+```{r}
+sim_1 <- project(params_v2, t_max = 1000, effort = 0)
+
+sim_1.1 <- project(params_v2, t_max = 500, effort = 0, 
+                         initial_n = sim_1@n[1000,,])
+
+plotBiomass(sim_1.1)
+plotBiomassRelative(sim_1.1)
+```
+
+
+```{r}
+sim_2 <- project(params_v2, t_max = 500, effort = 0, 
+                         initial_n = sim_1@n[500,,])
+
+plot(sim_2)
+plotlyBiomass(sim_2)
+```
+
+
+```{r}
+sim_fishing_v01 <- project(params, t_max = 500, effort = 0)
+```
+## Check steady-state biomass
+
+```{r}
+plot(sim_fishing_v01)
+```
+
+Make sure that there is no change in biomass over a long time period
+```{r}
+plotBiomassRelative(sim_2)
+```
+
+
+
+```{r}
+getReproductionLevel(params)
+```
+
+## Check biomass and yield values currently
+
+```{r}
+species_params(params)$biomass_observed
+species_params(params)$yield_observed
+gear_params(params)$yield_observed
+```
+
+Currently, observed biomass is in g/m2 (same as t/km2), so need to scale biomass using the model domain in m2
+
+Scale this up to biomass values for the entire model domain (1474341km^2)
+
+1474341 * 1e6 for m2 = 1.474341e+12
+
+```{r}
+species_params(params)$biomass_observed <- species_params(params)$biomass_observed * 1.474341e+12
+species_params(params)$yield_observed <- species_params(params)$yield_observed * 1.474341e+12
+gear_params(params)$yield_observed <- gear_params(params)$yield_observed * 1.474341e+12
+
+species_params(params)$biomass_observed
+species_params(params)$yield_observed
+gear_params(params)$yield_observed
+```
+
+
+Now biomass and yield are expressed as units (grams) per whole model domain
+
+Still steady?
+
+```{r}
+params_upscaled <- steady(params, tol = 0.001, t_max = 1000) |>
+    matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |> matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |>
+    matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |> matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |>
+    matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |> matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |>
+    matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |> matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |>
+    matchBiomasses() |> steady(tol = 0.001, t_max = 1000) |> matchBiomasses() |> steady(tol = 0.001, t_max = 1000)
+```
+
+```{r}
+sim_fishing_v02 <- project(params, t_max = 500, effort = 0.2)
+```
+
+## Check steady-state biomass
+
+```{r}
+plot(sim_fishing_v02)
+```
+
+
+tune params to new biomasses, make sure steady and save update
+
+```{r}
+params <- tuneParams(params)
+
+# saveRDS(params, "therMizer_params_total_area.RDS")
+
+params_test <- readRDS("therMizer_params_total_area.RDS")
+```
