@@ -3,6 +3,19 @@ title: "Example for Scott"
 output: html_notebook
 ---
 
+## Resources
+
+How to start from scratch: https://course.mizer.sizespectrum.org/understand/
+
+Blogs: https://blog.mizer.sizespectrum.org/
+
+```{r}
+# remotes::install_github("sizespectrum/mizerHowTo")
+library(mizerHowTo)
+```
+
+https://github.com/sizespectrum/mizerHowTo
+
 Time-averaged, steady-state size spectrum model representing Prydz Bay ecosystem using biomass values from the balanced Ecopath model published in McCormack et al. 2020 (10.1016/j.dsr2.2019.07.001) for calibration. The time-averaged steady-state roughly represents 2010-2019
 
 The size spectrum model consists of 19 species/functional groupings.
@@ -13,22 +26,99 @@ Species parameters of importance:
 - `biomass_observed`, or in this case the balanced biomass from an Ecopath model that used compiled empirical observation of biomasses for each species
 - `Rmax`, the maximum reproduction rate
 
+## What areas could be improved
+
+Identifying patterns in model output to suggest steps to improve model
+Capturing macro/meta trends in growth curve responses etc
+
 ## Load libraries
 
 ```{r}
 # remotes::install_github("sizespectrum/mizerExperimental")
-library(mizerExperimental)
-library(therMizer)
+library(mizerExperimental) # dev version
+library(mizer) # base mizer
+# library(therMizer)
 library(tidyverse)
 ```
+
+
+## Initial estimate for kappa (system carrying capacity)
+
+Phase 1
+Kappa starting point: use value of 10 t/km^2 from McCormack et al. 2020 to establish a steady model.
+Match model to time-averaged fishing (catch)
+
+Other ways to estimate kappa:
+Then use historical FishMIP values to estimate the profile of the phytoplakton size spectrum
+ACEAS data:
+Can we get empirical phytoplankton or zooplankton size spectra (BCG ARGO floats or particle counters) Jase Everett or ACEAS folks
+
+Using pico (6.94559e-11) and large (6.06131e-07)  phyto midpoints from Phoebe's method as the assumed phytoplankton size range. 'Spread' the biomass estimate from McCormack of 10 t/km^2 across that size range and using Barnes equation to estimate the density at the intercept (density per gram at 0 on log scale): kappa = 17.9 
+
+Kappa for the whole model domain is 17.9 * 1.474341e+12 = 2.63907e+13
+
+Setting kappa:
+How do we want to express the model domain. m^2 or the entire domain volume?
+Banzare Bank model domain is 1.474341e+12 [m^2]
 
 ## Load model parameter object
 
 ```{r}
-projection_steady_F <- readRDS("ISIMIP3a_1961_2010_fishing.rds") # Fishing effort
-projection_steady_noF <- readRDS("ISIMIP3a_1961_2010_no_fishing.rds") # No fishing effort
+base_params <- readRDS("params/base_params.RDS")
+params <- readRDS("params_latest_biomass_09_Aug_2023.RDS")
 ```
 
+Species parameters
+
+What are the main parameters to tweak in a clibration workflow
+
+beta: prep-prey mass ratio can be adjusted
+
+Main metrics to use for calibration (compare mizer model biomass to observed biomass) Figure xx
+- biomass_observed (the balanced model values from McCormack et al. 2020)
+- Other examples would be fisheries catch....
+
+Parameters that can be optimised 
+- gamma
+- beta
+- sigma
+- erepro
+- Rmax
+
+How is 
+
+```{r}
+spp_params <- params@species_params
+spp_params
+```
+
+
+Interaction matrix is what drives encounter between between pred-prey
+Also how we factor in migration (if whale is only in model domain for summer, value would be 0.5)
+```{r}
+int_matrix <- params@interaction
+int_matrix
+```
+
+
+```{r}
+sim <- project(params, t_max = 100)
+
+plot(sim)
+plotBiomassRelative(sim)
+```
+## Tuning model using shiny app
+```{r}
+params_tuned <- tuneParams(params)
+```
+
+
+## Figure xx
+
+```{r}
+plotBiomassObservedVsModel(params)
+plotBiomassObservedVsModel(base_params)
+```
 
 
 ## Inspect species params
