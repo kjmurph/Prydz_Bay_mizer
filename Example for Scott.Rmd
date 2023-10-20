@@ -102,14 +102,21 @@ int_matrix
 
 
 ```{r}
+base_sim <- project(base_params, t_max = 100)
+
 sim <- project(params, t_max = 100)
 
+
 plot(sim)
+plot(base_sim)
+
 plotBiomassRelative(sim)
 ```
 ## Tuning model using shiny app
 ```{r}
+base_tuned <- tuneParams(base_params)
 params_tuned <- tuneParams(params)
+
 ```
 
 
