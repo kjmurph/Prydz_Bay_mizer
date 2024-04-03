@@ -16,8 +16,10 @@ If working with g m2 for biomass and yield, then I can compare as is with the pl
 
 ```{r}
 # remotes::install_github("sizespectrum/mizerExperimental", ref = "tuneMR") # need to uninstall other mizerExperimental and resinstall this to use plotYieldCurve()
+
 # remotes::install_github("sizespectrum/mizerExperimental")
 # remotes::install_github("sizespectrum/therMizer")
+
 # library(mizer)
 library(therMizer)
 library(tidyverse)
@@ -119,7 +121,10 @@ new_repro_level <- c("mesozooplankton"= 0.4,  "other krill" = 0.8,  "other macro
 
 
 ```{r}
-params_test_v2 <- setBevertonHolt(params_test, reproduction_level = new_repro_level)
+params_test_upgrade <- upgradeParams(params_test)
+
+params_test_v2 <- setBevertonHolt(params_test_upgrade, reproduction_level = new_repro_level)
+
 ```
 
 
@@ -171,19 +176,20 @@ gear_params(params)$yield_observed
 ```
 
 ```{r}
-params <- tuneParams(params)
-
-species_params(params)$erepro
+# params <- tuneParams(params)
+# 
+# species_params(params)$erepro
 ```
 
 
 ```{r}
-# saveRDS(params, "therMizer_params_total_area.RDS")
+# saveRDS(params, "therMizer_params_total_area_v2.RDS")
 ```
 
 
 ```{r}
-effort <- read.csv("effort_array.csv")
+# effort <- read.csv("effort_array.csv")
+effort <- read.csv("FishMIP_fishing_data/effort_array.csv")
 
 years <- effort[,1]
 
@@ -209,11 +215,11 @@ time_steps <- 1961:2010
 
 #input temperature data 
 ```{r}
-tos <- readRDS("tos_annual.rds")
-t500m <- readRDS("t500m_annual.rds")
-t1000m <- readRDS("t1000m_annual.rds")
-t1500m <- readRDS("t1500m_annual.rds")
-tob <- readRDS("tob_annual.rds")
+tos <- readRDS("FishMIP_Temperature_Forcing/tos_annual.rds")
+t500m <- readRDS("FishMIP_Temperature_Forcing/t500m_annual.rds")
+t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m_annual.rds")
+t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m_annual.rds")
+tob <- readRDS("FishMIP_Temperature_Forcing/tob_annual.rds")
 ocean_temp <- abind::abind(tos,t500m,t1000m, t1500m, tob, along = 2)
 
 realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
@@ -233,7 +239,8 @@ isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abunda
 isimip_plankton <- as(isimip_plankton, "matrix")
 
 rownames(isimip_plankton) <- time_steps
-sizes <- params@w_full
+sizes <- params_test@w_full
+# sizes <- params@w_full
 colnames(isimip_plankton) <- sizes # signif(sizes, 6)
 
 dim(isimip_plankton)
@@ -253,6 +260,7 @@ n_pp_array[1,] <- isimip_plankton[1,] #subtracting anomaly and adding back the m
 
 head(n_pp_array[1,]) #make it comparible
 head(n_pp_array[50,])
+# head(log10(initialNResource(params)))
 head(log10(initialNResource(params)))
 ```
 
@@ -270,6 +278,7 @@ years_to_use<-as.character(2000:2010)
 
 # initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
 # initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]
+
 initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]/params_updated_n_pp@dw_full # normalise the plankton spectrum to match the therMizer plankton_forcing()
 #need to cut resource at 100g
 initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) >=resource_params(params_updated_n_pp)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
@@ -284,6 +293,11 @@ params_updated_n_pp <- steady(params_updated_n_pp)
 
 plotSpectra(params_updated_n_pp)
 ```
+
+```{r}
+params_updated_n_pp_tuned <- tuneParams(params_updated_n_pp)
+```
+
 
 #vertical_migration array set up----
 ```{r}
