@@ -34,8 +34,9 @@ Capturing macro/meta trends in growth curve responses etc
 ## Load libraries
 
 ```{r}
-# remotes::install_github("sizespectrum/mizerExperimental")
+remotes::install_github("sizespectrum/mizerExperimental")
 library(mizerExperimental) # dev version
+install.packages('mizer')
 library(mizer) # base mizer
 # library(therMizer)
 library(tidyverse)
