@@ -215,7 +215,7 @@ print(reshaped_df)
 # Read in IWC catch
 
 ```{r}
-df_IWC_catch <- readRDS("catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
+df_IWC_catch <- readRDS("FishMIP_fishing_data/catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
 
 glimpse(df_IWC_catch)
 ```
