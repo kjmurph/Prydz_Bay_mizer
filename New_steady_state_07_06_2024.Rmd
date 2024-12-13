@@ -1,0 +1,364 @@
+---
+title: "Prydz Bay mizer model calibration"
+output: html_notebook
+---
+
+Set up the environment:
+```{r}
+# library(remotes)
+# remotes::install_github("sizespectrum/therMizer")
+# remotes::install_github("sizespectrum/mizerExperimental")
+# library(therMizer)
+library(mizerExperimental)
+library(tidyverse)
+```
+
+Load latest mizer param object, which is a therMizer param object
+
+```{r}
+params <- readRDS("params_04_06_2024_v4.rds")
+```
+
+Inspect some key parameters
+```{r}
+species_params(params) |> select(erepro, R_max)
+```
+
+Let's run a simulation and inspect the dynamics
+```{r}
+sim <- project(params, t_max = 500)
+plot(sim)
+plotlyBiomass(sim)
+plotlyBiomassRelative(sim)
+```
+
+There are still a lot of species with unstable biomass and what looks like some going extinct (orcas)
+
+See if we can achieve a steady-state for the biomass
+
+First we'll manually adjust erepro for any species that is above 1
+
+```{r}
+species_params(params)$erepro
+
+species_params(params)$erepro <- ifelse(species_params(params)$erepro >= 1, 0.99, species_params(params)$erepro)
+
+species_params(params)$erepro
+```
+
+
+```{r}
+params <-
+  steady(params, tol = 0.01, t_max = 200) %>% calibrateBiomass() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>%
+  steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  
+  steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 500) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>%
+  steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>% steady(tol = 0.0025, t_max = 500) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses()
+```
+
+
+
+Let's run a simulation and inspect the dynamics
+```{r}
+sim <- project(params, t_max = 500)
+plot(sim)
+plotlyBiomass(sim)
+plotlyBiomassRelative(sim)
+```
+
+```{r}
+species_params(params)$erepro
+
+species_params(params)$erepro <- ifelse(species_params(params)$erepro >= 1, 0.99, species_params(params)$erepro)
+
+species_params(params)$erepro
+```
+
+```{r}
+params <-
+  steady(params, tol = 0.01, t_max = 200) %>% calibrateBiomass() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses()
+```
+
+
+
+Let's run a simulation and inspect the dynamics
+```{r}
+sim <- project(params, t_max = 1000)
+plot(sim)
+plotlyBiomass(sim)
+plotlyBiomassRelative(sim)
+```
+
+
+
+
+```{r}
+species_params(params)$erepro
+
+# species_params(params)$erepro <- ifelse(species_params(params)$erepro >= 1, 0.99, species_params(params)$erepro)
+
+# species_params(params)$erepro
+```
+
+Inspect ppmr and feeding kernel parameters
+```{r}
+species_params(params) |> select(pred_kernel_type, beta, ppmr_min, ppmr_max)
+```
+
+```{r}
+params@species_params$pred_kernel_type[params@species_params$species == "minke whales"]  <- "box"
+params@species_params$ppmr_min[params@species_params$species == "minke whales"]  <- 1e5
+params@species_params$ppmr_max[params@species_params$species == "minke whales"] <-5e7
+```
+
+
+Inspect ppmr and feeding kernel parameters
+```{r}
+species_params(params) |> select(pred_kernel_type, beta, ppmr_min, ppmr_max)
+```
+
+
+```{r}
+params <-
+  steady(params, tol = 0.01, t_max = 200) %>% calibrateBiomass() %>% steady(tol = 0.01, t_max = 200) %>% matchBiomasses() %>% 
+  
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 1000) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.0005, t_max = 5000) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>% steady(tol = 0.00025, t_max = 5000) %>% matchBiomasses() %>%
+  
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.0001, t_max = 10000) %>% matchBiomasses()
+```
+
+
+```{r}
+params <-
+  steady(params, tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses()
+```
+
+
+
+```{r}
+params@species_params$ppmr_min[params@species_params$species == "baleen whales"]  <- 1e5
+params@species_params$ppmr_max[params@species_params$species == "baleen whales"] <-5e6
+
+params@species_params$ppmr_min[params@species_params$species == "minke whales"]  <- 1e5
+params@species_params$ppmr_max[params@species_params$species == "minke whales"] <- 5e6
+```
+
+
+
+```{r}
+params <-
+  steady(params, tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.00001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>%
+  steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses() %>% steady(tol = 0.000001, t_max = 10000) %>% matchBiomasses()
+```
+
+
+Let's run a simulation and inspect the dynamics
+```{r}
+sim <- project(params, t_max = 1000)
+plot(sim)
+plotlyBiomass(sim)
+plotlyBiomassRelative(sim)
+plotlyFeedingLevel(sim, include_critical = T)
+```
+
+
+
+```{r}
+params <- readRDS("params_07_06_2024.rds")
+
+params <- tuneParams(params)
+
+# saveRDS(params, "params_07_06_2024.rds")
+```
+
+
+```{r}
+sim <- project(params, t_max = 200)
+plot(sim)
+plotBiomassRelative(sim)
+plotlyBiomass(sim)
+
+params@species_params$erepro
+```
+
+```{r}
+
+```
+
+
+```{r}
+getYieldVsF(params, species = "mesozooplankton")
+```
+
+
+```{r}
+getYieldVsF(params, species = "baleen whales")
+```
+
+
+```{r}
+# function to create yield curves:
+makeSpeciesFmsyPlot<-function(speciesnum,params){
+  #plotYieldVsF(params_pre, species = speciesnum,F_range = seq(0, 1, 0.05))
+  # NOTE: not sure why above plot function does not work - wrote it what's sinside function below instead
+  curve <- getYieldVsF(params, species = speciesnum, F_range = seq(0, 1, 0.1))
+  pl <- ggplot(curve, aes(x = F, y = yield)) + geom_line() + 
+        xlab("Fishing mortality (1/yr)") + ylab("Yield") + ggtitle(params@species_params$species[speciesnum])
+  return(pl)
+}
+
+#check plots for each species - they should all look dome-shaped with a reasonable Fmsy
+
+# check plot for EACH species MANUALLY
+
+makeSpeciesFmsyPlot(speciesnum = 2,params)
+makeSpeciesFmsyPlot(speciesnum = 19,params)
+
+# Or loop through and then scroll though all  plots
+specs<-unique(species_params(params)$species)
+plots <- list()
+for (i in 1:length(specs)) plots[[i]]<-makeSpeciesFmsyPlot(speciesnum = i,params)
+# ## you can then manually go through each plot, e.g. change the number in [[]] below (or save them)
+# plots[[4]]
+```
+
+
+
+
+
+
+

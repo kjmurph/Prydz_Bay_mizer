@@ -3,7 +3,18 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-## To do
+*Steady-state paper*
+
+- Ecosystem structure assessment - trophic pyramid? Food web change (Annabelle's diagrams)
+- T-opt, constant temperature experiment for mammals (use an array of constant temperature to ensure consistent temp)
+
+Goldbogon paper - why are whales the size they are? Food limitation - can test this by adjusting kappa.
+
+What about temperature effects, if we leave kappa constant but change temperature
+
+The metabolic and encounter rate scalars, what shape should they be? Test it via density of prey and temperature effects. Indirect effects of food web
+
+*To do*
 
   - Upgrade temperature forcing to use thetao output
   - Reduce reliance on resource spectrum: 
@@ -12,6 +23,15 @@ output: html_notebook
     - as mesozooplankton are included in the plankton forcing, should remove this group from predators * Can remove mesozoo from plankton forcing.
   - Remove temperature effect for endotherms
     - Either 1) use a mean temperature for the whole time-series for each endotherm or 2) switch off temp-effect for endotherms
+
+    
+Return to initial stage of establishing a steady-state (i.e., can use calibrate biomass and change kappa etc.)
+Then make sure to update initial n_pp_array with the new steady state initial_n_pp 
+
+Check feeding level first and growth after any changes to kappa. 
+matchGrowth might be useful at a later stage once reproduction parameters are in a better state
+
+Wait until the final step until adjusting fishing/catchability - yield curves at the end right before simulations
     
 
 Set up the environment:
@@ -28,11 +48,19 @@ Load steady therMizer parameters:
 Temperature and resource information included
 ```{r}
 # Generate parameters
-params <- readRDS("therMizer_params_v04.RDS")
+# params <- readRDS("therMizer_params_v04.RDS")
+
+params <- readRDS("params_07_06_2024.rds")
 ```
 
+Checking what units the biomass observations are in
+```{r}
+params@species_params$biomass_observed
+```
+'biomass_observed' is grams per model domain
 
 
+Load catch data
 ```{r}
 yield_timeseries <- read.csv("FishMIP_fishing_data/catch_timeseries.csv")
 
@@ -48,11 +76,6 @@ yield_array <- as(yield_timeseries, "matrix")
 ```
 
 
-
-
-
-
-
 Set up time steps
 ```{r}
 time_steps <- 1961:2010
@@ -62,9 +85,9 @@ time_steps <- 1961:2010
 
 
 
-Set up the resource:
-### input npp data
 
+## plankton forcing data
+Set up the resource:
 ```{r}
 isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abundance
 # isimip_plankton <- read.table("FishMIP_Plankton_Forcing/GFDL_resource_spectra_w_full_142.dat") # log10 abundance
@@ -82,21 +105,32 @@ dim(isimip_plankton)
 ```{r}
 n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes)) # setup an empty array for the corrected plankton
 
+n_pp_array_test <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes)) # setup an empty array for the corrected plankton
+
 # Fill array
-n_pp_array[1,] <- isimip_plankton[1,] 
+n_pp_array[1,] <- isimip_plankton[1,]
  for (t in seq(1,length(time_steps) - 1,1)) {
    n_pp_array[t + 1,] <- isimip_plankton[t + 1,]
  }
 
+
+## Updated step from Julia/Ezekiel May 2024
+ n_pp_array_test[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp*params@dw_full)
+for (t in seq(1,length(time_steps) - 1,1)) {
+  n_pp_array_test[t + 1,] <- (isimip_plankton[t,]  - colMeans(isimip_plankton[,])) +  log10(params@initial_n_pp*params@dw_full)
+ }
+
+
 head(n_pp_array[1,]) #make it comparible
-head(n_pp_array[50,])
-head(initialNResource(params))
+head(n_pp_array_test[1,])
+# head(initialNResource(params))
+
+head(n_pp_array[50,]) #make it comparible
+head(n_pp_array_test[50,])
 ```
 
+## temperature forcing data
 
-### temperature data
-
-#input temperature data 
 ```{r}
 # tos <- readRDS("FishMIP_Temperature_Forcing/tos.rds")
 # t500m <- readRDS("FishMIP_Temperature_Forcing/t500m.rds")
@@ -299,7 +333,7 @@ for (r in seq(1,length(realm_names),1)) {
 }
 ```
 
-
+## Fishing effort forcing
 
 ```{r}
 time_steps_effort <- 1961:2010
@@ -347,48 +381,17 @@ gear_params(params)
 
 Add temperature and resource information to the parameters:
 ```{r}
-# params <- upgradeTherParams(params, 
-#                             ocean_temp_array = ocean_temp,
-#                             n_pp_array = n_pp_array, 
-#                             vertical_migration_array = vertical_migration_array,
-#                             exposure_array = exposure_array,
-#                             aerobic_effect = TRUE, metabolism_effect = TRUE)
-
-# params_AS_off <- upgradeTherParams(params, 
-#                             ocean_temp_array = ocean_temp,
-#                             n_pp_array = n_pp_array, 
-#                             vertical_migration_array = vertical_migration_array,
-#                             exposure_array = exposure_array,
-#                             aerobic_effect = FALSE, metabolism_effect = TRUE)
-# 
-# params_MET_off <- upgradeTherParams(params, 
-#                             ocean_temp_array = ocean_temp,
-#                             n_pp_array = n_pp_array, 
-#                             vertical_migration_array = vertical_migration_array,
-#                             exposure_array = exposure_array,
-#                             aerobic_effect = TRUE, metabolism_effect = FALSE)
-# 
-# params_BOTH_off <- upgradeTherParams(params, 
-#                             ocean_temp_array = ocean_temp,
-#                             n_pp_array = n_pp_array, 
-#                             vertical_migration_array = vertical_migration_array,
-#                             exposure_array = exposure_array,
-#                             aerobic_effect = FALSE, metabolism_effect = FALSE)
-
-# Nice test to see that things are working correctly
 plotTherPerformance(params)
-# plotTherPerformance(params_AS_off)
-
 ```
 
 
 ```{r}
 params_v2 <- params
 
-# gear_params(params_v2)$catchability <- ifelse(gear_params(params_v2)$catchability > 0, 0.5, gear_params(params_v2)$catchability)
+gear_params(params_v2)$catchability <- ifelse(gear_params(params_v2)$catchability > 0, 0.5, gear_params(params_v2)$catchability)
 
-gear_params(params_v2)$catchability <- 0.5
-
+gear_params(params)$catchability
+gear_params(params_v2)$catchability
 ```
 
 
@@ -397,11 +400,13 @@ dim(effort_array)
 head(effort_array)
 effort_array[1,]
 
-gear_params(params_v2)$gear <- gear_params(params_v2)$species
+# gear_params(params_v2)$gear <- gear_params(params_v2)$species
+gear_params(params)$gear <- gear_params(params)$species
 # gear_params(params_steady_F)$gear <- gear_params(params_steady_F)$species
 
 # gear_name = gear_params(params_steady_F)$gear
-gear_name = gear_params(params_v2)$gear
+# gear_name = gear_params(params_v2)$gear
+gear_name = gear_params(params)$gear
 colnames(effort_array) <- gear_name
 head(effort_array)
 # 
@@ -413,9 +418,6 @@ head(effort_array)
 ```
 
 
-
-
-
 ```{r}
 # params_v2@initial_effort <- effort_array[1,]
 
@@ -425,12 +427,16 @@ model_period_effort <- colMeans(effort_array)
 initial_effort_updated <- ref_period_effort
 initial_effort_updated[c(4,7,17,18)] <- model_period_effort[c(4,7,17,18)]
 
-params_v2@initial_effort <- initial_effort_updated
+# params_v2@initial_effort <- initial_effort_updated
+params@initial_effort <- initial_effort_updated
 # params_v2@initial_effort[c(4,7,11,18)] <- model_period_effort[c(4,7,11,18)]
 
 params_v2 <- steady(params_v2, t_max = 1000)
 
-sim_ref <- mizer::project(params_v2, t_max = 200, effort = initial_effort_updated)
+
+# sim_ref <- mizer::project(params_v2, t_max = 200, effort = initial_effort_updated)
+sim_ref <- mizer::project(params, t_max = 200, effort = initial_effort_updated)
+
 
 plotYieldObservedVsModel(params_v2)
 plotYieldObservedVsModel(sim_ref, ratio = T)
@@ -441,9 +447,10 @@ plotYield(sim_ref)
 ```{r}
 #Test ratio
 ratio<- plotYieldObservedVsModel(params_v2, return_data = TRUE)$ratio
-gear_params(params_v2)$catchability[c(7,8,12,16,19)]<-gear_params(params_v2)$catchability[c(7,8,12,16,19)]/ratio
+# gear_params(params_v2)$catchability[c(7,8,12,16,19)]<-gear_params(params_v2)$catchability[c(7,8,12,16,19)]/ratio
+gear_params(params)$catchability[c(7,8,12,16,19)]<-gear_params(params)$catchability[c(7,8,12,16,19)]/ratio
 
-gear_params(params_v2)$catchability <- ifelse(gear_params(params_v2)$catchability == 0.5, 0, gear_params(params_v2)$catchability)
+# gear_params(params_v2)$catchability <- ifelse(gear_params(params_v2)$catchability == 0.5, 0, gear_params(params_v2)$catchability)
 
 # gear_params(params_v2)$catchability[c(8)] <- gear_params(params_v2)$catchability[c(8)] * 1.5 # shelf and coastal fishes
 gear_params(params_v2)$catchability[c(8)] <- 1.267937e-05 * 3 # shelf and coastal fishes
@@ -462,6 +469,10 @@ gear_params(params_v2)$catchability[c(18)] <- 1 # sperm whales
 params_v3 <- steady(params_v2)
 
 plotYieldObservedVsModel(params_v3, ratio=T)
+
+sim_ref_v2 <- mizer::project(params_v3, t_max = 200)
+
+plotYield(sim_ref_v2)
 
 # ref_period_effort
 ```
@@ -493,68 +504,123 @@ params_v5 <- steady(params_v4)
 
 plotYieldObservedVsModel(params_v5, ratio=T)
 
+sim_ref_v3 <- mizer::project(params_v5, t_max = 200)
+
+plotYield(sim_ref_v3)
+
 ```
 
 
 ```{r}
-getReproductionLevel(params_v5)
-params_v5@species_params$erepro
-```
+# getReproductionLevel(params_v5)
+# params_v5@species_params$erepro
 
+getReproductionLevel(params)
+params@species_params$erepro
+
+# saveRDS(params_v5, "params_04_06_2024_v3.rds")
+
+```
+Adjust reproduction level and erepro to be within 'realistic' bounds
 
 ```{r}
-new_repro_level <- getReproductionLevel(params_v5)
-new_repro_level[c(17)] <- 0.999999
-
-new_erepro_level <- species_params(params_v5)$erepro
-new_erepro_level[c(17,18)] <- 0.999999
-# new_erepro_level[c(16,17,18)] <- 0.999999
-
-
+# new_repro_level <- getReproductionLevel(params_v5)
+# new_repro_level[c(17)] <- 0.999999
+# 
+# new_erepro_level <- species_params(params_v5)$erepro
+# # new_erepro_level[c(17,18)] <- 0.999999
+# new_erepro_level[c(13,16,18)] <- 0.999999
 ```
 
 ## steady with yield
 ```{r}
-params_v6 <- setBevertonHolt(params_v5, reproduction_level = new_repro_level)
-params_v7 <- setBevertonHolt(params_v6, erepro = new_erepro_level)
-
-params_v8 <- steady(params_v7, t_max = 200, preserve = c("erepro"))
-
-getReproductionLevel(params_v8)
-species_params(params_v8)$erepro
-
-params_v8 <- params_v8 %>% matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro"))
-
-plotBiomassObservedVsModel(params_v8)
-# params_v8@initial_effort
-species_params(params_v8)$erepro
-getReproductionLevel(params_v8)
+# params_v6 <- setBevertonHolt(params_v5, reproduction_level = new_repro_level)
+# params_v7 <- setBevertonHolt(params_v6, erepro = new_erepro_level)
+# 
+# params_v8 <- steady(params_v7, t_max = 200, preserve = c("erepro"))
+# 
+# # saveRDS(params_v8, "params_04_06_2024.rds")
+# 
+# getReproductionLevel(params_v8)
+# species_params(params_v8)$erepro
+# 
+# params_v8 <- params_v8 %>% matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro"))
+# 
+# plotBiomassObservedVsModel(params_v8)
+# # params_v8@initial_effort
+# species_params(params_v8)$erepro
+# getReproductionLevel(params_v8)
 ```
+
+matchBiomass and matchGrowth
+```{r}
+# params_v9 <- params_v8 %>% matchBiomasses() %>% matchGrowth() %>% steady(t_max = 200)
+#   
+#   
+#   # matchBiomasses() %>% matchGrowth() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, preserve = c("erepro")) %>%
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>%
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   #  matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   #  matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   #  matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   #  matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   #  matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   # matchBiomasses() %>% matchGrowth() %>%steady(t_max = 500, tol = 0.001, preserve = c("erepro"))
+```
+
+
+```{r}
+# sim_steady <- project(params_v8, t_max = 750)
+# plot(sim_steady)
+# plotBiomassRelative(sim_steady)
+```
+
+```{r}
+
+```
+
 
 # Recalibrate parameters - THIS PART IS FOR THE STEADY STATE only
 
@@ -563,22 +629,24 @@ For this step, we re-estimate the reproduction/biomass parameters using time-ave
 First, reset initial n_pp to be time averaged value of plankton. 
 
 ```{r}
-params <- params_v8
+params_steady <- params
 years_to_use<-as.character(2001:2010)
 
 
 # initialNResource(params)[which(w_full(params) < 100)]<-10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < resource_params(params)$w_pp_cutoff)]
 # initialNResource(params_updated_n_pp)[which(w_full(params_updated_n_pp) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_updated_n_pp) < 100)]
-initialNResource(params)[which(w_full(params) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)]/params@dw_full # normalise the plankton spectrum to match the therMizer plankton_forcing()
+
+initialNResource(params_steady)[which(w_full(params_steady) < 100)]<- 10^colMeans(n_pp_array[years_to_use,])[which(w_full(params_steady) < 100)]/params_steady@dw_full # normalise the plankton spectrum to match the therMizer plankton_forcing()
 #need to cut resource at 100g
-initialNResource(params)[which(w_full(params) >=resource_params(params)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
+
+initialNResource(params_steady)[which(w_full(params_steady) >=resource_params(params_steady)$w_pp_cutoff)]<-0.0 # sets all above 100g to 0
 
 
 # same with initial effort
-initial_effort(params)<-colMeans(effort_array[years_to_use,])
+initial_effort(params_steady)<-colMeans(effort_array[years_to_use,])
 
 # use steady-state period plankton and temperatures
-params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
+params_pre <- upgradeTherParams(params_steady, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
       # vertical_migration_array = vertical_migration_array,
                             # exposure_array = ESS_exposure, 
                             aerobic_effect = TRUE, metabolism_effect = TRUE)
@@ -598,88 +666,88 @@ species_params(params_pre_v2)$erepro
 
 
 ```{r}
-# new_repro_level <- getReproductionLevel(params_pre_v2)
-# new_repro_level[c(17)] <- 0.999999
+# # new_repro_level <- getReproductionLevel(params_pre_v2)
+# # new_repro_level[c(17)] <- 0.999999
+# 
+# new_erepro_level <- species_params(params_pre_v2)$erepro
+# # new_erepro_level[c(17,18)] <- 0.999999
+# # new_erepro_level[c(16)] <- 0.999999
+# 
+# params_pre_v3 <- setBevertonHolt(params_pre_v2, erepro = new_erepro_level)
+# 
+# species_params(params_pre_v3)$erepro
+```
 
-new_erepro_level <- species_params(params_pre_v2)$erepro
-# new_erepro_level[c(17,18)] <- 0.999999
+```{r}
+# params_pre_v3 <- steady(params_pre_v3, t_max = 500, tol = 0.005)
+```
+
+```{r}
+# new_erepro_level <- species_params(params_pre_v3)$erepro
+# # new_erepro_level[c(17,18)] <- 0.999999
+# # new_erepro_level[c(13,16)] <- 0.9
 # new_erepro_level[c(16)] <- 0.999999
-
-params_pre_v3 <- setBevertonHolt(params_pre_v2, erepro = new_erepro_level)
-
-species_params(params_pre_v3)$erepro
-```
-
-```{r}
-params_pre_v3 <- steady(params_pre_v3, t_max = 500, tol = 0.005)
-```
-
-```{r}
-new_erepro_level <- species_params(params_pre_v3)$erepro
-# new_erepro_level[c(17,18)] <- 0.999999
-# new_erepro_level[c(13,16)] <- 0.9
-new_erepro_level[c(16)] <- 0.999999
-
-params_pre_v3 <- setBevertonHolt(params_pre_v3, erepro = new_erepro_level)
-
-species_params(params_pre_v3)$erepro
+# 
+# params_pre_v3 <- setBevertonHolt(params_pre_v3, erepro = new_erepro_level)
+# 
+# species_params(params_pre_v3)$erepro
 ```
 
 
 ```{r}
-getReproductionLevel(params_pre_v3)
-species_params(params_pre_v3)$erepro
+# getReproductionLevel(params_pre_v3)
+# species_params(params_pre_v3)$erepro
 ```
 
 
 
 ```{r}
-getReproductionLevel(params_pre_v3)
-species_params(params_pre_v3)$erepro
-
-params_pre_v3 <- params_pre %>% matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
-  matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
-  matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro"))
-
-plotBiomassObservedVsModel(params_pre_v3)
-# params_pre_v3@initial_effort
-species_params(params_pre_v3)$erepro
-getReproductionLevel(params_pre_v3)
+# getReproductionLevel(params_pre_v3)
+# species_params(params_pre_v3)$erepro
+# 
+# params_pre_v3 <- params_pre %>% matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.01, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 200, tol = 0.005, preserve = c("erepro")) %>% 
+#   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#    matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro")) %>%
+#   matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = c("erepro"))
+# 
+# plotBiomassObservedVsModel(params_pre_v3)
+# # params_pre_v3@initial_effort
+# species_params(params_pre_v3)$erepro
+# getReproductionLevel(params_pre_v3)
 ```
 
 ```{r}
-sim_steady <- project(params_pre_v3, t_max = 1000)
-plot(sim_steady)
+# sim_steady <- project(params_pre_v3, t_max = 1000)
+# plot(sim_steady)
 ```
 
 ```{r}
-sim_1.1 <- project(params_pre_v3, t_max = 500, 
-                         initial_n = sim_steady@n[1000,,])
-
-plot(sim_1.1)
+# sim_1.1 <- project(params_pre_v3, t_max = 500, 
+#                          initial_n = sim_steady@n[1000,,])
+# 
+# plot(sim_1.1)
 ```
 
 
@@ -708,7 +776,7 @@ IWC_effort_full_tidy
 
 
 ```{r}
-paramsT <- upgradeTherParams(params_pre_v3, 
+paramsT <- upgradeTherParams(params_pre_v2, 
                             ocean_temp_array = ocean_temp,
                             n_pp_array = n_pp_array, 
                             vertical_migration_array = vertical_migration_array,
@@ -721,7 +789,8 @@ paramsT <- upgradeTherParams(params_pre_v3,
 
 ```{r}
 
-params_steady_F <- steady(paramsT, t_max = 200, preserve = c("erepro"))
+# params_steady_F <- steady(paramsT, t_max = 200, preserve = c("erepro"))
+params_steady_F <- steady(paramsT, t_max = 200, tol = 0.001)
 # params_steady_F <- steady(paramsT, t_max = 200)
 
 

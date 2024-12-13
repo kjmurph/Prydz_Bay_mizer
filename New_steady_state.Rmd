@@ -1,0 +1,205 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Set up the environment:
+```{r}
+# Load libraries
+# library(remotes)
+remotes::install_github("sizespectrum/mizerExperimental")
+# remotes::install_github("sizespectrum/therMizer")
+# library(therMizer)
+library(mizerExperimental)
+library(tidyverse)
+```
+
+
+```{r}
+# params <- readRDS("params_04_06_2024.rds")
+
+params <- readRDS("params_04_06_2024_v3.rds")
+```
+
+```{r}
+params@species_params$erepro
+```
+
+
+```{r}
+params_v2 <- tuneParams(params)
+
+params_v2@species_params$erepro
+```
+
+
+```{r}
+params_v2 <- readRDS("params_04_06_2024_v4.rds")
+params_v2 <- tuneParams(params_v2)
+
+mizerExperimental::tuneParams(params_v2)
+# saveRDS(params_v2, "params_04_06_2024_v4.rds")
+
+params_v2@species_params$erepro
+getReproductionLevel(params_v2)
+
+
+# params_v3 <- params_v2 %>% matchGrowth() %>%  steady()
+
+
+sim <- project(params_v2, t_max = 500)
+plotBiomass(sim)
+plotBiomassRelative(sim)
+```
+
+
+```{r}
+# new_repro_level <- getReproductionLevel(params_v5)
+# new_repro_level[c(17)] <- 0.999999
+
+new_erepro_level <- species_params(params_v2)$erepro
+# new_erepro_level[c(17,18)] <- 0.999999
+new_erepro_level[c(13,16,18)] <- 0.999999
+
+params_v3 <- setBevertonHolt(params_v2, erepro = new_erepro_level)
+
+mizerExperimental::tuneParams(params_v3)
+params_v3@species_params$erepro
+```
+
+
+
+
+```{r}
+params_steady <- steady(params_v3)
+
+params_steady@species_params$erepro
+
+new_erepro_level_v2 <- species_params(params_steady)$erepro
+new_erepro_level_v2[c(13)] <- 0.99
+
+params_steady <- setBevertonHolt(params_steady, erepro = new_erepro_level_v2)
+
+# params_steady <- matchGrowth(params_steady)
+
+params_steady <- mizerExperimental::tuneParams(params_steady)
+
+params_steady_v2 <- params_steady
+
+params_steady_v2 <- steady(params_steady_v2)
+
+params_steady_v2@species_params$erepro
+
+params_steady_v3 <- mizerExperimental::tuneParams(params_steady_v2)
+
+params_steady_v3@species_params$erepro
+getReproductionLevel(params_steady_v3)
+
+params_steady_v4 <- mizerExperimental::tuneParams(params_steady_v3)
+
+params_steady_v4@species_params$erepro
+getReproductionLevel(params_steady_v4)
+
+
+params_steady_v5 <- steady(params_steady_v5, tol = 0.005, t_max = 2000) %>% 
+  matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% 
+  matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% 
+  matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% 
+  matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.005, t_max = 2000) %>% 
+  matchBiomasses() %>% steady(tol = 0.001, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 2000) %>% 
+  matchBiomasses() %>% steady(tol = 0.001, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.001, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 2000) %>%
+  matchBiomasses() %>% steady(tol = 0.001, t_max = 2000) %>% matchBiomasses() %>% steady(tol = 0.001, t_max = 2000)
+
+params_steady_v5@species_params$erepro
+getReproductionLevel(params_steady_v5)
+
+
+
+params_steady_v5 <- mizerExperimental::tuneParams(params_steady_v4)
+
+params_steady_v5 <- mizerExperimental::tuneParams(params_steady_v5)
+
+sim <- project(params_steady_v5, t_max=500)
+
+plot(sim)
+
+# sim@n_pp[,1]
+
+```
+
+[1] 3.380966e-01 4.133938e-04 6.823585e-03 6.624733e-06 3.510233e-05 1.119045e-04 3.128760e-04 1.277852e-04 2.255864e-03
+[10] 3.020346e-04 5.866701e-06 1.100258e-03 1.023826e+00 3.738136e-02 7.756210e-01 9.952818e-01 2.452914e-01 9.969390e-01
+[19] 6.198165e-03
+
+```{r}
+for (t in 1:50) {
+   ocean_temp[t,] <- ocean_temp[1,]
+}
+
+for (t in 1:50) {
+   n_pp_array[t,] <- n_pp_array[1,]
+}
+
+ocean_temp_row <- ocean_temp[1,]
+ocean_temp <- rbind(ocean_temp_row,ocean_temp)
+
+n_pp_array_row <- n_pp_array[1,]
+n_pp_array <- rbind(n_pp_array_row,n_pp_array)
+
+rownames(n_pp_array) <- 0:50
+rownames(ocean_temp) <- 0:50
+
+params_test <- upgradeTherParams(params_steady, ocean_temp_array = ocean_temp,n_pp_array = n_pp_array,
+      # vertical_migration_array = vertical_migration_array,
+                            # exposure_array = ESS_exposure, 
+                            aerobic_effect = F, metabolism_effect = F)
+```
+
+```{r}
+params_test2 <- projectToSteady(params_test, return_sim = F)
+
+params_test3 <- projectToSteady(params_test2, return_sim = T)
+
+plotBiomassRelative(params_test3)
+
+sim_test <- project(params_test3, t_max = 200)
+# 
+plotBiomass(sim_test)
+
+sim_test@n_pp[,1]
+
+params_test4 <- matchBiomasses(params_test2) %>% steady %>% 
+  matchBiomasses()  %>% steady %>% matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% 
+  matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% 
+  matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% 
+  matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% 
+  matchBiomasses() %>% steady %>% matchBiomasses() %>% steady %>% matchBiomasses() %>% steady
+
+sim_test <- project(params_test4, t_max = 200)
+# 
+plotBiomass(sim_test)
+```
+
+
+Inspect tuned params
+```{r}
+params_tuned <- readRDS("tuned_params_05_06_2024.rds")
+
+params_tuned@species_params
+```
+
+
+Inspect reproduction parameters
+```{r}
+params_v2@species_params$erepro
+params_v2@species_params$R_max
+getReproductionLevel(params_v2)
+```
+
+
+
+```{r}
+params_v3 <- tuneParams(params_v2)
+```
+

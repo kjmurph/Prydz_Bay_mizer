@@ -1,0 +1,94 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Romain's `getErrorCustom`
+
+```{r}
+getErrorCustom <- function(vary, params, dat, tol = 0.001, 
+    timetorun = 10)
+{
+  params@species_params$R_max[1:16]<-10^vary[1:16] # R_max for 16 species
+  params@species_params$erepro[1:16]<-vary[17:32] # erepro for 16 species
+  params@species_params$interaction_resource[1:16] <- vary[33:48] # interaction_resource for 16 species
+  params <- setParams(params)
+  # interaction <- params@interaction
+  # interaction[] <- matrix(vary[28:108],nrow = 9) # stop at 54 if looking only at 3 biggest species
+  
+  # params <- setInteraction(params,interaction)
+    params <- projectToSteady(params, distance_func = distanceSSLogN, 
+        tol = tol, t_max = 200, return_sim = F)
+    
+    sim <- project(params, t_max = timetorun, progress_bar = F)
+    
+    sim_biomass = rep(0, length(params@species_params$species))
+    
+        cutoffLow <- params@species_params$biomass_cutoffLow
+    if (is.null(cutoffLow)) 
+        cutoffLow <- rep(0, no_sp)
+    cutoffLow[is.na(cutoffLow)] <- 0
+    
+        cutoffHigh <- params@species_params$biomass_cutoffHigh
+    if (is.null(cutoffHigh)) 
+        cutoffHigh <- rep(0, no_sp)
+    cutoffHigh[is.na(cutoffHigh)] <- 0
+        
+    for (j in 1:length(sim_biomass)) {
+        sim_biomass[j] = sum((sim@n[dim(sim@n)[1],j,] * params@w * 
+            params@dw)[params@w >= cutoffLow[j] & cutoffHigh[j] >= params@w])
+    }
+    
+     pred <- log(sim_biomass)
+    dat <- log(dat)
+    discrep <- pred - dat
+    discrep <- (sum(discrep^2))
+    return(discrep)
+}
+    
+```
+
+
+
+
+```{r}
+getErrorCustom <- function(vary, params, dat, tol = 0.001, 
+    timetorun = 10)
+{
+  params@species_params$R_max[1:15]<-10^vary[1:15] # R_max for 15 species
+  params@species_params$erepro[1:15]<-vary[16:30] # erepro for 15 species
+  params@species_params$interaction_resource[1:15] <- vary[31:45] # interaction_resource for 15 species
+  params <- setParams(params)
+  interaction <- params@interaction
+  interaction[] <- matrix(vary[46:],nrow = 15) # Can limit it to specific species only
+  
+  params <- setInteraction(params,interaction)
+    params <- projectToSteady(params, distance_func = distanceSSLogN, 
+        tol = tol, t_max = 200, return_sim = F)
+    
+    sim <- project(params, t_max = timetorun, progress_bar = F)
+    
+    sim_biomass = rep(0, length(params@species_params$species))
+    
+        cutoffLow <- params@species_params$biomass_cutoffLow
+    if (is.null(cutoffLow)) 
+        cutoffLow <- rep(0, no_sp)
+    cutoffLow[is.na(cutoffLow)] <- 0
+    
+        cutoffHigh <- params@species_params$biomass_cutoffHigh
+    if (is.null(cutoffHigh)) 
+        cutoffHigh <- rep(0, no_sp)
+    cutoffHigh[is.na(cutoffHigh)] <- 0
+        
+    for (j in 1:length(sim_biomass)) {
+        sim_biomass[j] = sum((sim@n[dim(sim@n)[1],j,] * params@w * 
+            params@dw)[params@w >= cutoffLow[j] & cutoffHigh[j] >= params@w])
+    }
+```
+
+
+
+
+
+
+

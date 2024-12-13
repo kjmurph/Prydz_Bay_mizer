@@ -1,0 +1,492 @@
+---
+title: "Prydz Bay therMizer"
+output: html_notebook
+---
+
+```{r}
+# remotes::install_github("sizespectrum/mizerHowTo")
+# remotes::install_github("sizespectrum/mizerExperimental")
+# remotes::install_github("sizespectrum/therMizer")
+```
+
+
+```{r}
+library(mizer)
+library(therMizer)
+library(tidyverse)
+library(mizerExperimental)
+library(mizerHowTo)
+library(pbapply)
+library(openair)
+```
+
+```{r}
+params <- readRDS("params_07_06_2024.rds")
+```
+
+Check initial effort
+
+```{r}
+initial_effort(params)
+```
+
+Inspect some key parameters
+```{r}
+species_params(params) |> select(erepro, R_max)
+```
+
+# Update yield_observed
+
+Make sure to use yield from 2001-2010
+
+```{r}
+species_params(params) |> select(species, yield_observed)
+```
+
+
+Inspect ppmr and feeding kernel parameters
+```{r}
+species_params(params) |> select(pred_kernel_type, beta, ppmr_min, ppmr_max)
+```
+
+Update with latest depth resolved temperature from FishMIP input explorer: https://rstudio.global-ecosystem-model.cloud.edu.au/shiny/FishMIP_Input_Explorer/
+
+```{r}
+time_steps <- 1961:2010
+
+# tos <- readRDS("FishMIP_Temperature_Forcing/tos.rds")
+# t500m <- readRDS("FishMIP_Temperature_Forcing/t500m.rds")
+# t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m.rds")
+# t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m.rds")
+# tob <- readRDS("FishMIP_Temperature_Forcing/tob.rds")
+
+tos <- readRDS("FishMIP_Temperature_Forcing/tos_annual.rds")
+t500m <- readRDS("FishMIP_Temperature_Forcing/t500m_annual.rds")
+t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m_annual.rds")
+t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m_annual.rds")
+tob <- readRDS("FishMIP_Temperature_Forcing/tob_annual.rds")
+
+# tos <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tos_annual_WAO_corrected.rds")
+# t500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t500m_annual_WAO_corrected.rds")
+# t1000m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1000m_annual_WAO_corrected.rds")
+# t1500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1500m_annual_WAO_corrected.rds")
+# tob <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tob_annual_WAO_corrected.rds")
+
+ocean_temp <- abind::abind(tos,t500m,t1000m, t1500m, tob, along = 2)
+
+realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
+
+colnames(ocean_temp) <- realm_names
+rownames(ocean_temp) <- time_steps
+```
+
+Let's run a simulation and inspect the dynamics
+```{r}
+sim <- project(params, t_max = 500)
+plot(sim)
+plotlyBiomass(sim)
+plotlyBiomassRelative(sim)
+plotlySpectra(sim, power = 2, total = T)
+```
+
+Can we over write mammal scalars to 1?
+
+We want metabolism and encounter for mammals to be 1
+
+```{r}
+# plotTherPerformance(params_pre_temp)
+```
+
+
+```{r}
+plot(sim)
+plotBiomass(sim)
+plotFeedingLevel(sim, include_critical = T)
+plotSpectra(sim,power=2)
+plotBiomassObservedVsModel(sim,ratio=T)
+plotYieldObservedVsModel(sim,ratio=T)
+```
+
+
+Set up time steps
+```{r}
+time_steps <- 1961:2010
+```
+
+## plankton forcing data
+Set up the resource:
+```{r}
+isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abundance
+isimip_plankton <- as(isimip_plankton, "matrix")
+sizes <- names(params@initial_n_pp)
+
+n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes))
+
+# rownames(isimip_plankton) <- time_steps
+# colnames(isimip_plankton) <- sizes # signif(sizes, 6)
+
+# dim(isimip_plankton)
+# dim(n_pp_array)
+```
+
+Fill array
+- Need an extra time step preceding the simulation
+- IMPORTANT NOTE: CORRECTION TO  N_PP_ARRAY HERE
+
+```{r}
+n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp*params@dw_full)
+for (t in seq(1,length(time_steps) - 1,1)) {
+  n_pp_array[t + 1,] <- (isimip_plankton[t,]  - colMeans(isimip_plankton[,])) +  log10(params@initial_n_pp*params@dw_full)
+}
+
+# saveRDS(n_pp_array,"n_pp_array_26_08_2024.RDS")
+```
+
+
+## Fishing effort forcing
+
+Repeat this step for yield_observed
+
+```{r}
+time_steps_effort <- 1930:2010
+isimip_effort <- read.csv("FishMIP_fishing_data/effort_array.csv")
+
+years <- isimip_effort[,1]
+
+isimip_effort <- isimip_effort[,-1]
+rownames(isimip_effort) <- years
+
+for (i in 1:ncol(isimip_effort)) {
+  colnames(isimip_effort)[i] <- "knife_edge_gear"
+}
+
+head(isimip_effort)
+glimpse(isimip_effort)
+dim(isimip_effort)
+
+# effort_2001_2010 <- isimip_effort[-c(1:71,82:90),]
+effort_1930_2010 <- isimip_effort[-c(82:90),]
+
+isimip_effort_array <- as(effort_1930_2010, "matrix")
+# isimip_effort_array_1930_2010 <- as(effort_1930_2010, "matrix")
+
+gear_name = colnames(isimip_effort)
+
+
+effort_array <- array(NA, c(length(time_steps_effort), length(gear_name)), dimnames = list(time = time_steps_effort, gear = gear_name))
+effort_array[1,] = isimip_effort_array[1,]
+for (t in seq(1,length(time_steps_effort) - 1, 1)) {
+  effort_array[t + 1,] <- isimip_effort_array[t + 1,]
+}
+
+effort_array[is.na(effort_array)] <- 0
+
+head(effort_array)
+
+# saveRDS(effort_array,"effort_array_26_08_2024.RDS")
+# saveRDS(effort_array_full,"effort_array_full_26_08_2024.RDS")
+```
+
+```{r}
+# effort_array <- effort_array_full
+
+dim(effort_array)
+head(effort_array)
+effort_array[1,]
+
+# gear_params(params_v2)$gear <- gear_params(params_v2)$species
+gear_params(params)$gear <- gear_params(params)$species
+# gear_params(params_steady_F)$gear <- gear_params(params_steady_F)$species
+
+# gear_name = gear_params(params_steady_F)$gear
+# gear_name = gear_params(params_v2)$gear
+gear_name = gear_params(params)$gear
+colnames(effort_array) <- gear_name
+head(effort_array)
+# 
+# gear_params(params)$gear <- gear_name
+# gear_params(params)$gear
+# head(effort_array)
+
+# saveRDS(effort_array, "effort_array_therMizer.RDS")
+```
+
+# Recalibrate model with Thermizer
+- THIS PART IS FOR THE STEADY STATE ONLY
+
+For this step, we re-estimate the reproduction/biomass parameters using time-averaged forcing data
+
+First, reset initial n_pp to be time averaged value of plankton.
+
+```{r}
+# years_to_use_effort <- as.character(1951:1960)
+years_to_use<-as.character(2001:2010) # period used for the steady-state calibration
+
+
+initialNResource(params)[which(w_full(params) <100)]<-10^(colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)])/params@dw_full[which(w_full(params) < 100)]
+# #need to cut resource at 100g
+# initialNResource(params)[which(w_full(params) >=10)]<-0.0
+
+```
+
+```{r}
+# gear_name = gear_params(params)$gear
+# colnames(effort_array) <- gear_name
+# colnames(effort_array_full) <- gear_name
+# head(effort_array)
+
+# same with initial effort
+
+initial_effort(params)<-colMeans(effort_array[years_to_use,])
+
+# # use pre-collapse plank and temperatures
+# params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
+#       # vertical_migration_array = vertical_migration_array,
+#                             # exposure_array = ESS_exposure, 
+#                             aerobic_effect = FALSE, metabolism_effect = FALSE)
+
+params_pre_temp <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
+      # vertical_migration_array = vertical_migration_array,
+                            # exposure_array = ESS_exposure, 
+                            aerobic_effect = TRUE, metabolism_effect = TRUE)
+
+
+plot(params)
+# plot(params_pre)
+plot(params_pre_temp)
+
+# trim the effort array
+# effort_array_pre <-effort_array_full[years_to_use,]
+
+# saveRDS(params_pre,"params_for_use.RDS")
+
+# plotFeedingLevel(params_pre, include_critical = T)
+```
+Try using calibrateBiomass to provide the new system with enough food, but then you must update the n_pp_array to factor the anomaly based on the initial_n_pp
+
+Check initial_n_pp between the temp affects and not. 
+
+```{r}
+head(initialNResource(params))
+# head(initialNResource(params_pre))
+head(initialNResource(params_pre_temp))
+
+# head(params_pre@initial_n_pp)
+
+```
+
+
+```{r}
+params_pre_temp@species_params$species
+```
+
+[1] "mesozooplankton"          "other krill"              "other macrozooplankton"   "antarctic krill"         
+ [5] "salps"                    "mesopelagic fishes"       "bathypelagic fishes"      "shelf and coastal fishes"
+ [9] "flying birds"             "small divers"             "squids"                   "toothfishes"             
+[13] "leopard seals"            "medium divers"            "large divers"             "minke whales"            
+[17] "orca"                     "sperm whales"             "baleen whales"        
+
+```{r}
+# Add a new column to species_params to indicate thermal sensitivity
+params_pre_temp@species_params$is_ectothermic <- c(TRUE, TRUE, TRUE, TRUE,
+                                                   TRUE, TRUE, TRUE, TRUE,
+                                                   FALSE, FALSE, TRUE, TRUE,
+                                                   FALSE, FALSE, FALSE, FALSE,
+                                                   FALSE, FALSE,FALSE)
+
+
+# Create a function to conditionally apply temperature effects
+apply_temp_scaling <- function(params, temp_at_t) {
+    # Only apply scaling to ectothermic species
+    is_ecto <- species_params(params)$is_ectothermic
+
+    # Calculate unscaled temperature effect
+    unscaled_temp_effect <-
+        temp_at_t * (temp_at_t - (species_params(params)$temp_min + 273)) *
+        ((species_params(params)$temp_max + 273) - temp_at_t)^(1/2)
+
+    # Zero out temperature effects for endothermic species
+    unscaled_temp_effect[!is_ecto] <- 1
+
+    return(unscaled_temp_effect)
+}
+
+
+```
+
+
+
+```{r}
+
+sim <- project(params_pre_temp, t_max = 200)
+
+plot(sim)
+plotlyBiomass(sim)
+```
+
+
+```{r}
+initial_effort(params_pre_temp)
+params_pre_temp@gear_params$catchability
+
+params_temp <- params_pre_temp %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady()
+
+params_temp <- params_temp %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady()
+
+plot(params_temp)
+```
+
+
+Try adjusting catchability to increase minke whale reproduction parameters
+```{r}
+species_params(params_temp) |> select(species, yield_observed)
+gear_params(params_temp@params) |> select(gear, catchability)
+
+params_temp@params@species_params$species
+params_temp@params@species_params$yield_observed
+
+plotYield(params_temp)
+
+plotYieldObservedVsModel(params_temp)
+#Test ratio
+ratio<- plotYieldObservedVsModel(params_temp, return_data = TRUE)$ratio
+
+gear_params(params_temp)$catchability[16]<-gear_params(params_temp)$catchability[16]/ratio[3] #minke 
+gear_params(params_temp)$catchability[19]<-gear_params(params_temp)$catchability[19]/ratio[4] #baleen whales
+
+# gear_params(params)$catchability[c(7,8,12,16,19)]<-gear_params(params)$catchability[c(7,8,12,16,19)]/ratio
+```
+
+
+```{r}
+
+params_temp_v2 <- params_temp %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady()
+
+
+plotYieldObservedVsModel(params_temp_v2)
+```
+
+```{r}
+ratio<- plotYieldObservedVsModel(params_temp_v2, return_data = TRUE)$ratio
+
+gear_params(params_temp_v2)$catchability[16]<-gear_params(params_temp_v2)$catchability[16]/ratio[3] #minke 
+# gear_params(params_temp)$catchability[19]<-gear_params(params_temp)$catchability[19]/ratio[4] #baleen whales
+```
+
+
+```{r}
+params_temp_v3 <- params_temp_v2 %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady() %>% matchBiomasses() %>%  steady()
+
+
+plotYieldObservedVsModel(params_temp_v3)
+plotFeedingLevel(params_temp_v3)
+
+params_temp_v3 <- tuneParams(params_temp_v3)
+
+params_temp_v3@species_params$erepro
+```
+
+
+```{r}
+sim_temp <- project(params_temp, t_max = 100)
+
+plot(sim_temp)
+plotBiomassObservedVsModel(sim_temp)
+plotBiomassRelative(sim_temp)
+
+sim_temp@params@species_params$erepro
+```
+
+
+```{r}
+
+params_pre_v2 <- params_pre %>% calibrateBiomass() 
+
+params_pre_v3 <- tuneParams(params_pre)
+```
+
+
+```{r}
+head(initialNResource(params_pre))
+head(initialNResource(params_pre_v2))
+```
+
+
+Nice test to see that things are working correctly
+```{r}
+plotTherPerformance(params_pre)
+```
+
+Load catch data
+```{r}
+yield_timeseries <- read.csv("FishMIP_fishing_data/catch_timeseries.csv")
+
+rownames(yield_timeseries) <- yield_timeseries$Year
+
+yield_timeseries <- yield_timeseries[,-1]
+
+species_names <- species_params(params)$species
+
+colnames(yield_timeseries) <- species_names
+
+yield_array <- as(yield_timeseries, "matrix")
+
+# saveRDS(yield_array, "yield_array_ts.RDS")
+```
+
+
+Attempt to achieve a pre-1961 steady-state using the yield from 1961
+
+```{r}
+yield_ts <- readRDS("yield_array_ts.RDS")
+
+species_params(params_pre)$yield_observed <- colMeans(yield_ts[years_to_use_effort,])
+
+
+```
+
+
+```{r}
+params_pre <- steady(params_pre, t_max = 100, tol = 0.001)
+
+params_pre <- params_pre|> 
+  matchYields() |> steady(t_max = 1000, tol = 0.001) |> matchYields()|> steady(t_max = 1000, tol = 0.001) |>
+  matchYields() |> steady(t_max = 1000, tol = 0.001) |> matchYields()|> steady(t_max = 1000, tol = 0.001) |>
+  matchYields() |> steady(t_max = 1000, tol = 0.001) |> matchYields()|> steady(t_max = 1000, tol = 0.001) |>
+  matchYields() |> steady(t_max = 1000, tol = 0.001) |> matchYields()|> steady(t_max = 1000, tol = 0.001) |>
+  matchYields() |> steady(t_max = 1000, tol = 0.001) |> matchYields()|> steady(t_max = 1000, tol = 0.001)
+
+```
+
+
+
+
+```{r}
+plot(params_pre)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
