@@ -628,14 +628,20 @@ library(mizerExperimental)
 library(mizerHowTo)
 library(pbapply)
 ```
-
+Important: I had included feeding mode values for zooplankton to adjust ppmr allometries, but with these updates the params object is not currently compatible with therMizer
 
 ```{r}
-new_params <- readRDS("params_latest_biomass_09_Aug_2023.RDS")
-# new_params <- readRDS("params_fk_v2.RDS")
+# new_params <- readRDS("params/params_latest_biomass_09_Aug_2023.RDS")
+new_params <- readRDS("params/params_fk_v2.RDS")
 # new_params <- readRDS("params_fk.RDS") # Don't currently work with project() for therMizer, due to pred_kernel update
 
 ```
+
+
+```{r}
+species_params(new_params)
+```
+
 
 Check intial plankton abundance
 ```{r}

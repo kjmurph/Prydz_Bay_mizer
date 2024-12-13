@@ -10,7 +10,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-If working with g m2 for biomass and yield, then I can compare as is with the plankton forcings, provided the depth itegrated plankton is divided by the area m2
+If working with g m2 for biomass and yield, then I can compare as is with the plankton forcings, provided the depth integrated plankton is divided by the area m2
 
 ## Load libraries
 
