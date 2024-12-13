@@ -15,13 +15,13 @@ library(mizer)
 library(therMizer)
 library(tidyverse)
 library(mizerExperimental)
-library(mizerHowTo)
+#library(mizerHowTo)
 library(pbapply)
 library(openair)
 ```
 
 ```{r}
-params <- readRDS("params_07_06_2024.rds")
+params <- readRDS("params_for_use.RDS")
 ```
 
 Check initial effort
@@ -60,11 +60,12 @@ time_steps <- 1961:2010
 # t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m.rds")
 # tob <- readRDS("FishMIP_Temperature_Forcing/tob.rds")
 
-tos <- readRDS("FishMIP_Temperature_Forcing/tos_annual.rds")
-t500m <- readRDS("FishMIP_Temperature_Forcing/t500m_annual.rds")
-t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m_annual.rds")
-t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m_annual.rds")
-tob <- readRDS("FishMIP_Temperature_Forcing/tob_annual.rds")
+tos <- readRDS("tos_annual.rds")
+t500m <- readRDS("t500m_annual.rds")
+t1000m <- readRDS("t1000m_annual.rds")
+t1500m <- readRDS("t1500m_annual.rds")
+tob <- readRDS("tob_annual.rds")
+
 
 # tos <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tos_annual_WAO_corrected.rds")
 # t500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t500m_annual_WAO_corrected.rds")
@@ -94,7 +95,7 @@ Can we over write mammal scalars to 1?
 We want metabolism and encounter for mammals to be 1
 
 ```{r}
-# plotTherPerformance(params_pre_temp)
+#plotTherPerformance(params_pre_temp)
 ```
 
 
@@ -149,7 +150,7 @@ Repeat this step for yield_observed
 
 ```{r}
 time_steps_effort <- 1930:2010
-isimip_effort <- read.csv("FishMIP_fishing_data/effort_array.csv")
+isimip_effort <- read.csv("effort_array.csv")
 
 years <- isimip_effort[,1]
 
@@ -248,7 +249,7 @@ initial_effort(params)<-colMeans(effort_array[years_to_use,])
 params_pre_temp <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
       # vertical_migration_array = vertical_migration_array,
                             # exposure_array = ESS_exposure, 
-                            aerobic_effect = TRUE, metabolism_effect = TRUE)
+                            aerobic_effect = FALSE, metabolism_effect = TRUE)
 
 
 plot(params)
@@ -288,28 +289,28 @@ params_pre_temp@species_params$species
 
 ```{r}
 # Add a new column to species_params to indicate thermal sensitivity
-params_pre_temp@species_params$is_ectothermic <- c(TRUE, TRUE, TRUE, TRUE,
-                                                   TRUE, TRUE, TRUE, TRUE,
-                                                   FALSE, FALSE, TRUE, TRUE,
-                                                   FALSE, FALSE, FALSE, FALSE,
-                                                   FALSE, FALSE,FALSE)
-
-
-# Create a function to conditionally apply temperature effects
-apply_temp_scaling <- function(params, temp_at_t) {
-    # Only apply scaling to ectothermic species
-    is_ecto <- species_params(params)$is_ectothermic
-
-    # Calculate unscaled temperature effect
-    unscaled_temp_effect <-
-        temp_at_t * (temp_at_t - (species_params(params)$temp_min + 273)) *
-        ((species_params(params)$temp_max + 273) - temp_at_t)^(1/2)
-
-    # Zero out temperature effects for endothermic species
-    unscaled_temp_effect[!is_ecto] <- 1
-
-    return(unscaled_temp_effect)
-}
+#params_pre_temp@species_params$is_ectothermic <- c(TRUE, TRUE, TRUE, TRUE,
+#                                                    TRUE, TRUE, TRUE, TRUE,
+#                                                    FALSE, FALSE, TRUE, TRUE,
+#                                                    FALSE, FALSE, FALSE, FALSE,
+#                                                    FALSE, FALSE,FALSE)
+# 
+# 
+# # Create a function to conditionally apply temperature effects
+# apply_temp_scaling <- function(params, temp_at_t) {
+#     # Only apply scaling to ectothermic species
+#     is_ecto <- species_params(params)$is_ectothermic
+# 
+#     # Calculate unscaled temperature effect
+#     unscaled_temp_effect <-
+#         temp_at_t * (temp_at_t - (species_params(params)$temp_min + 273)) *
+#         ((species_params(params)$temp_max + 273) - temp_at_t)^(1/2)
+# 
+#     # Zero out temperature effects for endothermic species
+#     unscaled_temp_effect[!is_ecto] <- 1
+# 
+#     return(unscaled_temp_effect)
+# }
 
 
 ```
@@ -340,10 +341,10 @@ plot(params_temp)
 Try adjusting catchability to increase minke whale reproduction parameters
 ```{r}
 species_params(params_temp) |> select(species, yield_observed)
-gear_params(params_temp@params) |> select(gear, catchability)
+gear_params(params_temp) |> select(gear, catchability)
 
-params_temp@params@species_params$species
-params_temp@params@species_params$yield_observed
+params_temp@species_params$species
+params_temp@species_params$yield_observed
 
 plotYield(params_temp)
 
@@ -381,7 +382,7 @@ params_temp_v3 <- params_temp_v2 %>% matchBiomasses() %>%  steady() %>% matchBio
 plotYieldObservedVsModel(params_temp_v3)
 plotFeedingLevel(params_temp_v3)
 
-params_temp_v3 <- tuneParams(params_temp_v3)
+#params_temp_v3 <- tuneParams(params_temp_v3)
 
 params_temp_v3@species_params$erepro
 ```
