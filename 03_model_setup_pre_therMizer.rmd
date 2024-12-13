@@ -1314,7 +1314,12 @@ params_tuned_v07@species_params$erepro
 params_tuned_v07@species_params$R_max
 
 # saveRDS(params_tuned_v07, file="params_optim_v04_w_pp_100.rds")
-params_tuned_v07 <- readRDS("params/params_optim_v04_w_pp_100.rds")
+params_tuned_v07 <- readRDS("~/R Projects/Prydz_Bay_mizer/params/params_optim_v04_w_pp_100.rds")
+```
+
+
+```{r}
+species_params(params_tuned_v07)
 ```
 
 
