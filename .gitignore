@@ -12,4 +12,5 @@ Masks_netcdf_csv/
 SCAR_Diet_Energetics/
 In_prep/
 Annabelle_Network_Plots/
+gfdl_woa-regridded_bias-corr-data_temp_prydz-bay/
 *.nb.html
