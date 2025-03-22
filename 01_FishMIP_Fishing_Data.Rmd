@@ -114,7 +114,7 @@ unique(df_Prydz_catch$FGroup)
 
 
 ```{r}
-params <- readRDS("params_latest_xx.RDS")
+params <- readRDS("params/params_latest_xx.RDS")
 params@species_params$species
 params@species_params$w_max
 ```
@@ -166,7 +166,8 @@ df_Prydz_catch_prepared <- df_Prydz_catch %>%
                              )) %>% 
   filter(!FGroup=="rays<90cm" & !FGroup=="lobsterscrab") %>% 
   group_by(Year, species) %>% 
-  summarise(catch = sum(FishMIP_yield),
+  # summarise(catch = sum(FishMIP_yield), # not including IUU value
+  summarise(catch = sum(total_catch),
             catch_g = catch*1e6)
 
             # total_catch = sum(total_catch),
@@ -192,6 +193,7 @@ summary(df_Prydz_catch_prepared)
 ```
 
 ```{r}
+# df_Prydz_catch_prepared <- readRDS("FishMIP_fishing_data/catch_Prydz_Bay_1950_2004_resolution_v1.RDS")
 # Load required packages
 library(tidyr)
 library(dplyr)
@@ -215,7 +217,7 @@ print(reshaped_df)
 # Read in IWC catch
 
 ```{r}
-df_IWC_catch <- readRDS("FishMIP_fishing_data/catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
+df_IWC_catch <- readRDS("IWC_data/catch_timeseries_BanzareBank_1930_2019_CPUE.rds")
 
 glimpse(df_IWC_catch)
 ```
@@ -323,15 +325,6 @@ merged_df <- merge(filled_df, reordered_df, by = "Year", all.x = TRUE)
 # write.csv(merged_df, "catch_timeseries.csv")
 ```
 
-```{r}
-# Generate a sequence of years to pad the data
-filled_years <- full_seq(reordered_df$Year)
-
-# Use complete() to fill missing years and add rows of 0 values
-filled_df <- reordered_df %>%
-  complete(Year = all_years) %>%
-  replace_na(list(across(desired_species_order, ~ 0)))
-```
 
 
 ```{r}
@@ -364,6 +357,38 @@ reshaped_df_IWC <- df_IWC_catch_prepared %>%
 
 # Display the reshaped dataframe
 print(reshaped_df_IWC)
+```
+
+
+```{r}
+params@species_params$species
+
+# Replace NA values with 0
+merged_df_clean <- merged_df %>%
+  replace_na(list("mesozooplankton" = 0,
+                  "other krill" = 0,
+                  "other macrozooplankton" = 0,
+                  'antarctic krill' = 0,
+                  "salps" = 0,
+                  "mesopelagic fishes" = 0,
+                  'bathypelagic fishes' = 0,
+                  'shelf and coastal fishes' = 0,
+                  "flying birds" = 0,
+                  "small divers" = 0,
+                  "squids" = 0,
+                  "toothfishes" = 0,
+                  "leopard seals" = 0,
+                  "medium divers" = 0,
+                  "large divers" = 0,
+                  'minke whales' = 0,
+                  "orca" = 0,
+                  'sperm whales' = 0,
+                  'baleen whales' = 0))
+
+
+merged_df_clean
+
+# write.csv(merged_df_clean, "yield_observed_timeseries.csv")
 ```
 
 
@@ -501,6 +526,6 @@ p_effort <- df_Prydz_effort_prepared %>%
   facet_wrap(~species) +
   theme_classic()
 
-ggsave("plots/FishMIP_Effort_Normalised_Prydz_Bay_Annual_Means.tiff", plot = p_effort, units="cm", width=24, height=14, dpi =300)
+# ggsave("plots/FishMIP_Effort_Normalised_Prydz_Bay_Annual_Means.tiff", plot = p_effort, units="cm", width=24, height=14, dpi =300)
 ```
 
