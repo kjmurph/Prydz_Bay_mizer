@@ -3,6 +3,17 @@ title: "Prydz Bay therMizer"
 output: html_notebook
 ---
 
+To initialise a steady-state as our first step, prior to dynamical simulations we used the best source of biomass data for the region from a steady-state mass balanced EwE model of Pyrdz Bay from 2011-2020.
+
+To then force this model with historical fishing and climate scenarios,
+forcing derived from fishing effort that spans the period 1951 - 1960.
+
+Caveat:
+While the steady state is not refelective of the historical model where whale biomasses would have been higher,
+The simulations indicated that by the 2010s, the time series shows the biomasses are in the ball park
+
+Account for uncertainty, add that in to the time series
+
 ```{r}
 # remotes::install_github("sizespectrum/mizerHowTo")
 # remotes::install_github("sizespectrum/mizerExperimental")
@@ -29,120 +40,6 @@ Check initial effort
 ```{r}
 initial_effort(params)
 ```
-
-Inspect some key parameters
-```{r}
-species_params(params) |> select(erepro, R_max)
-```
-
-# Update yield_observed
-
-Make sure to use yield from 2001-2010
-
-```{r}
-species_params(params) |> select(species, yield_observed)
-```
-
-
-Inspect ppmr and feeding kernel parameters
-```{r}
-species_params(params) |> select(pred_kernel_type, beta, ppmr_min, ppmr_max)
-```
-
-Update with latest depth resolved temperature from FishMIP input explorer: https://rstudio.global-ecosystem-model.cloud.edu.au/shiny/FishMIP_Input_Explorer/
-
-```{r}
-time_steps <- 1961:2010
-
-# tos <- readRDS("FishMIP_Temperature_Forcing/tos.rds")
-# t500m <- readRDS("FishMIP_Temperature_Forcing/t500m.rds")
-# t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m.rds")
-# t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m.rds")
-# tob <- readRDS("FishMIP_Temperature_Forcing/tob.rds")
-
-tos <- readRDS("tos_annual.rds")
-t500m <- readRDS("t500m_annual.rds")
-t1000m <- readRDS("t1000m_annual.rds")
-t1500m <- readRDS("t1500m_annual.rds")
-tob <- readRDS("tob_annual.rds")
-
-
-# tos <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tos_annual_WAO_corrected.rds")
-# t500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t500m_annual_WAO_corrected.rds")
-# t1000m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1000m_annual_WAO_corrected.rds")
-# t1500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1500m_annual_WAO_corrected.rds")
-# tob <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tob_annual_WAO_corrected.rds")
-
-ocean_temp <- abind::abind(tos,t500m,t1000m, t1500m, tob, along = 2)
-
-realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
-
-colnames(ocean_temp) <- realm_names
-rownames(ocean_temp) <- time_steps
-```
-
-Let's run a simulation and inspect the dynamics
-```{r}
-sim <- project(params, t_max = 500)
-plot(sim)
-plotlyBiomass(sim)
-plotlyBiomassRelative(sim)
-plotlySpectra(sim, power = 2, total = T)
-```
-
-Can we over write mammal scalars to 1?
-
-We want metabolism and encounter for mammals to be 1
-
-```{r}
-#plotTherPerformance(params_pre_temp)
-```
-
-
-```{r}
-plot(sim)
-plotBiomass(sim)
-plotFeedingLevel(sim, include_critical = T)
-plotSpectra(sim,power=2)
-plotBiomassObservedVsModel(sim,ratio=T)
-plotYieldObservedVsModel(sim,ratio=T)
-```
-
-
-Set up time steps
-```{r}
-time_steps <- 1961:2010
-```
-
-## plankton forcing data
-Set up the resource:
-```{r}
-isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abundance
-isimip_plankton <- as(isimip_plankton, "matrix")
-sizes <- names(params@initial_n_pp)
-
-n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes))
-
-# rownames(isimip_plankton) <- time_steps
-# colnames(isimip_plankton) <- sizes # signif(sizes, 6)
-
-# dim(isimip_plankton)
-# dim(n_pp_array)
-```
-
-Fill array
-- Need an extra time step preceding the simulation
-- IMPORTANT NOTE: CORRECTION TO  N_PP_ARRAY HERE
-
-```{r}
-n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp*params@dw_full)
-for (t in seq(1,length(time_steps) - 1,1)) {
-  n_pp_array[t + 1,] <- (isimip_plankton[t,]  - colMeans(isimip_plankton[,])) +  log10(params@initial_n_pp*params@dw_full)
-}
-
-# saveRDS(n_pp_array,"n_pp_array_26_08_2024.RDS")
-```
-
 
 ## Fishing effort forcing
 
@@ -189,6 +86,584 @@ head(effort_array)
 ```
 
 ```{r}
+dim(effort_array)
+
+summary(effort_array)
+
+glimpse(effort_array)
+```
+
+```{r}
+# Create a dataframe with the array data
+effort_df <- as_tibble(effort_array, rownames = "Year") %>%
+  # Convert Year from character to numeric
+  mutate(Year = as.numeric(Year))
+
+species_names <- species_params(params)$species
+
+# Rename the columns
+colnames(effort_df)[2:20] <- species_names
+
+# Calculate means for 1951-1960 for each gear type
+effort_1951_1960_means <- effort_df %>%
+  filter(Year >= 1951 & Year <= 1960) %>%
+  summarise(across(-Year, ~mean(., na.rm = TRUE)))
+
+
+print(effort_1951_1960_means)
+```
+
+
+```{r}
+# Calculate means for 1951-1960 for each gear type
+effort_2001_2010_means <- effort_df %>%
+  filter(Year >= 2001 & Year <= 2010) %>%
+  summarise(across(-Year, ~mean(., na.rm = TRUE)))
+
+
+print(effort_2001_2010_means)
+```
+
+
+
+
+```{r}
+effort_1951_1960_means
+effort_2001_2010_means
+```
+
+```{r}
+gear_params(params)
+```
+
+
+Update initial effort to 0, as McCormack et al. 2020 calibrated a balanced model to the observed biomass under conditions of no fishing effort
+
+```{r}
+params_new <- params
+
+initial_effort(params_new) <- 0
+
+initial_effort(params_new)
+```
+Update yield_observed to 0 to match the 0 fishing effort
+
+```{r}
+species_params(params_new)$yield_observed <- 0
+
+species_params(params_new)$yield_observed
+```
+
+```{r}
+params_new_v2 <- params_new %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>%
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>% 
+  steady() %>% matchBiomasses() %>% steady() %>% matchBiomasses() %>%
+  steady() %>% matchBiomasses() %>% steady()
+
+
+params_new_v2@species_params$erepro
+getReproductionLevel(params_new_v2)
+```
+
+```{r}
+params_new_v3 <- tuneParams(params_new_v2)
+```
+
+Increased/decreased gamma for most groups to improve modelled growth curves in comparison to Von Bert: mesozoo through to flying birds. Also squids, toothfishes, medium/large divers and minke, sperm and baleen whales. Orcas by far the most sensitive group in terms of biomass responses to changes in gamma for all other groups.
+
+Inspect some key parameters
+```{r}
+species_params(params_new_v3) |> select(erepro, R_max)
+```
+
+```{r}
+species_params(params_new_v3)$gamma[1] <- 1.17112e-13 *2
+
+params_new_v3 <- steady(params_new_v3)
+```
+```{r}
+params_new_v3 <- tuneParams(params_new_v3)
+
+# saveRDS(params_new_v3, "params_steady_state_2011_2020.RDS")
+```
+
+
+```{r}
+# remotes::install_github("sizespectrum/mizerExperimental", ref = "tuneMR") # need to uninstall other mizerExperimental and reinstall this to use plotYieldCurve()
+# 
+# library(mizerExperimental)
+# 
+# pdf(file = "plots/repro_level_v3_yield_curves.pdf")
+# par(mfrow = c(19,1))
+# plotYieldCurve(params_new_v3, species = "mesozooplankton", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "other krill", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "other macrozooplankton", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "antarctic krill", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "salps", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "mesopelagic fishes", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "bathypelagic fishes", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "shelf and coastal fishes", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "flying birds", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "small divers", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "squids", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "toothfishes", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "leopard seals", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "medium divers", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "large divers", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "minke whales", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "orca", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "sperm whales", F_max = 1)
+# plotYieldCurve(params_test_v2, species = "baleen whales", F_max = 1)
+```
+
+Visual checks of yield curves look reasonable after the tweaks to reproduction level values
+
+
+```{r}
+params_new_v3 <- readRDS("params_steady_state_2011_2020.RDS")
+```
+
+
+```{r}
+sim <- project(params_new_v3, t_max = 200)
+
+plot(sim)
+```
+
+```{r}
+params_new_v4 <- params_new_v3 %>% 
+  steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+  
+  steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+  
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>%
+  
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>%
+  
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>%
+  
+  steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>%
+matchBiomasses() %>% 
+
+  steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro")
+
+
+params_new_v4@species_params$erepro
+params_new_v4@species_params$R_max
+getReproductionLevel(params_new_v4)
+
+sim_v2 <- project(params_new_v4, t_max = 200)
+
+plot(sim_v2)
+plotlyBiomass(sim_v2)
+plotlyBiomassRelative(sim_v2)
+
+# saveRDS(params_new_v4, "params_steady_state_2011_2020_tol_0.00025.RDS")
+```
+
+
+Inspect some key parameters
+```{r}
+species_params(params_new_v4) |> select(erepro, R_max)
+getReproductionLevel(params_new_v4)
+```
+
+# Update yield_observed
+
+```{r}
+df_yield <- read.csv("yield_observed_timeseries.csv")
+
+glimpse(df_yield)
+```
+
+```{r}
+# Calculate mean values for each group between 1951 and 1960
+yield_obs_1951_1960_mean <- df_yield %>%
+  filter(Year >= 1951 & Year <= 1960) %>%
+  summarise(across(.cols = -Year, 
+                  .fns = ~mean(., na.rm = TRUE)))
+
+# Print the results
+print(yield_obs_1951_1960_mean)
+
+```
+
+
+```{r}
+# Calculate mean values for each group between 2011 and 2020
+yield_obs_2011_2020_mean <- df_yield %>%
+  filter(Year >= 2011 & Year <= 2020) %>%
+  summarise(across(.cols = -Year, 
+                  .fns = ~mean(., na.rm = TRUE)))
+
+# Print the results
+print(yield_obs_2011_2020_mean)
+```
+
+
+
+
+Make sure to use yield from 2001-2010
+
+```{r}
+species_params(params) |> select(species, yield_observed)
+```
+
+
+```{r}
+initial_effort(params_new_v4)
+species_params(params_new_v4)$yield_observed
+```
+
+Explore model diagnostics
+
+Is the steady state reasonable and we can present these in supplement, if no room in main
+```{r}
+
+sim <- project(params_new_v4, t_max = 100)
+
+
+plot(params_new_v4)
+plotlyFeedingLevel(params_new_v4, include_critical = T)
+plotGrowthCurves(params_new_v4, species_panel = T) 
+plotDiet(params_new_v4)
+plotBiomassObservedVsModel(params_new_v4)
+```
+
+
+Take the 2010 steady-state and expose it to 1841 from no fishing and play out the time series of effort.
+
+First step is probably to run the model with fishing, without climate. Can have the two scenarios of FishMIP effort only, and additional scenario of IWC whaling included as well.
+
+Step two would be run with climate but no fishing (nat).
+
+To construct the 1841 - 1960 forcing, use the “control run” (ctrlclim) monthly output for the years 1961-1980 (inclusive) on repeat for six cycles.
+
+To account for the uncertainty in initial biomasses, we can test a range of biomasses +- interactions.
+
+- Can we scale the whole system up 
+
+Do we specify a threshold for what equates to a reasonalbe fit/correlation to the observed catch.
+
+Use loop to randomise the biomass and/or interaction matrix with a mean of 0 and standard deviation of x to test the uncertainty bounds
+
+Do we need a spin up for this to be at realistic biomass values
+
+Initial whaling in this area starts in 1930
+                       - Baleen whaling starts in 1930, peak effort 1933
+                       - Sperm whaling starts in 1932, peak effort 1948
+
+FishMIP fishing effort - shelf & coastal fishes starts in 1950
+                       - Antarctic krill starts in 1974
+
+Make a new param object for the pre-1961 steady-state, which will use the mean effort and yield values from 1951-1960. 
+
+```{r}
+params_pre_1961 <- params_new_v4
+
+initial_effort_1951_1960 <- c(0, #  mesozooplankton
+                              0, # other krill
+                              0, # other macrozooplankton
+                              0, # antarctic krill
+                              0, # salps
+                              0,   # mesopelagic fishes 
+                              0, # bathypelagic fishes
+                              0.2254233, # shelf and coastal fishes
+                              0, # flying birds
+                              0,  # small divers
+                              0, # squids
+                              0, # toothfishes
+                              0, # leopard seals
+                              0,  # medium divers
+                              0, # large divers #is now only elephant seals
+                              0, # minke whales
+                              0, # orca
+                              0.3554694, # sperm whales
+                              0.2427938 # baleen whales
+                      )
+
+initial_effort(params_pre_1961) <- initial_effort_1951_1960
+
+yield_observed_1951_1960 <-      c(0, #  mesozooplankton
+                              0, # other krill
+                              0, # other macrozooplankton
+                              0, # antarctic krill
+                              0, # salps
+                              0,   # mesopelagic fishes 
+                              0, # bathypelagic fishes
+                              834616196, # shelf and coastal fishes
+                              0, # flying birds
+                              0,  # small divers
+                              0, # squids
+                              0, # toothfishes
+                              0, # leopard seals
+                              0,  # medium divers
+                              0, # large divers #is now only elephant seals
+                              0, # minke whales
+                              0, # orca
+                              14258899641, # sperm whales
+                              131186771880 # baleen whales
+                      )
+  
+species_params(params_pre_1961)$yield_observed <- yield_observed_1951_1960
+# gear_params()
+```
+
+
+# Time series projection, fishing effort only
+
+Let's use the steady-state 'base' model to run the time series from 1841 - 2010.
+
+First, we need to expand the effort array, as the first values we have currently are 1930.
+
+```{r}
+# First, create a vector with the new years you want to add
+new_years <- as.character(1841:1929)
+
+# Create a matrix of zeros with the appropriate dimensions
+# (number of new years × number of columns in original array)
+new_data <- matrix(0, nrow = length(new_years), ncol = ncol(effort_array))
+
+# Add dimension names to match the structure of your original array
+dimnames(new_data) <- list(time = new_years, gear = dimnames(effort_array)[[2]])
+
+# Combine the new data with the original array
+# We put the new years first since they come before the original years
+combined_effort_array <- rbind(new_data, effort_array)
+
+# Verify the dimensions of the new array
+dim(combined_effort_array)
+# Should show [1] 170 19 (89 new rows + 81 original rows, 19 columns)
+```
+
+Re-name the gears names in the effort array so it matches the species
+```{r}
+
+colnames(combined_effort_array) <- species_names
+
+head(combined_effort_array)
+
+```
+
+
+Project the time-series with the new effort array using the base model
+```{r}
+sim_1841_2010_fishing_only <- project(params_new_v4, effort = combined_effort_array)
+
+plot(sim_1841_2010_fishing_only)
+
+plotYield(sim_1841_2010_fishing_only)
+```
+
+
+
+```{r}
+
+params_pre_1961_v2 <- setParams(params_pre_1961)
+
+gear_params(params_pre_1961_v2)
+```
+
+gear_params() has not update the 'yield_observed' values, even after running setParams(). This may cause issues when using tuneParams()
+
+Try manually updating 'yield_observed' in gear_params(params_pre_1961_v2)
+
+```{r}
+
+gear_params(params_pre_1961_v2)$yield_observed <- yield_observed_1951_1960
+
+```
+
+
+```{r}
+params_pre_1961_v2 <- params_pre_1961_v2 %>% 
+  steady() %>% matchYield() %>% steady() %>% 
+  steady() %>% matchYield() %>% steady() %>% 
+  steady() %>% matchYield() %>% steady() %>% 
+  steady() %>% matchYield() %>% steady() %>% 
+  steady() %>% matchYield() %>% steady()
+
+```
+
+
+```{r}
+params_pre_1961_v3 <- tuneParams(params_pre_1961_v2)
+
+```
+
+
+From FishMIP 2.0 protocol: https://github.com/Fish-MIP/FishMIP2.0_ISIMIP3a?tab=readme-ov-file#additional-notes-for-regional-fishmip-models
+
+Note on spin-up and transition period (1841-1960), and historical (experiment) period 1961-2010
+The focal historical period for this model evaluation experiment spans 1961-2010. To capture the transition from a pre-industrial spin-up to 1961 we also provide input for a gradual increase in fishing and environmental variability for the pre-industrial period to 1961.
+
+For fishing effort prior to 1961, we provide input for a nominal spin-up (1841-1860, fishing held constant at 1861 levels) and pre-industrial transition period (1861-1960, reconstructed fishing effort).
+
+To set-up climate-forcing variables for the entire 1841-1960 period, we ask modellers to use the “control run” (ctrlclim) monthly output for the years 1961-1980 (inclusive) on repeat for six cycles. These years have been selected because they correspond with an entire ENSO cycle and because no climate trend is detectable prior to 1980 from the GFDL model.
+
+For models that require longer spin-up prior to 1841, please keep 1841 levels of fishing effort constant and, if needed, repeat the ENSO cycle (e.g. monthly values for 1961-1980 inclusive from ctrlclim) for as many times necessary.
+
+For the ‘no fishing’ runs (nat), the spin-up and pre-industrial transition should not use any fishing effort.
+
+We ask modellers to include all outputs from 1841 onwards for use in our evaluation assessment of model drift. Each output should be saved as two files, the first covering the spin-up and transition period (1841-1960) and the second covering the historical (experiment) period (1961-2010).
+
+
+Inspect ppmr and feeding kernel parameters
+```{r}
+species_params(params_pre_1961) |> select(pred_kernel_type, beta, ppmr_min, ppmr_max)
+```
+
+Update with latest depth resolved temperature from FishMIP input explorer: https://rstudio.global-ecosystem-model.cloud.edu.au/shiny/FishMIP_Input_Explorer/
+
+```{r}
+time_steps <- 1961:2010
+
+# tos <- readRDS("FishMIP_Temperature_Forcing/tos.rds")
+# t500m <- readRDS("FishMIP_Temperature_Forcing/t500m.rds")
+# t1000m <- readRDS("FishMIP_Temperature_Forcing/t1000m.rds")
+# t1500m <- readRDS("FishMIP_Temperature_Forcing/t1500m.rds")
+# tob <- readRDS("FishMIP_Temperature_Forcing/tob.rds")
+
+tos <- readRDS("tos_annual.rds")
+t500m <- readRDS("t500m_annual.rds")
+t1000m <- readRDS("t1000m_annual.rds")
+t1500m <- readRDS("t1500m_annual.rds")
+tob <- readRDS("tob_annual.rds")
+
+
+# tos <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tos_annual_WAO_corrected.rds")
+# t500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t500m_annual_WAO_corrected.rds")
+# t1000m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1000m_annual_WAO_corrected.rds")
+# t1500m <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/t1500m_annual_WAO_corrected.rds")
+# tob <- readRDS("FishMIP_Temperature_Forcing/WAO_corrected/tob_annual_WAO_corrected.rds")
+
+ocean_temp <- abind::abind(tos,t500m,t1000m, t1500m, tob, along = 2)
+
+realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
+
+colnames(ocean_temp) <- realm_names
+rownames(ocean_temp) <- time_steps
+```
+
+Let's run a simulation and inspect the dynamics
+```{r}
+sim <- project(params_pre_1961, t_max = 100)
+plot(sim)
+plotlyBiomass(sim)
+plotlyBiomassRelative(sim)
+plotlySpectra(sim, power = 2, total = T)
+```
+
+Can we over write mammal scalars to 1?
+
+We want metabolism and encounter for mammals to be 1
+
+```{r}
+# plotTherPerformance(params)
+```
+
+
+```{r}
+plot(sim)
+plotBiomass(sim)
+plotFeedingLevel(sim, include_critical = T)
+plotSpectra(sim,power=2)
+plotBiomassObservedVsModel(sim,ratio=T)
+plotYieldObservedVsModel(sim,ratio=T)
+```
+
+
+
+
+Set up time steps
+```{r}
+time_steps <- 1961:2010
+```
+
+## plankton forcing data
+Set up the resource:
+```{r}
+isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abundance
+isimip_plankton <- as(isimip_plankton, "matrix")
+sizes <- names(params@initial_n_pp)
+
+n_pp_array <- array(NA, dim = c(length(time_steps), length(sizes)), dimnames = list(time = time_steps, w = sizes))
+
+# rownames(isimip_plankton) <- time_steps
+# colnames(isimip_plankton) <- sizes # signif(sizes, 6)
+
+# dim(isimip_plankton)
+# dim(n_pp_array)
+```
+
+Fill array
+- Need an extra time step preceding the simulation
+- IMPORTANT NOTE: CORRECTION TO  N_PP_ARRAY HERE
+
+```{r}
+n_pp_array[1,] <- (isimip_plankton[1,] - colMeans(isimip_plankton[,])) + log10(params@initial_n_pp*params@dw_full)
+for (t in seq(1,length(time_steps) - 1,1)) {
+  n_pp_array[t + 1,] <- (isimip_plankton[t,]  - colMeans(isimip_plankton[,])) +  log10(params@initial_n_pp*params@dw_full)
+}
+
+# saveRDS(n_pp_array,"n_pp_array_26_08_2024.RDS")
+```
+
+
+
+
+```{r}
 # effort_array <- effort_array_full
 
 dim(effort_array)
@@ -221,14 +696,20 @@ First, reset initial n_pp to be time averaged value of plankton.
 
 ```{r}
 # years_to_use_effort <- as.character(1951:1960)
-years_to_use<-as.character(2001:2010) # period used for the steady-state calibration
+years_to_use <- as.character(2001:2010) # period used for the steady-state calibration
+year_constant <- as.character(2001)
 
 
 initialNResource(params)[which(w_full(params) <100)]<-10^(colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)])/params@dw_full[which(w_full(params) < 100)]
 # #need to cut resource at 100g
 # initialNResource(params)[which(w_full(params) >=10)]<-0.0
 
+
 ```
+
+
+
+
 
 ```{r}
 # gear_name = gear_params(params)$gear
@@ -248,8 +729,9 @@ initial_effort(params)<-colMeans(effort_array[years_to_use,])
 
 params_pre_temp <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
       # vertical_migration_array = vertical_migration_array,
-                            # exposure_array = ESS_exposure, 
+                            # exposure_array = ESS_exposure,
                             aerobic_effect = FALSE, metabolism_effect = TRUE)
+
 
 
 plot(params)
@@ -316,10 +798,148 @@ params_pre_temp@species_params$species
 ```
 
 
+# Update yield_observed to 1950s values
+yield_observed values are based on the time-averaged period 2001:2010
+We have calibrated the model to the biomass_observed values for the same 2001:2010 period to a steady-state and tuned catchability in the model based on fishing parameters for 2001:2010.
+
+Now we need to update the fishing parameters, namely the yield_observedto represent the time-averaged period from 1951:1960 to represent a new steady-state model
+
+```{r}
+species_params(params_pre_temp) |> select(species, yield_observed)
+
+params_1951_1960_steady_state <- params_pre_temp
+```
+
+
+
+
+Re-run the model to steady-state for the pre-historical forcing period
+```{r}
+years_pre_whaling <- as.character(1951:1960) # period used for the new steady-state calibration
+years_pre <- as.character(1951:1960) # period used for the new steady-state calibration
+
+params_pre <- params
+
+initial_effort(params_pre) <- colMeans(effort_array[years_pre,])
+
+initial_effort(params)
+initial_effort(params_pre)
+
+# # use pre-collapse plank and temperatures
+# params_pre <- upgradeTherParams(params, ocean_temp_array = ocean_temp[years_to_use,],n_pp_array = n_pp_array[years_to_use,],
+#       # vertical_migration_array = vertical_migration_array,
+#                             # exposure_array = ESS_exposure, 
+#                             aerobic_effect = FALSE, metabolism_effect = FALSE)
+
+```
+
+
+Historical spin-up forcing
+
+## Plankton
+
+```{r}
+# Get the first year's data
+first_year_data <- n_pp_array[1,]
+
+# Create historical years sequence
+historical_years <- as.character(1861:1960)
+
+# Create new array for historical data
+historical_array <- array(NA, 
+                        dim = c(length(historical_years), length(sizes)),
+                        dimnames = list(time = historical_years, w = sizes))
+
+# Fill historical array with repeated first year data
+for (i in 1:length(historical_years)) {
+  historical_array[i,] <- first_year_data
+}
+
+# Combine historical and original arrays
+extended_n_pp_array <- rbind(historical_array, n_pp_array)
+```
+
+
+## Temperature
+
+```{r}
+# Get the first year's data (1961)
+first_year_temp <- ocean_temp[1,]
+
+# Create matrix for historical data
+historical_temps <- matrix(rep(first_year_temp, length(historical_years)), 
+                         nrow = length(historical_years),
+                         ncol = ncol(ocean_temp),
+                         byrow = TRUE,
+                         dimnames = list(historical_years, colnames(ocean_temp)))
+
+# Combine historical and original data
+extended_ocean_temp <- rbind(historical_temps, ocean_temp)
+```
+
+
+## Fishing
+Take the first year and make this constant as well, same fashion as temp and plankton
 
 ```{r}
 
-sim <- project(params_pre_temp, t_max = 200)
+params_pre_metab_temp <- upgradeTherParams(params_pre, ocean_temp_array = extended_ocean_temp[historical_years,], n_pp_array = extended_n_pp_array[historical_years,],
+      # vertical_migration_array = vertical_migration_array,
+                            # exposure_array = ESS_exposure,
+                            aerobic_effect = FALSE, metabolism_effect = TRUE)
+```
+
+
+
+
+```{r}
+params_pre_metab_temp_tuned <- tuneParams(params_pre_metab_temp)
+
+# saveRDS(params_pre_metab_temp_tuned, "working_version_params_12_02_2025.RDS")
+
+params_pre_metab_temp_tuned <- tuneParams(params_pre_metab_temp_tuned)
+```
+
+Update the yield observed to represent the 1950s and we probably need to retune the catchability, or at least add catchability for species fished in the 50s and not in 2010s
+
+Use plotYieldVsSize() to explore size distribution of catch
+
+Create a new steady state using the fishing yield instead of the biomass, as per the 2010s steady state, as we have no historical biomass. Given a constant environment to achieve the steady state and then feed this into the time series approach from 1841 as per the protocol
+
+If catchbility exceeeds 1, then can try manually adjusting....increments
+
+What happens if we make all catchability a constant to make the effort * catchability (f_mort) equate to...0.2 for example
+```{r}
+gear_params(params_pre_metab_temp_tuned)
+
+
+params_catch_test <- params_pre_metab_temp_tuned
+
+gear_params(params_catch_test)$catchability <- 0.2
+
+
+params_catch_test <- steady(params_catch_test)
+
+plotFMort(params_catch_test)
+```
+
+
+```{r}
+
+params_pre_metab_temp_tuned_v2 <- params_pre_metab_temp_tuned %>% matchYield() %>%   matchYields(species = c("shelf and coastal fishes", "baleen whales")) %>% 
+  steady(t_max = 200, t_per = 100) %>%  matchYields(species = c("shelf and coastal fishes", "baleen whales")) %>% 
+  steady()  %>%  matchYields(species = c("shelf and coastal fishes", "baleen whales")) %>% 
+  steady()  %>%  matchYields(species = c("shelf and coastal fishes", "baleen whales")) %>% 
+  steady()
+```
+```{r}
+plotYieldObservedVsModel(params_pre_metab_temp_tuned_v2)
+```
+
+
+```{r}
+
+sim <- project(params_pre_metab_temp_tuned, t_max = 100)
 
 plot(sim)
 plotlyBiomass(sim)
@@ -346,7 +966,7 @@ gear_params(params_temp) |> select(gear, catchability)
 params_temp@species_params$species
 params_temp@species_params$yield_observed
 
-plotYield(params_temp)
+# plotYield(params_temp)
 
 plotYieldObservedVsModel(params_temp)
 #Test ratio
@@ -448,7 +1068,7 @@ species_params(params_pre)$yield_observed <- colMeans(yield_ts[years_to_use_effo
 
 
 ```{r}
-params_pre <- steady(params_pre, t_max = 100, tol = 0.001)
+params_pre <- steady(params_temp, t_max = 100, tol = 0.001)
 
 params_pre <- params_pre|> 
   matchYields() |> steady(t_max = 1000, tol = 0.001) |> matchYields()|> steady(t_max = 1000, tol = 0.001) |>
@@ -463,11 +1083,26 @@ params_pre <- params_pre|>
 
 
 ```{r}
-plot(params_pre)
+sim_temp_v2 <- project(params_pre, t_max = 100)
+plot(sim_temp_v2)
+
+
+plotBiomassObservedVsModel(sim_temp_v2)
+plotBiomassRelative(sim_temp_v2)
+
+sim_temp_v2@params@species_params$erepro
+```
+
+```{r}
+params_pre_v2 <- tuneParams(params_pre)
 ```
 
 
+```{r}
+params_pre_v2 <- tuneParams(params_pre_v2)
 
+params_pre_v2@species_params$erepro
+```
 
 
 
