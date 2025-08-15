@@ -191,7 +191,7 @@ FishMIP Large demersal expressed as the maximum effort for toothfish (maybe othe
 
 Load catch length
 ```{r}
-catch_lengths <- readRDS("catch_lengths.rds")
+catch_lengths <- readRDS("IWC_data/catch_lengths.rds")
 
 glimpse(catch_lengths)
 ```

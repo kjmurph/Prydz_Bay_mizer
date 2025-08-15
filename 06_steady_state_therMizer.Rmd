@@ -313,6 +313,11 @@ plotlyBiomassRelative(sim_v2)
 ```
 
 
+```{r}
+params_new_v4 <- readRDS("params_steady_state_2011_2020_tol_0.00025.RDS")
+```
+
+
 Inspect some key parameters
 ```{r}
 species_params(params_new_v4) |> select(erepro, R_max)
@@ -373,12 +378,13 @@ Is the steady state reasonable and we can present these in supplement, if no roo
 
 sim <- project(params_new_v4, t_max = 100)
 
-
+plot(sim)
 plot(params_new_v4)
 plotlyFeedingLevel(params_new_v4, include_critical = T)
 plotGrowthCurves(params_new_v4, species_panel = T) 
 plotDiet(params_new_v4)
 plotBiomassObservedVsModel(params_new_v4)
+plotlyBiomassRelative(sim)
 ```
 
 
@@ -461,6 +467,21 @@ species_params(params_pre_1961)$yield_observed <- yield_observed_1951_1960
 ```
 
 
+From FishMIP 2.0 protocol: https://github.com/Fish-MIP/FishMIP2.0_ISIMIP3a?tab=readme-ov-file#additional-notes-for-regional-fishmip-models
+
+Note on spin-up and transition period (1841-1960), and historical (experiment) period 1961-2010
+The focal historical period for this model evaluation experiment spans 1961-2010. To capture the transition from a pre-industrial spin-up to 1961 we also provide input for a gradual increase in fishing and environmental variability for the pre-industrial period to 1961.
+
+For fishing effort prior to 1961, we provide input for a nominal spin-up (1841-1860, fishing held constant at 1861 levels) and pre-industrial transition period (1861-1960, reconstructed fishing effort).
+
+To set-up climate-forcing variables for the entire 1841-1960 period, we ask modellers to use the “control run” (ctrlclim) monthly output for the years 1961-1980 (inclusive) on repeat for six cycles. These years have been selected because they correspond with an entire ENSO cycle and because no climate trend is detectable prior to 1980 from the GFDL model.
+
+For models that require longer spin-up prior to 1841, please keep 1841 levels of fishing effort constant and, if needed, repeat the ENSO cycle (e.g. monthly values for 1961-1980 inclusive from ctrlclim) for as many times necessary.
+
+For the ‘no fishing’ runs (nat), the spin-up and pre-industrial transition should not use any fishing effort.
+
+We ask modellers to include all outputs from 1841 onwards for use in our evaluation assessment of model drift. Each output should be saved as two files, the first covering the spin-up and transition period (1841-1960) and the second covering the historical (experiment) period (1961-2010).
+
 # Time series projection, fishing effort only
 
 Let's use the steady-state 'base' model to run the time series from 1841 - 2010.
@@ -494,75 +515,370 @@ colnames(combined_effort_array) <- species_names
 
 head(combined_effort_array)
 
+# saveRDS(combined_effort_array, "effort_array_1841_2010.rds")
+
+```
+# Plot yield curves
+
+Check resilience of all groups to fishing
+```{r}
+plot_yield_curve_1 <- plotYieldVsF(params_new_v4, species = c("mesozooplankton"))
+plot_yield_curve_2 <-plotYieldVsF(params_new_v4, species = c("other krill"))
+plot_yield_curve_3 <-plotYieldVsF(params_new_v4, species = c("other macrozooplankton"))
+plot_yield_curve_4 <-plotYieldVsF(params_new_v4, species = c("antarctic krill"))
+plot_yield_curve_5 <-plotYieldVsF(params_new_v4, species = c("salps"))
+plot_yield_curve_6 <-plotYieldVsF(params_new_v4, species = c("mesopelagic fishes"))
+plot_yield_curve_7 <-plotYieldVsF(params_new_v4, species = c("bathypelagic fishes"))
+plot_yield_curve_8 <-plotYieldVsF(params_new_v4, species = c("shelf and coastal fishes"))
+plot_yield_curve_9 <-plotYieldVsF(params_new_v4, species = c("flying birds"))
+plot_yield_curve_10 <-plotYieldVsF(params_new_v4, species = c("small divers"))
+plot_yield_curve_11 <-plotYieldVsF(params_new_v4, species = c("squids"))
+plot_yield_curve_12 <-plotYieldVsF(params_new_v4, species = c("toothfishes"))
+plot_yield_curve_13 <-plotYieldVsF(params_new_v4, species = c("leopard seals"))
+plot_yield_curve_14 <-plotYieldVsF(params_new_v4, species = c("medium divers"))
+plot_yield_curve_15 <-plotYieldVsF(params_new_v4, species = c("large divers"))
+plot_yield_curve_16 <-plotYieldVsF(params_new_v4, species = c("minke whales"))
+plot_yield_curve_17 <-plotYieldVsF(params_new_v4, species = c("orca"))
+plot_yield_curve_18 <-plotYieldVsF(params_new_v4, species = c("sperm whales"))
+plot_yield_curve_19 <-plotYieldVsF(params_new_v4, species = c("baleen whales"))
+
+plot_yield_curve_1 
+plot_yield_curve_2
+plot_yield_curve_3 
+plot_yield_curve_4 
+plot_yield_curve_5 
+plot_yield_curve_6 
+plot_yield_curve_7 
+plot_yield_curve_8 
+plot_yield_curve_9 
+plot_yield_curve_10 
+plot_yield_curve_11
+plot_yield_curve_12
+plot_yield_curve_13 
+plot_yield_curve_14 
+plot_yield_curve_15 
+plot_yield_curve_16 
+plot_yield_curve_17 
+plot_yield_curve_18 
+plot_yield_curve_19 
 ```
 
 
+```{r}
+# rep_level <- getReproductionLevel(params_new_v4)
+# 
+# rep_level["small divers"] <- 0.9
+# 
+# rep_level["mesozooplankton"] <- 0.5913907                
+# 
+# params_resilience <- params_new_v4
+# 
+# params_resilience <- setBevertonHolt(params_resilience, reproduction_level = rep_level)
+# 
+# plotYieldVsF(params_resilience, species = "small divers", F_max = 0.8)
+# plotYieldVsF(params_resilience, species = "mesozooplankton", F_max = 0.8)
+
+```
+
+
+```{r}
+# params_resilience_v2 <- params_resilience %>% 
+#   # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+#   # 
+#   # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+#   # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+# 
+#   steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>%
+#   steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>%
+#   
+#   steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>%
+#   steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>%
+#   
+#   steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>%
+#   steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% 
+#   matchBiomasses() %>% 
+# 
+# steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>%
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>%
+# matchBiomasses() %>% 
+# 
+#   steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>%
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+#   steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro")
+# 
+# 
+# any(species_params(params_resilience_v2)$erepro >= 1)
+# params_resilience_v2@species_params$erepro
+# # params_ratio_v2@species_params$R_max
+# # getReproductionLevel(params_ratio_v2)
+# # 
+# sim_resilience <- project(params_resilience_v2, t_max = 200)
+# # 
+# plot(sim_resilience)
+# plotlyBiomass(sim_resilience)
+# plotlyBiomassRelative(sim_resilience)
+# # 
+# # params_ratio_v2@species_params
+# 
+# # saveRDS(params_new_v4, "params_steady_state_2011_2020_tol_0.00025.RDS")
+```
+
+Explore catch size distribution for whale groups
+```{r}
+# sim_catch_distribution <- project(sim_resilience, effort = combined_effort_array)
+# 
+# plot(sim_catch_distribution)
+# 
+# plotYield(sim_catch_distribution)
+# plotBiomass(sim_catch_distribution)
+```
+
+Load catch length
+```{r}
+catch_lengths <- readRDS("IWC_data/catch_lengths.rds")
+
+glimpse(catch_lengths)
+```
+
+```{r}
+plotYieldVsSize(sim_catch_distribution, species = "baleen whales", catch = catch_lengths, 
+                x_var = "Length")
+
+plotYieldVsSize(sim_catch_distribution, species = "sperm whales", catch = catch_lengths,
+                x_var = "Length")
+
+plotYieldVsSize(sim_catch_distribution, species = "orca", catch = catch_lengths,
+                x_var = "Length")
+
+plotYieldVsSize(sim_catch_distribution, species = "minke whales", catch = catch_lengths, 
+                x_var = "Length")
+```
+
 Project the time-series with the new effort array using the base model
 ```{r}
+params_new_v4 <- readRDS("params_steady_state_2011_2020_tol_0.00025.RDS")
+
 sim_1841_2010_fishing_only <- project(params_new_v4, effort = combined_effort_array)
 
 plot(sim_1841_2010_fishing_only)
 
 plotYield(sim_1841_2010_fishing_only)
+plotBiomass(sim_1841_2010_fishing_only)
 ```
 
+Load catch data
+```{r}
+yield_timeseries <- read.csv("FishMIP_fishing_data/catch_timeseries.csv")
 
+rownames(yield_timeseries) <- yield_timeseries$Year
+
+yield_timeseries <- yield_timeseries[,-1]
+
+species_names <- species_params(params_new_v4)$species
+
+colnames(yield_timeseries) <- species_names
+
+yield_array <- as(yield_timeseries, "matrix")
+```
 
 ```{r}
+yield_ts <- yield_array %>% 
+  melt()
 
-params_pre_1961_v2 <- setParams(params_pre_1961)
+head(yield_ts)
 
-gear_params(params_pre_1961_v2)
+names(yield_ts) <- c("Year", "Species", "Yield")
+
+yield_ts_tidy <- yield_ts %>% 
+  # filter(Species == "shelf and coastal fishes" |
+  #          Species == "squids" |
+  #          Species == "toothfishes" |
+  #          Species == "minke whales" |
+  #          Species == "baleen whales"|
+  #          Species == "sperm whales") %>% 
+  filter(!Yield == 0)
+
+glimpse(yield_ts_tidy)
+head(yield_ts_tidy)
 ```
 
-gear_params() has not update the 'yield_observed' values, even after running setParams(). This may cause issues when using tuneParams()
 
-Try manually updating 'yield_observed' in gear_params(params_pre_1961_v2)
-
+Plot observed yield
 ```{r}
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
 
-gear_params(params_pre_1961_v2)$yield_observed <- yield_observed_1951_1960
+# df_mod_yield <- plotYield(projection_steady_F, return_data = T)
 
+p_yield <- 
+  plotYield(sim_1841_2010_fishing_only) +
+  facet_wrap(~Species,scales="free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+  # theme_classic()
+
+p_yield_const_scale <-
+  
+  plotYield(sim_1841_2010_fishing_only) + 
+  facet_wrap(~Species,
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  # scale_x_continuous(breaks = c(1930,1945,1961,1985,2010)) +
+  # scale_y_log10() +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+
+p_yield
+p_yield_const_scale
 ```
 
 
+# Plot modeled biomass vs observed biomass
 ```{r}
-params_pre_1961_v2 <- params_pre_1961_v2 %>% 
-  steady() %>% matchYield() %>% steady() %>% 
-  steady() %>% matchYield() %>% steady() %>% 
-  steady() %>% matchYield() %>% steady() %>% 
-  steady() %>% matchYield() %>% steady() %>% 
-  steady() %>% matchYield() %>% steady()
+# Extract modeled biomass time series
+mod_biomass_matrix <- getBiomass(sim_1841_2010_fishing_only)
 
+# Convert matrix to data frame
+df_mod_biomass <- mod_biomass_matrix %>% 
+  melt()
+
+names(df_mod_biomass) <- c("Year", "Species", "Biomass")
+
+# Create observational biomass data frame
+# Replace these values with your actual observed biomass for 2010-2020
+obs_biomass <- data.frame(
+  Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps","mesopelagic fishes"  ,"bathypelagic fishes"   ,"shelf and coastal fishes","flying birds","small divers","squids","toothfishes","leopard seals","medium divers","large divers","minke whales","orca","sperm whales","baleen whales"),
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+  # Replace with your actual observed values
+)
+
+
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+# Create a version that repeats for each year from 2010 to 2020
+obs_biomass_ts <- obs_biomass %>%
+  crossing(Year = 2010:2020)
+
+# Add uncertainty bounds (±10%)
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+
+# Convert Species to a factor with the specified order in obs_biomass_ts
+obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+
+# Apply the same ordering to your modeled biomass data
+df_mod_biomass$Species <- factor(df_mod_biomass$Species, levels = species_order)
+
+# Create the biomass comparison plot with free y scales
+# p_biomass <- 
+  ggplot() +
+  # Plot model biomass line
+  geom_line(data = df_mod_biomass, 
+            aes(x = Year, y = Biomass, color = Species), linewidth = 1.5) +
+    # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+    theme_bw() +
+  theme(
+    legend.position = "none",
+    # strip.background = element_rect(fill = "lightgrey"),
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 12)
+  ) +
+  # Plot observed biomass as a horizontal line
+  geom_point(data = obs_biomass_ts, 
+             aes(x=Year, y= ObsBiomass, color = Species), 
+             size = 0.8) +
+    geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass), shape = 1,size = 0.8,colour = "black") +
+  # Add uncertainty ribbon (±10%)
+  geom_ribbon(data = obs_biomass_ts,
+              aes(x = Year, ymin = Lower, ymax = Upper),
+              alpha = 0.2) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Modeled vs. Observed Biomass (2010-2020)",
+    subtitle = "Observed values shown as point with ±10% uncertainty (shaded)"
+  )
 ```
 
+# Time series projection, climate forcings only
 
-```{r}
-params_pre_1961_v3 <- tuneParams(params_pre_1961_v2)
-
-```
-
-
-From FishMIP 2.0 protocol: https://github.com/Fish-MIP/FishMIP2.0_ISIMIP3a?tab=readme-ov-file#additional-notes-for-regional-fishmip-models
-
-Note on spin-up and transition period (1841-1960), and historical (experiment) period 1961-2010
-The focal historical period for this model evaluation experiment spans 1961-2010. To capture the transition from a pre-industrial spin-up to 1961 we also provide input for a gradual increase in fishing and environmental variability for the pre-industrial period to 1961.
-
-For fishing effort prior to 1961, we provide input for a nominal spin-up (1841-1860, fishing held constant at 1861 levels) and pre-industrial transition period (1861-1960, reconstructed fishing effort).
-
-To set-up climate-forcing variables for the entire 1841-1960 period, we ask modellers to use the “control run” (ctrlclim) monthly output for the years 1961-1980 (inclusive) on repeat for six cycles. These years have been selected because they correspond with an entire ENSO cycle and because no climate trend is detectable prior to 1980 from the GFDL model.
-
-For models that require longer spin-up prior to 1841, please keep 1841 levels of fishing effort constant and, if needed, repeat the ENSO cycle (e.g. monthly values for 1961-1980 inclusive from ctrlclim) for as many times necessary.
-
-For the ‘no fishing’ runs (nat), the spin-up and pre-industrial transition should not use any fishing effort.
-
-We ask modellers to include all outputs from 1841 onwards for use in our evaluation assessment of model drift. Each output should be saved as two files, the first covering the spin-up and transition period (1841-1960) and the second covering the historical (experiment) period (1961-2010).
-
-
-Inspect ppmr and feeding kernel parameters
-```{r}
-species_params(params_pre_1961) |> select(pred_kernel_type, beta, ppmr_min, ppmr_max)
-```
 
 Update with latest depth resolved temperature from FishMIP input explorer: https://rstudio.global-ecosystem-model.cloud.edu.au/shiny/FishMIP_Input_Explorer/
 
@@ -594,46 +910,131 @@ realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
 
 colnames(ocean_temp) <- realm_names
 rownames(ocean_temp) <- time_steps
+head(ocean_temp)
 ```
-
-Let's run a simulation and inspect the dynamics
-```{r}
-sim <- project(params_pre_1961, t_max = 100)
-plot(sim)
-plotlyBiomass(sim)
-plotlyBiomassRelative(sim)
-plotlySpectra(sim, power = 2, total = T)
-```
-
-Can we over write mammal scalars to 1?
-
-We want metabolism and encounter for mammals to be 1
 
 ```{r}
-# plotTherPerformance(params)
+# Function to extend climate forcing data back to 1841
+extend_climate_forcing <- function(data, start_year = 1841, end_existing_data = 1960, 
+                                  pattern_start = 1961, pattern_end = 1980) {
+  
+  # Extract rows to use as the repeating pattern
+  pattern_data <- data[rownames(data) >= pattern_start & rownames(data) <= pattern_end, ]
+  
+  # Calculate how many years we need to extend
+  years_to_extend <- end_existing_data - start_year + 1
+  
+  # Calculate how many complete cycles we need
+  pattern_length <- pattern_end - pattern_start + 1
+  full_cycles_needed <- floor(years_to_extend / pattern_length)
+  remaining_years <- years_to_extend %% pattern_length
+  
+  # Create extended data frame by repeating the pattern
+  extended_data <- NULL
+  
+  # Add full cycles
+  for (i in 1:full_cycles_needed) {
+    cycle_data <- pattern_data
+    
+    # Calculate the years for this cycle
+    cycle_years <- start_year + ((i-1) * pattern_length) + (0:(pattern_length-1))
+    rownames(cycle_data) <- cycle_years
+    
+    extended_data <- rbind(extended_data, cycle_data)
+  }
+  
+  # Add remaining years if any
+  if (remaining_years > 0) {
+    remaining_data <- pattern_data[1:remaining_years, ]
+    remaining_years_values <- start_year + (full_cycles_needed * pattern_length) + (0:(remaining_years-1))
+    rownames(remaining_data) <- remaining_years_values
+    
+    extended_data <- rbind(extended_data, remaining_data)
+  }
+  
+  # Combine extended data with original data
+  full_data <- rbind(extended_data, data)
+  
+  # Ensure rownames are in order as years
+  full_data <- full_data[order(as.numeric(rownames(full_data))), ]
+  
+  return(full_data)
+}
+
+# Example usage with your ocean_temp data
+# Extract the pattern from 1961 to 1980
+# (Confirm these years exist in your dataset)
+pattern_start <- 1961
+pattern_end <- 1980
+
+# Extend the data from 1841 to 1960
+extended_ocean_temp <- extend_climate_forcing(
+  ocean_temp, 
+  start_year = 1841, 
+  end_existing_data = 1960,
+  pattern_start = pattern_start,
+  pattern_end = pattern_end
+)
+
+# Check the structure of the extended data
+head(extended_ocean_temp)  # Should show earliest years (1841-1846)
+tail(extended_ocean_temp)  # Should show latest years from original data
+
+# Verify total number of years
+nrow(extended_ocean_temp)  # Should equal original rows + (1960-1841+1)
+
+# Optional: Plot to visualize the extended time series
+if (require(ggplot2)) {
+  extended_ocean_temp_df <- data.frame(
+    Year = as.numeric(rownames(extended_ocean_temp)),
+    tos = extended_ocean_temp[,1]
+  )
+  
+  p_ext_temp_forcing <- ggplot(extended_ocean_temp_df, aes(x = Year, y = tos)) +
+    geom_line() +
+    geom_vline(xintercept = 1961, linetype = "dashed", color = "red") +
+    labs(title = "Extended Ocean Temperature Time Series",
+         subtitle = "Vertical line marks start of historical forcing (1961)",
+         x = "Year",
+         y = "Surface Temperature") +
+    theme_bw()
+}
+
+# ggsave("plots/extended_temp_forcing.tiff", plot = p_ext_temp_forcing, units="cm", width=18, height=14, dpi =300)
+# saveRDS(extended_ocean_temp, "temperature_forcing_1841_2010.rds")
 ```
+# Create temp spinup (constant)
 
-
+I need to have an ocean_temp array that is just repeated values to use when finding steady state in a spin up
 ```{r}
-plot(sim)
-plotBiomass(sim)
-plotFeedingLevel(sim, include_critical = T)
-plotSpectra(sim,power=2)
-plotBiomassObservedVsModel(sim,ratio=T)
-plotYieldObservedVsModel(sim,ratio=T)
+constant_time_steps <- 1961:2460
+
+realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
+
+# Extract the first row
+first_row_temp <- ocean_temp[1, ]
+
+# Get the first row name (year 1961)
+first_row_name <- rownames(ocean_temp)[1]
+
+# Repeat the first row 500 times
+constant_array_temp <- do.call(rbind, replicate(500, first_row_temp, simplify = FALSE))
+
+# Set all row names to the first row name (1961)
+rownames(constant_array_temp) <- constant_time_steps
+colnames(constant_array_temp) <- realm_names
+
+# Check the results
+dim(constant_array_temp)  # Should show 500 rows, 5 columns
+head(constant_array_temp)  # Shows first few rows with row names
 ```
 
-
-
-
-Set up time steps
-```{r}
-time_steps <- 1961:2010
-```
 
 ## plankton forcing data
 Set up the resource:
 ```{r}
+params <- params_new_v4
+
 isimip_plankton <- read.table("GFDL_resource_spectra_annual.dat") # log10 abundance
 isimip_plankton <- as(isimip_plankton, "matrix")
 sizes <- names(params@initial_n_pp)
@@ -658,34 +1059,1053 @@ for (t in seq(1,length(time_steps) - 1,1)) {
 }
 
 # saveRDS(n_pp_array,"n_pp_array_26_08_2024.RDS")
+
+dim(n_pp_array)
+head(n_pp_array)
 ```
 
+```{r}
+# Function to extend the phytoplankton size spectra data back to 1841
+extend_phytoplankton_data <- function(data_array, start_year = 1841, end_existing_data = 1960, 
+                                     pattern_start = 1961, pattern_end = 1980) {
+  
+  # Get dimensions and check if they make sense
+  if(length(dim(data_array)) != 2) {
+    stop("Input data must be a 2D array")
+  }
+  
+  n_years <- dim(data_array)[1]
+  n_size_classes <- dim(data_array)[2]
+  
+  # Calculate years in the original data
+  orig_years <- pattern_start:(pattern_start + n_years - 1)
+  
+  # Extract rows to use as repeating pattern
+  pattern_indices <- which(orig_years >= pattern_start & orig_years <= pattern_end)
+  pattern_years <- orig_years[pattern_indices]
+  pattern_data <- data_array[pattern_indices, , drop = FALSE]
+  
+  # Calculate how many years we need to extend
+  years_to_extend <- end_existing_data - start_year + 1
+  
+  # Calculate how many complete cycles we need
+  pattern_length <- length(pattern_years)
+  full_cycles_needed <- floor(years_to_extend / pattern_length)
+  remaining_years <- years_to_extend %% pattern_length
+  
+  # Create a new array to hold extended data
+  extended_length <- years_to_extend + n_years
+  extended_array <- array(NA, dim = c(extended_length, n_size_classes))
+  
+  # Set row names for the extended array (years)
+  extended_years <- start_year:(start_year + extended_length - 1)
+  rownames(extended_array) <- extended_years
+  
+  # Copy column names if they exist
+  if(!is.null(colnames(data_array))) {
+    colnames(extended_array) <- colnames(data_array)
+  }
+  
+  # Add the extended data by repeating the pattern
+  current_index <- 1
+  
+  # Add full cycles
+  for(i in 1:full_cycles_needed) {
+    extended_array[current_index:(current_index + pattern_length - 1), ] <- pattern_data
+    current_index <- current_index + pattern_length
+  }
+  
+  # Add remaining years if any
+  if(remaining_years > 0) {
+    extended_array[current_index:(current_index + remaining_years - 1), ] <- pattern_data[1:remaining_years, ]
+    current_index <- current_index + remaining_years
+  }
+  
+  # Add original data
+  extended_array[current_index:(current_index + n_years - 1), ] <- data_array
+  
+  return(extended_array)
+}
+
+# Example usage with the phytoplankton size spectra array
+# First, ensure the array has row names representing years if not already set
+if(is.null(rownames(n_pp_array))) {
+  rownames(n_pp_array) <- 1961:(1961 + dim(n_pp_array)[1] - 1)
+}
+
+# Extract the 1961-1980 pattern (first 20 years)
+pattern_start <- 1961
+pattern_end <- 1980
+
+# Extend the data from 1841 to 1960
+extended_n_pp_array <- extend_phytoplankton_data(
+  n_pp_array, 
+  start_year = 1841, 
+  end_existing_data = 1960,
+  pattern_start = pattern_start, 
+  pattern_end = pattern_end
+)
+
+# Check dimensions of extended array
+dim(extended_n_pp_array)  # Should be (50 + (1960-1841+1)) rows by 142 columns
+
+# Preview the data
+head(extended_n_pp_array[1:6, 1:5])  # First 6 years, first 5 size classes
+head(extended_n_pp_array[120:125, 1:5])  # Years around 1960-1961 boundary
+
+# Optional: Plot to visualize the first size class across the extended time series
+if(require(ggplot2)) {
+  # Extract the first size class for all years
+  size_class_1 <- data.frame(
+    Year = as.numeric(rownames(extended_n_pp_array)),
+    Value = extended_n_pp_array[, 1]
+  )
+  
+  p_ext_phyto <- ggplot(size_class_1, aes(x = Year, y = Value)) +
+    geom_line() +
+    geom_vline(xintercept = 1961, linetype = "dashed", color = "red") +
+    labs(title = "Extended Phytoplankton Size Spectra",
+         subtitle = "First size class shown. Vertical line marks start of original data (1961)",
+         x = "Year",
+         y = "Phytoplankton Intercept") +
+    theme_bw()
+}
+
+
+# ggsave("plots/extended_phyto_forcing.tiff", plot = p_ext_phyto, units="cm", width=18, height=14, dpi =300)
+# saveRDS(extended_n_pp_array, "phytoplankton_forcing_1841_2010.rds")
+```
+
+
+# Create n_pp spinup (constant)
+
+I need to have an ocean_temp array that is just repeated values to use when finding steady state in a spin up
+```{r}
+# Extract the first row
+first_row_n_pp <- n_pp_array[1,]
+
+sizes <- names(params@initial_n_pp)
+
+# Get the first row name (year 1961)
+first_row_name_n_pp <- rownames(n_pp_array)[1]
+
+# Repeat the first row 500 times
+constant_array_n_pp <- do.call(rbind, replicate(500, first_row_n_pp, simplify = FALSE))
+
+# Set all row names to the first row name (1961)
+rownames(constant_array_n_pp) <- constant_time_steps
+colnames(constant_array_n_pp) <- sizes 
+
+# Check the results
+dim(constant_array_n_pp)  # Should show 500 rows, 5 columns
+head(constant_array_n_pp)  # Shows first few rows with row names
+```
 
 
 
 ```{r}
-# effort_array <- effort_array_full
-
-dim(effort_array)
-head(effort_array)
-effort_array[1,]
-
-# gear_params(params_v2)$gear <- gear_params(params_v2)$species
-gear_params(params)$gear <- gear_params(params)$species
-# gear_params(params_steady_F)$gear <- gear_params(params_steady_F)$species
-
-# gear_name = gear_params(params_steady_F)$gear
-# gear_name = gear_params(params_v2)$gear
-gear_name = gear_params(params)$gear
-colnames(effort_array) <- gear_name
-head(effort_array)
-# 
-# gear_params(params)$gear <- gear_name
-# gear_params(params)$gear
-# head(effort_array)
-
-# saveRDS(effort_array, "effort_array_therMizer.RDS")
+params_1841_2010_climate_only <- upgradeTherParams(params_new_v4, 
+                                                   ocean_temp_array = extended_ocean_temp,
+                                                   n_pp_array = extended_n_pp_array,
+                                                   # vertical_migration_array = vertical_migration_array,
+                                                   # exposure_array = ESS_exposure,
+                                                   aerobic_effect = FALSE, metabolism_effect = TRUE)
 ```
+
+
+```{r}
+sim_1841_2010_climate_only_spinup <- project(params_1841_2010_climate_only, t_start = 1841, t_max = 118,  effort = 0)
+
+sim_1841_2010_climate_only <- project(params_1841_2010_climate_only,initial_n=sim_1841_2010_climate_only_spinup@n[118,,], t_start = 1841, t_max = 170,  effort = 0)
+
+plot(sim_1841_2010_climate_only)
+
+
+
+```
+
+
+
+# Plot modeled biomass vs observed biomass for climate-only scenario
+```{r}
+# Extract modeled biomass time series
+mod_biomass_matrix <- getBiomass(sim_1841_2010_climate_only)
+
+# Convert matrix to data frame
+df_mod_biomass <- mod_biomass_matrix %>% 
+  melt()
+
+names(df_mod_biomass) <- c("Year", "Species", "Biomass")
+
+# Create observational biomass data frame
+# Replace these values with your actual observed biomass for 2010-2020
+obs_biomass <- data.frame(
+  Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps","mesopelagic fishes"  ,"bathypelagic fishes"   ,"shelf and coastal fishes","flying birds","small divers","squids","toothfishes","leopard seals","medium divers","large divers","minke whales","orca","sperm whales","baleen whales"),
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+  # Replace with your actual observed values
+)
+
+
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+# Create a version that repeats for each year from 2010 to 2020
+obs_biomass_ts <- obs_biomass %>%
+  crossing(Year = 2010:2020)
+
+# Add uncertainty bounds (±10%)
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+
+# Convert Species to a factor with the specified order in obs_biomass_ts
+obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+
+# Apply the same ordering to your modeled biomass data
+df_mod_biomass$Species <- factor(df_mod_biomass$Species, levels = species_order)
+
+# Create the biomass comparison plot with free y scales
+p_biomass <-
+  ggplot() +
+  # Plot model biomass line
+  geom_line(data = df_mod_biomass, 
+            aes(x = Year, y = Biomass, color = Species), size = 1) +
+    # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+    theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "lightgrey"),
+    strip.text = element_text(face = "bold", size = 8),
+    axis.text = element_text(size = 8)
+  ) +
+  # Plot observed biomass as a horizontal line
+  geom_point(data = obs_biomass_ts, 
+             aes(x=Year, y= ObsBiomass, color = Species), 
+             size = 1) +
+  # Add uncertainty ribbon (±10%)
+  geom_ribbon(data = obs_biomass_ts,
+              aes(x = Year, ymin = Lower, ymax = Upper, fill = "lightgrey"),
+              alpha = 0.2) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Modeled vs. Observed Biomass (2010-2020)",
+    subtitle = "Observed values shown as point with ±10% uncertainty (shaded)"
+  )
+  
+ # ggsave("plots/Climate_only_Biomass_1841_2010.tiff", plot = p_biomass, units="cm", width=24, height=14, dpi =300)
+ 
+```
+
+
+```{r}
+sim_1841_2010_climate_and_fishing <- project(params_1841_2010_climate_only, t_start = 1841, t_max = 170,  effort = combined_effort_array)
+
+plot(sim_1841_2010_climate_and_fishing)
+```
+
+# Plot modeled biomass vs observed biomass for climate-only scenario
+```{r}
+# Extract modeled biomass time series
+mod_biomass_matrix <- getBiomass(sim_1841_2010_climate_and_fishing)
+
+# Convert matrix to data frame
+df_mod_biomass <- mod_biomass_matrix %>% 
+  melt()
+
+names(df_mod_biomass) <- c("Year", "Species", "Biomass")
+
+# Create observational biomass data frame
+# Replace these values with your actual observed biomass for 2010-2020
+obs_biomass <- data.frame(
+  Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps","mesopelagic fishes"  ,"bathypelagic fishes"   ,"shelf and coastal fishes","flying birds","small divers","squids","toothfishes","leopard seals","medium divers","large divers","minke whales","orca","sperm whales","baleen whales"),
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+  # Replace with your actual observed values
+)
+
+
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+# Create a version that repeats for each year from 2010 to 2020
+obs_biomass_ts <- obs_biomass %>%
+  crossing(Year = 2010:2020)
+
+# Add uncertainty bounds (±10%)
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+
+# Convert Species to a factor with the specified order in obs_biomass_ts
+obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+
+# Apply the same ordering to your modeled biomass data
+df_mod_biomass$Species <- factor(df_mod_biomass$Species, levels = species_order)
+
+# Create the biomass comparison plot with free y scales
+p_biomass_climate_fishing <-
+  ggplot() +
+  # Plot model biomass line
+  geom_line(data = df_mod_biomass, 
+            aes(x = Year, y = Biomass, color = Species), size = 1) +
+    # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+    theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "lightgrey"),
+    strip.text = element_text(face = "bold", size = 8),
+    axis.text = element_text(size = 8)
+  ) +
+  # Plot observed biomass as a horizontal line
+  geom_point(data = obs_biomass_ts, 
+             aes(x=Year, y= ObsBiomass, color = Species), 
+             size = 0.8) +
+  geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass), shape = 1,size = 0.8,colour = "black") +
+  # Add uncertainty ribbon (±10%)
+  geom_ribbon(data = obs_biomass_ts,
+              aes(x = Year, ymin = Lower, ymax = Upper, fill = "lightgrey"),
+              alpha = 0.2) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Modeled vs. Observed Biomass (2010-2020)",
+    subtitle = "Observed values shown as point with ±10% uncertainty (shaded)"
+  )
+  
+  
+  
+# Yield
+  
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# df_mod_yield <- plotYield(projection_steady_F, return_data = T)
+
+p_yield_climate_fishing <- 
+  plotYield(sim_1841_2010_climate_and_fishing) +
+  facet_wrap(~Species,scales="free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+  # theme_classic()
+
+p_yield_climate_fishing_const_scale <-
+  
+  plotYield(sim_1841_2010_climate_and_fishing) + 
+  facet_wrap(~Species,
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  # scale_x_continuous(breaks = c(1930,1945,1961,1985,2010)) +
+  # scale_y_log10() +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+
+p_biomass_climate_fishing
+p_yield_climate_fishing
+p_yield_climate_fishing_const_scale
+
+# ggsave("plots/Climate_Fishing_Biomass_1841_2010.tiff", plot = p_biomass_climate_fishing, units="cm", width=24, height=14, dpi =300)
+# ggsave("plots/Climate_Fishing_Yield_1841_2010.tiff", plot = p_yield_climate_fishing_const_scale, units="cm", width=20, height=14, dpi =300)
+
+```
+
+How to add noise to the object?
+
+Approach 1: We have a steady state, we're not going to recalibrate. Add noise to the abundnaces, and if so, do we have limits around specific species
+
+Approach 2: Add noise to the biomass observed (bounds based on SD of the observations?)
+
+How to deal with catchability - rescale it as a random effect? (think of it as the fishing mortality multiplier in this case)
+
+Also check the reproductive level to adjust the resilience of the species to fishing (check yield plots)
+
+Remember, we're comparing fit to the catches, not the biomass. So we can reject the set of sims that don't run through the data in terms of catches
+
+Use maximum of the current biomass range estimates.
+
+```{r}
+# params_ratio <- params_new_v4
+# 
+# gear_params(params_ratio)$catchability[c(4,8,11,12,16,17,18,19)]<-gear_params(params_1841_2010_climate_only)$catchability[c(4,8,11,12,16,17,18,19)]/ratio
+```
+
+
+
+```{r}
+params_ratio_v2 <- params_ratio %>% 
+  # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+  # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.1) %>% matchBiomasses() %>%
+  # 
+  # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+  # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% 
+  # steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.01) %>% matchBiomasses() %>%
+  
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.005, preserve = "erepro") %>% matchBiomasses() %>%
+  
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0025, preserve = "erepro") %>% matchBiomasses() %>%
+  
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.001, preserve = "erepro") %>% matchBiomasses() %>%
+  
+  steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.0005, preserve = "erepro") %>%
+matchBiomasses() %>% 
+
+  steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 1000, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>%
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% 
+  steady(t_max = 500, tol = 0.00025, preserve = "erepro") %>% matchBiomasses() %>% steady(t_max = 500, tol = 0.00025, preserve = "erepro")
+
+
+any(species_params(params_ratio_v2)$erepro >= 1)
+params_ratio_v2@species_params$erepro
+params_ratio_v2@species_params$R_max
+getReproductionLevel(params_ratio_v2)
+
+sim_ratio_v2 <- project(params_ratio_v2, t_max = 200)
+
+plot(sim_ratio_v2)
+plotlyBiomass(sim_ratio_v2)
+plotlyBiomassRelative(sim_ratio_v2)
+
+params_ratio_v2@species_params
+
+```
+
+
+
+Increase initial abundance of whales
+```{r}
+
+params_n_v1 <- params_new_v4
+
+# params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] <- params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] * 1.5
+# params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] <- params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] * 1.5
+# params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] <- params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] * 1.5
+# params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] <- params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] * 1.5
+# params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] <- params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] * 1.5
+# params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] <- params_n_v1@initial_n[c(4,8,11,12,16,17,18,19),] * 1.5
+params_n_v1@initial_n[c(16,18),] <- params_n_v1@initial_n[c(16,18),] * 10
+params_n_v1@initial_n[c(17),] <- params_n_v1@initial_n[c(17),] * 1.15
+params_n_v1@initial_n[c(19),] <- params_n_v1@initial_n[c(19),] * 1.25
+
+params_n_v1 <- steady(params_n_v1, preserve = c("erepro"))
+
+species_params(params_n_v1)$erepro
+```
+
+```{r}
+# sim_n_v1 <- project(params_n_v1, t_start = 1841, t_max = 170,  effort = combined_effort_array)
+sim_n_v1 <- project(params_n_v1, t_start = 1841, t_max = 170,  effort = combined_effort_array)
+
+plot(sim_n_v1)
+plotBiomass(sim_n_v1)
+```
+
+# Plot modeled biomass vs observed biomass for climate-only scenario
+```{r}
+# Extract modeled biomass time series
+mod_biomass_matrix <- getBiomass(sim_n_v1)
+
+# Convert matrix to data frame
+df_mod_biomass <- mod_biomass_matrix %>% 
+  melt()
+
+names(df_mod_biomass) <- c("Year", "Species", "Biomass")
+
+# Create observational biomass data frame
+# Replace these values with your actual observed biomass for 2010-2020
+obs_biomass <- data.frame(
+  Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps","mesopelagic fishes"  ,"bathypelagic fishes"   ,"shelf and coastal fishes","flying birds","small divers","squids","toothfishes","leopard seals","medium divers","large divers","minke whales","orca","sperm whales","baleen whales"),
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+  # Replace with your actual observed values
+)
+
+
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+# Create a version that repeats for each year from 2010 to 2020
+obs_biomass_ts <- obs_biomass %>%
+  crossing(Year = 2010:2020)
+
+# Add uncertainty bounds (±10%)
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+
+# Convert Species to a factor with the specified order in obs_biomass_ts
+obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+
+# Apply the same ordering to your modeled biomass data
+df_mod_biomass$Species <- factor(df_mod_biomass$Species, levels = species_order)
+
+# Create the biomass comparison plot with free y scales
+p_biomass_climate_fishing <-
+  ggplot() +
+  # Plot model biomass line
+  geom_line(data = df_mod_biomass, 
+            aes(x = Year, y = Biomass, color = Species), size = 1.5) +
+    # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+    theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "lightgrey"),
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 12)
+  ) +
+  # Plot observed biomass as a horizontal line
+  geom_point(data = obs_biomass_ts, 
+             aes(x=Year, y= ObsBiomass, color = Species), 
+             size = 0.8) +
+  geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass), shape = 1,size = 0.8,colour = "black") +
+  # Add uncertainty ribbon (±10%)
+  geom_ribbon(data = obs_biomass_ts,
+              aes(x = Year, ymin = Lower, ymax = Upper, fill = "lightgrey"),
+              alpha = 0.2) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Modeled vs. Observed Biomass (2010-2020)",
+    subtitle = "Observed values shown as point with ±10% uncertainty (shaded)"
+  )
+  
+  
+  
+# Yield
+  
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# df_mod_yield <- plotYield(projection_steady_F, return_data = T)
+
+p_yield_climate_fishing <- 
+  plotYield(sim_n_v1) +
+  facet_wrap(~Species,scales="free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+  # theme_classic()
+
+
+p_biomass_climate_fishing
+p_yield_climate_fishing
+p_yield_climate_fishing_const_scale
+```
+
+## Retune to yield (1961 - 1980 time period)
+
+```{r}
+params_yield_tune <- params_new_v4
+
+species_params(params_yield_tune)$yield_observed <- ref_period_yield
+gear_params(params_yield_tune)$yield_observed <- ref_period_yield
+
+initial_effort(params_yield_tune) <- ref_period_effort
+
+
+params_yield_tune <- params_yield_tune %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+  steady(t_max = 200, preserve = c("erepro")) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro")) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, preserve = c("erepro"))
+
+species_params(params_yield_tune)$erepro
+
+plot(params_yield_tune)
+
+
+sim_yield <- project(params_yield_tune, t_max = 200)
+
+plot(sim_yield)
+plotYield(sim_yield)
+
+plotYieldObservedVsModel(sim_yield)
+```
+
+```{r}
+params_yield_tune_calibrate <- params_yield_tune %>% 
+  calibrateYield() %>% steady() %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady() %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady() %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady() %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady() %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady()
+
+species_params(params_yield_tune_calibrate)$erepro
+```
+
+
+```{r}
+params_yield_tune_calibrate_v2 <- params_yield_tune_calibrate %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200)
+
+any(species_params(params_yield_tune_calibrate_v2)$erepro >= 1)
+species_params(params_yield_tune_calibrate_v2)$erepro
+getReproductionLevel(params_yield_tune_calibrate_v2)
+
+# species_params(params_yield_tune)$erepro[1] <- 0.1
+# species_params(params_yield_tune)$erepro[16] <- 0.5
+# species_params(params_yield_tune)$erepro[17] <- 0.5
+# species_params(params_yield_tune)$erepro[18] <- 0.5
+```
+
+
+```{r}
+params_yield_tune_calibrate_v5 <- readRDS("params_steady_state_yield_1961_1980_prelim.RDS")
+
+params_yield_tune_calibrate_v3 <- params_yield_tune_calibrate_v2 %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+  steady(t_max = 200, tol = 0.01) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.01) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.01) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.01) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.01) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.01)
+
+params_yield_tune_calibrate_v4 <- params_yield_tune_calibrate_v3 %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+  steady(t_max = 200, tol = 0.001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001)
+
+params_yield_tune_calibrate_v5 <- params_yield_tune_calibrate_v4 %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+  steady(t_max = 500, tol = 0.0001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001)
+
+params_yield_tune_calibrate_v5 <- params_yield_tune_calibrate_v5 %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+  steady(t_max = 200, tol = 0.0001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.0001)
+
+params_yield_tune_calibrate_v6 <- params_yield_tune_calibrate_v5 %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+  steady(t_max = 500, tol = 0.00005) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.00005) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.00005) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.00005) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.00005) %>%  
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.00005)
+
+any(species_params(params_yield_tune_calibrate_v6)$erepro >= 1)
+species_params(params_yield_tune_calibrate_v6)$erepro
+any(getReproductionLevel(params_yield_tune_calibrate_v6) >= 1)
+getReproductionLevel(params_yield_tune_calibrate_v6)
+
+
+# saveRDS(params_yield_tune_calibrate_v6, "params_steady_state_yield_1961_1980.RDS")
+
+gear_params(params_yield_tune_calibrate_v6)
+```
+
+```{r}
+params_yield_tune_calibrate_v6 <- readRDS("params_steady_state_yield_1961_1980.RDS")
+```
+
+
+```{r}
+params_spinup <- params_yield_tune_calibrate_v6@other_params$other$ocean_temp 
+
+params_spinup <- upgradeTherParams()
+
+sim_spinup <- project(params_yield_tune_calibrate_v6)
+```
+
+
+```{r}
+# gear_params(params_yield_tune_calibrate_v6)$catchability[16] <- 0.02
+# gear_params(params_yield_tune_calibrate_v6)$catchability[17] <- 0.02
+# gear_params(params_yield_tune_calibrate_v6)$catchability[18] <- 0.02
+```
+
+
+```{r}
+# params_yield_tune_calibrate_v7 <- params_yield_tune_calibrate_v6 %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+#   steady(t_max = 200, tol = 0.01) %>%  
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>% 
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>%  
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>% 
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>%  
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01)
+# 
+# plotYieldObservedVsModel(params_yield_tune_calibrate_v7)
+# 
+# ratio<- plotYieldObservedVsModel(params_yield_tune_calibrate_v7, return_data = TRUE)$ratio
+# # gear_params(params_v2)$catchability[c(7,8,12,16,19)]<-gear_params(params_v2)$catchability[c(7,8,12,16,19)]/ratio
+# gear_params(params_yield_tune_calibrate_v7)$catchability[c(4,8,11,12,16,17,18,19)] <- gear_params(params_yield_tune_calibrate_v7)$catchability[c(4,8,11,12,16,17,18,19)]/ratio
+# 
+# 
+# params_yield_tune_calibrate_v7 <- params_yield_tune_calibrate_v7 %>%  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>% 
+#   steady(t_max = 100, tol = 0.01) %>%  
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>% 
+#   calibrateBiomass() %>% 
+#   steady(t_max = 200, tol = 0.01) %>% 
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>%  
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>% 
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01) %>%  
+#   matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+#   steady(t_max = 200, tol = 0.01)
+# 
+# any(species_params(params_yield_tune_calibrate_v7)$erepro >= 1)
+# species_params(params_yield_tune_calibrate_v7)$erepro
+# any(getReproductionLevel(params_yield_tune_calibrate_v7) >= 1)
+# getReproductionLevel(params_yield_tune_calibrate_v7)
+# 
+# # species_params(params_yield_tune_calibrate_v7)$erepro[1] <- 0.5
+# # species_params(params_yield_tune_calibrate_v7)$gamma[1] <- species_params(params_yield_tune_calibrate_v7)$gamma[1] * 2
+# species_params(params_yield_tune_calibrate_v7)$erepro[8] <- 0.9999999
+# # species_params(params_yield_tune_calibrate_v7)$erepro[13] <- 0.99
+# # species_params(params_yield_tune_calibrate_v7)$erepro[15] <- 0.75
+# # species_params(params_yield_tune_calibrate_v7)$erepro[16] <- 0.9
+# # species_params(params_yield_tune_calibrate_v7)$gamma[16] <- species_params(params_yield_tune_calibrate_v7)$gamma[16] * 2
+# species_params(params_yield_tune_calibrate_v7)$erepro[17] <- 0.9999999
+# 
+# # species_params(params_yield_tune_calibrate_v7)$gamma[13] <- species_params(params_yield_tune_calibrate_v7)$gamma[13] * 2
+```
+
+```{r}
+# params_yield_tune_calibrate_v8 <- tuneParams(params_yield_tune_calibrate_v8)
+```
+
+
+```{r}
+# sim_yield_v2 <- project(params_yield_tune_calibrate_v7, t_max = 100)
+# sim_yield_v3 <- project(params_yield_tune_calibrate_v6, t_max = 500)
+# 
+# plotlyBiomass(sim_yield_v2)
+# # plotlyBiomassRelative(sim_yield_v2)
+# 
+# plotlyBiomass(sim_yield_v3)
+# # plotlyBiomassRelative(sim_yield_v3)
+# plot(sim_yield_v3)
+# 
+# plotlySpectra(sim_yield_v3, power = 2)
+# 
+# plotlyBiomassObservedVsModel(sim_yield_v3)
+# plotYieldObservedVsModel(sim_yield_v3)
+# 
+# plot(sim_yield_v3)
+```
+
+
 
 # Recalibrate model with Thermizer
 - THIS PART IS FOR THE STEADY STATE ONLY
@@ -695,14 +2115,578 @@ For this step, we re-estimate the reproduction/biomass parameters using time-ave
 First, reset initial n_pp to be time averaged value of plankton.
 
 ```{r}
+params_thermizer_recalibration <- params_yield_tune_calibrate_v6
 # years_to_use_effort <- as.character(1951:1960)
-years_to_use <- as.character(2001:2010) # period used for the steady-state calibration
-year_constant <- as.character(2001)
+years_to_use <- as.character(1961:1980) # period used for the steady-state calibration using observed yield
+# year_constant <- as.character(2001)
 
 
-initialNResource(params)[which(w_full(params) <100)]<-10^(colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)])/params@dw_full[which(w_full(params) < 100)]
+initialNResource(params_thermizer_recalibration)[which(w_full(params) <100)] <- 10^(colMeans(n_pp_array[years_to_use,])[which(w_full(params_thermizer_recalibration) < 100)])/params_thermizer_recalibration@dw_full[which(w_full(params_thermizer_recalibration) < 100)]
 # #need to cut resource at 100g
 # initialNResource(params)[which(w_full(params) >=10)]<-0.0
+
+```
+
+
+```{r}
+# params_temp <- upgradeTherParams(params_thermizer_recalibration, ocean_temp_array = extended_ocean_temp[years_to_use,],n_pp_array = extended_n_pp_array[years_to_use,],
+#       # vertical_migration_array = vertical_migration_array,
+#                             # exposure_array = ESS_exposure,
+#                             aerobic_effect = FALSE, metabolism_effect = TRUE)
+
+params_temp <- upgradeTherParams(params_thermizer_recalibration, 
+                                 ocean_temp_array = constant_array_temp,
+                                 n_pp_array = constant_array_n_pp,
+                                 # vertical_migration_array = vertical_migration_array,
+                                 # exposure_array = ESS_exposure,
+                                 aerobic_effect = FALSE, 
+                                 metabolism_effect = TRUE)
+
+
+
+plot(params_yield_tune_calibrate_v6)
+# plot(params_pre)
+plot(params_temp)
+
+# trim the effort array
+# effort_array_pre <-effort_array_full[years_to_use,]
+
+# saveRDS(params_pre,"params_for_use.RDS")
+
+# plotFeedingLevel(params_pre, include_critical = T)
+```
+
+
+```{r}
+params_temp_v2 <- params_temp %>%
+  calibrateYield() %>% 
+  steady(t_max = 500, tol = 0.001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 200, tol = 0.001)
+
+params_temp_v2 <- params_temp_v2 %>%
+  # calibrateYield() %>% 
+  steady(t_max = 500, tol = 0.0001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.0001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.0001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.0001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.0001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.0001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.0001)
+
+params_temp_v3 <- params_temp_v2 %>%
+  # calibrateYield() %>% 
+  steady(t_max = 500, tol = 0.00001) %>% 
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.00001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.00001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.00001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.00001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.00001) %>%
+  matchYields(species = c("antarctic krill","shelf and coastal fishes", "squids","toothfishes","minke whales","orca","sperm whales","baleen whales")) %>%
+  steady(t_max = 500, tol = 0.00001)
+
+any(species_params(params_temp_v3)$erepro >= 1)
+species_params(params_temp_v3)$erepro
+any(getReproductionLevel(params_temp_v3) >= 1)
+getReproductionLevel(params_temp_v3)
+```
+
+```{r}
+# test_sim <- project(params_yield_tune_calibrate_v6, t_start = 1841, t_max = 300,  effort = 0)
+
+# test_sim <- project(params_yield_tune_calibrate_v6, t_start = 1841, t_max = 170,  effort = 0)
+
+test_sim <- project(params_temp_v3, t_max = 500,  effort = 0)
+
+plot(test_sim)
+plotSpectra(test_sim, total = T)
+```
+
+Try using calibrateBiomass to provide the new system with enough food, but then you must update the n_pp_array to factor the anomaly based on the initial_n_pp
+
+Check initial_n_pp between the temp affects and not. 
+
+```{r}
+# head(initialNResource(params_yield_tune_calibrate_v6))
+# # head(initialNResource(params_pre))
+# head(initialNResource(params_temp))
+# 
+# # head(params_pre@initial_n_pp)
+
+```
+
+
+
+
+
+```{r}
+params_yield_steady_1841_2010_climate_only <- upgradeTherParams(params_yield_tune_calibrate_v6, 
+                                                   ocean_temp_array = extended_ocean_temp,
+                                                   n_pp_array = extended_n_pp_array,
+                                                   # vertical_migration_array = vertical_migration_array,
+                                                   # exposure_array = ESS_exposure,
+                                                   aerobic_effect = FALSE, metabolism_effect = TRUE)
+```
+
+
+```{r}
+sim_yield_steady_1841_2010_climate_only <- project(params_yield_steady_1841_2010_climate_only, t_start = 1841, t_max = 170,  effort = 0)
+
+plot(sim_yield_steady_1841_2010_climate_only)
+```
+
+# Plot modeled biomass vs observed biomass for climate-only scenario
+```{r}
+# Extract modeled biomass time series
+mod_biomass_matrix <- getBiomass(sim_yield_steady_1841_2010_climate_only)
+
+# Convert matrix to data frame
+df_mod_biomass <- mod_biomass_matrix %>% 
+  melt()
+
+names(df_mod_biomass) <- c("Year", "Species", "Biomass")
+
+# Create observational biomass data frame
+# Replace these values with your actual observed biomass for 2010-2020
+obs_biomass <- data.frame(
+  Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps","mesopelagic fishes"  ,"bathypelagic fishes"   ,"shelf and coastal fishes","flying birds","small divers","squids","toothfishes","leopard seals","medium divers","large divers","minke whales","orca","sperm whales","baleen whales"),
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+  # Replace with your actual observed values
+)
+
+
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+# Create a version that repeats for each year from 2010 to 2020
+obs_biomass_ts <- obs_biomass %>%
+  crossing(Year = 2010:2020)
+
+# Add uncertainty bounds (±10%)
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+
+# Convert Species to a factor with the specified order in obs_biomass_ts
+obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+
+# Apply the same ordering to your modeled biomass data
+df_mod_biomass$Species <- factor(df_mod_biomass$Species, levels = species_order)
+
+# Create the biomass comparison plot with free y scales
+# p_biomass <- 
+  ggplot() +
+  # Plot model biomass line
+  geom_line(data = df_mod_biomass, 
+            aes(x = Year, y = Biomass, color = Species), size = 1.5) +
+    # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+    theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "lightgrey"),
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 12)
+  ) +
+  # Plot observed biomass as a horizontal line
+  geom_point(data = obs_biomass_ts, 
+             aes(x=Year, y= ObsBiomass, color = Species), 
+             size = 1) +
+  # Add uncertainty ribbon (±10%)
+  geom_ribbon(data = obs_biomass_ts,
+              aes(x = Year, ymin = Lower, ymax = Upper, fill = "lightgrey"),
+              alpha = 0.2) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Modeled vs. Observed Biomass (2010-2020)",
+    subtitle = "Observed values shown as point with ±10% uncertainty (shaded)"
+  )
+  
+  
+```
+
+Project the time-series with the new effort array using the base model
+```{r}
+combined_effort_array <- readRDS("effort_array_1841_2010.rds")
+
+
+sim_yield_steady_1841_2010_fishing_only <- project(params_yield_tune_calibrate_v6, effort = combined_effort_array)
+
+plot(sim_yield_steady_1841_2010_fishing_only)
+
+plotYield(sim_yield_steady_1841_2010_fishing_only)
+plotBiomass(sim_yield_steady_1841_2010_fishing_only)
+
+plotFMort(sim_yield_steady_1841_2010_fishing_only) +
+  scale_y_log10()
+```
+
+Plot observed yield
+```{r}
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# df_mod_yield <- plotYield(projection_steady_F, return_data = T)
+
+p_yield <- 
+  plotYield(sim_yield_steady_1841_2010_fishing_only) +
+  facet_wrap(~Species,scales="free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+  # theme_classic()
+
+p_yield_const_scale <-
+  
+  plotYield(sim_yield_steady_1841_2010_fishing_only) + 
+  facet_wrap(~Species,
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  # scale_x_continuous(breaks = c(1930,1945,1961,1985,2010)) +
+  # scale_y_log10() +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+
+p_yield
+p_yield_const_scale
+```
+
+# Plot modeled biomass vs observed biomass for climate-only scenario
+```{r}
+# Extract modeled biomass time series
+mod_biomass_matrix <- getBiomass(sim_yield_steady_1841_2010_fishing_only)
+
+# Convert matrix to data frame
+df_mod_biomass <- mod_biomass_matrix %>% 
+  melt()
+
+names(df_mod_biomass) <- c("Year", "Species", "Biomass")
+
+# Create observational biomass data frame
+# Replace these values with your actual observed biomass for 2010-2020
+obs_biomass <- data.frame(
+  Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps","mesopelagic fishes"  ,"bathypelagic fishes"   ,"shelf and coastal fishes","flying birds","small divers","squids","toothfishes","leopard seals","medium divers","large divers","minke whales","orca","sperm whales","baleen whales"),
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+  # Replace with your actual observed values
+)
+
+
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+# Create a version that repeats for each year from 2010 to 2020
+obs_biomass_ts <- obs_biomass %>%
+  crossing(Year = 2010:2020)
+
+# Add uncertainty bounds (±10%)
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+
+# Convert Species to a factor with the specified order in obs_biomass_ts
+obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+
+# Apply the same ordering to your modeled biomass data
+df_mod_biomass$Species <- factor(df_mod_biomass$Species, levels = species_order)
+
+# Create the biomass comparison plot with free y scales
+# p_biomass <- 
+  ggplot() +
+    scale_y_log10() +
+  # Plot model biomass line
+  geom_line(data = df_mod_biomass, 
+            aes(x = Year, y = Biomass, color = Species), size = 1.5) +
+    # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+    theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "lightgrey"),
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 12)
+  ) +
+  # Plot observed biomass as a horizontal line
+  geom_point(data = obs_biomass_ts, 
+             aes(x=Year, y= ObsBiomass, color = Species), 
+             size = 1) +
+  # Add uncertainty ribbon (±10%)
+  geom_ribbon(data = obs_biomass_ts,
+              aes(x = Year, ymin = Lower, ymax = Upper, fill = "lightgrey"),
+              alpha = 0.2) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Modeled vs. Observed Biomass (2010-2020)",
+    subtitle = "Observed values shown as point with ±10% uncertainty (shaded)"
+  )
+  
+  
+```
+
+# Adjust catchability
+
+
+```{r}
+# params_v2@initial_effort <- effort_array[1,]
+
+ref_period_yield <- colMeans(df_yield[c(32:51),])
+ref_period_yield <- as.data.frame(ref_period_yield)
+ref_period_yield <- ref_period_yield[-1,]
+
+ref_period_effort <- colMeans(combined_effort_array[c(121:140),])
+model_period_effort <- colMeans(combined_effort_array)
+
+initial_effort_updated <- ref_period_effort
+initial_effort_updated[c(4,8,11,12,16,17,18,19)] <- model_period_effort[c(4,8,11,12,16,17,18,19)]
+
+params <- params_1841_2010_climate_only
+
+species_params(params)$yield_observed  <- ref_period_yield
+gear_params(params)$yield_observed <- ref_period_yield
+# params_v2@initial_effort <- initial_effort_updated
+params@initial_effort <- initial_effort_updated
+# params_v2@initial_effort[c(4,7,11,18)] <- model_period_effort[c(4,7,11,18)]
+
+params_v2 <- steady(params, t_max = 1000, preserve = c("erepro"))
+
+
+# sim_ref <- mizer::project(params_v2, t_max = 200, effort = initial_effort_updated)
+sim_ref <- mizer::project(params_v2, t_max = 200, effort = initial_effort_updated)
+
+
+plotYieldObservedVsModel(params_v2)
+plotYieldObservedVsModel(sim_ref, ratio = T)
+gear_params(sim_ref@params)$catchability
+plotYield(sim_ref)
+```
+
+```{r}
+#Test ratio
+ratio<- plotYieldObservedVsModel(params_v2, return_data = TRUE)$ratio
+# gear_params(params_v2)$catchability[c(7,8,12,16,19)]<-gear_params(params_v2)$catchability[c(7,8,12,16,19)]/ratio
+gear_params(params_v2)$catchability[c(4,7,8,11,12,16,17,18,19)]<-gear_params(params_v2)$catchability[c(4,7,8,11,12,16,17,18,19)]/ratio
+
+# # gear_params(params_v2)$catchability <- ifelse(gear_params(params_v2)$catchability == 0.5, 0, gear_params(params_v2)$catchability)
+# 
+# # gear_params(params_v2)$catchability[c(8)] <- gear_params(params_v2)$catchability[c(8)] * 1.5 # shelf and coastal fishes
+# gear_params(params_v2)$catchability[c(8)] <- 1.267937e-05 * 3 # shelf and coastal fishes
+# 
+# # gear_params(params_v2)$catchability[c(16)] <- gear_params(params_v2)$catchability[c(16)] * 1.5 # minke whales
+# gear_params(params_v2)$catchability[c(16)] <- 0.354628 * 2 # minke whales
+# 
+# gear_params(params_v2)$catchability[c(11)] <- 0.000005 # squids
+# 
+# gear_params(params_v2)$catchability[c(4)] <- 0.005 # ant krill
+# 
+# gear_params(params_v2)$catchability[c(17)] <- 0.1 # orca
+# 
+# gear_params(params_v2)$catchability[c(18)] <- 1 # sperm whales
+
+params_v3 <- steady(params_v2, t_max = 1000, preserve = c("erepro"))
+
+plotYieldObservedVsModel(params_v3, ratio=T)
+
+sim_ref_v2 <- mizer::project(params_v3, t_max = 200)
+
+plotYield(sim_ref_v2)
+
+# ref_period_effort
+```
+
+
+```{r}
+ratio_v2<- plotYieldObservedVsModel(params_v3, return_data = TRUE)$ratio
+
+# gear_params(params_v3)$catchability[c(7,8,12,16,19)]<-gear_params(params_v3)$catchability[c(7,8,12,16,19)]/ratio_v2
+gear_params(params)$catchability[c(4,7,8,11,12,16,17,18,19)]<-gear_params(params)$catchability[c(4,7,8,11,12,16,17,18,19)]/ratio_v2
+
+
+gear_params(params_v3)$species[12]
+gear_params(params_v3)$catchability[12]
+
+ratio_v2[3]
+
+gear_params(params_v3)$catchability[12]<-gear_params(params_v3)$catchability[c(12)]/ratio_v2[3]
+
+params_v4 <- steady(params_v3)
+
+plotYieldObservedVsModel(params_v4, ratio=T)
+
+
+ratio_v3 <- plotYieldObservedVsModel(params_v4, return_data = TRUE)$ratio
+
+gear_params(params_v4)$catchability[c(7,8,12,16,19)]<-gear_params(params_v4)$catchability[c(7,8,12,16,19)]/ratio_v3
+
+params_v5 <- steady(params_v4)
+
+plotYieldObservedVsModel(params_v5, ratio=T)
+
+sim_ref_v3 <- mizer::project(params_v5, t_max = 200)
+
+plotYield(sim_ref_v3)
+
+```
+
+
+
+```{r}
+params <- params_1841_2010_climate_only
+# Function to randomize interaction matrix while preserving basic ecological constraints
+randomize_catchability <- function(params, sd = 0.1) {
+  # Get current interaction matrix
+  old_n <- params@initial_n
+  
+  # Create noise matrix with same dimensions
+  n <- nrow(old_inter)
+  noise <- matrix(rnorm(n*n, mean = 0, sd = sd), nrow = n)
+  
+  # Add noise while preserving symmetry
+  new_inter <- old_inter * exp(noise)
+  
+  # Ensure diagonal remains 1
+  diag(new_inter) <- 1
+  
+  # Ensure values stay between 0 and 1
+  new_inter[new_inter > 1] <- 1
+  new_inter[new_inter < 0] <- 0
+  
+  # Update parameters
+  params@interaction <- new_inter
+  
+  return(params)
+}
+
+# Function to run multiple simulations with different interaction matrices
+run_random_sims <- function(params, n_sims = 10, years = 100, sd = 0.2, effort = effort) {
+  # List to store simulation results
+  sim_results <- list()
+  
+  # Run simulations
+  for(i in 1:n_sims) {
+    # Create new parameters with randomized interaction matrix
+    rand_params <- randomize_interaction_matrix(params, sd = sd)
+    # Run to steady
+    rand_params<-steady(rand_params)
+    # Run simulation
+    sim <- project(rand_params, effort=effort)
+    
+    # Store results
+    sim_results[[i]] <- sim
+  }
+  
+  return(sim_results)
+}
+
+
+# Run multiple simulations
+sims <- run_random_sims(params, n_sims = 10, effort = combined_effort_array)
+
+# Plot results from first simulation
+plot(sims[[1]])
+
+# Calculate and plot mean biomass across all simulations
+getBiomass <- function(sim) {
+  return(getBiomass(sim))
+}
+
+biomass_list <- lapply(sims, getBiomass)
+mean_biomass <- Reduce("+", biomass_list) / length(biomass_list)
+
+# Plot mean biomass
+matplot(mean_biomass, type = "l", 
+        xlab = "Time", ylab = "Mean Biomass", 
+        main = "Mean Biomass Across Random Simulations")
+
+```
+
+
+
+# Recalibrate model with Thermizer
+- THIS PART IS FOR THE STEADY STATE ONLY
+
+For this step, we re-estimate the reproduction/biomass parameters using time-averaged forcing data
+
+First, reset initial n_pp to be time averaged value of plankton.
+
+```{r}
+# # years_to_use_effort <- as.character(1951:1960)
+# years_to_use <- as.character(2001:2010) # period used for the steady-state calibration
+# year_constant <- as.character(2001)
+# 
+# 
+# initialNResource(params)[which(w_full(params) <100)]<-10^(colMeans(n_pp_array[years_to_use,])[which(w_full(params) < 100)])/params@dw_full[which(w_full(params) < 100)]
+# # #need to cut resource at 100g
+# # initialNResource(params)[which(w_full(params) >=10)]<-0.0
 
 
 ```
@@ -1109,6 +3093,300 @@ params_pre_v2@species_params$erepro
 
 
 
+```{r}
+# Function to randomize catchability only for fished species
+randomize_catchability <- function(params, sdev = 0.1) {
+  # Get current gear parameters
+  gear_df <- gear_params(params)
+  
+  # Check if there's fishing happening (non-zero catchability)
+  if(nrow(gear_df) > 0) {
+    # Generate noise for each catchability value
+    for(i in 1:nrow(gear_df)) {
+      # Only add noise if catchability is non-zero (meaning it's fished)
+      if(gear_df$catchability[i] > 0) {
+        # Generate random noise
+        noise <- rnorm(1, mean = 0, sd = sdev)
+        
+        # Apply noise to catchability
+        gear_df$catchability[i] <- gear_df$catchability[i] * exp(noise)
+        
+        # Ensure values stay between 0 and 1
+        if(gear_df$catchability[i] > 1) gear_df$catchability[i] <- 1
+        if(gear_df$catchability[i] < 0) gear_df$catchability[i] <- 0
+      }
+    }
+    
+    # Update parameters with new catchability values
+    
+    gear_params(params) <- gear_df
+    
+  }
+  
+  return(params)
+}
+
+# Function to run multiple simulations with randomized catchability for fished species
+run_random_catchability_sims <- function(params, n_sims = 10, years = 170, sd = 0.1, effort_scen, tol = .01) {
+  # List to store simulation results
+  sim_results <- list()
+  
+  # Run simulations
+  for(i in 1:n_sims) {
+    # Create new parameters with randomized catchability
+    rand_params <- randomize_catchability(params, sd = sd)
+    
+    # Run to steady state
+    rand_params <- steady(rand_params, tol = tol)
+    
+    # Run simulation with provided effort scenario
+    sim <- project(rand_params, effort = effort_scen)
+    
+    # Store results
+    sim_results[[i]] <- sim
+  }
+  
+  return(sim_results)
+}
+```
+
+
+
+
+```{r}
+#Orignal run
+sim0 <- project(params_new_v4, effort = combined_effort_array)
+# sim0 <- project(params,effort = effort)
+plotlyBiomass(sim0)
+
+# Run single simulation with randomized matrix as a test
+rand_params <- randomize_catchability(params_new_v4)
+sim1 <- project(rand_params,effort = combined_effort_array)
+
+plotBiomassRelative(sim1,sim0)
+
+# Run multiple simulations
+# sims_scen1 <- run_random_catchability_sims(params_new_v4, n_sims = 200, effort_scen = combined_effort_array, sd = 0.3)
+
+# sims_scen2 <- run_random_catchability_sims(params_new_v4, n_sims = 1000, effort_scen = combined_effort_array, sd = 0.8)
+
+# 9th July 2025 - try dramatically increasing the SD for catachability variation 
+sims_scen3 <- run_random_catchability_sims(params_new_v4, n_sims = 100, effort_scen = combined_effort_array, sd = 2)
+
+sims_scen4 <- run_random_catchability_sims(params_new_v4, n_sims = 250, effort_scen = combined_effort_array, sd = 2)
+
+
+
+# Save sim outputs
+# saveRDS(sims_scen1,"sims_scen1.RDS")
+
+# sims_scen1<-readRDS("sims_scen1.RDS")
+
+# saveRDS(sims_scen2,"sims_scen2.RDS")
+
+
+# read in biomass and catches data
+
+```
+
+
+
+```{r}
+
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# df_mod_yield <- plotYield(projection_steady_F, return_data = T)
+
+##############
+# Figure for CATCHES 
+
+# remove 'Gear' == Seals from yields
+
+trimYield<-function(sim){
+  
+  y<-plotYieldGear(sim, return_data = T)
+  # y<-filter(y,Gear!="Seals")
+  y<-select(y,c(Year, Species,Yield))
+  return(y)
+  
+}
+
+#trimYield(sims_scen1[[1]])
+
+
+
+# sim_catches<-lapply(sims_scen1,trimYield)
+# # for (i in 1:1000) {
+# for (i in 1:200) {
+#   sim_catches[[i]]$sim<-i
+# }
+
+sim_catches<-lapply(sims_scen3,trimYield)
+for (i in 1:100) {
+# for (i in 1:200) {
+  sim_catches[[i]]$sim<-i
+}
+
+df_sim_catch<-do.call(rbind.data.frame, sim_catches)
+
+sim_mean_c<-df_sim_catch |>  group_by(Species,Year) |>summarise(Yield=median(Yield))|> ungroup()
+sim_lower_c<-df_sim_catch |> group_by(Species,Year) |>summarise(Yield=min(Yield))|> ungroup() 
+sim_upper_c<-df_sim_catch |> group_by(Species,Year)|>summarise(Yield=max(Yield))|> ungroup() 
+
+sim1_c <-data.frame(Species=sim_mean_c$Species, 
+                  Year=sim_mean_c$Year,
+                  sim_mean=sim_mean_c$Yield,
+                  sim_lower=sim_lower_c$Yield,
+                  sim_upper=sim_upper_c$Yield)
+
+sim1_c <-right_join(yield_ts,sim1_c)
+
+
+# time_series_c <- sim1_c
+# time_series_c <- time_series_c  %>%
+#   mutate(scen = ifelse(Year<1986,
+#                        "Calibration",scen))
+# time_series_c <- time_series_c |> rename(Yield=Yield_Obs)
+# 
+# 
+# # reorder Species in the plot to go from from small to large max body size.
+# # species_c<-species[-1] #remove sandlances as not fished
+# time_series_c <- subset(time_series_c,!is.na(time_series_c$Species))
+
+ggplot(sim1_c, aes(x=Year, y=Yield, colour=Species)) +
+  facet_wrap(~Species, scales="free_y") +
+  geom_point(aes(y=Yield), colour="black", size=0.5) +
+  geom_ribbon(data = sim1_c, 
+              aes(ymin=sim_lower, ymax=sim_upper), alpha=0.3, colour=NA) +
+  geom_line(data = sim1_c, 
+            aes(y=sim_mean,colour=Species)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank())
+
+  p_yield <- plotYield(sim_1841_2010_fishing_only) + 
+  facet_wrap(~Species,
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  geom_ribbon(data = sim1_c, aes(x = Year, y=Yield, ymin=sim_lower, ymax=sim_upper), alpha=0.3, colour=NA) +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  # scale_x_continuous(breaks = c(1930,1945,1961,1985,2010)) +
+  # scale_y_log10() +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+  
+p_yield
+
+# ggsave("plots/Catchability_v1_Yield_1841_2010.tiff", plot = p_yield, units="cm", width=22, height=16, dpi =300)
+```
+
+
+# Yield curves
+
+```{r}
+params_new_v4@species_params$species
+plotYieldVsF(params_new_v4, species = "sperm whales")
+```
+
+
+```{r}
+# First, extract biomass data from all 1000 simulations
+# Create a data frame to store simulation results
+sim_biomass_range <- data.frame()
+
+# Loop through all simulations in sim_scen2 to extract biomass
+for(i in 1:1000) {
+  # Extract biomass from each simulation
+  sim_biomass <- getBiomass(sims_scen2[[i]])
+  
+  # Convert to data frame
+  sim_df <- sim_biomass %>% 
+    melt()
+  names(sim_df) <- c("Year", "Species", "Biomass")
+  
+  # Add simulation ID
+  sim_df$SimID <- i
+  
+  # Append to the main data frame
+  sim_biomass_range <- rbind(sim_biomass_range, sim_df)
+}
+
+# Calculate summary statistics (min, max, median) for each species and year
+sim_summary <- sim_biomass_range %>%
+  group_by(Year, Species) %>%
+  summarize(
+    Min = min(Biomass),
+    Max = max(Biomass),
+    Median = median(Biomass),
+    Mean = mean(Biomass),
+    Q25 = quantile(Biomass, 0.25),
+    Q75 = quantile(Biomass, 0.75)
+  )
+
+# Apply the same species ordering
+sim_summary$Species <- factor(sim_summary$Species, levels = species_order)
+
+# Now update your plot code to include the simulation range ribbon
+p_biomass <- ggplot() +
+  # Add ribbon showing range from all simulations
+  geom_ribbon(data = sim_summary,
+              aes(x = Year, ymin = Min, ymax = Max, fill = Species),
+              alpha = 0.3) +
+  # Add ribbon showing interquartile range for less extreme view
+  geom_ribbon(data = sim_summary, 
+              aes(x = Year, ymin = Q25, ymax = Q75, fill = Species), 
+              alpha = 0.5) +
+  # Plot mean line from simulations
+  geom_line(data = sim_summary,
+            aes(x = Year, y = Mean, color = Species),
+            linewidth = .81) +
+  # Plot original modeled biomass line (your baseline model)
+  geom_line(data = df_mod_biomass,
+            aes(x = Year, y = Biomass, color = Species),
+            linewidth = .81, linetype = "dashed") +
+  # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+           labeller = labeller(Species = species.labs)) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 6),
+    axis.text = element_text(size = 8)
+  ) +
+  # Plot observed biomass as points
+  geom_point(data = obs_biomass_ts, 
+           aes(x=Year, y= ObsBiomass, color = Species), 
+           size = 0.4) +
+  geom_point(data = obs_biomass_ts, 
+           aes(x = Year, y = ObsBiomass), 
+           shape = 1, size = 0.4, colour = "black") +
+  # Add observed uncertainty ribbon
+  geom_ribbon(data = obs_biomass_ts,
+            aes(x = Year, ymin = Lower, ymax = Upper),
+            alpha = 0.2) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Modeled vs. Observed Biomass with Simulation Range",
+    subtitle = "Simulation range (light shade), IQR (darker shade), mean (solid), baseline model (dashed), observed values (points)"
+  )
+
+ggsave("plots/Catchability_v1_Biomass_1841_2010.tiff", plot = p_biomass, units="cm", width=23, height=14, dpi =300)
+```
+
+
+
+Can we try to adjust the R_max and re-run the steady-state? Add uncertainty around R_max to see if the distribution will adjust into the right ball park of biomass and yield.
 
 
 
