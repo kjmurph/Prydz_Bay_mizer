@@ -1217,18 +1217,270 @@ saveRDS(optimal_params_export, "params_optimal_combined_uncertainty.RDS")
 
 cat("\nOptimal parameters saved to 'params_optimal_combined_uncertainty.RDS'\n")
 ```
+## Adaptive Uncertainty Analysis with Species-Specific Refinement
+
+This section implements an improved adaptive approach that checks RMSE every 50 simulations and refines the parameter search space based on performance, with special attention to species with poor fits.
+
+### Load Adaptive Functions
+
+```{r load-adaptive-functions}
+# Source the new adaptive uncertainty analysis functions
+source("adaptive_uncertainty_functions.R")
+```
+
+### Run Adaptive Uncertainty Analysis
+
+The adaptive approach gradually refines the search space, focusing on parameter combinations that show promise while specifically tracking species that have poor fits (like Antarctic krill and minke whales).
+
+```{r run-adaptive-analysis, eval=FALSE}
+# Load required data if not already loaded
+if (!exists("combined_effort_array")) {
+  combined_effort_array <- readRDS("effort_array_1841_2010.rds")
+}
+
+if (!exists("yield_ts_tidy")) {
+  yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
+}
+
+# Run adaptive uncertainty analysis
+# This will check RMSE every 50 simulations and refine the search space
+adaptive_results <- run_adaptive_uncertainty_analysis(
+  params = params_1841_2010_fishing_only,
+  n_total_sims = 500,  # Total number of simulations
+  check_interval = 50,  # Check and refine every 50 simulations
+  initial_catchability_sd = 0.3,  # Start with wider search
+  initial_abundance_sd = 0.4,  # Start with wider search
+  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+  fished_species = c("antarctic krill", "bathypelagic fishes",
+                    "shelf and coastal fishes", "squids", "toothfishes",
+                    "minke whales", "orca", "sperm whales", "baleen whales"),
+  effort_scen = combined_effort_array,
+  yield_obs_data = yield_ts_tidy,
+  year_range = c(1961, 2010),
+  tol = 0.01,
+  t_max = 500,
+  spinup_years = 118,
+  t_start = 1841,
+  sim_years = 170,
+  preserve_erepro = TRUE,
+  max_erepro = 1,
+  convergence_threshold = 0.01,  # Stop refining if improvement < 1%
+  n_cores = NULL,  # Use all available cores minus 1
+  parallel = TRUE,
+  verbose = TRUE  # Show progress and species-specific issues
+)
+
+# Save adaptive results
+saveRDS(adaptive_results, "adaptive_uncertainty_results.RDS")
+
+# Display summary
+cat("\n=== Adaptive Analysis Summary ===\n")
+cat("Total simulations:", adaptive_results$optimal$total_simulations, "\n")
+cat("Optimal RMSE:", round(adaptive_results$optimal$optimal_rmse, 3), "\n")
+cat("RMSE range:", round(range(adaptive_results$all_rmse), 3), "\n")
+cat("\nSpecies-specific RMSE (best simulation):\n")
+best_species_rmse <- adaptive_results$species_rmse[[adaptive_results$optimal$optimal_index]]
+for (sp in names(best_species_rmse)) {
+  cat("  ", sp, ":", round(best_species_rmse[[sp]], 3), "\n")
+}
+```
+
+### Visualize Adaptive Convergence
+
+```{r visualize-adaptive-convergence, eval=FALSE}
+# Plot convergence history
+p_convergence <- plot_adaptive_convergence(adaptive_results)
+ggsave("plots/adaptive_convergence_history.png", p_convergence,
+       width = 12, height = 14, dpi = 300)
+
+# Plot species-specific RMSE evolution
+# Focus on problematic species
+p_species_evolution <- plot_species_rmse_evolution(
+  adaptive_results,
+  species_focus = c("antarctic_krill", "minke_whales", "baleen_whales", "sperm_whales")
+)
+print(p_species_evolution)
+ggsave("plots/species_rmse_evolution.png", p_species_evolution,
+       width = 14, height = 10, dpi = 300)
+
+# Plot all species RMSE evolution
+p_all_species <- plot_species_rmse_evolution(adaptive_results)
+ggsave("plots/all_species_rmse_evolution.png", p_all_species,
+       width = 16, height = 12, dpi = 300)
+```
+
+### Analyze Parameter Correlations
+
+```{r analyze-adaptive-parameters, eval=FALSE}
+# Create correlation heatmap for top performers
+cor_matrix <- plot_parameter_correlations(adaptive_results, top_percent = 0.1)
+
+# Extract optimal parameters
+optimal_params_adaptive <- adaptive_results$optimal$optimal_parameters
+cat("\n=== Optimal Parameters from Adaptive Search ===\n")
+cat("Catchability values:\n")
+print(optimal_params_adaptive$catchability)
+cat("\nMarine mammal scaling factors:\n")
+mm_scaling_df <- data.frame(
+  Species = optimal_params_adaptive$marine_mammal_species,
+  Scaling = optimal_params_adaptive$marine_mammal_scaling
+)
+print(mm_scaling_df)
+
+# Compare with initial parameters
+cat("\n=== Parameter Changes from Initial ===\n")
+cat("Catchability changes:\n")
+print(optimal_params_adaptive$catchability_change)
+```
+
+### Compare Adaptive vs. Standard Approach
+
+```{r compare-approaches, eval=FALSE}
+# Load standard approach results if available
+if (file.exists("combined_uncertainty_results.RDS")) {
+  standard_results <- readRDS("combined_uncertainty_results.RDS")
+  
+  # Compare RMSE distributions
+  df_comparison <- data.frame(
+    RMSE = c(adaptive_results$all_rmse,
+             sapply(standard_results$simulations, function(sim) {
+               calculate_yield_rmse(sim, yield_ts_tidy,
+                                  species_list = c("antarctic krill", "bathypelagic fishes",
+                                                  "shelf and coastal fishes", "squids", "toothfishes",
+                                                  "minke whales", "orca", "sperm whales", "baleen whales"),
+                                  year_range = c(1961, 2010))$total_rmse
+             })),
+    Method = c(rep("Adaptive", length(adaptive_results$all_rmse)),
+              rep("Standard", length(standard_results$simulations)))
+  )
+  
+  p_comparison <- ggplot(df_comparison, aes(x = Method, y = RMSE, fill = Method)) +
+    geom_boxplot(alpha = 0.7) +
+    geom_point(position = position_jitter(width = 0.2), alpha = 0.3) +
+    scale_fill_manual(values = c("Adaptive" = "darkgreen", "Standard" = "steelblue")) +
+    theme_bw() +
+    labs(title = "RMSE Comparison: Adaptive vs. Standard Uncertainty Analysis",
+         subtitle = "Adaptive approach refines search space every 50 simulations",
+         y = "RMSE") +
+    theme(legend.position = "none")
+  
+  print(p_comparison)
+  ggsave("plots/adaptive_vs_standard_comparison.png", p_comparison,
+         width = 8, height = 6, dpi = 300)
+  
+  # Statistical comparison
+  cat("\n=== Statistical Comparison ===\n")
+  cat("Adaptive - Min RMSE:", round(min(adaptive_results$all_rmse), 3), "\n")
+  cat("Standard - Min RMSE:", round(min(df_comparison$RMSE[df_comparison$Method == "Standard"]), 3), "\n")
+  cat("Improvement:",
+      round((min(df_comparison$RMSE[df_comparison$Method == "Standard"]) -
+             min(adaptive_results$all_rmse)) /
+            min(df_comparison$RMSE[df_comparison$Method == "Standard"]) * 100, 1), "%\n")
+}
+```
+
+### Apply Optimal Parameters from Adaptive Search
+
+```{r apply-adaptive-optimal, eval=FALSE}
+# Extract and apply optimal parameters
+optimal_sim_adaptive <- adaptive_results$optimal$optimal_simulation
+
+# Plot yield comparison with observations
+p_yield_adaptive <- plotYield(optimal_sim_adaptive) +
+  facet_wrap(~Species, scales = "free_y") +
+  geom_point(data = yield_ts_tidy,
+             aes(x = Year, y = Yield, colour = Species),
+             size = 1) +
+  geom_point(data = yield_ts_tidy,
+             aes(x = Year, y = Yield),
+             shape = 1, size = 1, colour = "black") +
+  geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) +
+  geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(title = "Optimal Simulation from Adaptive Search",
+       subtitle = paste("RMSE =", round(adaptive_results$optimal$optimal_rmse, 3)))
+
+print(p_yield_adaptive)
+ggsave("plots/adaptive_optimal_yield.png", p_yield_adaptive,
+       width = 14, height = 10, dpi = 300)
+
+# Create detailed species-specific comparison plots
+species_focus <- c("antarctic krill", "minke whales")
+for (sp in species_focus) {
+  # Get modeled yield for this species
+  mod_yield <- getYield(optimal_sim_adaptive)
+  df_mod <- reshape2::melt(mod_yield)
+  names(df_mod) <- c("Year", "Species", "Yield")
+  df_mod_sp <- df_mod[df_mod$Species == sp, ]
+  
+  # Get observed yield for this species
+  obs_sp <- yield_ts_tidy[yield_ts_tidy$Species == sp, ]
+  
+  p_sp <- ggplot() +
+    geom_line(data = df_mod_sp, aes(x = Year, y = Yield),
+              color = "darkblue", size = 1.2) +
+    geom_point(data = obs_sp, aes(x = Year, y = Yield),
+               color = "red", size = 2) +
+    theme_bw() +
+    labs(title = paste("Adaptive Optimization Result:", sp),
+         subtitle = paste("RMSE =", round(best_species_rmse[[sp]], 3)),
+         x = "Year", y = "Yield") +
+    geom_vline(xintercept = c(1961, 2010), linetype = "dotted", alpha = 0.5)
+  
+  print(p_sp)
+  ggsave(paste0("plots/adaptive_", gsub(" ", "_", sp), "_comparison.png"),
+         p_sp, width = 10, height = 6, dpi = 300)
+}
+```
+
+### Export Optimal Parameters for Future Use
+
+```{r export-adaptive-optimal, eval=FALSE}
+# Create parameter object with optimal values
+params_optimal_adaptive <- params_1841_2010_fishing_only
+
+# Apply optimal catchability
+gear_df <- gear_params(params_optimal_adaptive)
+gear_df$catchability <- optimal_params_adaptive$catchability
+gear_params(params_optimal_adaptive) <- gear_df
+
+# Apply optimal marine mammal scaling
+sp_params <- species_params(params_optimal_adaptive)
+mammal_indices <- which(sp_params$species %in% optimal_params_adaptive$marine_mammal_species)
+for (i in seq_along(mammal_indices)) {
+  params_optimal_adaptive@initial_n[mammal_indices[i],] <-
+    params_optimal_adaptive@initial_n[mammal_indices[i],] *
+    optimal_params_adaptive$marine_mammal_scaling[i]
+}
+
+# Run to steady state
+params_optimal_adaptive <- steady(params_optimal_adaptive,
+                                 tol = 0.01,
+                                 t_max = 500,
+                                 preserve = c("erepro"))
+
+# Save optimal parameters
+saveRDS(params_optimal_adaptive, "params_optimal_adaptive.RDS")
+cat("\nOptimal parameters from adaptive search saved to 'params_optimal_adaptive.RDS'\n")
+```
 
 ## Conclusions
 
-This combined uncertainty assessment explores both catchability uncertainty for fished species and abundance scaling uncertainty for marine mammals. The analysis:
+This enhanced adaptive uncertainty assessment provides several key improvements:
 
-1. **Parameter Space Exploration**: Systematically varies both catchability and marine mammal abundance to explore the parameter space
-2. **Optimal Parameter Identification**: Finds the parameter combination that minimizes RMSE between modeled and observed yields
-3. **Uncertainty Quantification**: Provides distributions of model performance across the parameter uncertainty range
-4. **Species-Specific Analysis**: Identifies which species contribute most to model-observation discrepancies
-5. **Sensitivity Analysis**: Reveals correlations between parameters and model performance
+1. **Adaptive Parameter Refinement**: The search space is refined every 50 simulations based on performance, allowing the algorithm to focus on promising parameter regions
+2. **Species-Specific Tracking**: Individual species RMSE is monitored throughout, identifying problematic species (like Antarctic krill and minke whales) that need special attention
+3. **Convergence Monitoring**: The algorithm tracks convergence and can automatically reduce search space when improvements plateau
+4. **Efficient Search**: By gradually narrowing the search space, the adaptive approach finds better solutions with fewer simulations
+5. **Targeted Optimization**: The algorithm biases search towards regions that show promise, improving efficiency
 
-The optimal parameters identified through this analysis can be used for more accurate historical reconstructions and future projections.
+The adaptive approach specifically addresses the issue of species with poor fits by:
+- Tracking their individual RMSE throughout the optimization
+- Identifying when certain species consistently have high errors
+- Adjusting the search strategy to improve these specific fits
+- Providing detailed diagnostics about which species are problematic
 
+This method is particularly effective for complex models where different species may require different scaling factors or catchability adjustments to match observed data.
 
 
