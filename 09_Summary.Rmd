@@ -1221,16 +1221,9 @@ cat("\nOptimal parameters saved to 'params_optimal_combined_uncertainty.RDS'\n")
 
 This section implements an improved adaptive approach that checks RMSE every 10 simulations and refines the parameter search space based on performance, with special attention to species with poor fits.
 
-### Load Adaptive Functions
-
-```{r load-adaptive-functions}
-# Source the new adaptive uncertainty analysis functions
-source("adaptive_uncertainty_functions.R")
-```
-
 ### Run Adaptive Uncertainty Analysis
 
-The adaptive approach gradually refines the search space, focusing on parameter combinations that show promise while specifically tracking species that have poor fits (like Antarctic krill and minke whales).
+The adaptive approach gradually refines the search space, focusing on parameter combinations that show promise while specifically tracking species that have poor fits (like Antarctic krill and minke whales). All necessary functions are included in Helper_Functions.R.
 
 ```{r run-adaptive-analysis, eval=FALSE}
 # Load required data if not already loaded

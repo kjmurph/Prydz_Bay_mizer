@@ -7,9 +7,8 @@ library(therMizer)
 library(dplyr)
 library(ggplot2)
 
-# Source the helper functions and adaptive functions
+# Source the helper functions (which now includes adaptive functions)
 source("Helper_Functions.R")
-source("adaptive_uncertainty_functions.R")
 
 cat("=== Testing Adaptive Uncertainty Analysis ===\n\n")
 
