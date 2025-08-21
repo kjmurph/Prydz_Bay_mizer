@@ -230,10 +230,10 @@ scale_marine_mammal_abundance <- function(params,
                                          scaling_factors = NULL,
                                          species_to_scale = NULL) {
   
-  # Default marine mammal species if not specified
+  # Default species to scale if not specified
+  # Now includes marine mammals and shelf/coastal fishes
   if (is.null(species_to_scale)) {
-    # Based on the model, these are the marine mammal groups
-    species_to_scale <- c("minke whales", "orca", "sperm whales", "baleen whales")
+    species_to_scale <- c("minke whales", "orca", "sperm whales", "baleen whales", "shelf and coastal fishes")
   }
   
   # Get species indices
@@ -266,9 +266,10 @@ randomize_marine_mammal_abundance <- function(params,
                                              sd = 0.2,
                                              species_to_scale = NULL) {
   
-  # Default marine mammal species if not specified
+  # Default species to scale if not specified
+  # Now includes marine mammals and shelf/coastal fishes
   if (is.null(species_to_scale)) {
-    species_to_scale <- c("minke whales", "orca", "sperm whales", "baleen whales")
+    species_to_scale <- c("minke whales", "orca", "sperm whales", "baleen whales", "shelf and coastal fishes")
   }
   
   # Get species indices
@@ -386,7 +387,7 @@ run_combined_uncertainty_sims <- function(params,
     param_combinations[[i]] <- list(
       catchability = gear_df$catchability,
       initial_n_mammals = rand_params@initial_n[which(species_params(rand_params)$species %in%
-                                                      c("minke whales", "orca", "sperm whales", "baleen whales")),]
+                                                      c("minke whales", "orca", "sperm whales", "baleen whales", "shelf and coastal fishes")),]
     )
     
     # Run to steady state

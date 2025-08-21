@@ -1243,7 +1243,7 @@ adaptive_results <- run_adaptive_uncertainty_analysis(
   check_interval = 10,  # Check and refine every 10 simulations (more frequent updates)
   initial_catchability_sd = 0.3,  # Start with wider search
   initial_abundance_sd = 0.4,  # Start with wider search
-  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales", "shelf and coastal fishes"),
   fished_species = c("antarctic krill", "bathypelagic fishes",
                     "shelf and coastal fishes", "squids", "toothfishes",
                     "minke whales", "orca", "sperm whales", "baleen whales"),
