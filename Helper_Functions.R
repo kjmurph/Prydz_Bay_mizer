@@ -535,6 +535,7 @@ calculate_species_rmse <- function(sim_object, yield_obs_data, species_name, yea
 # Function to update parameter search space based on best performers
 update_search_space <- function(param_history, rmse_history, species_rmse_history,
                                current_catchability_sd, current_abundance_sd,
+                               species_specific_sd = NULL,
                                top_percent = 0.2, reduction_factor = 0.9,
                                min_sd = 0.05, max_sd = 1.0) {
   
@@ -545,7 +546,8 @@ update_search_space <- function(param_history, rmse_history, species_rmse_histor
   new_params <- list(
     catchability_sd = current_catchability_sd,
     abundance_sd = current_abundance_sd,
-    species_specific_adjustments = list()
+    species_specific_adjustments = list(),
+    species_specific_sd = list()  # New: store species-specific SD values
   )
   
   # Analyze best performing parameters
@@ -572,9 +574,15 @@ update_search_space <- function(param_history, rmse_history, species_rmse_histor
     new_params$abundance_sd <- min(max_sd, current_abundance_sd / reduction_factor)
   }
   
-  # Analyze species-specific performance
+  # Analyze species-specific performance and adjust SD accordingly
   if (!is.null(species_rmse_history) && length(species_rmse_history) > 0) {
     species_names <- names(species_rmse_history[[1]])
+    
+    # Calculate overall RMSE statistics for normalization
+    all_species_rmse <- unlist(species_rmse_history)
+    overall_median <- median(all_species_rmse, na.rm = TRUE)
+    overall_q25 <- quantile(all_species_rmse, 0.25, na.rm = TRUE)
+    overall_q75 <- quantile(all_species_rmse, 0.75, na.rm = TRUE)
     
     for (species in species_names) {
       species_rmse <- sapply(species_rmse_history[best_indices],
@@ -583,11 +591,57 @@ update_search_space <- function(param_history, rmse_history, species_rmse_histor
       # Check if this species needs special attention (high RMSE)
       if (!all(is.na(species_rmse))) {
         mean_rmse <- mean(species_rmse, na.rm = TRUE)
+        sd_rmse <- sd(species_rmse, na.rm = TRUE)
+        min_rmse <- min(species_rmse, na.rm = TRUE)
         
-        # Store species-specific adjustment recommendations
+        # Calculate relative performance
+        relative_performance <- mean_rmse / overall_median
+        
+        # Determine species-specific SD based on performance
+        # Better performing species get smaller SD (more refined search)
+        if (!is.null(species_specific_sd) && species %in% names(species_specific_sd)) {
+          current_sp_sd <- species_specific_sd[[species]]
+        } else {
+          current_sp_sd <- list(catchability = current_catchability_sd,
+                               abundance = current_abundance_sd)
+        }
+        
+        # Adjust SD based on relative performance
+        if (relative_performance < 0.5) {
+          # Excellent fit - reduce SD significantly
+          sp_catch_sd <- max(min_sd, current_sp_sd$catchability * 0.7)
+          sp_abund_sd <- max(min_sd, current_sp_sd$abundance * 0.7)
+          convergence_status <- "excellent"
+        } else if (relative_performance < 1.0) {
+          # Good fit - reduce SD moderately
+          sp_catch_sd <- max(min_sd, current_sp_sd$catchability * 0.85)
+          sp_abund_sd <- max(min_sd, current_sp_sd$abundance * 0.85)
+          convergence_status <- "good"
+        } else if (relative_performance < 2.0) {
+          # Average fit - small reduction or maintain
+          sp_catch_sd <- current_sp_sd$catchability * 0.95
+          sp_abund_sd <- current_sp_sd$abundance * 0.95
+          convergence_status <- "average"
+        } else {
+          # Poor fit - maintain or increase SD for exploration
+          sp_catch_sd <- min(max_sd, current_sp_sd$catchability * 1.1)
+          sp_abund_sd <- min(max_sd, current_sp_sd$abundance * 1.1)
+          convergence_status <- "poor"
+        }
+        
+        # Store species-specific adjustments
+        new_params$species_specific_sd[[species]] <- list(
+          catchability = sp_catch_sd,
+          abundance = sp_abund_sd
+        )
+        
         new_params$species_specific_adjustments[[species]] <- list(
           mean_rmse = mean_rmse,
-          needs_attention = mean_rmse > median(unlist(species_rmse_history), na.rm = TRUE) * 1.5
+          min_rmse = min_rmse,
+          sd_rmse = sd_rmse,
+          relative_performance = relative_performance,
+          convergence_status = convergence_status,
+          needs_attention = mean_rmse > overall_median * 1.5
         )
       }
     }
@@ -600,9 +654,10 @@ update_search_space <- function(param_history, rmse_history, species_rmse_histor
   return(new_params)
 }
 
-# Helper function to run a batch of simulations
+# Helper function to run a batch of simulations with species-specific SD
 run_batch_simulations <- function(params, n_sims, catchability_sd, abundance_sd,
                                  catchability_center = 1, abundance_center = 1,
+                                 species_specific_sd = NULL,
                                  marine_mammal_species, effort_scen,
                                  tol, t_max, spinup_years, t_start, sim_years,
                                  preserve_erepro, max_erepro,
@@ -621,10 +676,22 @@ run_batch_simulations <- function(params, n_sims, catchability_sd, abundance_sd,
     original_catchability <- gear_df$catchability
     
     if(nrow(gear_df) > 0) {
+      sp_params <- species_params(rand_params)
+      
       for(j in 1:nrow(gear_df)) {
         if(gear_df$catchability[j] > 0) {
-          # Generate biased noise
-          noise <- rnorm(1, mean = log(catchability_center), sd = catchability_sd)
+          # Get species name for this gear
+          species_name <- gear_df$species[j]
+          
+          # Use species-specific SD if available
+          if (!is.null(species_specific_sd) && species_name %in% names(species_specific_sd)) {
+            sp_catch_sd <- species_specific_sd[[species_name]]$catchability
+          } else {
+            sp_catch_sd <- catchability_sd
+          }
+          
+          # Generate biased noise with species-specific SD
+          noise <- rnorm(1, mean = log(catchability_center), sd = sp_catch_sd)
           gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise - log(catchability_center))
           gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
         }
@@ -636,12 +703,23 @@ run_batch_simulations <- function(params, n_sims, catchability_sd, abundance_sd,
     sp_params <- species_params(rand_params)
     species_indices <- which(sp_params$species %in% marine_mammal_species)
     
-    # Generate biased scaling factors
-    scaling_factors <- exp(rnorm(length(species_indices),
-                                 mean = log(abundance_center),
-                                 sd = abundance_sd))
+    # Generate biased scaling factors with species-specific SD
+    scaling_factors <- numeric(length(species_indices))
     
     for (k in seq_along(species_indices)) {
+      species_name <- sp_params$species[species_indices[k]]
+      
+      # Use species-specific SD if available
+      if (!is.null(species_specific_sd) && species_name %in% names(species_specific_sd)) {
+        sp_abund_sd <- species_specific_sd[[species_name]]$abundance
+      } else {
+        sp_abund_sd <- abundance_sd
+      }
+      
+      # Generate scaling factor with species-specific SD
+      scaling_factors[k] <- exp(rnorm(1, mean = log(abundance_center), sd = sp_abund_sd))
+      
+      # Apply scaling
       rand_params@initial_n[species_indices[k],] <-
         rand_params@initial_n[species_indices[k],] * scaling_factors[k]
     }
@@ -785,6 +863,7 @@ run_adaptive_uncertainty_analysis <- function(params,
   current_abundance_sd <- initial_abundance_sd
   catchability_center <- 1.0  # Start with no bias
   abundance_center <- 1.0     # Start with no bias
+  species_specific_sd <- NULL  # Will be populated after first iteration
   
   # Determine number of cores
   if (is.null(n_cores)) {
@@ -837,6 +916,7 @@ run_adaptive_uncertainty_analysis <- function(params,
       abundance_sd = current_abundance_sd,
       catchability_center = catchability_center,
       abundance_center = abundance_center,
+      species_specific_sd = species_specific_sd,
       marine_mammal_species = marine_mammal_species,
       effort_scen = effort_scen,
       tol = tol,
@@ -919,6 +999,7 @@ run_adaptive_uncertainty_analysis <- function(params,
         species_rmse_history = all_species_rmse,
         current_catchability_sd = current_catchability_sd,
         current_abundance_sd = current_abundance_sd,
+        species_specific_sd = species_specific_sd,
         top_percent = 0.2,
         reduction_factor = 0.85
       )
@@ -937,6 +1018,11 @@ run_adaptive_uncertainty_analysis <- function(params,
       # Update search parameters
       current_catchability_sd <- new_search_params$catchability_sd
       current_abundance_sd <- new_search_params$abundance_sd
+      
+      # Update species-specific SD values
+      if (!is.null(new_search_params$species_specific_sd)) {
+        species_specific_sd <- new_search_params$species_specific_sd
+      }
       
       # Update centers for targeted search (weighted towards best performers)
       if (!is.null(new_search_params$catchability_center)) {
@@ -965,18 +1051,27 @@ run_adaptive_uncertainty_analysis <- function(params,
         }
       }
       
-      # Report species-specific issues
+      # Report species-specific convergence status
       if (verbose && !is.null(new_search_params$species_specific_adjustments)) {
+        cat("\nSpecies-specific convergence status:\n")
+        
+        for (sp in names(new_search_params$species_specific_adjustments)) {
+          sp_info <- new_search_params$species_specific_adjustments[[sp]]
+          sp_sd <- new_search_params$species_specific_sd[[sp]]
+          
+          cat("  ", sp, ":\n")
+          cat("    Status:", sp_info$convergence_status, "\n")
+          cat("    Mean RMSE:", round(sp_info$mean_rmse, 2), "\n")
+          cat("    Min RMSE:", round(sp_info$min_rmse, 2), "\n")
+          cat("    Catchability SD:", round(sp_sd$catchability, 3), "\n")
+          cat("    Abundance SD:", round(sp_sd$abundance, 3), "\n")
+        }
+        
+        # Highlight species still needing attention
         problem_species <- names(which(sapply(new_search_params$species_specific_adjustments,
                                              function(x) x$needs_attention)))
         if (length(problem_species) > 0) {
-          cat("\nSpecies needing attention:", paste(problem_species, collapse = ", "), "\n")
-          
-          # Show RMSE for problem species
-          for (sp in problem_species) {
-            sp_rmse <- new_search_params$species_specific_adjustments[[sp]]$mean_rmse
-            cat("  ", sp, "- Mean RMSE:", round(sp_rmse, 2), "\n")
-          }
+          cat("\nSpecies still needing attention (high RMSE):", paste(problem_species, collapse = ", "), "\n")
         }
       }
       
