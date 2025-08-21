@@ -680,8 +680,14 @@ run_batch_simulations <- function(params, n_sims, catchability_sd, abundance_sd,
     require(doParallel)
     require(foreach)
     
+    # Create cluster with explicit confirmation
     cl <- makeCluster(n_cores)
     registerDoParallel(cl)
+    
+    # Confirm parallel backend is registered
+    if (getDoParWorkers() > 1) {
+      cat("  Parallel backend confirmed:", getDoParWorkers(), "workers available\n")
+    }
     
     results <- foreach(i = 1:n_sims,
                       .packages = c("mizer", "therMizer"),
@@ -691,6 +697,9 @@ run_batch_simulations <- function(params, n_sims, catchability_sd, abundance_sd,
     
     stopCluster(cl)
   } else {
+    if (parallel && n_cores <= 1) {
+      cat("  Note: Parallel requested but only 1 core available, running sequentially\n")
+    }
     results <- lapply(1:n_sims, run_single)
   }
   
@@ -770,16 +779,27 @@ run_adaptive_uncertainty_analysis <- function(params,
   total_completed <- 0
   n_iterations <- ceiling(n_total_sims / check_interval)
   
+  # Time tracking
+  start_time <- Sys.time()
+  iteration_times <- list()
+  
   if (verbose) {
     cat("Starting adaptive uncertainty analysis\n")
     cat("Total simulations:", n_total_sims, "\n")
     cat("Check interval:", check_interval, "\n")
     cat("Initial catchability SD:", initial_catchability_sd, "\n")
-    cat("Initial abundance SD:", initial_abundance_sd, "\n\n")
+    cat("Initial abundance SD:", initial_abundance_sd, "\n")
+    cat("Parallel processing:", ifelse(parallel && n_cores > 1,
+                                       paste("YES (using", n_cores, "cores)"),
+                                       "NO (sequential)"), "\n")
+    cat("Start time:", format(start_time, "%Y-%m-%d %H:%M:%S"), "\n\n")
   }
   
   # Main adaptive loop
   for (iteration in 1:n_iterations) {
+    
+    # Track iteration start time
+    iter_start_time <- Sys.time()
     
     # Calculate number of simulations for this batch
     n_batch <- min(check_interval, n_total_sims - total_completed)
@@ -847,6 +867,25 @@ run_adaptive_uncertainty_analysis <- function(params,
     all_species_rmse <- c(all_species_rmse, batch_species_rmse)
     
     total_completed <- total_completed + n_batch
+    
+    # Track iteration time
+    iter_end_time <- Sys.time()
+    iter_duration <- as.numeric(difftime(iter_end_time, iter_start_time, units = "secs"))
+    iteration_times[[iteration]] <- iter_duration
+    
+    if (verbose) {
+      cat("Iteration", iteration, "completed in", round(iter_duration, 1), "seconds\n")
+      elapsed_time <- as.numeric(difftime(iter_end_time, start_time, units = "mins"))
+      cat("Total elapsed time:", round(elapsed_time, 1), "minutes\n")
+      
+      # Estimate remaining time
+      if (iteration > 1) {
+        avg_iter_time <- mean(unlist(iteration_times))
+        remaining_iters <- n_iterations - iteration
+        est_remaining_time <- (remaining_iters * avg_iter_time) / 60  # in minutes
+        cat("Estimated time remaining:", round(est_remaining_time, 1), "minutes\n")
+      }
+    }
     
     # Analyze performance and update search space
     if (total_completed < n_total_sims) {
@@ -940,6 +979,10 @@ run_adaptive_uncertainty_analysis <- function(params,
     )
   }))
   
+  # Calculate total runtime
+  end_time <- Sys.time()
+  total_runtime <- as.numeric(difftime(end_time, start_time, units = "mins"))
+  
   # Summary statistics
   final_stats <- list(
     total_simulations = total_completed,
@@ -949,7 +992,17 @@ run_adaptive_uncertainty_analysis <- function(params,
     optimal_parameters = all_parameters[[optimal_idx]],
     rmse_distribution = summary(all_rmse),
     species_rmse_summary = apply(rmse_by_species_final, 2, summary, na.rm = TRUE),
-    convergence_history = search_space_history
+    convergence_history = search_space_history,
+    runtime = list(
+      total_minutes = total_runtime,
+      start_time = start_time,
+      end_time = end_time,
+      iteration_times = iteration_times,
+      avg_time_per_iteration = mean(unlist(iteration_times)),
+      avg_time_per_simulation = (total_runtime * 60) / total_completed,  # in seconds
+      parallel_used = parallel && n_cores > 1,
+      n_cores_used = ifelse(parallel && n_cores > 1, n_cores, 1)
+    )
   )
   
   if (verbose) {
@@ -958,6 +1011,14 @@ run_adaptive_uncertainty_analysis <- function(params,
     cat("Optimal RMSE:", round(all_rmse[optimal_idx], 3), "\n")
     cat("RMSE improvement:", round((max(all_rmse) - min(all_rmse)) / max(all_rmse) * 100, 1), "%\n")
     cat("\nOptimal parameters found at simulation", optimal_idx, "\n")
+    cat("\n=== Runtime Summary ===\n")
+    cat("Total runtime:", round(total_runtime, 1), "minutes\n")
+    cat("Average time per iteration:", round(mean(unlist(iteration_times)), 1), "seconds\n")
+    cat("Average time per simulation:", round((total_runtime * 60) / total_completed, 1), "seconds\n")
+    cat("Parallel processing:", ifelse(parallel && n_cores > 1,
+                                       paste("YES (", n_cores, " cores used)", sep=""),
+                                       "NO (sequential)"), "\n")
+    cat("End time:", format(end_time, "%Y-%m-%d %H:%M:%S"), "\n")
   }
   
   return(list(

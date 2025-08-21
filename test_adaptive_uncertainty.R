@@ -71,6 +71,17 @@ cat("Worst RMSE:", round(max(test_results$all_rmse), 3), "\n")
 cat("Mean RMSE:", round(mean(test_results$all_rmse), 3), "\n")
 cat("SD of RMSE:", round(sd(test_results$all_rmse), 3), "\n")
 
+# Display runtime information
+if (!is.null(test_results$optimal$runtime)) {
+  cat("\n=== Runtime Summary ===\n")
+  cat("Total runtime:", round(test_results$optimal$runtime$total_minutes, 2), "minutes\n")
+  cat("Average time per simulation:", round(test_results$optimal$runtime$avg_time_per_simulation, 2), "seconds\n")
+  cat("Average time per iteration:", round(test_results$optimal$runtime$avg_time_per_iteration, 2), "seconds\n")
+  cat("Parallel processing:", ifelse(test_results$optimal$runtime$parallel_used,
+                                    paste("YES (", test_results$optimal$runtime$n_cores_used, " cores)", sep=""),
+                                    "NO (sequential)"), "\n")
+}
+
 # Show search space evolution
 cat("\n=== Search Space Evolution ===\n")
 if (length(test_results$search_history) > 0) {
@@ -246,6 +257,10 @@ cat("\nComparison Results:\n")
 cat("Adaptive approach (100 sims):\n")
 cat("  Best RMSE:", round(min(test_results$all_rmse), 3), "\n")
 cat("  Mean RMSE:", round(mean(test_results$all_rmse), 3), "\n")
+if (!is.null(test_results$optimal$runtime)) {
+  cat("  Runtime:", round(test_results$optimal$runtime$total_minutes, 2), "minutes\n")
+  cat("  Time per sim:", round(test_results$optimal$runtime$avg_time_per_simulation, 2), "seconds\n")
+}
 cat("Standard approach (25 sims):\n")
 cat("  Best RMSE:", round(min(standard_rmse), 3), "\n")
 cat("  Mean RMSE:", round(mean(standard_rmse), 3), "\n")

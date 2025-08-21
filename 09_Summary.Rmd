@@ -1271,6 +1271,15 @@ cat("\n=== Adaptive Analysis Summary ===\n")
 cat("Total simulations:", adaptive_results$optimal$total_simulations, "\n")
 cat("Optimal RMSE:", round(adaptive_results$optimal$optimal_rmse, 3), "\n")
 cat("RMSE range:", round(range(adaptive_results$all_rmse), 3), "\n")
+
+# Display runtime information
+cat("\n=== Runtime Information ===\n")
+cat("Total runtime:", round(adaptive_results$optimal$runtime$total_minutes, 1), "minutes\n")
+cat("Average time per simulation:", round(adaptive_results$optimal$runtime$avg_time_per_simulation, 1), "seconds\n")
+cat("Parallel processing:", ifelse(adaptive_results$optimal$runtime$parallel_used,
+                                  paste("YES (", adaptive_results$optimal$runtime$n_cores_used, " cores)", sep=""),
+                                  "NO (sequential)"), "\n")
+
 cat("\nSpecies-specific RMSE (best simulation):\n")
 best_species_rmse <- adaptive_results$species_rmse[[adaptive_results$optimal$optimal_index]]
 for (sp in names(best_species_rmse)) {
@@ -1369,6 +1378,14 @@ if (file.exists("combined_uncertainty_results.RDS")) {
       round((min(df_comparison$RMSE[df_comparison$Method == "Standard"]) -
              min(adaptive_results$all_rmse)) /
             min(df_comparison$RMSE[df_comparison$Method == "Standard"]) * 100, 1), "%\n")
+  
+  # Compare runtimes if available
+  if (!is.null(adaptive_results$optimal$runtime)) {
+    cat("\n=== Runtime Comparison ===\n")
+    cat("Adaptive approach runtime:", round(adaptive_results$optimal$runtime$total_minutes, 1), "minutes\n")
+    cat("Time per simulation:", round(adaptive_results$optimal$runtime$avg_time_per_simulation, 1), "seconds\n")
+    cat("Efficiency note: Adaptive approach focuses computational effort on promising regions\n")
+  }
 }
 ```
 
