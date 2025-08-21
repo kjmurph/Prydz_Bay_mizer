@@ -223,3 +223,256 @@ plot_yield_comparison <- function(sim_object,
 # Using convenience functions
 # p_free <- plot_yield_free_scale(sim_1841_2010_fishing_only, yield_ts_tidy)
 # p_fixed <- plot_yield_fixed_scale(sim_1841_2010_fishing_only, yield_ts_tidy)
+
+# Function to scale initial abundance for marine mammals
+# This allows exploration of uncertainty in initial biomass conditions
+scale_marine_mammal_abundance <- function(params,
+                                         scaling_factors = NULL,
+                                         species_to_scale = NULL) {
+  
+  # Default marine mammal species if not specified
+  if (is.null(species_to_scale)) {
+    # Based on the model, these are the marine mammal groups
+    species_to_scale <- c("minke whales", "orca", "sperm whales", "baleen whales")
+  }
+  
+  # Get species indices
+  sp_params <- species_params(params)
+  species_indices <- which(sp_params$species %in% species_to_scale)
+  
+  # If no scaling factors provided, return params unchanged
+  if (is.null(scaling_factors)) {
+    return(params)
+  }
+  
+  # Apply scaling factors
+  if (length(scaling_factors) == 1) {
+    # Apply same scaling to all marine mammals
+    params@initial_n[species_indices,] <- params@initial_n[species_indices,] * scaling_factors
+  } else if (length(scaling_factors) == length(species_indices)) {
+    # Apply individual scaling factors
+    for (i in seq_along(species_indices)) {
+      params@initial_n[species_indices[i],] <- params@initial_n[species_indices[i],] * scaling_factors[i]
+    }
+  } else {
+    stop("scaling_factors must be either a single value or match the number of species to scale")
+  }
+  
+  return(params)
+}
+
+# Function to randomize marine mammal abundance with uncertainty
+randomize_marine_mammal_abundance <- function(params,
+                                             sd = 0.2,
+                                             species_to_scale = NULL) {
+  
+  # Default marine mammal species if not specified
+  if (is.null(species_to_scale)) {
+    species_to_scale <- c("minke whales", "orca", "sperm whales", "baleen whales")
+  }
+  
+  # Get species indices
+  sp_params <- species_params(params)
+  species_indices <- which(sp_params$species %in% species_to_scale)
+  
+  # Generate random scaling factors (log-normal distribution)
+  scaling_factors <- exp(rnorm(length(species_indices), mean = 0, sd = sd))
+  
+  # Apply scaling
+  params <- scale_marine_mammal_abundance(params, scaling_factors, species_to_scale)
+  
+  return(params)
+}
+
+# Function to calculate RMSE between modeled and observed yield
+calculate_yield_rmse <- function(sim_object,
+                                yield_obs_data,
+                                species_list = NULL,
+                                year_range = NULL) {
+  
+  # Get modeled yield
+  mod_yield <- getYield(sim_object)
+  
+  # Convert to data frame
+  df_mod <- reshape2::melt(mod_yield)
+  names(df_mod) <- c("Year", "Species", "Yield")
+  
+  # Filter by year range if specified
+  if (!is.null(year_range)) {
+    df_mod <- df_mod[df_mod$Year >= min(year_range) & df_mod$Year <= max(year_range), ]
+    yield_obs_data <- yield_obs_data[yield_obs_data$Year >= min(year_range) &
+                                     yield_obs_data$Year <= max(year_range), ]
+  }
+  
+  # Filter by species if specified
+  if (!is.null(species_list)) {
+    df_mod <- df_mod[df_mod$Species %in% species_list, ]
+    yield_obs_data <- yield_obs_data[yield_obs_data$Species %in% species_list, ]
+  }
+  
+  # Merge modeled and observed data
+  comparison <- merge(df_mod, yield_obs_data,
+                     by = c("Year", "Species"),
+                     suffixes = c("_mod", "_obs"))
+  
+  # Calculate RMSE
+  rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
+  
+  # Also calculate RMSE by species
+  rmse_by_species <- comparison %>%
+    group_by(Species) %>%
+    summarise(RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)))
+  
+  return(list(
+    total_rmse = rmse,
+    rmse_by_species = rmse_by_species,
+    comparison_data = comparison
+  ))
+}
+
+# Function to run simulations with combined catchability and abundance uncertainty
+run_combined_uncertainty_sims <- function(params,
+                                         n_sims = 10,
+                                         catchability_sd = 0.1,
+                                         abundance_sd = 0.2,
+                                         marine_mammal_species = NULL,
+                                         effort_scen,
+                                         tol = 0.01,
+                                         t_max = 500,
+                                         spinup_years = 118,
+                                         t_start = 1841,
+                                         sim_years = 170) {
+  
+  # List to store results
+  sim_results <- list()
+  param_combinations <- list()
+  
+  # Run simulations
+  for(i in 1:n_sims) {
+    
+    # Create copy of params
+    rand_params <- params
+    
+    # Randomize catchability for fished species
+    gear_df <- gear_params(rand_params)
+    if(nrow(gear_df) > 0) {
+      for(j in 1:nrow(gear_df)) {
+        if(gear_df$catchability[j] > 0) {
+          noise <- rnorm(1, mean = 0, sd = catchability_sd)
+          gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise)
+          gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
+        }
+      }
+      gear_params(rand_params) <- gear_df
+    }
+    
+    # Randomize marine mammal abundance
+    rand_params <- randomize_marine_mammal_abundance(rand_params,
+                                                    sd = abundance_sd,
+                                                    species_to_scale = marine_mammal_species)
+    
+    # Store parameter combination
+    param_combinations[[i]] <- list(
+      catchability = gear_df$catchability,
+      initial_n_mammals = rand_params@initial_n[which(species_params(rand_params)$species %in%
+                                                      c("minke whales", "orca", "sperm whales", "baleen whales")),]
+    )
+    
+    # Run to steady state
+    rand_params <- steady(rand_params, tol = tol, t_max = t_max)
+    
+    # Run spinup if specified
+    if (spinup_years > 0) {
+      sim_spinup <- project(rand_params,
+                           t_start = t_start,
+                           t_max = spinup_years,
+                           effort = 0)
+      
+      # Run main simulation with spinup initial conditions
+      sim <- project(rand_params,
+                    initial_n = sim_spinup@n[spinup_years,,],
+                    t_start = t_start,
+                    t_max = sim_years,
+                    effort = effort_scen)
+    } else {
+      # Run simulation without spinup
+      sim <- project(rand_params,
+                    t_start = t_start,
+                    t_max = sim_years,
+                    effort = effort_scen)
+    }
+    
+    # Store results
+    sim_results[[i]] <- sim
+  }
+  
+  return(list(
+    simulations = sim_results,
+    parameters = param_combinations
+  ))
+}
+
+# Function to find optimal parameter combination based on RMSE
+find_optimal_parameters <- function(sim_results_list,
+                                   yield_obs_data,
+                                   species_list = NULL,
+                                   year_range = NULL) {
+  
+  # Calculate RMSE for each simulation
+  rmse_values <- numeric(length(sim_results_list$simulations))
+  
+  for(i in seq_along(sim_results_list$simulations)) {
+    rmse_result <- calculate_yield_rmse(sim_results_list$simulations[[i]],
+                                       yield_obs_data,
+                                       species_list = species_list,
+                                       year_range = year_range)
+    rmse_values[i] <- rmse_result$total_rmse
+  }
+  
+  # Find optimal (minimum RMSE)
+  optimal_idx <- which.min(rmse_values)
+  
+  return(list(
+    optimal_index = optimal_idx,
+    optimal_rmse = rmse_values[optimal_idx],
+    optimal_sim = sim_results_list$simulations[[optimal_idx]],
+    optimal_params = sim_results_list$parameters[[optimal_idx]],
+    all_rmse = rmse_values
+  ))
+}
+
+# Function to plot RMSE distribution from uncertainty analysis
+plot_rmse_distribution <- function(rmse_values,
+                                  optimal_idx = NULL,
+                                  plot_title = "RMSE Distribution from Parameter Uncertainty") {
+  
+  require(ggplot2)
+  
+  df <- data.frame(
+    Simulation = 1:length(rmse_values),
+    RMSE = rmse_values
+  )
+  
+  p <- ggplot(df, aes(x = RMSE)) +
+    geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7, color = "black") +
+    theme_bw() +
+    labs(
+      title = plot_title,
+      x = "RMSE (Root Mean Square Error)",
+      y = "Frequency"
+    )
+  
+  # Add vertical line for optimal value if provided
+  if (!is.null(optimal_idx)) {
+    p <- p +
+      geom_vline(xintercept = rmse_values[optimal_idx],
+                color = "red", linetype = "dashed", linewidth = 1) +
+      annotate("text",
+              x = rmse_values[optimal_idx],
+              y = max(table(cut(rmse_values, 30))) * 0.9,
+              label = paste("Optimal RMSE =", round(rmse_values[optimal_idx], 2)),
+              hjust = -0.1, color = "red")
+  }
+  
+  return(p)
+}
