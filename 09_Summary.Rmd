@@ -374,8 +374,114 @@ This section implements a comprehensive uncertainty assessment that combines bot
 ## Setup for Combined Uncertainty Analysis
 
 ```{r combined-uncertainty-setup}
-# Function to run simulations with combined catchability and abundance uncertainty
-# This function randomizes both catchability for fished species and initial abundance for marine mammals
+# Load required libraries for parallel processing
+library(parallel)
+library(doParallel)
+library(foreach)
+
+# Function to run a single simulation with randomized parameters
+run_single_sim <- function(sim_id, params, catchability_sd, abundance_sd,
+                          marine_mammal_species, effort_scen, tol, t_max,
+                          spinup_years, t_start, sim_years,
+                          preserve_erepro, max_erepro) {
+  
+  # Create copy of params
+  rand_params <- params
+  
+  # Step 1: Randomize catchability for fished species
+  gear_df <- gear_params(rand_params)
+  original_catchability <- gear_df$catchability
+  
+  if(nrow(gear_df) > 0) {
+    for(j in 1:nrow(gear_df)) {
+      if(gear_df$catchability[j] > 0) {
+        # Generate log-normal noise for catchability
+        noise <- rnorm(1, mean = 0, sd = catchability_sd)
+        gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise)
+        # Ensure values stay between 0 and 1
+        gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
+      }
+    }
+    gear_params(rand_params) <- gear_df
+  }
+  
+  # Step 2: Randomize marine mammal abundance
+  # Get species indices for marine mammals
+  sp_params <- species_params(rand_params)
+  species_indices <- which(sp_params$species %in% marine_mammal_species)
+  
+  # Generate random scaling factors (log-normal distribution)
+  scaling_factors <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
+  
+  # Apply scaling to initial abundance
+  for (k in seq_along(species_indices)) {
+    rand_params@initial_n[species_indices[k],] <-
+      rand_params@initial_n[species_indices[k],] * scaling_factors[k]
+  }
+  
+  # Step 3: Run to steady state with randomized parameters
+  if (preserve_erepro) {
+    # Preserve erepro values during steady state
+    rand_params <- steady(rand_params, tol = tol, t_max = t_max, preserve = c("erepro"))
+  } else {
+    # Don't preserve erepro
+    rand_params <- steady(rand_params, tol = tol, t_max = t_max)
+    
+    # Check if any species require erepro > max_erepro
+    current_erepro <- species_params(rand_params)$erepro
+    if (any(current_erepro > max_erepro, na.rm = TRUE)) {
+      # Return NULL to indicate this simulation should be skipped
+      return(list(
+        success = FALSE,
+        skipped_info = list(
+          sim_id = sim_id,
+          erepro_values = current_erepro,
+          species_over_limit = sp_params$species[which(current_erepro > max_erepro)],
+          catchability = gear_df$catchability,
+          marine_mammal_scaling = scaling_factors
+        )
+      ))
+    }
+  }
+  
+  # Step 4: Run spinup if specified
+  if (spinup_years > 0) {
+    sim_spinup <- project(rand_params,
+                         t_start = t_start,
+                         t_max = spinup_years,
+                         effort = 0)
+    
+    # Run main simulation with spinup initial conditions
+    sim <- project(rand_params,
+                  initial_n = sim_spinup@n[spinup_years,,],
+                  t_start = t_start,
+                  t_max = sim_years,
+                  effort = effort_scen)
+  } else {
+    # Run simulation without spinup
+    sim <- project(rand_params,
+                  t_start = t_start,
+                  t_max = sim_years,
+                  effort = effort_scen)
+  }
+  
+  # Return successful result
+  return(list(
+    success = TRUE,
+    sim_id = sim_id,
+    simulation = sim,
+    params_info = list(
+      sim_id = sim_id,
+      catchability = gear_df$catchability,
+      catchability_change = gear_df$catchability / original_catchability,
+      marine_mammal_scaling = scaling_factors,
+      marine_mammal_species = marine_mammal_species[seq_along(scaling_factors)],
+      erepro_values = species_params(rand_params)$erepro
+    )
+  ))
+}
+
+# Main function to run simulations with combined uncertainty (with parallel processing)
 run_combined_uncertainty_sims <- function(params,
                                          n_sims = 10,
                                          catchability_sd = 0.1,
@@ -386,101 +492,172 @@ run_combined_uncertainty_sims <- function(params,
                                          t_max = 500,
                                          spinup_years = 118,
                                          t_start = 1841,
-                                         sim_years = 170) {
+                                         sim_years = 170,
+                                         preserve_erepro = TRUE,
+                                         max_erepro = 1,
+                                         n_cores = NULL,
+                                         parallel = TRUE) {
   
   # Default marine mammal species if not specified
   if (is.null(marine_mammal_species)) {
     marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
   }
   
-  # List to store results
-  sim_results <- list()
-  param_combinations <- list()
+  # Determine number of cores to use
+  if (is.null(n_cores)) {
+    n_cores <- detectCores() - 1  # Leave one core free
+  }
+  n_cores <- min(n_cores, detectCores())
   
   # Progress message
   cat("Running", n_sims, "simulations with combined uncertainty...\n")
-  
-  # Run simulations
-  for(i in 1:n_sims) {
-    
-    if(i %% 10 == 0) cat("  Simulation", i, "of", n_sims, "\n")
-    
-    # Create copy of params
-    rand_params <- params
-    
-    # Step 1: Randomize catchability for fished species
-    gear_df <- gear_params(rand_params)
-    original_catchability <- gear_df$catchability
-    
-    if(nrow(gear_df) > 0) {
-      for(j in 1:nrow(gear_df)) {
-        if(gear_df$catchability[j] > 0) {
-          # Generate log-normal noise for catchability
-          noise <- rnorm(1, mean = 0, sd = catchability_sd)
-          gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise)
-          # Ensure values stay between 0 and 1
-          gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
-        }
-      }
-      gear_params(rand_params) <- gear_df
-    }
-    
-    # Step 2: Randomize marine mammal abundance
-    # Get species indices for marine mammals
-    sp_params <- species_params(rand_params)
-    species_indices <- which(sp_params$species %in% marine_mammal_species)
-    
-    # Generate random scaling factors (log-normal distribution)
-    scaling_factors <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
-    
-    # Apply scaling to initial abundance
-    for (k in seq_along(species_indices)) {
-      rand_params@initial_n[species_indices[k],] <-
-        rand_params@initial_n[species_indices[k],] * scaling_factors[k]
-    }
-    
-    # Store parameter combination for later analysis
-    param_combinations[[i]] <- list(
-      sim_id = i,
-      catchability = gear_df$catchability,
-      catchability_change = gear_df$catchability / original_catchability,
-      marine_mammal_scaling = scaling_factors,
-      marine_mammal_species = marine_mammal_species[seq_along(scaling_factors)]
-    )
-    
-    # Step 3: Run to steady state with randomized parameters
-    rand_params <- steady(rand_params, tol = tol, t_max = t_max)
-    
-    # Step 4: Run spinup if specified
-    if (spinup_years > 0) {
-      sim_spinup <- project(rand_params,
-                           t_start = t_start,
-                           t_max = spinup_years,
-                           effort = 0)
-      
-      # Run main simulation with spinup initial conditions
-      sim <- project(rand_params,
-                    initial_n = sim_spinup@n[spinup_years,,],
-                    t_start = t_start,
-                    t_max = sim_years,
-                    effort = effort_scen)
-    } else {
-      # Run simulation without spinup
-      sim <- project(rand_params,
-                    t_start = t_start,
-                    t_max = sim_years,
-                    effort = effort_scen)
-    }
-    
-    # Store results
-    sim_results[[i]] <- sim
+  if (preserve_erepro) {
+    cat("  Preserving erepro values during steady state\n")
+  } else {
+    cat("  Not preserving erepro; will skip simulations with erepro >", max_erepro, "\n")
   }
   
-  cat("Completed all simulations.\n")
+  if (parallel && n_cores > 1) {
+    cat("  Using parallel processing with", n_cores, "cores\n")
+    
+    # Set up parallel cluster
+    cl <- makeCluster(n_cores)
+    registerDoParallel(cl)
+    
+    # Export necessary objects to cluster
+    clusterExport(cl, c("run_single_sim"), envir = environment())
+    
+    # Run simulations in parallel
+    # We'll run extra simulations to account for potential skips
+    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 1.5))
+    
+    cat("  Running", n_attempts, "initial attempts...\n")
+    
+    results <- foreach(i = 1:n_attempts,
+                      .packages = c("mizer", "therMizer"),
+                      .errorhandling = "pass") %dopar% {
+      run_single_sim(i, params, catchability_sd, abundance_sd,
+                    marine_mammal_species, effort_scen, tol, t_max,
+                    spinup_years, t_start, sim_years,
+                    preserve_erepro, max_erepro)
+    }
+    
+    # Stop cluster
+    stopCluster(cl)
+    
+  } else {
+    # Sequential processing
+    cat("  Using sequential processing\n")
+    
+    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 1.5))
+    results <- list()
+    
+    for(i in 1:n_attempts) {
+      if(i %% 10 == 0) cat("  Processing simulation", i, "of", n_attempts, "\n")
+      
+      results[[i]] <- run_single_sim(i, params, catchability_sd, abundance_sd,
+                                    marine_mammal_species, effort_scen, tol, t_max,
+                                    spinup_years, t_start, sim_years,
+                                    preserve_erepro, max_erepro)
+    }
+  }
+  
+  # Process results
+  sim_results <- list()
+  param_combinations <- list()
+  skipped_sims <- list()
+  successful_count <- 0
+  
+  for(res in results) {
+    if(!is.null(res) && !inherits(res, "error")) {
+      if(res$success) {
+        successful_count <- successful_count + 1
+        if(successful_count <= n_sims) {
+          sim_results[[successful_count]] <- res$simulation
+          param_combinations[[successful_count]] <- res$params_info
+        }
+      } else {
+        skipped_sims[[length(skipped_sims) + 1]] <- res$skipped_info
+      }
+    }
+  }
+  
+  # If we don't have enough successful simulations, run more
+  while(successful_count < n_sims && length(results) < n_sims * 3) {
+    cat("  Need", n_sims - successful_count, "more successful simulations...\n")
+    
+    additional_attempts <- n_sims - successful_count + ceiling((n_sims - successful_count) * 0.5)
+    
+    if (parallel && n_cores > 1) {
+      cl <- makeCluster(n_cores)
+      registerDoParallel(cl)
+      clusterExport(cl, c("run_single_sim"), envir = environment())
+      
+      additional_results <- foreach(i = (length(results) + 1):(length(results) + additional_attempts),
+                                   .packages = c("mizer", "therMizer"),
+                                   .errorhandling = "pass") %dopar% {
+        run_single_sim(i, params, catchability_sd, abundance_sd,
+                      marine_mammal_species, effort_scen, tol, t_max,
+                      spinup_years, t_start, sim_years,
+                      preserve_erepro, max_erepro)
+      }
+      
+      stopCluster(cl)
+    } else {
+      additional_results <- list()
+      for(i in 1:additional_attempts) {
+        additional_results[[i]] <- run_single_sim(length(results) + i, params,
+                                                 catchability_sd, abundance_sd,
+                                                 marine_mammal_species, effort_scen,
+                                                 tol, t_max, spinup_years, t_start,
+                                                 sim_years, preserve_erepro, max_erepro)
+      }
+    }
+    
+    # Process additional results
+    for(res in additional_results) {
+      if(!is.null(res) && !inherits(res, "error")) {
+        if(res$success) {
+          successful_count <- successful_count + 1
+          if(successful_count <= n_sims) {
+            sim_results[[successful_count]] <- res$simulation
+            param_combinations[[successful_count]] <- res$params_info
+          }
+        } else {
+          skipped_sims[[length(skipped_sims) + 1]] <- res$skipped_info
+        }
+      }
+    }
+    
+    results <- c(results, additional_results)
+  }
+  
+  # Final summary
+  cat("\nCompleted", min(successful_count, n_sims), "successful simulations\n")
+  if (length(skipped_sims) > 0) {
+    cat("Skipped", length(skipped_sims), "simulations due to erepro >", max_erepro, "\n")
+    
+    # Summarize which species caused skips
+    all_species_over <- unlist(lapply(skipped_sims, function(x) x$species_over_limit))
+    if(length(all_species_over) > 0) {
+      species_skip_counts <- table(all_species_over)
+      cat("\nSpecies causing skips:\n")
+      print(species_skip_counts)
+    }
+  }
+  
+  # Trim to requested number of simulations
+  if(length(sim_results) > n_sims) {
+    sim_results <- sim_results[1:n_sims]
+    param_combinations <- param_combinations[1:n_sims]
+  }
   
   return(list(
     simulations = sim_results,
-    parameters = param_combinations
+    parameters = param_combinations,
+    skipped = skipped_sims,
+    n_successful = length(sim_results),
+    n_attempts = length(results)
   ))
 }
 
@@ -707,7 +884,7 @@ if (!exists("yield_ts_tidy")) {
 # Using moderate uncertainty for both parameters
 combined_uncertainty_results <- run_combined_uncertainty_sims(
   params = params_1841_2010_fishing_only,
-  n_sims = 100,  # Number of simulations
+  n_sims = 100,  # Number of simulations (can be thousands with parallel processing)
   catchability_sd = 0.2,  # 20% CV for catchability
   abundance_sd = 0.3,  # 30% CV for marine mammal abundance
   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
@@ -716,8 +893,39 @@ combined_uncertainty_results <- run_combined_uncertainty_sims(
   t_max = 500,
   spinup_years = 118,
   t_start = 1841,
-  sim_years = 170
+  sim_years = 170,
+  preserve_erepro = TRUE,  # Set to FALSE to filter out simulations with erepro > 1
+  max_erepro = 1,  # Maximum allowed erepro when preserve_erepro = FALSE
+  n_cores = NULL,  # NULL = use all available cores minus 1
+  parallel = TRUE  # Set to FALSE for sequential processing
 )
+
+# Example for running thousands of simulations in parallel
+# combined_uncertainty_results_large <- run_combined_uncertainty_sims(
+#   params = params_1841_2010_fishing_only,
+#   n_sims = 1000,  # Run 1000 simulations
+#   catchability_sd = 0.2,
+#   abundance_sd = 0.3,
+#   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+#   effort_scen = combined_effort_array,
+#   tol = 0.01,
+#   t_max = 500,
+#   spinup_years = 118,
+#   t_start = 1841,
+#   sim_years = 170,
+#   preserve_erepro = TRUE,
+#   max_erepro = 1,
+#   n_cores = 8,  # Use 8 cores
+#   parallel = TRUE
+# )
+
+# Display summary of results
+cat("\n=== Simulation Summary ===\n")
+cat("Successful simulations:", combined_uncertainty_results$n_successful, "\n")
+cat("Total attempts:", combined_uncertainty_results$n_attempts, "\n")
+if (length(combined_uncertainty_results$skipped) > 0) {
+  cat("Skipped simulations:", length(combined_uncertainty_results$skipped), "\n")
+}
 
 # Save results
 saveRDS(combined_uncertainty_results, "combined_uncertainty_results.RDS")
@@ -879,8 +1087,23 @@ for (i in seq_along(mammal_indices)) {
     optimal_results$optimal_params$marine_mammal_scaling[i]
 }
 
-# Run to steady state
-optimal_params_export <- steady(optimal_params_export, tol = 0.01, t_max = 500)
+# Run to steady state (preserving erepro if needed)
+# Check if we want to preserve erepro based on the original analysis
+preserve_erepro_export <- TRUE  # Set this based on your preference
+if (preserve_erepro_export) {
+  optimal_params_export <- steady(optimal_params_export, tol = 0.01, t_max = 500, preserve = c("erepro"))
+} else {
+  optimal_params_export <- steady(optimal_params_export, tol = 0.01, t_max = 500)
+  # Check final erepro values
+  final_erepro <- species_params(optimal_params_export)$erepro
+  if (any(final_erepro > 1, na.rm = TRUE)) {
+    warning("Some species have erepro > 1 in the optimal parameters:")
+    print(data.frame(
+      Species = sp_params$species[which(final_erepro > 1)],
+      erepro = final_erepro[which(final_erepro > 1)]
+    ))
+  }
+}
 
 # Save optimal parameters
 saveRDS(optimal_params_export, "params_optimal_combined_uncertainty.RDS")
