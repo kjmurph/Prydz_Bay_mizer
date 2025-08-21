@@ -563,16 +563,21 @@ update_search_space <- function(param_history, rmse_history, species_rmse_histor
   abundance_spread <- sd(best_abundance, na.rm = TRUE)
   
   # Adjust search space based on spread of best parameters
-  if (catchability_spread < current_catchability_sd * 0.5) {
-    new_params$catchability_sd <- max(min_sd, current_catchability_sd * reduction_factor)
-  } else if (catchability_spread > current_catchability_sd * 1.5) {
-    new_params$catchability_sd <- min(max_sd, current_catchability_sd / reduction_factor)
+  # Check for NA values (can occur with small sample sizes)
+  if (!is.na(catchability_spread)) {
+    if (catchability_spread < current_catchability_sd * 0.5) {
+      new_params$catchability_sd <- max(min_sd, current_catchability_sd * reduction_factor)
+    } else if (catchability_spread > current_catchability_sd * 1.5) {
+      new_params$catchability_sd <- min(max_sd, current_catchability_sd / reduction_factor)
+    }
   }
   
-  if (abundance_spread < current_abundance_sd * 0.5) {
-    new_params$abundance_sd <- max(min_sd, current_abundance_sd * reduction_factor)
-  } else if (abundance_spread > current_abundance_sd * 1.5) {
-    new_params$abundance_sd <- min(max_sd, current_abundance_sd / reduction_factor)
+  if (!is.na(abundance_spread)) {
+    if (abundance_spread < current_abundance_sd * 0.5) {
+      new_params$abundance_sd <- max(min_sd, current_abundance_sd * reduction_factor)
+    } else if (abundance_spread > current_abundance_sd * 1.5) {
+      new_params$abundance_sd <- min(max_sd, current_abundance_sd / reduction_factor)
+    }
   }
   
   # Analyze species-specific performance and adjust SD accordingly
@@ -649,8 +654,21 @@ update_search_space <- function(param_history, rmse_history, species_rmse_histor
   }
   
   # Calculate center of best parameter region for targeted search
-  new_params$catchability_center <- mean(best_catchability, na.rm = TRUE)
-  new_params$abundance_center <- mean(best_abundance, na.rm = TRUE)
+  # Handle potential NA values
+  catchability_center_val <- mean(best_catchability, na.rm = TRUE)
+  abundance_center_val <- mean(best_abundance, na.rm = TRUE)
+  
+  if (!is.na(catchability_center_val)) {
+    new_params$catchability_center <- catchability_center_val
+  } else {
+    new_params$catchability_center <- 1.0  # Default to no bias if NA
+  }
+  
+  if (!is.na(abundance_center_val)) {
+    new_params$abundance_center <- abundance_center_val
+  } else {
+    new_params$abundance_center <- 1.0  # Default to no bias if NA
+  }
   
   return(new_params)
 }
