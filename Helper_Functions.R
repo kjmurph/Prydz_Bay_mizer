@@ -315,13 +315,24 @@ calculate_yield_rmse <- function(sim_object,
                      by = c("Year", "Species"),
                      suffixes = c("_mod", "_obs"))
   
-  # Calculate RMSE
-  rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
+  # Calculate RMSE - handle potential NA or Inf values
+  if (nrow(comparison) == 0) {
+    rmse <- NA
+  } else {
+    rmse_val <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
+    # Check for NaN or Inf and replace with large value
+    if (is.nan(rmse_val) || is.infinite(rmse_val)) {
+      rmse <- 1e10  # Large penalty value for failed simulations
+    } else {
+      rmse <- rmse_val
+    }
+  }
   
   # Also calculate RMSE by species
   rmse_by_species <- comparison %>%
     group_by(Species) %>%
-    summarise(RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)))
+    summarise(RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE))) %>%
+    mutate(RMSE = ifelse(is.nan(RMSE) | is.infinite(RMSE), 1e10, RMSE))
   
   return(list(
     total_rmse = rmse,
@@ -511,8 +522,14 @@ calculate_species_rmse <- function(sim_object, yield_obs_data, species_name, yea
     return(NA)
   }
   
-  rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
-  return(rmse)
+  rmse_val <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
+  
+  # Check for NaN or Inf and replace with large value
+  if (is.nan(rmse_val) || is.infinite(rmse_val)) {
+    return(1e10)  # Large penalty value for failed simulations
+  } else {
+    return(rmse_val)
+  }
 }
 
 # Function to update parameter search space based on best performers
@@ -845,7 +862,12 @@ run_adaptive_uncertainty_analysis <- function(params,
         species_list = fished_species,
         year_range = year_range
       )
-      batch_rmse[i] <- rmse_result$total_rmse
+      # Handle NA or invalid RMSE values
+      if (is.na(rmse_result$total_rmse)) {
+        batch_rmse[i] <- 1e10  # Large penalty for failed simulations
+      } else {
+        batch_rmse[i] <- rmse_result$total_rmse
+      }
       
       # Species-specific RMSE
       species_rmse <- list()
@@ -924,12 +946,16 @@ run_adaptive_uncertainty_analysis <- function(params,
         abundance_center <- 0.7 * abundance_center + 0.3 * new_search_params$abundance_center
       }
       
-      # Check for convergence
-      if (iteration > 2) {
+      # Check for convergence (only if we have valid RMSE values)
+      if (iteration > 2 && !is.na(search_space_history[[iteration]]$best_overall_rmse) &&
+          !is.na(search_space_history[[iteration-1]]$best_overall_rmse) &&
+          !is.infinite(search_space_history[[iteration]]$best_overall_rmse) &&
+          !is.infinite(search_space_history[[iteration-1]]$best_overall_rmse)) {
         recent_improvement <- abs(search_space_history[[iteration]]$best_overall_rmse -
                                 search_space_history[[iteration-1]]$best_overall_rmse)
         
-        if (recent_improvement < convergence_threshold) {
+        if (!is.na(recent_improvement) && !is.infinite(recent_improvement) &&
+            recent_improvement < convergence_threshold) {
           if (verbose) {
             cat("\nConvergence achieved! Improvement <", convergence_threshold, "\n")
           }
@@ -961,8 +987,17 @@ run_adaptive_uncertainty_analysis <- function(params,
     }
   }
   
-  # Find overall optimal parameters
-  optimal_idx <- which.min(all_rmse)
+  # Find overall optimal parameters (excluding NA and Inf values)
+  valid_indices <- which(!is.na(all_rmse) & !is.infinite(all_rmse))
+  if (length(valid_indices) == 0) {
+    warning("No valid RMSE values found. All simulations may have failed.")
+    optimal_idx <- 1
+  } else {
+    # Find minimum among valid values
+    valid_rmse <- all_rmse[valid_indices]
+    min_valid_idx <- which.min(valid_rmse)
+    optimal_idx <- valid_indices[min_valid_idx]
+  }
   
   # Calculate final statistics
   rmse_by_species_final <- do.call(rbind, lapply(all_species_rmse, function(x) {
