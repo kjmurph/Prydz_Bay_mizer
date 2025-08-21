@@ -1,0 +1,373 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Do I need contant phytoplankton and temperature forcings for any spin-up, like if we need to use steady() in a loop testing parameter uncertaitny?
+
+Also need to make sure initial effort is zero for the repreated forcing during a spin-up like above 
+
+# Load helper functions
+
+Some useful plotting functions for modelled versus observed yield (timeseries) and biomass (mean decadal value for 2010-2020)
+```{r}
+source("Helper_Functions.R")
+```
+
+
+# Load params
+Best version of Pyrdz Bay mizer model parameters at steady-state for the contemporary ecosystem 2010 - 2020
+```{r}
+params_new_v4 <- readRDS("params_steady_state_2011_2020_tol_0.00025.RDS")
+```
+
+# Load climate forcings
+
+The temperature and phytoplankton climate forcings for the ISIMIP3a protocol for Prydz Bay region
+In some cases we need repeated constant values of the first year of these forcings, either for spin-ups or to mimin 'no climate change'. These repeated forcings are created as starting in 1961 and a version that starts in 1841
+
+```{r}
+# Temperature
+extended_ocean_temp <- readRDS("temperature_forcing_1841_2010.rds")
+constant_array_temp <- readRDS("constant_array_temp.RDS")
+constant_array_temp_1841 <- readRDS("constant_array_temp_1841.RDS")
+
+# Phytoplankton
+extended_n_pp_array <- readRDS("phytoplankton_forcing_1841_2010.rds")
+constant_array_n_pp <- readRDS("constant_array_n_pp.RDS")
+constant_array_n_pp_1841 <- readRDS("constant_array_n_pp_1841.RDS")
+```
+
+# Setup params
+
+```{r}
+params_1841_2010_climate_only <- upgradeTherParams(params_new_v4, 
+                                                   ocean_temp_array = extended_ocean_temp,
+                                                   n_pp_array = extended_n_pp_array,
+                                                   # vertical_migration_array = vertical_migration_array,
+                                                   # exposure_array = ESS_exposure,
+                                                   aerobic_effect = FALSE, metabolism_effect = TRUE)
+
+
+params_1841_2010_fishing_only <- upgradeTherParams(params_new_v4, 
+                                                   ocean_temp_array = constant_array_temp_1841,
+                                                   n_pp_array = constant_array_n_pp_1841,
+                                                   # vertical_migration_array = vertical_migration_array,
+                                                   # exposure_array = ESS_exposure,
+                                                   aerobic_effect = FALSE, metabolism_effect = TRUE)
+
+
+```
+
+# Run simulations
+
+```{r}
+sim_1841_2010_climate_only_spinup <- project(params_1841_2010_climate_only, 
+                                             t_start = 1841, 
+                                             t_max = 118,  
+                                             effort = 0)
+```
+
+
+```{r}
+sim_1841_2010_climate_only <- project(params_1841_2010_climate_only,
+                                      initial_n=sim_1841_2010_climate_only_spinup@n[118,,], 
+                                      t_start = 1841, 
+                                      t_max = 170,  
+                                      effort = 0)
+```
+
+
+```{r}
+sim_1841_2010_fishing_only <- project(params_1841_2010_fishing_only,
+                                      initial_n=sim_1841_2010_climate_only_spinup@n[118,,],
+                                      t_start = 1841, 
+                                      t_max = 170,  
+                                      effort = combined_effort_array)
+```
+
+
+```{r}
+sim_1841_2010_climate_and_fishing <- project(params_1841_2010_climate_only,
+                                             initial_n=sim_1841_2010_climate_only_spinup@n[118,,],
+                                             t_start = 1841, 
+                                             t_max = 170,  
+                                             effort = combined_effort_array)
+```
+
+
+
+
+
+# Size spectrum
+
+```{r}
+mizerExperimental::plotSpectra2(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1841:1860)
+mizerExperimental::plotSpectra2(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1940:1950)
+mizerExperimental::plotSpectra2(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 2000:2010)
+
+plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1920:1930)
+plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1930:1940)
+plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1940:1950)
+plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 2000:2010)
+```
+
+
+# Inspect biomass time series
+
+```{r}
+plot_biomass_comparison(sim_1841_2010_fishing_only)
+```
+
+# Inspect yield time series
+
+```{r}
+yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
+
+plot_yield_comparison(sim_1841_2010_fishing_only, 
+                      yield_ts_tidy,
+                      free_y_scale = F)
+```
+
+
+# Catchability uncertainty
+
+Catchability for the fished groups is uncertain.
+We want to explore the parameter space around catchability values for the fished groups to understand how that affects the modelled versus observed yield
+
+
+```{r}
+# Function to randomize catchability only for fished species
+randomize_catchability <- function(params, sdev = 0.1) {
+  # Get current gear parameters
+  gear_df <- gear_params(params)
+  
+  # Check if there's fishing happening (non-zero catchability)
+  if(nrow(gear_df) > 0) {
+    # Generate noise for each catchability value
+    for(i in 1:nrow(gear_df)) {
+      # Only add noise if catchability is non-zero (meaning it's fished)
+      if(gear_df$catchability[i] > 0) {
+        # Generate random noise
+        noise <- rnorm(1, mean = 0, sd = sdev)
+        
+        # Apply noise to catchability
+        gear_df$catchability[i] <- gear_df$catchability[i] * exp(noise)
+        
+        # Ensure values stay between 0 and 1
+        if(gear_df$catchability[i] > 1) gear_df$catchability[i] <- 1
+        if(gear_df$catchability[i] < 0) gear_df$catchability[i] <- 0
+      }
+    }
+    
+    # Update parameters with new catchability values
+    
+    gear_params(params) <- gear_df
+    
+  }
+  
+  return(params)
+}
+
+# Function to run multiple simulations with randomized catchability for fished species
+run_random_catchability_sims <- function(params, 
+                                         n_sims = 10, 
+                                         years = 170, 
+                                         sd = 0.1, 
+                                         effort_scen, 
+                                         tol = .01,
+                                         t_max = 500) {
+  # List to store simulation results
+  sim_results <- list()
+  
+  # Run simulations
+  for(i in 1:n_sims) {
+    # Create new parameters with randomized catchability
+    rand_params <- randomize_catchability(params, sd = sd)
+    
+    # Run to steady state
+    rand_params <- steady(rand_params, tol = tol, t_max = t_max)
+    
+    # Run simulation with provided effort scenario
+    sim <- project(rand_params, effort = effort_scen)
+    
+    # Store results
+    sim_results[[i]] <- sim
+  }
+  
+  return(sim_results)
+}
+```
+
+
+```{r}
+#Orignal run
+sim0 <- project(params_1841_2010_climate_only, effort = combined_effort_array)
+
+plotlyBiomass(sim0)
+plotYield(sim0)
+
+# Run single simulation with randomized matrix as a test
+rand_params <- randomize_catchability(params_1841_2010_climate_only)
+sim1 <- project(rand_params,effort = combined_effort_array)
+
+plotBiomassRelative(sim1,sim0)
+
+# Run multiple simulations
+
+# 9th July 2025 - try dramatically increasing the SD for catachability variation 
+sims_scen4 <- run_random_catchability_sims(params_1841_2010_climate_only, n_sims = 100, effort_scen = combined_effort_array, sd = 2)
+
+
+
+# Save sim outputs
+
+saveRDS(sims_scen4,"sims_scen4.RDS")
+
+
+# read in biomass and catches data
+
+```
+
+
+```{r}
+
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+##############
+# Figure for CATCHES 
+
+trimYield<-function(sim){
+  
+  y<-plotYieldGear(sim, return_data = T)
+  y<-select(y,c(Year, Species,Yield))
+  return(y)
+  
+}
+
+sim_catches<-lapply(sims_scen4,trimYield)
+for (i in 1:100) {
+  sim_catches[[i]]$sim<-i
+}
+
+df_sim_catch<-do.call(rbind.data.frame, sim_catches)
+
+sim_mean_c<-df_sim_catch |>  group_by(Species,Year) |>summarise(Yield=median(Yield))|> ungroup()
+sim_lower_c<-df_sim_catch |> group_by(Species,Year) |>summarise(Yield=min(Yield))|> ungroup() 
+sim_upper_c<-df_sim_catch |> group_by(Species,Year)|>summarise(Yield=max(Yield))|> ungroup() 
+
+sim1_c <-data.frame(Species=sim_mean_c$Species, 
+                  Year=sim_mean_c$Year,
+                  sim_mean=sim_mean_c$Yield,
+                  sim_lower=sim_lower_c$Yield,
+                  sim_upper=sim_upper_c$Yield)
+
+sim1_c <-right_join(yield_ts,sim1_c)
+
+# Plot
+
+ggplot(sim1_c, aes(x=Year, y=Yield, colour=Species)) +
+  facet_wrap(~Species, scales="free_y") +
+  geom_point(aes(y=Yield), colour="black", size=0.5) +
+  geom_ribbon(data = sim1_c, 
+              aes(ymin=sim_lower, ymax=sim_upper), alpha=0.3, colour=NA) +
+  geom_line(data = sim1_c, 
+            aes(y=sim_mean,colour=Species)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank())
+
+  p_yield <- plotYield(sim_1841_2010_fishing_only) + 
+  facet_wrap(~Species,
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group") +
+  # facet_wrap(~Species,scales="free_y") +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, colour = Species), size=1) +
+  geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1,size = 1,colour = "black") +
+  geom_ribbon(data = sim1_c, aes(x = Year, y=Yield, ymin=sim_lower, ymax=sim_upper), alpha=0.3, colour=NA) +
+  theme(legend.title = element_text( size=3), legend.text=element_text(size=3)) + 
+  geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
+  geom_vline(aes(xintercept = 2010), linetype = "dashed") +
+  # scale_x_continuous(breaks = c(1930,1945,1961,1985,2010)) +
+  # scale_y_log10() +
+  theme_bw() +
+  theme(
+    legend.position = "none"
+  )
+  
+p_yield
+
+# ggsave("plots/Catchability_v1_Yield_1841_2010.tiff", plot = p_yield, units="cm", width=22, height=16, dpi =300)
+```
+
+
+
+# Scale initial abudances
+
+We developed a steady-state model for the contemporary time period (2010-2020), but we are now assessing the historical change in biomass and yield. Thinking about the implication of historical whaling in particular, we need to explore how different initial steady-states would influence how biomass, yield and size structure change over time by exploring what initial conditions would need to be to best fit the yield timeseries and the mean value observed biomass for 2010-2020.
+
+Increase initial abundance of whales
+```{r}
+params_1841_2010_climate_only <- upgradeTherParams(params_new_v4, 
+                                                   ocean_temp_array = extended_ocean_temp,
+                                                   n_pp_array = extended_n_pp_array,
+                                                   # vertical_migration_array = vertical_migration_array,
+                                                   # exposure_array = ESS_exposure,
+                                                   aerobic_effect = FALSE, metabolism_effect = TRUE)
+
+
+
+params_scaled_v1 <- params_1841_2010_climate_only
+
+params_scaled_v1@initial_n[c(16),] <- params_1841_2010_climate_only@initial_n[c(16),] * 50
+params_scaled_v1@initial_n[c(17),] <- params_1841_2010_climate_only@initial_n[c(17),] * 5
+params_scaled_v1@initial_n[c(18),] <- params_1841_2010_climate_only@initial_n[c(18),] * 50
+params_scaled_v1@initial_n[c(19),] <- params_1841_2010_climate_only@initial_n[c(19),] * 50
+
+params_scaled_v1 <- steady(params_scaled_v1,
+                           t_max = 500,
+                           tol = 0.01,
+                           preserve = c("erepro"))
+
+species_params(params_scaled_v1)$erepro
+plot(params_scaled_v1)
+```
+
+```{r}
+sim_scaled_spinup <- project(params_scaled_v1, 
+                             t_start = 1841,
+                             t_max = 118,
+                             effort = 0)
+```
+
+```{r}
+sim_scaled_climate_only <- project(params_scaled_v1,
+                                      initial_n=sim_scaled_spinup@n[118,,], 
+                                      t_start = 1841, 
+                                      t_max = 170,  
+                                      effort = 0)
+```
+
+```{r}
+sim_scaled_climate_and_fishing <- project(params_scaled_v1,
+                                             initial_n=sim_scaled_spinup@n[118,,],
+                                             t_start = 1841, 
+                                             t_max = 170,  
+                                             effort = combined_effort_array)
+```
+
+# Inspect biomass time series
+
+```{r}
+plot_biomass_comparison(sim_scaled_climate_only)
+plot_biomass_comparison(sim_scaled_climate_and_fishing)
+```
+
+
+
+
+
+
+

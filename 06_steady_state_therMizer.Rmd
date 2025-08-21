@@ -740,6 +740,8 @@ yield_ts_tidy <- yield_ts %>%
 
 glimpse(yield_ts_tidy)
 head(yield_ts_tidy)
+
+# saveRDS(yield_ts_tidy, "yield_observed_timeseries_tidy.RDS")
 ```
 
 
@@ -1002,6 +1004,8 @@ if (require(ggplot2)) {
 
 # ggsave("plots/extended_temp_forcing.tiff", plot = p_ext_temp_forcing, units="cm", width=18, height=14, dpi =300)
 # saveRDS(extended_ocean_temp, "temperature_forcing_1841_2010.rds")
+
+# extended_ocean_temp <- readRDS("temperature_forcing_1841_2010.rds")
 ```
 # Create temp spinup (constant)
 
@@ -1027,8 +1031,34 @@ colnames(constant_array_temp) <- realm_names
 # Check the results
 dim(constant_array_temp)  # Should show 500 rows, 5 columns
 head(constant_array_temp)  # Shows first few rows with row names
+
+# saveRDS(constant_array_temp, "constant_array_temp.RDS")
 ```
 
+```{r}
+constant_time_steps_1841 <- 1841:2340
+
+realm_names <- c("tos","t500m","t1000m", "t1500m", "tob")
+
+# Extract the first row
+first_row_temp <- ocean_temp[1, ]
+
+# Get the first row name (year 1961)
+# first_row_name <- rownames(ocean_temp)[1]
+
+# Repeat the first row 500 times
+constant_array_temp_1841 <- do.call(rbind, replicate(500, first_row_temp, simplify = FALSE))
+
+# Set all row names to the first row name (1961)
+rownames(constant_array_temp_1841) <- constant_time_steps_1841
+colnames(constant_array_temp_1841) <- realm_names
+
+# Check the results
+dim(constant_array_temp_1841)  # Should show 500 rows, 5 columns
+head(constant_array_temp_1841)  # Shows first few rows with row names
+
+# saveRDS(constant_array_temp_1841, "constant_array_temp_1841.RDS")
+```
 
 ## plankton forcing data
 Set up the resource:
@@ -1174,6 +1204,9 @@ if(require(ggplot2)) {
 
 # ggsave("plots/extended_phyto_forcing.tiff", plot = p_ext_phyto, units="cm", width=18, height=14, dpi =300)
 # saveRDS(extended_n_pp_array, "phytoplankton_forcing_1841_2010.rds")
+
+# extended_n_pp_array <- readRDS("phytoplankton_forcing_1841_2010.rds")
+
 ```
 
 
@@ -1199,9 +1232,33 @@ colnames(constant_array_n_pp) <- sizes
 # Check the results
 dim(constant_array_n_pp)  # Should show 500 rows, 5 columns
 head(constant_array_n_pp)  # Shows first few rows with row names
+
+# saveRDS(constant_array_n_pp, "constant_array_n_pp.RDS")
 ```
 
 
+```{r}
+# Extract the first row
+first_row_n_pp <- n_pp_array[1,]
+
+sizes <- names(params@initial_n_pp)
+
+# Get the first row name (year 1961)
+# first_row_name_n_pp <- rownames(n_pp_array)[1]
+
+# Repeat the first row 500 times
+constant_array_n_pp_1841 <- do.call(rbind, replicate(500, first_row_n_pp, simplify = FALSE))
+
+# Set all row names to the first row name (1961)
+rownames(constant_array_n_pp_1841) <- constant_time_steps_1841
+colnames(constant_array_n_pp_1841) <- sizes 
+
+# Check the results
+dim(constant_array_n_pp_1841)  # Should show 500 rows, 5 columns
+head(constant_array_n_pp_1841)  # Shows first few rows with row names
+
+# saveRDS(constant_array_n_pp_1841, "constant_array_n_pp_1841.RDS")
+```
 
 ```{r}
 params_1841_2010_climate_only <- upgradeTherParams(params_new_v4, 
@@ -1220,6 +1277,9 @@ sim_1841_2010_climate_only <- project(params_1841_2010_climate_only,initial_n=si
 
 plot(sim_1841_2010_climate_only)
 
+plotSpectra(sim_1841_2010_climate_only, time_range = 1841:1860)
+plotSpectra(sim_1841_2010_climate_only, time_range = 1960:1970)
+plotSpectra(sim_1841_2010_climate_only, time_range = 2000:2010)
 
 
 ```
@@ -1315,9 +1375,17 @@ p_biomass <-
 
 
 ```{r}
-sim_1841_2010_climate_and_fishing <- project(params_1841_2010_climate_only, t_start = 1841, t_max = 170,  effort = combined_effort_array)
+sim_1841_2010_climate_and_fishing <- project(params_1841_2010_climate_only,
+                                             initial_n=sim_1841_2010_climate_only_spinup@n[118,,],
+                                             t_start = 1841, 
+                                             t_max = 170,  
+                                             effort = combined_effort_array)
 
 plot(sim_1841_2010_climate_and_fishing)
+
+plotSpectra(sim_1841_2010_climate_and_fishing, time_range = 1841:1860)
+plotSpectra(sim_1841_2010_climate_and_fishing, time_range = 1960:1970)
+plotSpectra(sim_1841_2010_climate_and_fishing, time_range = 2000:2010)
 ```
 
 # Plot modeled biomass vs observed biomass for climate-only scenario
