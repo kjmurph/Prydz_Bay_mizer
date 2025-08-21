@@ -1219,7 +1219,7 @@ cat("\nOptimal parameters saved to 'params_optimal_combined_uncertainty.RDS'\n")
 ```
 ## Adaptive Uncertainty Analysis with Species-Specific Refinement
 
-This section implements an improved adaptive approach that checks RMSE every 50 simulations and refines the parameter search space based on performance, with special attention to species with poor fits.
+This section implements an improved adaptive approach that checks RMSE every 10 simulations and refines the parameter search space based on performance, with special attention to species with poor fits.
 
 ### Load Adaptive Functions
 
@@ -1243,11 +1243,11 @@ if (!exists("yield_ts_tidy")) {
 }
 
 # Run adaptive uncertainty analysis
-# This will check RMSE every 50 simulations and refine the search space
+# This will check RMSE every 10 simulations and refine the search space
 adaptive_results <- run_adaptive_uncertainty_analysis(
   params = params_1841_2010_fishing_only,
   n_total_sims = 500,  # Total number of simulations
-  check_interval = 50,  # Check and refine every 50 simulations
+  check_interval = 10,  # Check and refine every 10 simulations (more frequent updates)
   initial_catchability_sd = 0.3,  # Start with wider search
   initial_abundance_sd = 0.4,  # Start with wider search
   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),

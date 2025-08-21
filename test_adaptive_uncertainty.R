@@ -35,12 +35,12 @@ combined_effort_array <- readRDS("effort_array_1841_2010.rds")
 yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
 
 # Run a small test with adaptive uncertainty analysis
-cat("\n=== Running Small Test (100 simulations, check every 25) ===\n")
+cat("\n=== Running Small Test (100 simulations, check every 10) ===\n")
 
 test_results <- run_adaptive_uncertainty_analysis(
   params = params_test,
   n_total_sims = 100,  # Small test with 100 simulations
-  check_interval = 25,  # Check every 25 simulations
+  check_interval = 10,  # Check every 10 simulations (more frequent updates)
   initial_catchability_sd = 0.3,
   initial_abundance_sd = 0.4,
   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
