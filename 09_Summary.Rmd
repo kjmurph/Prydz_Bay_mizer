@@ -934,9 +934,13 @@ saveRDS(combined_uncertainty_results, "combined_uncertainty_results.RDS")
 ## Analyze Results and Find Optimal Parameters
 
 ```{r analyze-combined-results, eval=FALSE}
-# Find optimal parameters based on RMSE
+# First, validate and clean the simulation results to remove any invalid simulations
+cat("Validating simulation results...\n")
+cleaned_results <- validate_simulation_results(combined_uncertainty_results, verbose = TRUE)
+
+# Find optimal parameters based on RMSE using cleaned results
 optimal_results <- find_optimal_parameters(
-  sim_results_list = combined_uncertainty_results,
+  sim_results_list = cleaned_results,
   yield_obs_data = yield_ts_tidy,
   species_list = c("antarctic krill", "bathypelagic fishes",
                    "shelf and coastal fishes", "squids", "toothfishes",
@@ -945,7 +949,7 @@ optimal_results <- find_optimal_parameters(
 )
 
 # Save optimal results
-saveRDS(optimal_results, "optimal_parameter_results.RDS")
+saveRDS(optimal_results, "optimal_parameter_results_preserve_erepro_v3_catchSD_1_abSD_5.RDS")
 
 # Display optimal parameters
 cat("\n=== Optimal Parameter Combination ===\n")
@@ -988,44 +992,26 @@ ggsave("plots/combined_parameter_exploration.png", p_param_explore,
 # First, run the original model with params_new_v4 for comparison
 sim_original <- project(params_new_v4, effort = combined_effort_array)
 
-# Extract uncertainty bounds from all simulations
-# For yield uncertainty bounds
-yield_uncertainty_data <- do.call(rbind, lapply(seq_along(combined_uncertainty_results$simulations), function(i) {
-  sim <- combined_uncertainty_results$simulations[[i]]
-  yield_data <- plotYieldGear(sim, return_data = TRUE)
-  yield_data$sim_id <- i
-  return(select(yield_data, Year, Species, Yield, sim_id))
-}))
+# Use the cleaned results from the previous chunk (or re-clean if needed)
+if (!exists("cleaned_results")) {
+  cleaned_results <- validate_simulation_results(combined_uncertainty_results, verbose = TRUE)
+}
 
-# Calculate uncertainty bounds for yield
-yield_bounds <- yield_uncertainty_data %>%
-  group_by(Year, Species) %>%
-  summarise(
-    yield_lower = quantile(Yield, 0.025, na.rm = TRUE),
-    yield_upper = quantile(Yield, 0.975, na.rm = TRUE),
-    yield_median = median(Yield, na.rm = TRUE),
-    .groups = 'drop'
-  )
+# Extract uncertainty bounds using the new helper function
+# This automatically validates simulations and handles any invalid ones
+cat("Extracting uncertainty bounds from simulations...\n")
+uncertainty_bounds <- extract_uncertainty_bounds(
+  sim_results_list = cleaned_results,
+  confidence_level = 0.95,
+  validate_first = FALSE,  # Already validated above
+  verbose = TRUE
+)
 
-# For biomass uncertainty bounds
-biomass_uncertainty_data <- do.call(rbind, lapply(seq_along(combined_uncertainty_results$simulations), function(i) {
-  sim <- combined_uncertainty_results$simulations[[i]]
-  biomass_matrix <- getBiomass(sim)
-  biomass_data <- reshape2::melt(biomass_matrix)
-  names(biomass_data) <- c("Year", "Species", "Biomass")
-  biomass_data$sim_id <- i
-  return(biomass_data)
-}))
+# Get the bounds
+yield_bounds <- uncertainty_bounds$yield_bounds
+biomass_bounds <- uncertainty_bounds$biomass_bounds
 
-# Calculate uncertainty bounds for biomass
-biomass_bounds <- biomass_uncertainty_data %>%
-  group_by(Year, Species) %>%
-  summarise(
-    biomass_lower = quantile(Biomass, 0.025, na.rm = TRUE),
-    biomass_upper = quantile(Biomass, 0.975, na.rm = TRUE),
-    biomass_median = median(Biomass, na.rm = TRUE),
-    .groups = 'drop'
-  )
+cat("Successfully extracted bounds from", uncertainty_bounds$n_simulations, "valid simulations\n")
 
 # Species labels for faceting
 species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes",
@@ -1263,8 +1249,12 @@ adaptive_results <- run_adaptive_uncertainty_analysis(
   verbose = TRUE  # Show progress and species-specific issues
 )
 
+# Validate the adaptive results to ensure all simulations are valid
+cat("\nValidating adaptive analysis results...\n")
+adaptive_results_cleaned <- validate_simulation_results(adaptive_results, verbose = TRUE)
+
 # Save adaptive results
-saveRDS(adaptive_results, "adaptive_uncertainty_results.RDS")
+saveRDS(adaptive_results_cleaned, "adaptive_uncertainty_results.RDS")
 
 # Display summary
 cat("\n=== Adaptive Analysis Summary ===\n")

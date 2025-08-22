@@ -1365,6 +1365,176 @@ plot_species_rmse_evolution <- function(adaptive_results, species_focus = NULL) 
   return(p)
 }
 
+# Function to validate and clean simulation results
+validate_simulation_results <- function(sim_results_list, verbose = TRUE) {
+  # Check if simulation is valid (no non-finite values)
+  is_valid_sim <- function(sim) {
+    tryCatch({
+      # Try to get yield - this will fail if simulation has non-finite values
+      test_yield <- getYield(sim)
+      # Check if the result contains any non-finite values
+      if (any(!is.finite(test_yield))) {
+        return(FALSE)
+      }
+      # Also check biomass
+      test_biomass <- getBiomass(sim)
+      if (any(!is.finite(test_biomass))) {
+        return(FALSE)
+      }
+      # Check the params object
+      if (any(!is.finite(sim@params@initial_n))) {
+        return(FALSE)
+      }
+      return(TRUE)
+    }, error = function(e) {
+      return(FALSE)
+    })
+  }
+  
+  # Check validity of all simulations
+  if (verbose) cat("Validating simulations...\n")
+  
+  valid_indices <- sapply(seq_along(sim_results_list$simulations), function(i) {
+    is_valid_sim(sim_results_list$simulations[[i]])
+  })
+  
+  n_valid <- sum(valid_indices)
+  n_total <- length(sim_results_list$simulations)
+  
+  if (verbose) {
+    cat("Valid simulations:", n_valid, "out of", n_total, "\n")
+    if (n_valid < n_total) {
+      cat("Invalid simulations will be excluded from analysis\n")
+    }
+  }
+  
+  if (n_valid == 0) {
+    stop("No valid simulations found in the results")
+  }
+  
+  # Create cleaned results with only valid simulations
+  cleaned_results <- list(
+    simulations = sim_results_list$simulations[valid_indices],
+    parameters = sim_results_list$parameters[valid_indices],
+    valid_indices = which(valid_indices),
+    n_valid = n_valid,
+    n_total = n_total,
+    n_invalid = n_total - n_valid
+  )
+  
+  # Add any other fields from original results
+  other_fields <- setdiff(names(sim_results_list), c("simulations", "parameters"))
+  for (field in other_fields) {
+    if (length(sim_results_list[[field]]) == n_total) {
+      # If field has same length as simulations, subset it
+      cleaned_results[[field]] <- sim_results_list[[field]][valid_indices]
+    } else {
+      # Otherwise, keep as is
+      cleaned_results[[field]] <- sim_results_list[[field]]
+    }
+  }
+  
+  return(cleaned_results)
+}
+
+# Function to extract uncertainty bounds from simulation results
+extract_uncertainty_bounds <- function(sim_results_list,
+                                      confidence_level = 0.95,
+                                      validate_first = TRUE,
+                                      verbose = TRUE) {
+  
+  # Validate simulations if requested
+  if (validate_first) {
+    sim_results_list <- validate_simulation_results(sim_results_list, verbose = verbose)
+  }
+  
+  # Calculate quantiles for confidence interval
+  lower_q <- (1 - confidence_level) / 2
+  upper_q <- 1 - lower_q
+  
+  if (verbose) {
+    cat("Extracting uncertainty bounds from", length(sim_results_list$simulations), "simulations\n")
+    cat("Confidence level:", confidence_level * 100, "%\n")
+  }
+  
+  # Extract yield data
+  yield_data_list <- lapply(seq_along(sim_results_list$simulations), function(i) {
+    sim <- sim_results_list$simulations[[i]]
+    tryCatch({
+      yield_matrix <- getYield(sim)
+      yield_data <- reshape2::melt(yield_matrix)
+      names(yield_data) <- c("Year", "Species", "Yield")
+      yield_data$sim_id <- i
+      return(yield_data)
+    }, error = function(e) {
+      if (verbose) cat("Warning: Could not extract yield from simulation", i, "\n")
+      return(NULL)
+    })
+  })
+  
+  # Remove NULL results and combine
+  yield_data_list <- yield_data_list[!sapply(yield_data_list, is.null)]
+  yield_uncertainty_data <- do.call(rbind, yield_data_list)
+  
+  # Calculate yield bounds
+  yield_bounds <- yield_uncertainty_data %>%
+    group_by(Year, Species) %>%
+    summarise(
+      yield_lower = quantile(Yield, lower_q, na.rm = TRUE),
+      yield_upper = quantile(Yield, upper_q, na.rm = TRUE),
+      yield_median = median(Yield, na.rm = TRUE),
+      yield_mean = mean(Yield, na.rm = TRUE),
+      n_sims = n(),
+      .groups = 'drop'
+    )
+  
+  # Extract biomass data
+  biomass_data_list <- lapply(seq_along(sim_results_list$simulations), function(i) {
+    sim <- sim_results_list$simulations[[i]]
+    tryCatch({
+      biomass_matrix <- getBiomass(sim)
+      biomass_data <- reshape2::melt(biomass_matrix)
+      names(biomass_data) <- c("Year", "Species", "Biomass")
+      biomass_data$sim_id <- i
+      return(biomass_data)
+    }, error = function(e) {
+      if (verbose) cat("Warning: Could not extract biomass from simulation", i, "\n")
+      return(NULL)
+    })
+  })
+  
+  # Remove NULL results and combine
+  biomass_data_list <- biomass_data_list[!sapply(biomass_data_list, is.null)]
+  biomass_uncertainty_data <- do.call(rbind, biomass_data_list)
+  
+  # Calculate biomass bounds
+  biomass_bounds <- biomass_uncertainty_data %>%
+    group_by(Year, Species) %>%
+    summarise(
+      biomass_lower = quantile(Biomass, lower_q, na.rm = TRUE),
+      biomass_upper = quantile(Biomass, upper_q, na.rm = TRUE),
+      biomass_median = median(Biomass, na.rm = TRUE),
+      biomass_mean = mean(Biomass, na.rm = TRUE),
+      n_sims = n(),
+      .groups = 'drop'
+    )
+  
+  if (verbose) {
+    cat("Uncertainty bounds extracted successfully\n")
+    cat("Yield bounds: ", nrow(yield_bounds), "rows\n")
+    cat("Biomass bounds:", nrow(biomass_bounds), "rows\n")
+  }
+  
+  return(list(
+    yield_bounds = yield_bounds,
+    biomass_bounds = biomass_bounds,
+    yield_data = yield_uncertainty_data,
+    biomass_data = biomass_uncertainty_data,
+    confidence_level = confidence_level,
+    n_simulations = length(sim_results_list$simulations)
+  ))
+}
+
 # Function to create parameter correlation heatmap
 plot_parameter_correlations <- function(adaptive_results, top_percent = 0.1) {
   require(ggplot2)
