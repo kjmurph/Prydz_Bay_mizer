@@ -431,7 +431,11 @@ find_optimal_parameters <- function(sim_results_list,
                                    year_range = NULL) {
   
   # Calculate RMSE for each simulation
-  rmse_values <- numeric(length(sim_results_list$simulations))
+  n_sims <- length(sim_results_list$simulations)
+  rmse_values <- numeric(n_sims)
+  rmse_details <- list()
+  
+  cat("Calculating RMSE for each simulation...\n")
   
   for(i in seq_along(sim_results_list$simulations)) {
     rmse_result <- calculate_yield_rmse(sim_results_list$simulations[[i]],
@@ -439,17 +443,55 @@ find_optimal_parameters <- function(sim_results_list,
                                        species_list = species_list,
                                        year_range = year_range)
     rmse_values[i] <- rmse_result$total_rmse
+    rmse_details[[i]] <- rmse_result
   }
   
-  # Find optimal (minimum RMSE)
-  optimal_idx <- which.min(rmse_values)
+  # Handle NA values in RMSE
+  valid_indices <- which(!is.na(rmse_values) & !is.infinite(rmse_values))
+  
+  if (length(valid_indices) == 0) {
+    warning("No valid RMSE values found. All simulations may have failed.")
+    return(list(
+      optimal_index = NA,
+      optimal_rmse = NA,
+      optimal_sim = NULL,
+      optimal_params = NULL,
+      all_rmse = rmse_values,
+      rmse_details = rmse_details,
+      rmse_stats = NULL
+    ))
+  }
+  
+  # Find optimal (minimum RMSE) among valid values
+  valid_rmse <- rmse_values[valid_indices]
+  min_valid_idx <- which.min(valid_rmse)
+  optimal_idx <- valid_indices[min_valid_idx]
+  
+  # Create summary statistics (handling NA values)
+  rmse_stats <- data.frame(
+    mean = mean(rmse_values, na.rm = TRUE),
+    median = median(rmse_values, na.rm = TRUE),
+    sd = sd(rmse_values, na.rm = TRUE),
+    min = min(rmse_values, na.rm = TRUE),
+    max = max(rmse_values, na.rm = TRUE),
+    q25 = quantile(rmse_values, 0.25, na.rm = TRUE),
+    q75 = quantile(rmse_values, 0.75, na.rm = TRUE),
+    n_valid = length(valid_indices),
+    n_total = n_sims
+  )
+  
+  cat("RMSE Statistics:\n")
+  print(rmse_stats)
+  cat("\nOptimal simulation:", optimal_idx, "with RMSE =", rmse_values[optimal_idx], "\n")
   
   return(list(
     optimal_index = optimal_idx,
     optimal_rmse = rmse_values[optimal_idx],
     optimal_sim = sim_results_list$simulations[[optimal_idx]],
     optimal_params = sim_results_list$parameters[[optimal_idx]],
-    all_rmse = rmse_values
+    all_rmse = rmse_values,
+    rmse_details = rmse_details,
+    rmse_stats = rmse_stats
   ))
 }
 
