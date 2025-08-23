@@ -324,9 +324,9 @@ run_with_enhanced_burnin <- function(params, effort_array,
                                     spinup_years = 118,
                                     t_start = 1841,
                                     sim_years = 170,
-                                    tol = 0.001,  # Tighter steady-state tolerance
-                                    t_max = 500,
-                                    biomass_tol = 0.05,  # Stricter
+                                    tol = 0.005,  # Tighter steady-state tolerance
+                                    t_max = 1500,
+                                    biomass_tol = 0.075,  # Stricter
                                     reject_unstable = TRUE) {
   
   # Step 1: Run to steady state with tighter tolerance
@@ -736,7 +736,7 @@ objective_function_refined <- function(params_vector,
                                       sim_years = 170,
                                       species_weights = NULL,
                                       reject_unstable = TRUE,
-                                      biomass_tol = 0.05,
+                                      biomass_tol = 0.075,
                                       save_interval = 50,
                                       plot_interval = 100,
                                       verbose = FALSE) {
@@ -763,7 +763,7 @@ objective_function_refined <- function(params_vector,
                             sim_years = sim_years,
                             biomass_tol = biomass_tol,
                             reject_unstable = reject_unstable,
-                            tol = 0.001)
+                            tol = 0.005)
   }, error = function(e) {
     if (verbose) cat("Simulation failed:", e$message, "\n")
     return(NULL)
@@ -949,8 +949,8 @@ cat("=== OPTIMIZATION CONFIGURATION ===\n")
 cat("Method:", optimization_method, "\n")
 cat("Max iterations:", control_params$maxit, "\n")
 cat("Burn-in years:", 300, "\n")
-cat("Biomass tolerance:", 0.05, "\n")
-cat("Steady-state tolerance:", 0.001, "\n")
+cat("Biomass tolerance:", 0.075, "\n")
+cat("Steady-state tolerance:", 0.005, "\n")
 cat("Reject unstable:", "YES\n")
 cat("Checkpoint save interval: Every 50 iterations\n")
 cat("Progress plot interval: Every 100 iterations\n\n")
@@ -991,7 +991,7 @@ opt_result <- tryCatch({
     upper = upper_bounds,
     control = control_params,
     # Additional arguments
-    base_params = params_fishing_only,
+    base_params = params_base,
     abundance_bounds = abundance_bounds,
     catchability_bounds = catchability_bounds,
     gamma_bounds = gamma_bounds,
@@ -1004,7 +1004,7 @@ opt_result <- tryCatch({
     sim_years = 170,
     species_weights = species_weights,
     reject_unstable = TRUE,
-    biomass_tol = 0.05,
+    biomass_tol = 0.075,
     save_interval = 50,   # Save checkpoint every 50 iterations
     plot_interval = 100,  # Plot progress every 100 iterations
     verbose = TRUE
@@ -1064,8 +1064,8 @@ if (!is.null(opt_result)) {
     method = optimization_method,
     species_weights = species_weights,
     burnin_years = 300,
-    biomass_tolerance = 0.05,
-    steady_state_tolerance = 0.001,
+    biomass_tolerance = 0.075,
+    steady_state_tolerance = 0.005,
     parameter_strategy = list(
       abundance_species = abundance_bounds$species,
       gamma_species = gamma_bounds$species,
