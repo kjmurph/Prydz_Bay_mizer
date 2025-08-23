@@ -1,0 +1,820 @@
+---
+title: "Prydz Bay mizer Model Optimization - Refined Strategy"
+output: html_notebook
+author: "Model Optimization - Refined"
+date: "`r Sys.Date()`"
+---
+
+# Introduction
+
+This refined optimization approach addresses key issues identified in initial testing:
+
+1. **Selective parameter optimization**: Only optimize abundance/gamma for marine mammals, while allowing limited catchability variation for smaller species
+2. **Enhanced whale prioritization**: Increased weighting for whale species (especially sperm and baleen whales)
+3. **Stricter biomass stability criteria**: Tighter tolerance for rejecting unstable simulations
+4. **Improved convergence**: Longer burn-in and more iterations
+
+# Key Refinements Based on Test Results
+
+- **Smaller, short-lived species** (krill, fishes) that previously fit well are now excluded from abundance/gamma optimization
+- **Whale species** receive much higher priority weighting (5-10x)
+- **Biomass stability tolerance** reduced from 0.1 to 0.05
+- **Burn-in period** increased to 300 years
+- **Steady-state tolerance** tightened to 0.001
+
+# Setup and Load Required Packages
+
+```{r setup, message=FALSE, warning=FALSE}
+# Load required libraries
+library(mizer)
+library(therMizer)
+library(calibrar)
+library(tidyverse)
+library(parallel)
+library(doParallel)
+library(foreach)
+
+# Source helper functions
+source("Helper_Functions.R")
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Setup parallel processing
+n_cores <- detectCores() - 1  # Leave one core free
+cat("Detected", detectCores(), "cores. Using", n_cores, "for parallel processing.\n")
+```
+
+# Load Model Parameters and Data
+
+```{r load-data}
+# Load base parameters
+params_new_v4 <- readRDS("params_steady_state_2011_2020_tol_0.00025.RDS")
+
+# Load climate forcings
+extended_ocean_temp <- readRDS("temperature_forcing_1841_2010.rds")
+constant_array_temp <- readRDS("constant_array_temp.RDS")
+constant_array_temp_1841 <- readRDS("constant_array_temp_1841.RDS")
+
+extended_n_pp_array <- readRDS("phytoplankton_forcing_1841_2010.rds")
+constant_array_n_pp <- readRDS("constant_array_n_pp.RDS")
+constant_array_n_pp_1841 <- readRDS("constant_array_n_pp_1841.RDS")
+
+# Load effort data
+combined_effort_array <- readRDS("effort_array_1841_2010.rds")
+
+# Load observed yield data
+yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
+
+# Setup base parameters with climate forcings
+params_base <- upgradeTherParams(params_new_v4,
+                                 ocean_temp_array = extended_ocean_temp,
+                                 n_pp_array = extended_n_pp_array,
+                                 aerobic_effect = FALSE, 
+                                 metabolism_effect = TRUE)
+
+# For fishing-only scenario (constant climate)
+params_fishing_only <- upgradeTherParams(params_new_v4,
+                                         ocean_temp_array = constant_array_temp_1841,
+                                         n_pp_array = constant_array_n_pp_1841,
+                                         aerobic_effect = FALSE, 
+                                         metabolism_effect = TRUE)
+```
+
+# Define Refined Optimization Parameters
+
+```{r define-parameters}
+# REFINED STRATEGY: Only optimize abundance/gamma for marine mammals
+# Allow limited catchability variation for all fished species
+
+# Species groups
+marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
+other_fished_species <- c("antarctic krill", "bathypelagic fishes", 
+                         "shelf and coastal fishes", "squids", "toothfishes")
+all_fished_species <- c(other_fished_species, marine_mammal_species)
+
+# 1. ABUNDANCE SCALING - ONLY FOR MARINE MAMMALS
+abundance_bounds <- data.frame(
+  species = marine_mammal_species,
+  lower = log(1),     # Allow 1x to 200x scaling (wider range for whales)
+  upper = log(200),   # Increased upper bound for historical whaling impact
+  initial = log(c(20, 5, 30, 30))  # Higher initial guesses based on test results
+)
+
+# 2. CATCHABILITY BOUNDS - DIFFERENTIATED BY SPECIES GROUP
+gear_df <- gear_params(params_base)
+
+# Separate catchability bounds for different groups
+whale_catchability_idx <- which(gear_df$species %in% marine_mammal_species & gear_df$catchability > 0)
+other_catchability_idx <- which(gear_df$species %in% other_fished_species & gear_df$catchability > 0)
+
+# Wider bounds for whale catchability (they need more adjustment)
+whale_catchability_bounds <- data.frame(
+  gear = gear_df$gear[whale_catchability_idx],
+  species = gear_df$species[whale_catchability_idx],
+  lower = gear_df$catchability[whale_catchability_idx] * 0.1,  # 10% to 10x current
+  upper = pmin(1, gear_df$catchability[whale_catchability_idx] * 10),
+  initial = gear_df$catchability[whale_catchability_idx]
+)
+
+# Narrower bounds for other species (they already fit well)
+other_catchability_bounds <- data.frame(
+  gear = gear_df$gear[other_catchability_idx],
+  species = gear_df$species[other_catchability_idx],
+  lower = gear_df$catchability[other_catchability_idx] * 0.5,  # 50% to 150% of current
+  upper = pmin(1, gear_df$catchability[other_catchability_idx] * 1.5),
+  initial = gear_df$catchability[other_catchability_idx]
+)
+
+# Combine catchability bounds
+catchability_bounds <- rbind(whale_catchability_bounds, other_catchability_bounds)
+
+# Ensure initial values are within bounds
+catchability_bounds$initial <- pmax(catchability_bounds$lower,
+                                    pmin(catchability_bounds$upper,
+                                         catchability_bounds$initial))
+
+# 3. GAMMA (SEARCH RATE) - ONLY FOR MARINE MAMMALS
+species_params_df <- species_params(params_base)
+whale_gamma <- species_params_df$gamma[species_params_df$species %in% marine_mammal_species]
+
+gamma_bounds <- data.frame(
+  species = marine_mammal_species,
+  lower = log(whale_gamma * 0.1),   # 10% to 10x range
+  upper = log(whale_gamma * 10),
+  initial = log(whale_gamma)
+)
+
+# Combine all parameters
+n_params <- nrow(abundance_bounds) + nrow(catchability_bounds) + nrow(gamma_bounds)
+param_names <- c(
+  paste0("abundance_", abundance_bounds$species),
+  paste0("catchability_", catchability_bounds$species, "_", catchability_bounds$gear),
+  paste0("gamma_", gamma_bounds$species)
+)
+
+# Initial parameter vector
+initial_params <- c(
+  abundance_bounds$initial,
+  catchability_bounds$initial,
+  gamma_bounds$initial
+)
+names(initial_params) <- param_names
+
+# Lower bounds
+lower_bounds <- c(
+  abundance_bounds$lower,
+  catchability_bounds$lower,
+  gamma_bounds$lower
+)
+names(lower_bounds) <- param_names
+
+# Upper bounds
+upper_bounds <- c(
+  abundance_bounds$upper,
+  catchability_bounds$upper,
+  gamma_bounds$upper
+)
+names(upper_bounds) <- param_names
+
+# Verify bounds
+if (any(initial_params < lower_bounds) || any(initial_params > upper_bounds)) {
+  cat("Adjusting parameters to be within bounds...\n")
+  initial_params <- pmax(lower_bounds, pmin(upper_bounds, initial_params))
+}
+
+cat("\n=== REFINED OPTIMIZATION STRATEGY ===\n")
+cat("Total parameters to optimize:", n_params, "\n")
+cat("  - Marine mammal abundance scaling:", nrow(abundance_bounds), "\n")
+cat("  - Whale catchability:", nrow(whale_catchability_bounds), "\n")
+cat("  - Other species catchability (limited):", nrow(other_catchability_bounds), "\n")
+cat("  - Marine mammal gamma:", nrow(gamma_bounds), "\n\n")
+
+# Display parameter summary
+param_summary <- data.frame(
+  Parameter = param_names,
+  Lower = round(lower_bounds, 4),
+  Initial = round(initial_params, 4),
+  Upper = round(upper_bounds, 4),
+  Range = ifelse(grepl("abundance|gamma", param_names), "Wide", 
+                 ifelse(grepl("minke|sperm|baleen|orca", param_names), "Wide", "Narrow"))
+)
+print(head(param_summary, 20))
+```
+
+# Define Helper Functions with Stricter Stability Checks
+
+```{r helper-functions}
+# Function to apply parameters to mizer model
+apply_parameters_refined <- function(params_vector, base_params, 
+                                    abundance_bounds, 
+                                    catchability_bounds,
+                                    gamma_bounds) {
+  
+  # Create a copy of base parameters
+  new_params <- base_params
+  
+  # Extract parameter values
+  n_abundance <- nrow(abundance_bounds)
+  n_catchability <- nrow(catchability_bounds)
+  n_gamma <- nrow(gamma_bounds)
+  
+  # Apply abundance scaling (only marine mammals)
+  if (n_abundance > 0) {
+    abundance_values <- exp(params_vector[1:n_abundance])
+    sp_params <- species_params(new_params)
+    
+    for (i in seq_along(abundance_bounds$species)) {
+      sp_idx <- which(sp_params$species == abundance_bounds$species[i])
+      if (length(sp_idx) > 0) {
+        new_params@initial_n[sp_idx,] <- base_params@initial_n[sp_idx,] * abundance_values[i]
+      }
+    }
+  }
+  
+  # Apply catchability values
+  if (n_catchability > 0) {
+    catchability_values <- params_vector[(n_abundance + 1):(n_abundance + n_catchability)]
+    gear_df <- gear_params(new_params)
+    
+    for (i in 1:n_catchability) {
+      gear_idx <- which(gear_df$species == catchability_bounds$species[i] & 
+                       gear_df$gear == catchability_bounds$gear[i])
+      if (length(gear_idx) > 0) {
+        gear_df$catchability[gear_idx] <- catchability_values[i]
+      }
+    }
+    gear_params(new_params) <- gear_df
+  }
+  
+  # Apply gamma values (only marine mammals)
+  if (n_gamma > 0) {
+    gamma_values <- exp(params_vector[(n_abundance + n_catchability + 1):length(params_vector)])
+    
+    for (i in seq_along(gamma_bounds$species)) {
+      sp_idx <- which(species_params(new_params)$species == gamma_bounds$species[i])
+      if (length(sp_idx) > 0) {
+        species_params(new_params)$gamma[sp_idx] <- gamma_values[i]
+      }
+    }
+  }
+  
+  return(new_params)
+}
+
+# Stricter biomass stability check
+check_biomass_stability_strict <- function(sim_object, tolerance = 0.05, check_years = 20) {
+  # Check stability over last 20 years with tighter tolerance
+  biomass <- getBiomass(sim_object)
+  n_years <- nrow(biomass)
+  
+  if (n_years < check_years) {
+    return(FALSE)
+  }
+  
+  # Calculate coefficient of variation for each species
+  last_years <- biomass[(n_years - check_years + 1):n_years, ]
+  cv_by_species <- apply(last_years, 2, function(x) sd(x) / mean(x))
+  
+  # Stricter criteria: CV should be less than tolerance for all species
+  stable <- all(cv_by_species < tolerance, na.rm = TRUE)
+  
+  # Also check for extreme biomass changes
+  first_year <- last_years[1, ]
+  last_year <- last_years[check_years, ]
+  rel_change <- abs((last_year - first_year) / first_year)
+  
+  # No species should have more than 20% change
+  stable <- stable && all(rel_change < 0.2, na.rm = TRUE)
+  
+  return(stable)
+}
+
+# Enhanced burn-in with stricter stability requirements
+run_with_enhanced_burnin <- function(params, effort_array, 
+                                    burnin_years = 300,  # Increased
+                                    spinup_years = 118,
+                                    t_start = 1841,
+                                    sim_years = 170,
+                                    tol = 0.001,  # Tighter steady-state tolerance
+                                    t_max = 500,
+                                    biomass_tol = 0.05,  # Stricter
+                                    reject_unstable = TRUE) {
+  
+  # Step 1: Run to steady state with tighter tolerance
+  params_steady <- tryCatch({
+    steady(params, tol = tol, t_max = t_max, preserve = c("erepro"))
+  }, error = function(e) {
+    message("Steady state failed, using original params")
+    return(params)
+  })
+  
+  # Step 2: Extended burn-in
+  sim_burnin <- project(params_steady,
+                        t_start = t_start - burnin_years,
+                        t_max = burnin_years,
+                        effort = 0)
+  
+  # Strict stability check
+  is_stable <- check_biomass_stability_strict(sim_burnin, tolerance = biomass_tol)
+  
+  if (!is_stable && reject_unstable) {
+    return(NULL)  # Reject unstable simulations
+  }
+  
+  # Step 3: Spinup period
+  if (spinup_years > 0) {
+    sim_spinup <- project(params_steady,
+                         initial_n = sim_burnin@n[burnin_years,,],
+                         t_start = t_start,
+                         t_max = spinup_years,
+                         effort = 0)
+    
+    # Step 4: Main simulation
+    sim_main <- project(params_steady,
+                       initial_n = sim_spinup@n[spinup_years,,],
+                       t_start = t_start,
+                       t_max = sim_years,
+                       effort = effort_array)
+  } else {
+    sim_main <- project(params_steady,
+                       initial_n = sim_burnin@n[burnin_years,,],
+                       t_start = t_start,
+                       t_max = sim_years,
+                       effort = effort_array)
+  }
+  
+  attr(sim_main, "biomass_stable") <- is_stable
+  return(sim_main)
+}
+```
+
+# Define Objective Function with Enhanced Whale Prioritization
+
+```{r objective-function}
+# Initialize global tracking variables for progress monitoring
+.GlobalEnv$iter_count <- 0
+.GlobalEnv$best_rmse <- Inf
+.GlobalEnv$best_params <- NULL
+.GlobalEnv$rmse_history <- numeric()
+.GlobalEnv$params_history <- list()
+.GlobalEnv$start_time <- Sys.time()
+
+# Function to plot optimization progress
+plot_optimization_progress <- function() {
+  if (length(.GlobalEnv$rmse_history) > 10) {
+    df <- data.frame(
+      Iteration = 1:length(.GlobalEnv$rmse_history),
+      RMSE = .GlobalEnv$rmse_history
+    )
+    
+    # Calculate moving average
+    window_size <- min(50, floor(length(df$RMSE) / 10))
+    if (window_size > 2) {
+      df$RMSE_smooth <- stats::filter(df$RMSE, rep(1/window_size, window_size), sides = 1)
+    }
+    
+    p <- ggplot(df, aes(x = Iteration)) +
+      geom_line(aes(y = RMSE), color = "lightblue", alpha = 0.5) +
+      geom_point(aes(y = RMSE), size = 0.5, alpha = 0.3) +
+      {if(window_size > 2) geom_line(aes(y = RMSE_smooth), color = "blue", size = 1)} +
+      geom_hline(yintercept = min(df$RMSE, na.rm = TRUE),
+                 color = "red", linetype = "dashed") +
+      labs(title = paste("Optimization Progress - Best RMSE:",
+                        round(min(df$RMSE, na.rm = TRUE), 3)),
+           subtitle = paste("Current iteration:", max(df$Iteration),
+                          "| Runtime:", round(difftime(Sys.time(),
+                                                      .GlobalEnv$start_time,
+                                                      units = "hours"), 2), "hours"),
+           x = "Iteration",
+           y = "RMSE") +
+      theme_minimal()
+    
+    print(p)
+  }
+}
+
+# Refined objective function with auto-save and progress monitoring
+objective_function_refined <- function(params_vector,
+                                      base_params,
+                                      abundance_bounds,
+                                      catchability_bounds,
+                                      gamma_bounds,
+                                      effort_array,
+                                      yield_obs_data,
+                                      year_range = c(1961, 2010),
+                                      burnin_years = 300,
+                                      spinup_years = 118,
+                                      t_start = 1841,
+                                      sim_years = 170,
+                                      species_weights = NULL,
+                                      reject_unstable = TRUE,
+                                      biomass_tol = 0.05,
+                                      save_interval = 50,
+                                      plot_interval = 100,
+                                      verbose = FALSE) {
+  
+  # Update iteration counter
+  .GlobalEnv$iter_count <- .GlobalEnv$iter_count + 1
+  
+  if (verbose) {
+    cat("\n--- Iteration", .GlobalEnv$iter_count, "---\n")
+  }
+  
+  # Apply parameters
+  test_params <- apply_parameters_refined(params_vector, base_params,
+                                         abundance_bounds,
+                                         catchability_bounds,
+                                         gamma_bounds)
+  
+  # Run simulation with strict stability checks
+  sim_result <- tryCatch({
+    run_with_enhanced_burnin(test_params, effort_array,
+                            burnin_years = burnin_years,
+                            spinup_years = spinup_years,
+                            t_start = t_start,
+                            sim_years = sim_years,
+                            biomass_tol = biomass_tol,
+                            reject_unstable = reject_unstable,
+                            tol = 0.001)
+  }, error = function(e) {
+    if (verbose) cat("Simulation failed:", e$message, "\n")
+    return(NULL)
+  })
+  
+  # Reject failed or unstable simulations
+  if (is.null(sim_result)) {
+    if (verbose) cat("Simulation rejected (failed or unstable)\n")
+    rmse <- 1e6
+  } else {
+    # Calculate RMSE with species-specific weights
+    mod_yield <- getYield(sim_result)
+    df_mod <- reshape2::melt(mod_yield)
+    names(df_mod) <- c("Year", "Species", "Yield")
+    
+    # Filter by year range
+    df_mod <- df_mod[df_mod$Year >= min(year_range) & df_mod$Year <= max(year_range), ]
+    yield_obs_filtered <- yield_obs_data[yield_obs_data$Year >= min(year_range) &
+                                         yield_obs_data$Year <= max(year_range), ]
+    
+    # Merge data
+    comparison <- merge(df_mod, yield_obs_filtered,
+                       by = c("Year", "Species"),
+                       suffixes = c("_mod", "_obs"))
+    
+    # Calculate weighted RMSE
+    if (!is.null(species_weights)) {
+      # Apply species-specific weights
+      comparison <- comparison %>%
+        left_join(species_weights, by = "Species") %>%
+        mutate(weight = ifelse(is.na(weight), 1, weight))
+      
+      # Calculate weighted RMSE by species
+      rmse_by_species <- comparison %>%
+        group_by(Species, weight) %>%
+        summarise(
+          rmse = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
+          n_obs = n(),
+          .groups = 'drop'
+        )
+      
+      # Weighted average
+      total_rmse <- weighted.mean(rmse_by_species$rmse,
+                                  rmse_by_species$weight * rmse_by_species$n_obs,
+                                  na.rm = TRUE)
+      
+      if (verbose) {
+        cat("Species RMSE (weighted):\n")
+        print(rmse_by_species)
+      }
+    } else {
+      # Simple RMSE
+      total_rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
+    }
+    
+    rmse <- total_rmse
+  }
+  
+  # Update history
+  .GlobalEnv$rmse_history <- c(.GlobalEnv$rmse_history, rmse)
+  
+  # Track best result
+  if (rmse < .GlobalEnv$best_rmse) {
+    .GlobalEnv$best_rmse <- rmse
+    .GlobalEnv$best_params <- params_vector
+    cat("\n*** NEW BEST RMSE:", round(rmse, 3),
+        "at iteration", .GlobalEnv$iter_count, "***\n")
+    
+    # Save best parameters immediately
+    best_results <- list(
+      iteration = .GlobalEnv$iter_count,
+      best_rmse = .GlobalEnv$best_rmse,
+      best_params = .GlobalEnv$best_params,
+      param_names = names(params_vector),
+      timestamp = Sys.time()
+    )
+    saveRDS(best_results, "optimization_best_params.RDS")
+  }
+  
+  # Periodic checkpoint save
+  if (.GlobalEnv$iter_count %% save_interval == 0) {
+    checkpoint_results <- list(
+      iteration = .GlobalEnv$iter_count,
+      best_rmse = .GlobalEnv$best_rmse,
+      best_params = .GlobalEnv$best_params,
+      current_params = params_vector,
+      current_rmse = rmse,
+      rmse_history = .GlobalEnv$rmse_history,
+      runtime_hours = difftime(Sys.time(), .GlobalEnv$start_time, units = "hours"),
+      timestamp = Sys.time()
+    )
+    
+    # Save with iteration number
+    saveRDS(checkpoint_results,
+            paste0("optimization_checkpoint_iter_", .GlobalEnv$iter_count, ".RDS"))
+    
+    # Also save as latest checkpoint for easy recovery
+    saveRDS(checkpoint_results, "optimization_latest_checkpoint.RDS")
+    
+    cat("✓ Checkpoint saved at iteration", .GlobalEnv$iter_count,
+        "| Best RMSE:", round(.GlobalEnv$best_rmse, 3), "\n")
+  }
+  
+  # Periodic progress plot
+  if (.GlobalEnv$iter_count %% plot_interval == 0) {
+    plot_optimization_progress()
+  }
+  
+  # Display current RMSE
+  if (verbose || .GlobalEnv$iter_count %% 10 == 0) {
+    cat("Iteration", .GlobalEnv$iter_count,
+        "| Current RMSE:", round(rmse, 3),
+        "| Best RMSE:", round(.GlobalEnv$best_rmse, 3), "\n")
+  }
+  
+  return(rmse)
+}
+
+# Wrapper for calibrar
+calibrar_objective_refined <- function(params_vector, ...) {
+  rmse <- objective_function_refined(params_vector, ...)
+  return(rmse)
+}
+```
+
+# Run Refined Optimization
+
+```{r run-optimization}
+# Check for existing checkpoint to potentially resume
+checkpoint_exists <- file.exists("optimization_latest_checkpoint.RDS")
+if (checkpoint_exists) {
+  cat("=== CHECKPOINT FOUND ===\n")
+  last_checkpoint <- readRDS("optimization_latest_checkpoint.RDS")
+  cat("Previous run stopped at iteration:", last_checkpoint$iteration, "\n")
+  cat("Best RMSE achieved:", round(last_checkpoint$best_rmse, 3), "\n")
+  cat("Runtime:", round(as.numeric(last_checkpoint$runtime_hours), 2), "hours\n\n")
+  
+  # Ask user if they want to resume
+  cat("Do you want to resume from the best parameters found? (Recommended)\n")
+  cat("If yes, update initial_params with: last_checkpoint$best_params\n\n")
+  
+  # Option to resume (uncomment to use):
+  # initial_params <- last_checkpoint$best_params
+  # .GlobalEnv$iter_count <- last_checkpoint$iteration
+  # .GlobalEnv$best_rmse <- last_checkpoint$best_rmse
+  # .GlobalEnv$best_params <- last_checkpoint$best_params
+  # .GlobalEnv$rmse_history <- last_checkpoint$rmse_history
+}
+
+# Define species-specific weights
+species_weights <- data.frame(
+  Species = c("minke whales", "sperm whales", "baleen whales", "orca",
+             "antarctic krill", "bathypelagic fishes", "shelf and coastal fishes",
+             "squids", "toothfishes"),
+  weight = c(5,      # minke whales - high priority
+            10,     # sperm whales - highest priority (worst fit)
+            8,      # baleen whales - very high priority
+            3,      # orca - moderate priority
+            1,      # krill - standard
+            1,      # bathypelagic - standard
+            1,      # shelf/coastal - standard
+            1,      # squids - standard
+            1)      # toothfish - standard
+)
+
+cat("=== SPECIES WEIGHTING STRATEGY ===\n")
+print(species_weights)
+cat("\n")
+
+# Optimization method selection
+optimization_method <- "SANN"  # Simulated Annealing for complex landscape
+
+# Control parameters - more reasonable for testing with monitoring
+control_params <- list(
+  maxit = 2000,       # Reduced for more reasonable runtime (1-3 days)
+  temp = 20,          # Higher initial temperature
+  tmax = 20,          # Slower cooling
+  trace = 1,
+  REPORT = 10         # Report every 10 iterations for better monitoring
+)
+
+cat("=== OPTIMIZATION CONFIGURATION ===\n")
+cat("Method:", optimization_method, "\n")
+cat("Max iterations:", control_params$maxit, "\n")
+cat("Burn-in years:", 300, "\n")
+cat("Biomass tolerance:", 0.05, "\n")
+cat("Steady-state tolerance:", 0.001, "\n")
+cat("Reject unstable:", "YES\n")
+cat("Checkpoint save interval: Every 50 iterations\n")
+cat("Progress plot interval: Every 100 iterations\n\n")
+
+# Estimated runtime
+est_time_per_iter <- 60  # seconds (conservative estimate)
+est_total_hours <- (control_params$maxit * est_time_per_iter) / 3600
+cat("Estimated runtime:", round(est_total_hours, 1), "hours (",
+    round(est_total_hours/24, 1), "days)\n\n")
+
+# Verify parameter bounds
+all_within_bounds <- all(initial_params >= lower_bounds) & all(initial_params <= upper_bounds)
+if (!all_within_bounds) {
+  cat("Adjusting parameters to be within bounds...\n")
+  initial_params <- pmax(lower_bounds, pmin(upper_bounds, initial_params))
+}
+
+cat("Starting refined optimization with progress monitoring...\n")
+cat("You can safely stop (Ctrl+C) and resume from checkpoints.\n")
+cat("Best parameters are continuously saved to 'optimization_best_params.RDS'\n\n")
+
+# Reset global tracking if starting fresh
+if (!checkpoint_exists || .GlobalEnv$iter_count == 0) {
+  .GlobalEnv$iter_count <- 0
+  .GlobalEnv$best_rmse <- Inf
+  .GlobalEnv$best_params <- NULL
+  .GlobalEnv$rmse_history <- numeric()
+  .GlobalEnv$start_time <- Sys.time()
+}
+
+# Run optimization
+opt_result <- tryCatch({
+  calibrate(
+    par = initial_params,
+    fn = calibrar_objective_refined,
+    method = optimization_method,
+    lower = lower_bounds,
+    upper = upper_bounds,
+    control = control_params,
+    # Additional arguments
+    base_params = params_fishing_only,
+    abundance_bounds = abundance_bounds,
+    catchability_bounds = catchability_bounds,
+    gamma_bounds = gamma_bounds,
+    effort_array = combined_effort_array,
+    yield_obs_data = yield_ts_tidy,
+    year_range = c(1961, 2010),
+    burnin_years = 300,
+    spinup_years = 118,
+    t_start = 1841,
+    sim_years = 170,
+    species_weights = species_weights,
+    reject_unstable = TRUE,
+    biomass_tol = 0.05,
+    save_interval = 50,   # Save checkpoint every 50 iterations
+    plot_interval = 100,  # Plot progress every 100 iterations
+    verbose = TRUE
+  )
+}, error = function(e) {
+  cat("\n=== OPTIMIZATION INTERRUPTED OR FAILED ===\n")
+  cat("Error message:", e$message, "\n")
+  
+  # Check if we have any results to save
+  if (.GlobalEnv$iter_count > 0) {
+    cat("\nSaving results from", .GlobalEnv$iter_count, "iterations...\n")
+    
+    interrupted_results <- list(
+      best_rmse = .GlobalEnv$best_rmse,
+      best_params = .GlobalEnv$best_params,
+      total_iterations = .GlobalEnv$iter_count,
+      rmse_history = .GlobalEnv$rmse_history,
+      runtime_hours = difftime(Sys.time(), .GlobalEnv$start_time, units = "hours"),
+      status = "interrupted",
+      error_message = e$message,
+      timestamp = Sys.time()
+    )
+    
+    saveRDS(interrupted_results, "optimization_interrupted_results.RDS")
+    cat("Interrupted results saved to 'optimization_interrupted_results.RDS'\n")
+    cat("Best parameters saved to 'optimization_best_params.RDS'\n")
+    
+    # Return partial results
+    return(list(
+      par = .GlobalEnv$best_params,
+      value = .GlobalEnv$best_rmse,
+      convergence = 1,  # Not converged
+      counts = c(iterations = .GlobalEnv$iter_count),
+      message = "Optimization interrupted but results saved"
+    ))
+  } else {
+    stop("Optimization failed before completing any iterations")
+  }
+})
+
+# Save final results
+if (!is.null(opt_result)) {
+  saveRDS(opt_result, "calibrar_optimization_refined_results.RDS")
+  
+  cat("\n=== OPTIMIZATION COMPLETE ===\n")
+  cat("Total iterations:", .GlobalEnv$iter_count, "\n")
+  cat("Final RMSE:", opt_result$value, "\n")
+  cat("Best RMSE achieved:", .GlobalEnv$best_rmse, "\n")
+  cat("Convergence:", opt_result$convergence, "\n")
+  cat("Total runtime:", round(difftime(Sys.time(), .GlobalEnv$start_time, units = "hours"), 2), "hours\n")
+  
+  # Plot final progress
+  plot_optimization_progress()
+  
+  # Save final configuration
+  optimization_config <- list(
+    method = optimization_method,
+    species_weights = species_weights,
+    burnin_years = 300,
+    biomass_tolerance = 0.05,
+    steady_state_tolerance = 0.001,
+    parameter_strategy = list(
+      abundance_species = abundance_bounds$species,
+      gamma_species = gamma_bounds$species,
+      catchability_narrow = other_fished_species,
+      catchability_wide = marine_mammal_species
+    ),
+    final_rmse = opt_result$value,
+    best_rmse = .GlobalEnv$best_rmse,
+    total_iterations = .GlobalEnv$iter_count,
+    convergence = opt_result$convergence,
+    runtime_hours = difftime(Sys.time(), .GlobalEnv$start_time, units = "hours"),
+    date = Sys.Date()
+  )
+  
+  saveRDS(optimization_config, "calibrar_optimization_refined_config.RDS")
+}
+```
+
+# Recovery from Interruption
+
+```{r recovery-setup, eval=FALSE}
+# This chunk can be used to recover from an interrupted optimization
+
+# Load the last checkpoint
+if (file.exists("optimization_latest_checkpoint.RDS")) {
+  last_checkpoint <- readRDS("optimization_latest_checkpoint.RDS")
+  
+  cat("=== RECOVERY FROM CHECKPOINT ===\n")
+  cat("Last iteration:", last_checkpoint$iteration, "\n")
+  cat("Best RMSE:", round(last_checkpoint$best_rmse, 3), "\n")
+  cat("Runtime before interruption:", round(as.numeric(last_checkpoint$runtime_hours), 2), "hours\n\n")
+  
+  # Restore global variables
+  .GlobalEnv$iter_count <- last_checkpoint$iteration
+  .GlobalEnv$best_rmse <- last_checkpoint$best_rmse
+  .GlobalEnv$best_params <- last_checkpoint$best_params
+  .GlobalEnv$rmse_history <- last_checkpoint$rmse_history
+  .GlobalEnv$start_time <- Sys.time() - as.difftime(last_checkpoint$runtime_hours, units = "hours")
+  
+  # Plot progress so far
+  plot_optimization_progress()
+  
+  # Set initial parameters to best found so far
+  initial_params <- last_checkpoint$best_params
+  
+  cat("\nReady to resume optimization from best parameters.\n")
+  cat("Run the optimization chunk again to continue.\n")
+} else if (file.exists("optimization_best_params.RDS")) {
+  best_saved <- readRDS("optimization_best_params.RDS")
+  
+  cat("=== BEST PARAMETERS FOUND ===\n")
+  cat("From iteration:", best_saved$iteration, "\n")
+  cat("Best RMSE:", round(best_saved$best_rmse, 3), "\n")
+  
+  # Use best parameters as starting point
+  initial_params <- best_saved$best_params
+  
+  cat("\nBest parameters loaded. Run optimization to continue improvement.\n")
+} else {
+  cat("No checkpoint or best parameters file found.\n")
+  cat("Starting from scratch with initial parameters.\n")
+}
+```
+
+# Summary
+
+This refined optimization approach addresses the key issues identified:
+
+1. **Parameter Selection**: Only marine mammals have abundance/gamma optimization
+2. **Catchability**: Limited variation for species that already fit well
+3. **Whale Prioritization**: 5-10x weighting for whale species
+4. **Stability**: Stricter tolerance (0.05) and longer burn-in (300 years)
+5. **Convergence**: More iterations and slower cooling for SANN
+
+The optimization should now:
+- Better fit whale yields (especially sperm and baleen)
+- Maintain good fits for smaller species
+- Produce more stable biomass trajectories
+- Converge to a better solution
