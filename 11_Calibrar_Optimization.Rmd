@@ -1,0 +1,895 @@
+
+---
+title: "Prydz Bay mizer Model Optimization using calibrar"
+output: html_notebook
+author: "Model Optimization"
+date: "`r Sys.Date()`"
+---
+
+# Introduction
+
+This notebook implements an explicit optimization approach using the `calibrar` package to fit the Prydz Bay mizer model to observed yield data. The optimization focuses on:
+
+1. Initial abundance scaling factors (particularly for marine mammals)
+2. Catchability parameters for fished species
+3. Search rate (gamma parameter) adjustments
+
+Additionally, we address biomass stability issues by implementing:
+- Extended burn-in periods
+- Steady-state validation checks
+- Biomass change tolerance screening
+
+# Setup and Load Required Packages
+
+```{r setup, message=FALSE, warning=FALSE}
+# Load required libraries
+library(mizer)
+library(therMizer)
+library(calibrar)
+library(tidyverse)
+library(parallel)
+library(doParallel)
+
+# Source helper functions
+source("Helper_Functions.R")
+
+# Set seed for reproducibility
+set.seed(42)
+```
+
+# Load Model Parameters and Data
+
+```{r load-data}
+# Load base parameters
+params_new_v4 <- readRDS("params_steady_state_2011_2020_tol_0.00025.RDS")
+
+# Load climate forcings
+extended_ocean_temp <- readRDS("temperature_forcing_1841_2010.rds")
+constant_array_temp <- readRDS("constant_array_temp.RDS")
+constant_array_temp_1841 <- readRDS("constant_array_temp_1841.RDS")
+
+extended_n_pp_array <- readRDS("phytoplankton_forcing_1841_2010.rds")
+constant_array_n_pp <- readRDS("constant_array_n_pp.RDS")
+constant_array_n_pp_1841 <- readRDS("constant_array_n_pp_1841.RDS")
+
+# Load effort data
+combined_effort_array <- readRDS("effort_array_1841_2010.rds")
+
+# Load observed yield data
+yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
+
+# Setup base parameters with climate forcings
+params_base <- upgradeTherParams(params_new_v4,
+                                 ocean_temp_array = extended_ocean_temp,
+                                 n_pp_array = extended_n_pp_array,
+                                 aerobic_effect = FALSE, 
+                                 metabolism_effect = TRUE)
+
+# For fishing-only scenario (constant climate)
+params_fishing_only <- upgradeTherParams(params_new_v4,
+                                         ocean_temp_array = constant_array_temp_1841,
+                                         n_pp_array = constant_array_n_pp_1841,
+                                         aerobic_effect = FALSE, 
+                                         metabolism_effect = TRUE)
+```
+
+# Define Optimization Parameters
+
+```{r define-parameters}
+# Define which species to optimize
+marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
+fished_species <- c("antarctic krill", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "squids", "toothfishes",
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+# Define parameter bounds for optimization
+# Initial abundance scaling factors (log-scale)
+abundance_bounds <- data.frame(
+  species = marine_mammal_species,
+  lower = log(0.5),   # 0.5x to 100x scaling
+  upper = log(100),
+  initial = log(c(10, 2, 10, 10))  # Initial guess based on historical whaling
+)
+
+# Catchability bounds
+gear_df <- gear_params(params_base)
+catchability_bounds <- data.frame(
+  gear = gear_df$gear[gear_df$catchability > 0],
+  species = gear_df$species[gear_df$catchability > 0],
+  lower = 0.001,
+  upper = 1,
+  initial = gear_df$catchability[gear_df$catchability > 0]
+)
+
+# Gamma (search rate) bounds - using log-scale
+species_params_df <- species_params(params_base)
+gamma_bounds <- data.frame(
+  species = fished_species,
+  lower = log(species_params_df$gamma[species_params_df$species %in% fished_species] * 0.1),
+  upper = log(species_params_df$gamma[species_params_df$species %in% fished_species] * 10),
+  initial = log(species_params_df$gamma[species_params_df$species %in% fished_species])
+)
+
+# Combine all parameters into a single vector for optimization
+n_params <- nrow(abundance_bounds) + nrow(catchability_bounds) + nrow(gamma_bounds)
+param_names <- c(
+  paste0("abundance_", abundance_bounds$species),
+  paste0("catchability_", catchability_bounds$species),
+  paste0("gamma_", gamma_bounds$species)
+)
+
+# Initial parameter vector
+initial_params <- c(
+  abundance_bounds$initial,
+  catchability_bounds$initial,
+  gamma_bounds$initial
+)
+names(initial_params) <- param_names
+
+# Lower bounds
+lower_bounds <- c(
+  abundance_bounds$lower,
+  catchability_bounds$lower,
+  gamma_bounds$lower
+)
+names(lower_bounds) <- param_names
+
+# Upper bounds
+upper_bounds <- c(
+  abundance_bounds$upper,
+  catchability_bounds$upper,
+  gamma_bounds$upper
+)
+names(upper_bounds) <- param_names
+
+cat("Total parameters to optimize:", n_params, "\n")
+cat("Parameter names:\n")
+print(param_names)
+```
+
+# Define Helper Functions for Optimization
+
+```{r helper-functions}
+# Function to apply parameters to mizer model
+apply_parameters <- function(params_vector, base_params, 
+                           marine_mammal_species, 
+                           fished_species,
+                           abundance_bounds, 
+                           catchability_bounds,
+                           gamma_bounds) {
+  
+  # Create a copy of base parameters
+  new_params <- base_params
+  
+  # Extract parameter values
+  n_abundance <- nrow(abundance_bounds)
+  n_catchability <- nrow(catchability_bounds)
+  n_gamma <- nrow(gamma_bounds)
+  
+  abundance_values <- exp(params_vector[1:n_abundance])  # Convert from log-scale
+  catchability_values <- params_vector[(n_abundance + 1):(n_abundance + n_catchability)]
+  gamma_values <- exp(params_vector[(n_abundance + n_catchability + 1):length(params_vector)])  # Convert from log-scale
+  
+  # Apply abundance scaling to marine mammals
+  sp_params <- species_params(new_params)
+  for (i in seq_along(marine_mammal_species)) {
+    sp_idx <- which(sp_params$species == marine_mammal_species[i])
+    if (length(sp_idx) > 0) {
+      new_params@initial_n[sp_idx,] <- new_params@initial_n[sp_idx,] * abundance_values[i]
+    }
+  }
+  
+  # Apply catchability values
+  if (n_catchability > 0) {
+    gear_df <- gear_params(new_params)
+    for (i in 1:n_catchability) {
+      gear_idx <- which(gear_df$species == catchability_bounds$species[i] & 
+                       gear_df$gear == catchability_bounds$gear[i])
+      if (length(gear_idx) > 0) {
+        gear_df$catchability[gear_idx] <- catchability_values[i]
+      }
+    }
+    gear_params(new_params) <- gear_df
+  }
+  
+  # Apply gamma values
+  for (i in seq_along(fished_species)) {
+    sp_idx <- which(sp_params$species == fished_species[i])
+    if (length(sp_idx) > 0) {
+      species_params(new_params)$gamma[sp_idx] <- gamma_values[i]
+    }
+  }
+  
+  return(new_params)
+}
+
+# Function to check biomass stability
+check_biomass_stability <- function(sim_object, tolerance = 0.1, check_years = 10) {
+  # Check if biomass is stable over the last check_years
+  biomass <- getBiomass(sim_object)
+  n_years <- nrow(biomass)
+  
+  if (n_years < check_years) {
+    return(FALSE)
+  }
+  
+  # Calculate relative change in biomass for each species
+  last_years <- biomass[(n_years - check_years + 1):n_years, ]
+  first_year <- last_years[1, ]
+  last_year <- last_years[check_years, ]
+  
+  # Calculate relative change
+  rel_change <- abs((last_year - first_year) / first_year)
+  
+  # Check if all species are within tolerance
+  stable <- all(rel_change < tolerance, na.rm = TRUE)
+  
+  return(stable)
+}
+
+# Function to run simulation with extended burn-in
+run_with_burnin <- function(params, effort_array, 
+                           burnin_years = 200, 
+                           spinup_years = 118,
+                           t_start = 1841,
+                           sim_years = 170,
+                           tol = 0.01,
+                           t_max = 500,
+                           biomass_tol = 0.1) {
+  
+  # Step 1: Run to steady state
+  params_steady <- tryCatch({
+    steady(params, tol = tol, t_max = t_max, preserve = c("erepro"))
+  }, error = function(e) {
+    message("Steady state failed, using original params")
+    return(params)
+  })
+  
+  # Step 2: Extended burn-in with no fishing
+  sim_burnin <- project(params_steady,
+                        t_start = t_start - burnin_years,
+                        t_max = burnin_years,
+                        effort = 0)
+  
+  # Check biomass stability after burn-in
+  if (!check_biomass_stability(sim_burnin, tolerance = biomass_tol)) {
+    warning("Biomass not stable after burn-in")
+  }
+  
+  # Step 3: Spinup period (historical period before main simulation)
+  if (spinup_years > 0) {
+    sim_spinup <- project(params_steady,
+                         initial_n = sim_burnin@n[burnin_years,,],
+                         t_start = t_start,
+                         t_max = spinup_years,
+                         effort = 0)
+    
+    # Step 4: Main simulation with fishing
+    sim_main <- project(params_steady,
+                       initial_n = sim_spinup@n[spinup_years,,],
+                       t_start = t_start,
+                       t_max = sim_years,
+                       effort = effort_array)
+  } else {
+    # Run main simulation directly after burn-in
+    sim_main <- project(params_steady,
+                       initial_n = sim_burnin@n[burnin_years,,],
+                       t_start = t_start,
+                       t_max = sim_years,
+                       effort = effort_array)
+  }
+  
+  return(sim_main)
+}
+```
+
+# Define Objective Function
+
+```{r objective-function}
+# Main objective function for calibrar
+objective_function <- function(params_vector, 
+                              base_params,
+                              marine_mammal_species,
+                              fished_species,
+                              abundance_bounds,
+                              catchability_bounds,
+                              gamma_bounds,
+                              effort_array,
+                              yield_obs_data,
+                              year_range = c(1961, 2010),
+                              burnin_years = 200,
+                              spinup_years = 118,
+                              t_start = 1841,
+                              sim_years = 170,
+                              weight_by_species = TRUE,
+                              verbose = FALSE) {
+  
+  if (verbose) {
+    cat("Testing parameters:", round(params_vector, 3), "\n")
+  }
+  
+  # Apply parameters to model
+  test_params <- apply_parameters(params_vector, base_params,
+                                 marine_mammal_species,
+                                 fished_species,
+                                 abundance_bounds,
+                                 catchability_bounds,
+                                 gamma_bounds)
+  
+  # Run simulation with burn-in and stability checks
+  sim_result <- tryCatch({
+    run_with_burnin(test_params, effort_array,
+                   burnin_years = burnin_years,
+                   spinup_years = spinup_years,
+                   t_start = t_start,
+                   sim_years = sim_years,
+                   biomass_tol = 0.1)
+  }, error = function(e) {
+    if (verbose) {
+      cat("Simulation failed:", e$message, "\n")
+    }
+    return(NULL)
+  })
+  
+  # If simulation failed, return high penalty
+  if (is.null(sim_result)) {
+    return(1e6)
+  }
+  
+  # Calculate RMSE between modeled and observed yield
+  mod_yield <- getYield(sim_result)
+  df_mod <- reshape2::melt(mod_yield)
+  names(df_mod) <- c("Year", "Species", "Yield")
+  
+  # Filter by year range
+  df_mod <- df_mod[df_mod$Year >= min(year_range) & 
+                   df_mod$Year <= max(year_range), ]
+  yield_obs_filtered <- yield_obs_data[yield_obs_data$Year >= min(year_range) & 
+                                       yield_obs_data$Year <= max(year_range), ]
+  
+  # Merge modeled and observed data
+  comparison <- merge(df_mod, yield_obs_filtered,
+                     by = c("Year", "Species"),
+                     suffixes = c("_mod", "_obs"))
+  
+  # Calculate RMSE
+  if (weight_by_species) {
+    # Calculate RMSE by species and take weighted average
+    rmse_by_species <- comparison %>%
+      group_by(Species) %>%
+      summarise(
+        rmse = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
+        n_obs = n()
+      )
+    
+    # Weight by number of observations
+    total_rmse <- weighted.mean(rmse_by_species$rmse, 
+                                rmse_by_species$n_obs, 
+                                na.rm = TRUE)
+  } else {
+    # Simple overall RMSE
+    total_rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, 
+                            na.rm = TRUE))
+  }
+  
+  if (verbose) {
+    cat("RMSE:", round(total_rmse, 3), "\n")
+  }
+  
+  return(total_rmse)
+}
+
+# Wrapper function for calibrar that returns negative log-likelihood
+calibrar_objective <- function(params_vector, ...) {
+  rmse <- objective_function(params_vector, ...)
+  # Convert RMSE to negative log-likelihood style metric
+  # Lower RMSE = higher likelihood
+  return(rmse)
+}
+```
+
+# Run Optimization
+
+```{r run-optimization}
+# Set up optimization control parameters
+control_params <- list(
+  maxit = 100,        # Maximum iterations
+  trace = 1,          # Print progress
+  REPORT = 10,        # Report every 10 iterations
+  reltol = 1e-4       # Relative tolerance for convergence
+)
+
+# Run optimization using calibrar
+# We'll use the AHR (Adaptive Hybrid Reconstruction) algorithm
+# which is good for complex objective functions
+
+cat("Starting optimization with calibrar...\n")
+cat("This may take several hours depending on the number of parameters and iterations.\n\n")
+
+opt_result <- calibrate(
+  par = initial_params,
+  fn = calibrar_objective,
+  method = "AHR",  # Adaptive Hybrid Reconstruction
+  lower = lower_bounds,
+  upper = upper_bounds,
+  control = control_params,
+  # Additional arguments for objective function
+  base_params = params_fishing_only,  # Use fishing-only scenario for optimization
+  marine_mammal_species = marine_mammal_species,
+  fished_species = fished_species,
+  abundance_bounds = abundance_bounds,
+  catchability_bounds = catchability_bounds,
+  gamma_bounds = gamma_bounds,
+  effort_array = combined_effort_array,
+  yield_obs_data = yield_ts_tidy,
+  year_range = c(1961, 2010),
+  burnin_years = 200,
+  spinup_years = 118,
+  t_start = 1841,
+  sim_years = 170,
+  weight_by_species = TRUE,
+  verbose = TRUE
+)
+
+# Save optimization results
+saveRDS(opt_result, "calibrar_optimization_results.RDS")
+
+cat("\nOptimization complete!\n")
+cat("Final RMSE:", opt_result$value, "\n")
+cat("Convergence:", opt_result$convergence, "\n")
+```
+
+# Analyze Optimization Results
+
+```{r analyze-results}
+# Extract optimal parameters
+optimal_params <- opt_result$par
+
+cat("=== Optimal Parameter Values ===\n\n")
+
+# Extract and display abundance scaling factors
+n_abundance <- nrow(abundance_bounds)
+abundance_optimal <- exp(optimal_params[1:n_abundance])
+names(abundance_optimal) <- abundance_bounds$species
+
+cat("Marine Mammal Abundance Scaling Factors:\n")
+for (i in 1:length(abundance_optimal)) {
+  cat(sprintf("  %s: %.2fx\n", names(abundance_optimal)[i], abundance_optimal[i]))
+}
+
+# Extract and display catchability values
+n_catchability <- nrow(catchability_bounds)
+catchability_optimal <- optimal_params[(n_abundance + 1):(n_abundance + n_catchability)]
+names(catchability_optimal) <- paste(catchability_bounds$species, catchability_bounds$gear, sep = "_")
+
+cat("\nOptimal Catchability Values:\n")
+for (i in 1:length(catchability_optimal)) {
+  cat(sprintf("  %s: %.4f\n", names(catchability_optimal)[i], catchability_optimal[i]))
+}
+
+# Extract and display gamma values
+gamma_optimal <- exp(optimal_params[(n_abundance + n_catchability + 1):length(optimal_params)])
+names(gamma_optimal) <- gamma_bounds$species
+
+cat("\nOptimal Gamma (Search Rate) Values:\n")
+for (i in 1:length(gamma_optimal)) {
+  cat(sprintf("  %s: %.2e\n", names(gamma_optimal)[i], gamma_optimal[i]))
+}
+
+# Plot convergence history if available
+if (!is.null(opt_result$trace)) {
+  trace_df <- data.frame(
+    Iteration = 1:length(opt_result$trace),
+    RMSE = opt_result$trace
+  )
+  
+  p_convergence <- ggplot(trace_df, aes(x = Iteration, y = RMSE)) +
+    geom_line(color = "darkblue", size = 1.2) +
+    geom_point(color = "darkblue", size = 2) +
+    theme_bw() +
+    labs(title = "Optimization Convergence",
+         subtitle = "RMSE over iterations",
+         x = "Iteration",
+         y = "RMSE") +
+    theme(text = element_text(size = 12))
+  
+  print(p_convergence)
+  ggsave("plots/calibrar_convergence.png", p_convergence, 
+         width = 10, height = 6, dpi = 300)
+}
+```
+
+# Run Simulation with Optimal Parameters
+
+```{r run-optimal-simulation}
+# Apply optimal parameters to create optimized model
+params_optimal <- apply_parameters(optimal_params, params_fishing_only,
+                                  marine_mammal_species,
+                                  fished_species,
+                                  abundance_bounds,
+                                  catchability_bounds,
+                                  gamma_bounds)
+
+# Run simulation with optimal parameters
+cat("Running simulation with optimal parameters...\n")
+
+sim_optimal <- run_with_burnin(params_optimal, combined_effort_array,
+                              burnin_years = 200,
+                              spinup_years = 118,
+                              t_start = 1841,
+                              sim_years = 170,
+                              biomass_tol = 0.1)
+
+# Save optimal simulation
+saveRDS(sim_optimal, "sim_optimal_calibrar.RDS")
+
+# Also save the optimal parameters object
+saveRDS(params_optimal, "params_optimal_calibrar.RDS")
+```
+
+# Compare Optimal Simulation with Observations
+
+```{r compare-results}
+# Plot yield comparison
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes",
+                  "Squids", "Toothfishes", "Antarctic minke whales", "Orcas",
+                  "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes",
+                         "shelf and coastal fishes", "squids", "toothfishes",
+                         "minke whales", "orca", "sperm whales", "baleen whales")
+
+# Get modeled yield data
+mod_yield_data <- plotYieldGear(sim_optimal, return_data = TRUE)
+
+p_yield_comparison <- ggplot() +
+  # Model predictions
+  geom_line(data = mod_yield_data,
+            aes(x = Year, y = Yield, color = Species),
+            size = 1.2) +
+  # Observed data points
+  geom_point(data = yield_ts_tidy,
+             aes(x = Year, y = Yield, color = Species),
+             size = 2, alpha = 0.7) +
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  geom_vline(xintercept = c(1961, 2010), linetype = "dashed", alpha = 0.5) +
+  theme_bw() +
+  theme(legend.position = "none",
+        strip.text = element_text(size = 10, face = "bold")) +
+  labs(title = "Optimal Model Fit: Modeled vs. Observed Yield",
+       subtitle = paste("Final RMSE =", round(opt_result$value, 3)),
+       x = "Year",
+       y = "Yield (tonnes)")
+
+print(p_yield_comparison)
+ggsave("plots/calibrar_yield_comparison.png", p_yield_comparison,
+       width = 14, height = 10, dpi = 300)
+
+# Calculate species-specific RMSE for the optimal simulation
+mod_yield <- getYield(sim_optimal)
+df_mod <- reshape2::melt(mod_yield)
+names(df_mod) <- c("Year", "Species", "Yield")
+
+# Filter to observation period
+df_mod_filtered <- df_mod[df_mod$Year >= 1961 & df_mod$Year <= 2010, ]
+yield_obs_filtered <- yield_ts_tidy[yield_ts_tidy$Year >= 1961 & 
+                                    yield_ts_tidy$Year <= 2010, ]
+
+# Merge and calculate RMSE by species
+comparison <- merge(df_mod_filtered, yield_obs_filtered,
+                   by = c("Year", "Species"),
+                   suffixes = c("_mod", "_obs"))
+
+rmse_by_species <- comparison %>%
+  group_by(Species) %>%
+  summarise(
+    RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
+    Mean_Obs = mean(Yield_obs, na.rm = TRUE),
+    Mean_Mod = mean(Yield_mod, na.rm = TRUE),
+    Relative_Error = RMSE / Mean_Obs * 100,
+    n_obs = n()
+  ) %>%
+  arrange(RMSE)
+
+cat("\n=== Species-specific RMSE (Optimal Model) ===\n")
+print(as.data.frame(rmse_by_species))
+
+# Plot species-specific RMSE
+p_rmse_species <- ggplot(rmse_by_species, aes(x = reorder(Species, RMSE), y = RMSE)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  coord_flip() +
+  theme_bw() +
+  labs(title = "Species-specific RMSE (Optimal Model)",
+       x = "Species",
+       y = "RMSE") +
+  theme(text = element_text(size = 12))
+
+print(p_rmse_species)
+ggsave("plots/calibrar_rmse_by_species.png", p_rmse_species,
+       width = 10, height = 6, dpi = 300)
+```
+
+# Biomass Stability Analysis
+
+```{r biomass-stability}
+# Check biomass stability over time
+biomass_optimal <- getBiomass(sim_optimal)
+
+# Calculate coefficient of variation for last 50 years
+last_50_years <- tail(biomass_optimal, 50)
+cv_by_species <- apply(last_50_years, 2, function(x) sd(x) / mean(x) * 100)
+
+cat("\n=== Biomass Stability (CV% for last 50 years) ===\n")
+cv_df <- data.frame(
+  Species = names(cv_by_species),
+  CV_percent = round(cv_by_species, 2)
+) %>%
+  arrange(CV_percent)
+
+print(cv_df)
+
+# Plot biomass time series
+biomass_df <- reshape2::melt(biomass_optimal)
+names(biomass_df) <- c("Year", "Species", "Biomass")
+
+p_biomass <- ggplot(biomass_df, aes(x = Year, y = Biomass, color = Species)) +
+  geom_line(size = 1) +
+  facet_wrap(~Species, scales = "free_y") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(title = "Biomass Trajectories (Optimal Model)",
+       x = "Year",
+       y = "Biomass") +
+  geom_vline(xintercept = c(1961, 2010), linetype = "dashed", alpha = 0.5)
+
+print(p_biomass)
+ggsave("plots/calibrar_biomass_trajectories.png", p_biomass,
+       width = 14, height = 10, dpi = 300)
+
+# Check for biomass stability issues
+unstable_species <- cv_df$Species[cv_df$CV_percent > 20]
+if (length(unstable_species) > 0) {
+  cat("\nWARNING: The following species show high biomass variability (CV > 20%):\n")
+  cat(paste("  -", unstable_species, "\n"))
+  cat("\nConsider increasing burn-in period or adjusting steady-state tolerance.\n")
+}
+```
+
+# Parameter Sensitivity Analysis
+
+```{r sensitivity-analysis}
+# Perform simple sensitivity analysis around optimal parameters
+# Test ±10% change in each parameter group
+
+sensitivity_results <- list()
+
+# Test abundance scaling sensitivity
+cat("Testing sensitivity to abundance scaling...\n")
+test_params_abundance <- optimal_params
+test_params_abundance[1:n_abundance] <- optimal_params[1:n_abundance] * 1.1  # +10%
+
+rmse_abundance_plus <- objective_function(test_params_abundance,
+                                         base_params = params_fishing_only,
+                                         marine_mammal_species = marine_mammal_species,
+                                         fished_species = fished_species,
+                                         abundance_bounds = abundance_bounds,
+                                         catchability_bounds = catchability_bounds,
+                                         gamma_bounds = gamma_bounds,
+                                         effort_array = combined_effort_array,
+                                         yield_obs_data = yield_ts_tidy,
+                                         burnin_years = 100,  # Shorter for sensitivity test
+                                         verbose = FALSE)
+
+test_params_abundance[1:n_abundance] <- optimal_params[1:n_abundance] * 0.9  # -10%
+rmse_abundance_minus <- objective_function(test_params_abundance,
+                                          base_params = params_fishing_only,
+                                          marine_mammal_species = marine_mammal_species,
+                                          fished_species = fished_species,
+                                          abundance_bounds = abundance_bounds,
+                                          catchability_bounds = catchability_bounds,
+                                          gamma_bounds = gamma_bounds,
+                                          effort_array = combined_effort_array,
+                                          yield_obs_data = yield_ts_tidy,
+                                          burnin_years = 100,
+                                          verbose = FALSE)
+
+sensitivity_results$abundance <- data.frame(
+  Parameter = "Abundance Scaling",
+  Baseline_RMSE = opt_result$value,
+  Plus10_RMSE = rmse_abundance_plus,
+  Minus10_RMSE = rmse_abundance_minus,
+  Sensitivity = (rmse_abundance_plus - rmse_abundance_minus) / (0.2 * opt_result$value)
+)
+
+# Test catchability sensitivity
+cat("Testing sensitivity to catchability...\n")
+test_params_catch <- optimal_params
+test_params_catch[(n_abundance + 1):(n_abundance + n_catchability)] <- 
+  optimal_params[(n_abundance + 1):(n_abundance + n_catchability)] * 1.1
+
+rmse_catch_plus <- objective_function(test_params_catch,
+                                     base_params = params_fishing_only,
+                                     marine_mammal_species = marine_mammal_species,
+                                     fished_species = fished_species,
+                                     abundance_bounds = abundance_bounds,
+                                     catchability_bounds = catchability_bounds,
+                                     gamma_bounds = gamma_bounds,
+                                     effort_array = combined_effort_array,
+                                     yield_obs_data = yield_ts_tidy,
+                                     burnin_years = 100,
+                                     verbose = FALSE)
+
+test_params_catch[(n_abundance + 1):(n_abundance + n_catchability)] <- 
+  optimal_params[(n_abundance + 1):(n_abundance + n_catchability)] * 0.9
+
+rmse_catch_minus <- objective_function(test_params_catch,
+                                      base_params = params_fishing_only,
+                                      marine_mammal_species = marine_mammal_species,
+                                      fished_species = fished_species,
+                                      abundance_bounds = abundance_bounds,
+                                      catchability_bounds = catchability_bounds,
+                                      gamma_bounds = gamma_bounds,
+                                      effort_array = combined_effort_array,
+                                      yield_obs_data = yield_ts_tidy,
+                                      burnin_years = 100,
+                                      verbose = FALSE)
+
+sensitivity_results$catchability <- data.frame(
+  Parameter = "Catchability",
+  Baseline_RMSE = opt_result$value,
+  Plus10_RMSE = rmse_catch_plus,
+  Minus10_RMSE = rmse_catch_minus,
+  Sensitivity = (rmse_catch_plus - rmse_catch_minus) / (0.2 * opt_result$value)
+)
+
+# Combine sensitivity results
+sensitivity_df <- do.call(rbind, sensitivity_results)
+cat("\n=== Parameter Sensitivity Analysis ===\n")
+print(sensitivity_df)
+
+# Plot sensitivity
+p_sensitivity <- ggplot(sensitivity_df, aes(x = Parameter, y = Sensitivity)) +
+  geom_bar(stat = "identity", fill = "coral", alpha = 0.7) +
+  theme_bw() +
+  labs(title = "Parameter Sensitivity Analysis",
+       subtitle = "Relative sensitivity of RMSE to ±10% parameter changes",
+       x = "Parameter Group",
+       y = "Sensitivity Index") +
+  theme(text = element_text(size = 12))
+
+print(p_sensitivity)
+ggsave("plots/calibrar_sensitivity.png", p_sensitivity,
+       width = 8, height = 6, dpi = 300)
+```
+
+# Export Final Optimal Parameters
+
+```{r export-parameters}
+# Create a comprehensive output list with all optimization results
+optimization_output <- list(
+  optimal_parameters = optimal_params,
+  optimal_rmse = opt_result$value,
+  convergence = opt_result$convergence,
+  iterations = opt_result$counts,
+  parameter_names = param_names,
+  abundance_scaling = abundance_optimal,
+  catchability_values = catchability_optimal,
+  gamma_values = gamma_optimal,
+  species_rmse = rmse_by_species,
+  biomass_cv = cv_df,
+  sensitivity = sensitivity_df,
+  optimization_method = "calibrar_AHR",
+  date = Sys.Date()
+)
+
+# Save comprehensive results
+saveRDS(optimization_output, "calibrar_optimization_output.RDS")
+
+# Create summary report
+cat("\n========================================\n")
+cat("    OPTIMIZATION SUMMARY REPORT\n")
+cat("========================================\n\n")
+cat("Date:", as.character(Sys.Date()), "\n")
+cat("Method: calibrar with Adaptive Hybrid Reconstruction (AHR)\n")
+cat("Total parameters optimized:", n_params, "\n")
+cat("Final RMSE:", round(opt_result$value, 3), "\n")
+cat("Convergence achieved:", opt_result$convergence == 0, "\n\n")
+
+cat("Key Findings:\n")
+cat("-------------\n")
+cat("1. Marine mammal abundance scaling suggests historical populations were:\n")
+for (i in 1:length(abundance_optimal)) {
+  cat(sprintf("   - %s: %.1fx current levels\n",
+              names(abundance_optimal)[i], abundance_optimal[i]))
+}
+
+cat("\n2. Best-fitting species (lowest RMSE):\n")
+best_species <- head(rmse_by_species, 3)
+for (i in 1:nrow(best_species)) {
+  cat(sprintf("   - %s: RMSE = %.1f\n",
+              best_species$Species[i], best_species$RMSE[i]))
+}
+
+cat("\n3. Poorest-fitting species (highest RMSE):\n")
+worst_species <- tail(rmse_by_species, 3)
+for (i in 1:nrow(worst_species)) {
+  cat(sprintf("   - %s: RMSE = %.1f\n",
+              worst_species$Species[i], worst_species$RMSE[i]))
+}
+
+cat("\n4. Biomass stability:\n")
+if (length(unstable_species) > 0) {
+  cat("   WARNING: Some species show high variability\n")
+  cat("   Consider longer burn-in or adjusted parameters\n")
+} else {
+  cat("   All species show acceptable biomass stability\n")
+}
+
+cat("\n========================================\n")
+```
+
+# Recommendations and Next Steps
+
+```{r recommendations}
+cat("\n=== RECOMMENDATIONS ===\n\n")
+
+# Check if optimization converged
+if (opt_result$convergence != 0) {
+  cat("1. OPTIMIZATION DID NOT FULLY CONVERGE\n")
+  cat("   - Consider increasing maximum iterations\n")
+  cat("   - Try different starting values\n")
+  cat("   - Adjust convergence tolerance\n\n")
+}
+
+# Check for problematic species
+high_rmse_species <- rmse_by_species$Species[rmse_by_species$Relative_Error > 50]
+if (length(high_rmse_species) > 0) {
+  cat("2. SPECIES WITH POOR FIT (>50% relative error):\n")
+  for (sp in high_rmse_species) {
+    cat("   -", sp, "\n")
+  }
+  cat("   Recommendations:\n")
+  cat("   - Review data quality for these species\n")
+  cat("   - Consider species-specific parameter adjustments\n")
+  cat("   - Check for structural model issues\n\n")
+}
+
+# Check biomass stability
+if (length(unstable_species) > 0) {
+  cat("3. BIOMASS STABILITY ISSUES:\n")
+  cat("   The following species show high variability:\n")
+  for (sp in unstable_species) {
+    cat("   -", sp, "(CV =", round(cv_df$CV_percent[cv_df$Species == sp], 1), "%)\n")
+  }
+  cat("   Recommendations:\n")
+  cat("   - Increase burn-in period (currently 200 years)\n")
+  cat("   - Tighten steady-state tolerance\n")
+  cat("   - Review initial conditions\n\n")
+}
+
+# Sensitivity recommendations
+high_sensitivity <- sensitivity_df$Parameter[abs(sensitivity_df$Sensitivity) > 1]
+if (length(high_sensitivity) > 0) {
+  cat("4. HIGH PARAMETER SENSITIVITY:\n")
+  cat("   The following parameter groups show high sensitivity:\n")
+  for (param in high_sensitivity) {
+    cat("   -", param, "\n")
+  }
+  cat("   Recommendations:\n")
+  cat("   - Focus uncertainty analysis on these parameters\n")
+  cat("   - Consider tighter bounds in future optimizations\n\n")
+}
+
+cat("5. NEXT STEPS:\n")
+cat("   - Validate results with independent data if available\n")
+cat("   - Run ensemble simulations with parameter uncertainty\n")
+cat("   - Test model predictions for future scenarios\n")
+cat("   - Consider multi-objective optimization if needed\n")
+cat("   - Document parameter choices and assumptions\n\n")
+
+cat("All results saved to:\n")
+cat("  - calibrar_optimization_results.RDS (raw optimization output)\n")
+cat("  - calibrar_optimization_output.RDS (comprehensive results)\n")
+cat("  - params_optimal_calibrar.RDS (optimal mizer parameters)\n")
+cat("  - sim_optimal_calibrar.RDS (optimal simulation object)\n")
+```
