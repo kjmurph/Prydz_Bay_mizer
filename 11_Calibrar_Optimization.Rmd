@@ -615,13 +615,38 @@ sim_optimal <- run_with_burnin(params_optimal, combined_effort_array,
                               spinup_years = 118,
                               t_start = 1841,
                               sim_years = 170,
-                              biomass_tol = 0.1)
+                              biomass_tol = 0.1,
+                              reject_unstable = FALSE)  # Don't reject, just flag
+
+# Check if the optimal simulation has stable biomass
+if (!is.null(attr(sim_optimal, "biomass_stable")) && !attr(sim_optimal, "biomass_stable")) {
+  cat("\nWARNING: Optimal parameters resulted in unstable biomass after burn-in.\n")
+  cat("Consider increasing burn-in period or adjusting optimization constraints.\n")
+} else {
+  cat("\n✓ Optimal simulation has stable biomass after burn-in.\n")
+}
 
 # Save optimal simulation
 saveRDS(sim_optimal, "sim_optimal_calibrar.RDS")
 
 # Also save the optimal parameters object
 saveRDS(params_optimal, "params_optimal_calibrar.RDS")
+
+# Save optimization configuration for reproducibility
+optimization_config <- list(
+  priority_species = priority_species,
+  priority_weight = priority_weight,
+  burnin_years = 200,
+  biomass_tolerance = 0.1,
+  reject_unstable = TRUE,
+  parallel_cores = n_cores,
+  optimization_method = opt_result$method,
+  final_rmse = opt_result$value,
+  date = Sys.Date()
+)
+saveRDS(optimization_config, "calibrar_optimization_config.RDS")
+
+cat("\nOptimization configuration saved to 'calibrar_optimization_config.RDS'\n")
 ```
 
 # Compare Optimal Simulation with Observations
