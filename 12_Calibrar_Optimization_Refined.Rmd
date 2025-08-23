@@ -33,6 +33,9 @@ library(tidyverse)
 library(parallel)
 library(doParallel)
 library(foreach)
+library(gridExtra)
+library(corrplot)
+library(viridis)
 
 # Source helper functions
 source("Helper_Functions.R")
@@ -40,9 +43,34 @@ source("Helper_Functions.R")
 # Set seed for reproducibility
 set.seed(42)
 
-# Setup parallel processing
+# Setup parallel processing with enhanced configuration
 n_cores <- detectCores() - 1  # Leave one core free
-cat("Detected", detectCores(), "cores. Using", n_cores, "for parallel processing.\n")
+n_cores <- min(n_cores, 8)    # Cap at 8 cores for optimization stability
+
+# Detect system memory to optimize parallel processing
+system_ram_gb <- tryCatch({
+  if (.Platform$OS.type == "windows") {
+    as.numeric(system('wmic computersystem get TotalPhysicalMemory /value', intern = TRUE)[3]) / 1e9
+  } else {
+    as.numeric(system("free -b | grep '^Mem' | awk '{print $2}'", intern = TRUE)) / 1e9
+  }
+}, error = function(e) 16) # Default to 16GB if detection fails
+
+# Adjust cores based on memory (each core needs ~2GB for mizer simulations)
+memory_limited_cores <- floor(system_ram_gb / 3) # Conservative estimate
+n_cores <- min(n_cores, memory_limited_cores, 6) # Cap at 6 for stability
+
+cat("=== PARALLEL PROCESSING SETUP ===\n")
+cat("System cores detected:", detectCores(), "\n")
+cat("System RAM:", round(system_ram_gb, 1), "GB\n")
+cat("Cores to use:", n_cores, "\n")
+cat("Expected memory usage:", round(n_cores * 3, 1), "GB\n\n")
+
+# Create plots directory if it doesn't exist
+if (!dir.exists("plots")) {
+  dir.create("plots", recursive = TRUE)
+  cat("Created plots directory\n")
+}
 ```
 
 # Load Model Parameters and Data
@@ -349,9 +377,195 @@ run_with_enhanced_burnin <- function(params, effort_array,
 }
 ```
 
-# Define Objective Function with Enhanced Whale Prioritization
+# Enhanced Plotting Functions from Script 11
 
-```{r objective-function}
+```{r plotting-functions}
+# Plotting functions integrated from script 11
+
+# Enhanced yield comparison plot
+plot_yield_comparison_enhanced <- function(sim_object,
+                                         yield_obs_data,
+                                         species_labels = NULL,
+                                         plot_title = "Modeled vs. Observed Yield",
+                                         save_plot = TRUE,
+                                         filename = "yield_comparison.png") {
+  
+  # Default species labels
+  if (is.null(species_labels)) {
+    species_labels <- c("Antarctic krill", "Bathypelagic fishes",
+                       "Shelf & Coastal fishes", "Squids", "Toothfishes",
+                       "Antarctic minke whales", "Orcas", "Sperm whales",
+                       "Baleen whales")
+    names(species_labels) <- c("antarctic krill", "bathypelagic fishes",
+                              "shelf and coastal fishes", "squids", "toothfishes",
+                              "minke whales", "orca", "sperm whales", "baleen whales")
+  }
+  
+  # Get modeled yield data
+  mod_yield <- getYield(sim_object)
+  df_mod <- reshape2::melt(mod_yield)
+  names(df_mod) <- c("Year", "Species", "Yield")
+  
+  # Create the plot
+  p_yield <- ggplot() +
+    # Model predictions as lines
+    geom_line(data = df_mod,
+              aes(x = Year, y = Yield, color = Species),
+              size = 1.2, alpha = 0.8) +
+    # Observed data points
+    geom_point(data = yield_obs_data,
+               aes(x = Year, y = Yield, color = Species),
+               size = 2, alpha = 0.7) +
+    geom_point(data = yield_obs_data,
+               aes(x = Year, y = Yield),
+               shape = 1, size = 2, colour = "black") +
+    # Faceting
+    facet_wrap(~Species, scales = "free_y",
+               labeller = labeller(Species = species_labels)) +
+    # Styling
+    geom_vline(xintercept = c(1961, 2010), linetype = "dashed", alpha = 0.5) +
+    theme_bw() +
+    theme(legend.position = "none",
+          strip.text = element_text(size = 10, face = "bold"),
+          axis.text = element_text(size = 9)) +
+    labs(title = plot_title,
+         x = "Year",
+         y = "Yield (tonnes)") +
+    scale_color_viridis_d(option = "plasma", end = 0.9)
+  
+  if (save_plot) {
+    ggsave(paste0("plots/", filename), p_yield,
+           width = 14, height = 10, dpi = 300)
+    cat("Saved plot:", paste0("plots/", filename), "\n")
+  }
+  
+  return(p_yield)
+}
+
+# Enhanced biomass trajectory plot
+plot_biomass_trajectories <- function(sim_object,
+                                    obs_biomass_data = NULL,
+                                    plot_title = "Biomass Trajectories",
+                                    save_plot = TRUE,
+                                    filename = "biomass_trajectories.png") {
+  
+  # Get modeled biomass
+  biomass <- getBiomass(sim_object)
+  biomass_df <- reshape2::melt(biomass)
+  names(biomass_df) <- c("Year", "Species", "Biomass")
+  
+  p_biomass <- ggplot(biomass_df, aes(x = Year, y = Biomass, color = Species)) +
+    geom_line(size = 1.2, alpha = 0.8) +
+    facet_wrap(~Species, scales = "free_y", ncol = 4) +
+    theme_bw() +
+    theme(legend.position = "none",
+          strip.text = element_text(size = 9, face = "bold"),
+          axis.text = element_text(size = 8)) +
+    labs(title = plot_title,
+         x = "Year",
+         y = "Biomass") +
+    geom_vline(xintercept = c(1961, 2010), linetype = "dashed", alpha = 0.5) +
+    scale_color_viridis_d(option = "viridis", end = 0.9)
+  
+  # Add observed biomass if provided
+  if (!is.null(obs_biomass_data)) {
+    obs_years <- 2010:2020
+    obs_biomass_ts <- obs_biomass_data %>%
+      crossing(Year = obs_years)
+    
+    p_biomass <- p_biomass +
+      geom_point(data = obs_biomass_ts,
+                 aes(x = Year, y = ObsBiomass),
+                 color = "red", size = 1.5, alpha = 0.7) +
+      geom_ribbon(data = obs_biomass_ts,
+                  aes(x = Year, ymin = ObsBiomass * 0.9, ymax = ObsBiomass * 1.1),
+                  fill = "red", alpha = 0.1)
+  }
+  
+  if (save_plot) {
+    ggsave(paste0("plots/", filename), p_biomass,
+           width = 16, height = 12, dpi = 300)
+    cat("Saved plot:", paste0("plots/", filename), "\n")
+  }
+  
+  return(p_biomass)
+}
+
+# Function to plot parameter evolution
+plot_parameter_evolution <- function(optimization_history,
+                                   save_plot = TRUE,
+                                   filename = "parameter_evolution.png") {
+  
+  if (length(optimization_history) == 0) {
+    cat("No optimization history available\n")
+    return(NULL)
+  }
+  
+  # Convert history to data frame
+  df_history <- data.frame(
+    Iteration = 1:length(optimization_history),
+    RMSE = optimization_history
+  )
+  
+  # Calculate moving average
+  window_size <- min(20, floor(length(df_history$RMSE) / 10))
+  if (window_size > 2) {
+    df_history$RMSE_smooth <- stats::filter(df_history$RMSE,
+                                           rep(1/window_size, window_size),
+                                           sides = 1)
+  }
+  
+  p_evolution <- ggplot(df_history, aes(x = Iteration)) +
+    geom_line(aes(y = RMSE), color = "lightblue", alpha = 0.6, size = 0.5) +
+    geom_point(aes(y = RMSE), size = 0.8, alpha = 0.4, color = "steelblue") +
+    {if(window_size > 2) geom_line(aes(y = RMSE_smooth),
+                                  color = "darkblue", size = 1.2)} +
+    geom_hline(yintercept = min(df_history$RMSE, na.rm = TRUE),
+               color = "red", linetype = "dashed", size = 1) +
+    theme_bw() +
+    labs(title = "Optimization Progress",
+         subtitle = paste("Best RMSE:", round(min(df_history$RMSE, na.rm = TRUE), 3)),
+         x = "Iteration",
+         y = "RMSE") +
+    theme(text = element_text(size = 12))
+  
+  if (save_plot) {
+    ggsave(paste0("plots/", filename), p_evolution,
+           width = 10, height = 6, dpi = 300)
+    cat("Saved plot:", paste0("plots/", filename), "\n")
+  }
+  
+  return(p_evolution)
+}
+
+# Species-specific RMSE plot
+plot_species_rmse <- function(rmse_by_species,
+                            save_plot = TRUE,
+                            filename = "species_rmse.png") {
+  
+  p_rmse <- ggplot(rmse_by_species, aes(x = reorder(Species, RMSE), y = RMSE)) +
+    geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+    geom_text(aes(label = round(RMSE, 2)), hjust = -0.1, size = 3) +
+    coord_flip() +
+    theme_bw() +
+    labs(title = "Species-specific RMSE (Optimal Model)",
+         x = "Species",
+         y = "RMSE") +
+    theme(text = element_text(size = 12))
+  
+  if (save_plot) {
+    ggsave(paste0("plots/", filename), p_rmse,
+           width = 10, height = 8, dpi = 300)
+    cat("Saved plot:", paste0("plots/", filename), "\n")
+  }
+  
+  return(p_rmse)
+}
+```
+
+# Define Parallel-Aware Objective Function
+
+```{r parallel-objective-function}
 # Initialize global tracking variables for progress monitoring
 .GlobalEnv$iter_count <- 0
 .GlobalEnv$best_rmse <- Inf
@@ -359,6 +573,115 @@ run_with_enhanced_burnin <- function(params, effort_array,
 .GlobalEnv$rmse_history <- numeric()
 .GlobalEnv$params_history <- list()
 .GlobalEnv$start_time <- Sys.time()
+
+# Enhanced parallel-compatible objective function
+objective_function_parallel <- function(params_vector,
+                                      base_params,
+                                      abundance_bounds,
+                                      catchability_bounds,
+                                      gamma_bounds,
+                                      effort_array,
+                                      yield_obs_data,
+                                      year_range = c(1961, 2010),
+                                      burnin_years = 300,
+                                      spinup_years = 118,
+                                      t_start = 1841,
+                                      sim_years = 170,
+                                      species_weights = NULL,
+                                      reject_unstable = TRUE,
+                                      biomass_tol = 0.05,
+                                      verbose = FALSE,
+                                      parallel_id = NULL) {
+  
+  # Parallel-safe progress tracking
+  if (!is.null(parallel_id)) {
+    # In parallel mode, save individual results to temporary files
+    temp_file <- paste0("temp_parallel_", parallel_id, "_", Sys.getpid(), ".rds")
+  }
+  
+  # Apply parameters
+  test_params <- apply_parameters_refined(params_vector, base_params,
+                                        abundance_bounds,
+                                        catchability_bounds,
+                                        gamma_bounds)
+  
+  # Run simulation with error handling for parallel execution
+  sim_result <- tryCatch({
+    run_with_enhanced_burnin(test_params, effort_array,
+                           burnin_years = burnin_years,
+                           spinup_years = spinup_years,
+                           t_start = t_start,
+                           sim_years = sim_years,
+                           biomass_tol = biomass_tol,
+                           reject_unstable = reject_unstable,
+                           tol = 0.001)
+  }, error = function(e) {
+    if (verbose) cat("Simulation failed (parallel_id:", parallel_id, "):", e$message, "\n")
+    return(NULL)
+  })
+  
+  # Calculate RMSE
+  if (is.null(sim_result)) {
+    rmse <- 1e6
+  } else {
+    # Calculate RMSE with species weights
+    mod_yield <- getYield(sim_result)
+    df_mod <- reshape2::melt(mod_yield)
+    names(df_mod) <- c("Year", "Species", "Yield")
+    
+    # Filter by year range
+    df_mod <- df_mod[df_mod$Year >= min(year_range) & df_mod$Year <= max(year_range), ]
+    yield_obs_filtered <- yield_obs_data[yield_obs_data$Year >= min(year_range) &
+                                        yield_obs_data$Year <= max(year_range), ]
+    
+    # Merge data
+    comparison <- merge(df_mod, yield_obs_filtered,
+                      by = c("Year", "Species"),
+                      suffixes = c("_mod", "_obs"))
+    
+    # Calculate weighted RMSE
+    if (!is.null(species_weights)) {
+      comparison <- comparison %>%
+        left_join(species_weights, by = "Species") %>%
+        mutate(weight = ifelse(is.na(weight), 1, weight))
+      
+      rmse_by_species <- comparison %>%
+        group_by(Species, weight) %>%
+        summarise(
+          rmse = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
+          n_obs = n(),
+          .groups = 'drop'
+        )
+      
+      total_rmse <- weighted.mean(rmse_by_species$rmse,
+                                 rmse_by_species$weight * rmse_by_species$n_obs,
+                                 na.rm = TRUE)
+    } else {
+      total_rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
+    }
+    
+    rmse <- total_rmse
+  }
+  
+  # Handle NaN or Inf values
+  if (is.nan(rmse) || is.infinite(rmse)) {
+    rmse <- 1e6
+  }
+  
+  # Save result to temp file if in parallel mode
+  if (!is.null(parallel_id)) {
+    result <- list(
+      parallel_id = parallel_id,
+      params = params_vector,
+      rmse = rmse,
+      timestamp = Sys.time(),
+      pid = Sys.getpid()
+    )
+    saveRDS(result, temp_file)
+  }
+  
+  return(rmse)
+}
 
 # Function to plot optimization progress
 plot_optimization_progress <- function() {
@@ -391,6 +714,10 @@ plot_optimization_progress <- function() {
       theme_minimal()
     
     print(p)
+    
+    # Save progress plot
+    ggsave("plots/optimization_progress.png", p,
+           width = 10, height = 6, dpi = 300)
   }
 }
 
@@ -754,6 +1081,330 @@ if (!is.null(opt_result)) {
   )
   
   saveRDS(optimization_config, "calibrar_optimization_refined_config.RDS")
+}
+```
+
+# Run Optimal Simulation with Comprehensive Analysis
+
+```{r analyze-optimal-results}
+# Load optimization results if they exist
+if (file.exists("optimization_best_params.RDS")) {
+  cat("=== ANALYZING OPTIMAL PARAMETERS ===\n")
+  
+  # Load best parameters
+  best_results <- readRDS("optimization_best_params.RDS")
+  optimal_params <- best_results$best_params
+  
+  cat("Best RMSE found:", round(best_results$best_rmse, 4), "\n")
+  cat("At iteration:", best_results$iteration, "\n\n")
+  
+  # Apply optimal parameters to create optimized model
+  params_optimal <- apply_parameters_refined(optimal_params, params_fishing_only,
+                                           abundance_bounds,
+                                           catchability_bounds,
+                                           gamma_bounds)
+  
+  # Run simulation with optimal parameters
+  cat("Running simulation with optimal parameters...\n")
+  sim_optimal <- run_with_enhanced_burnin(params_optimal, combined_effort_array,
+                                         burnin_years = 300,
+                                         spinup_years = 118,
+                                         t_start = 1841,
+                                         sim_years = 170,
+                                         biomass_tol = 0.05,
+                                         reject_unstable = FALSE)  # Don't reject for analysis
+  
+  # Save optimal simulation
+  saveRDS(sim_optimal, "sim_optimal_calibrar_parallel.RDS")
+  saveRDS(params_optimal, "params_optimal_calibrar_parallel.RDS")
+  
+  cat("Optimal simulation completed and saved\n\n")
+  
+  # Extract optimal parameter values for display
+  n_abundance <- nrow(abundance_bounds)
+  n_catchability <- nrow(catchability_bounds)
+  n_gamma <- nrow(gamma_bounds)
+  
+  # Parse parameter values
+  abundance_optimal <- exp(optimal_params[1:n_abundance])
+  names(abundance_optimal) <- abundance_bounds$species
+  
+  catchability_optimal <- optimal_params[(n_abundance + 1):(n_abundance + n_catchability)]
+  names(catchability_optimal) <- paste(catchability_bounds$species, catchability_bounds$gear, sep = "_")
+  
+  gamma_optimal <- exp(optimal_params[(n_abundance + n_catchability + 1):length(optimal_params)])
+  names(gamma_optimal) <- gamma_bounds$species
+  
+  cat("=== OPTIMAL PARAMETER VALUES ===\n\n")
+  cat("Marine Mammal Abundance Scaling Factors:\n")
+  for (i in 1:length(abundance_optimal)) {
+    cat(sprintf("  %s: %.2fx\n", names(abundance_optimal)[i], abundance_optimal[i]))
+  }
+  
+  cat("\nOptimal Catchability Values:\n")
+  for (i in 1:length(catchability_optimal)) {
+    cat(sprintf("  %s: %.4f\n", names(catchability_optimal)[i], catchability_optimal[i]))
+  }
+  
+  cat("\nOptimal Gamma (Search Rate) Values:\n")
+  for (i in 1:length(gamma_optimal)) {
+    cat(sprintf("  %s: %.2e\n", names(gamma_optimal)[i], gamma_optimal[i]))
+  }
+  
+} else {
+  cat("No optimization results found. Run optimization first.\n")
+  sim_optimal <- NULL
+}
+```
+
+# Generate Comprehensive Plots and Analysis
+
+```{r comprehensive-analysis}
+if (!is.null(sim_optimal)) {
+  cat("\n=== GENERATING COMPREHENSIVE ANALYSIS PLOTS ===\n")
+  
+  # 1. Enhanced yield comparison plot
+  p_yield_enhanced <- plot_yield_comparison_enhanced(
+    sim_optimal,
+    yield_ts_tidy,
+    plot_title = "Optimal Model: Modeled vs. Observed Yield",
+    filename = "optimal_yield_comparison_enhanced.png"
+  )
+  print(p_yield_enhanced)
+  
+  # 2. Biomass trajectory plot
+  p_biomass_trajectories <- plot_biomass_trajectories(
+    sim_optimal,
+    plot_title = "Optimal Model: Biomass Trajectories",
+    filename = "optimal_biomass_trajectories.png"
+  )
+  print(p_biomass_trajectories)
+  
+  # 3. Calculate detailed RMSE by species
+  mod_yield <- getYield(sim_optimal)
+  df_mod <- reshape2::melt(mod_yield)
+  names(df_mod) <- c("Year", "Species", "Yield")
+  
+  # Filter to observation period
+  df_mod_filtered <- df_mod[df_mod$Year >= 1961 & df_mod$Year <= 2010, ]
+  yield_obs_filtered <- yield_ts_tidy[yield_ts_tidy$Year >= 1961 &
+                                      yield_ts_tidy$Year <= 2010, ]
+  
+  # Calculate comprehensive RMSE statistics
+  comparison <- merge(df_mod_filtered, yield_obs_filtered,
+                     by = c("Year", "Species"),
+                     suffixes = c("_mod", "_obs"))
+  
+  rmse_by_species <- comparison %>%
+    group_by(Species) %>%
+    summarise(
+      RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
+      MAE = mean(abs(Yield_mod - Yield_obs), na.rm = TRUE),
+      Mean_Obs = mean(Yield_obs, na.rm = TRUE),
+      Mean_Mod = mean(Yield_mod, na.rm = TRUE),
+      Bias = mean(Yield_mod - Yield_obs, na.rm = TRUE),
+      Relative_Error = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)) / mean(Yield_obs, na.rm = TRUE) * 100,
+      Correlation = cor(Yield_mod, Yield_obs, use = "complete.obs"),
+      n_obs = n(),
+      .groups = 'drop'
+    ) %>%
+    arrange(RMSE)
+  
+  cat("\n=== DETAILED SPECIES-SPECIFIC PERFORMANCE ===\n")
+  print(as.data.frame(rmse_by_species))
+  
+  # 4. Species-specific RMSE plot
+  p_species_rmse <- plot_species_rmse(
+    rmse_by_species,
+    filename = "optimal_species_rmse.png"
+  )
+  print(p_species_rmse)
+  
+  # 5. Parameter evolution plot (if history available)
+  if (exists(".GlobalEnv$rmse_history") && length(.GlobalEnv$rmse_history) > 1) {
+    p_param_evolution <- plot_parameter_evolution(
+      .GlobalEnv$rmse_history,
+      filename = "optimization_parameter_evolution.png"
+    )
+    print(p_param_evolution)
+  }
+  
+  # 6. Biomass stability analysis
+  biomass_optimal <- getBiomass(sim_optimal)
+  
+  # Calculate coefficient of variation for last 50 years
+  last_50_years <- tail(biomass_optimal, 50)
+  cv_by_species <- apply(last_50_years, 2, function(x) sd(x) / mean(x) * 100)
+  
+  biomass_stats <- data.frame(
+    Species = names(cv_by_species),
+    CV_percent = round(cv_by_species, 2),
+    Mean_Biomass = round(apply(last_50_years, 2, mean), 2),
+    Final_Biomass = round(biomass_optimal[nrow(biomass_optimal), ], 2)
+  ) %>%
+    arrange(CV_percent)
+  
+  cat("\n=== BIOMASS STABILITY ANALYSIS (last 50 years) ===\n")
+  print(biomass_stats)
+  
+  # 7. Create correlation matrix plot for yield fit
+  correlation_matrix <- comparison %>%
+    select(Species, Yield_mod, Yield_obs) %>%
+    group_by(Species) %>%
+    summarise(correlation = cor(Yield_mod, Yield_obs, use = "complete.obs")) %>%
+    arrange(desc(correlation))
+  
+  # 8. Summary statistics plot
+  p_summary <- ggplot(rmse_by_species, aes(x = reorder(Species, -Correlation), y = Correlation)) +
+    geom_bar(stat = "identity", aes(fill = RMSE), alpha = 0.8) +
+    coord_flip() +
+    scale_fill_viridis_c(name = "RMSE", direction = -1) +
+    theme_bw() +
+    labs(title = "Model Performance Summary",
+         subtitle = "Correlation with observations (colored by RMSE)",
+         x = "Species",
+         y = "Correlation") +
+    theme(text = element_text(size = 12))
+  
+  print(p_summary)
+  ggsave("plots/optimization_performance_summary.png", p_summary,
+         width = 12, height = 8, dpi = 300)
+  
+  # 9. Save comprehensive results
+  comprehensive_results <- list(
+    optimal_parameters = list(
+      abundance_scaling = abundance_optimal,
+      catchability_values = catchability_optimal,
+      gamma_values = gamma_optimal
+    ),
+    performance_metrics = rmse_by_species,
+    biomass_stability = biomass_stats,
+    correlation_matrix = correlation_matrix,
+    optimization_summary = list(
+      best_rmse = best_results$best_rmse,
+      best_iteration = best_results$iteration,
+      total_parameters = length(optimal_params),
+      convergence_achieved = best_results$best_rmse < 1000  # Reasonable threshold
+    ),
+    timestamp = Sys.time()
+  )
+  
+  saveRDS(comprehensive_results, "calibrar_comprehensive_analysis.RDS")
+  
+  cat("\n=== COMPREHENSIVE ANALYSIS COMPLETE ===\n")
+  cat("Results saved to 'calibrar_comprehensive_analysis.RDS'\n")
+  cat("All plots saved to 'plots/' directory\n\n")
+  
+} else {
+  cat("Cannot perform analysis - no optimal simulation available\n")
+}
+```
+
+# Performance Comparison and Recommendations
+
+```{r performance-comparison}
+if (!is.null(sim_optimal)) {
+  cat("=== PERFORMANCE EVALUATION AND RECOMMENDATIONS ===\n\n")
+  
+  # Overall performance assessment
+  overall_rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
+  overall_correlation <- cor(comparison$Yield_mod, comparison$Yield_obs, use = "complete.obs")
+  
+  cat("OVERALL MODEL PERFORMANCE:\n")
+  cat("  Overall RMSE:", round(overall_rmse, 3), "\n")
+  cat("  Overall correlation:", round(overall_correlation, 3), "\n")
+  cat("  Species with good fit (r > 0.7):", sum(rmse_by_species$Correlation > 0.7, na.rm = TRUE),
+      "out of", nrow(rmse_by_species), "\n")
+  cat("  Species with poor fit (r < 0.5):", sum(rmse_by_species$Correlation < 0.5, na.rm = TRUE),
+      "out of", nrow(rmse_by_species), "\n\n")
+  
+  # Identify best and worst performing species
+  best_species <- rmse_by_species %>%
+    filter(Correlation > 0.7 & RMSE < quantile(rmse_by_species$RMSE, 0.5, na.rm = TRUE)) %>%
+    arrange(RMSE) %>%
+    head(3)
+  
+  worst_species <- rmse_by_species %>%
+    filter(Correlation < 0.5 | RMSE > quantile(rmse_by_species$RMSE, 0.8, na.rm = TRUE)) %>%
+    arrange(desc(RMSE)) %>%
+    head(3)
+  
+  cat("BEST PERFORMING SPECIES:\n")
+  for (i in 1:nrow(best_species)) {
+    cat(sprintf("  %d. %s: RMSE = %.2f, r = %.3f\n",
+                i, best_species$Species[i], best_species$RMSE[i], best_species$Correlation[i]))
+  }
+  
+  cat("\nPOOREST PERFORMING SPECIES:\n")
+  for (i in 1:nrow(worst_species)) {
+    cat(sprintf("  %d. %s: RMSE = %.2f, r = %.3f\n",
+                i, worst_species$Species[i], worst_species$RMSE[i], worst_species$Correlation[i]))
+  }
+  
+  # Check biomass stability issues
+  unstable_species <- biomass_stats$Species[biomass_stats$CV_percent > 20]
+  
+  cat("\nBIOMASS STABILITY ASSESSMENT:\n")
+  if (length(unstable_species) > 0) {
+    cat("  Species with high variability (CV > 20%):\n")
+    for (sp in unstable_species) {
+      cv_val <- biomass_stats$CV_percent[biomass_stats$Species == sp]
+      cat(sprintf("    - %s: CV = %.1f%%\n", sp, cv_val))
+    }
+  } else {
+    cat("  All species show acceptable biomass stability (CV < 20%)\n")
+  }
+  
+  # Parameter assessment
+  cat("\nPARAMETER ASSESSMENT:\n")
+  cat("  Abundance scaling factors range:",
+      round(min(abundance_optimal), 2), "to", round(max(abundance_optimal), 2), "\n")
+  
+  extreme_scaling <- names(abundance_optimal)[abundance_optimal > 50 | abundance_optimal < 0.5]
+  if (length(extreme_scaling) > 0) {
+    cat("  Species with extreme scaling (>50x or <0.5x):\n")
+    for (sp in extreme_scaling) {
+      cat(sprintf("    - %s: %.1fx\n", sp, abundance_optimal[sp]))
+    }
+  }
+  
+  # Recommendations
+  cat("\nRECOMMENDATIONS:\n")
+  
+  if (overall_correlation > 0.8) {
+    cat("  ✓ Excellent overall model performance\n")
+  } else if (overall_correlation > 0.6) {
+    cat("  ≈ Good overall model performance with room for improvement\n")
+  } else {
+    cat("  ✗ Model performance needs significant improvement\n")
+  }
+  
+  if (length(worst_species$Species) > 0) {
+    cat("\n  For poorly fitting species, consider:\n")
+    cat("    - Reviewing data quality and completeness\n")
+    cat("    - Adjusting species-specific parameters (growth rates, vulnerabilities)\n")
+    cat("    - Including additional ecological processes\n")
+    cat("    - Different functional group definitions\n")
+  }
+  
+  if (length(unstable_species) > 0) {
+    cat("\n  For biomass stability issues:\n")
+    cat("    - Increase burn-in period beyond 300 years\n")
+    cat("    - Tighten steady-state tolerance further\n")
+    cat("    - Review predator-prey interaction strengths\n")
+  }
+  
+  if (use_parallel) {
+    cat("\n  Parallel processing performance:\n")
+    if (exists("optimization_config")) {
+      config <- readRDS("calibrar_optimization_refined_config.RDS")
+      cat("    - Speedup achieved:", round(config$system_info$parallel_efficiency, 1), "x\n")
+      cat("    - Cores used effectively:", config$cores_used, "out of", config$system_info$cores_available, "\n")
+    }
+  }
+  
+  cat("\n=== ANALYSIS COMPLETE ===\n")
+  cat("Model is ready for scenario testing and projections\n\n")
 }
 ```
 
