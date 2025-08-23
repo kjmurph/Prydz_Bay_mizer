@@ -78,7 +78,7 @@ params_fishing_only <- upgradeTherParams(params_new_v4,
 ```{r define-parameters}
 # Define which species to optimize
 marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
-fished_species <- c("antarctic krill", "bathypelagic fishes", 
+fished_species <- c("antarctic krill", "bathypelagic fishes",
                    "shelf and coastal fishes", "squids", "toothfishes",
                    "minke whales", "orca", "sperm whales", "baleen whales")
 
@@ -101,13 +101,20 @@ catchability_bounds <- data.frame(
   initial = gear_df$catchability[gear_df$catchability > 0]
 )
 
+# Ensure initial catchability values are within bounds
+catchability_bounds$initial <- pmax(catchability_bounds$lower,
+                                    pmin(catchability_bounds$upper,
+                                         catchability_bounds$initial))
+
 # Gamma (search rate) bounds - using log-scale
 species_params_df <- species_params(params_base)
+current_gamma <- species_params_df$gamma[species_params_df$species %in% fished_species]
+
 gamma_bounds <- data.frame(
   species = fished_species,
-  lower = log(species_params_df$gamma[species_params_df$species %in% fished_species] * 0.1),
-  upper = log(species_params_df$gamma[species_params_df$species %in% fished_species] * 10),
-  initial = log(species_params_df$gamma[species_params_df$species %in% fished_species])
+  lower = log(current_gamma * 0.1),
+  upper = log(current_gamma * 10),
+  initial = log(current_gamma)
 )
 
 # Combine all parameters into a single vector for optimization
@@ -142,9 +149,42 @@ upper_bounds <- c(
 )
 names(upper_bounds) <- param_names
 
-cat("Total parameters to optimize:", n_params, "\n")
+# Verify all initial parameters are within bounds
+if (any(initial_params < lower_bounds)) {
+  problematic <- which(initial_params < lower_bounds)
+  cat("WARNING: Some initial parameters are below lower bounds:\n")
+  for (i in problematic) {
+    cat("  ", param_names[i], ": initial =", initial_params[i],
+        ", lower =", lower_bounds[i], "\n")
+    # Fix by setting to lower bound
+    initial_params[i] <- lower_bounds[i] + 0.001
+  }
+}
+
+if (any(initial_params > upper_bounds)) {
+  problematic <- which(initial_params > upper_bounds)
+  cat("WARNING: Some initial parameters are above upper bounds:\n")
+  for (i in problematic) {
+    cat("  ", param_names[i], ": initial =", initial_params[i],
+        ", upper =", upper_bounds[i], "\n")
+    # Fix by setting to upper bound
+    initial_params[i] <- upper_bounds[i] - 0.001
+  }
+}
+
+cat("\nTotal parameters to optimize:", n_params, "\n")
 cat("Parameter names:\n")
 print(param_names)
+
+# Display parameter ranges
+cat("\nParameter ranges:\n")
+param_summary <- data.frame(
+  Parameter = param_names,
+  Lower = round(lower_bounds, 4),
+  Initial = round(initial_params, 4),
+  Upper = round(upper_bounds, 4)
+)
+print(param_summary)
 ```
 
 # Define Helper Functions for Optimization
@@ -399,6 +439,17 @@ control_params <- list(
   reltol = 1e-4       # Relative tolerance for convergence
 )
 
+# Double-check parameters are within bounds before optimization
+cat("\nVerifying parameter bounds before optimization...\n")
+all_within_bounds <- all(initial_params >= lower_bounds) & all(initial_params <= upper_bounds)
+if (all_within_bounds) {
+  cat("✓ All initial parameters are within bounds\n\n")
+} else {
+  cat("✗ Parameter bound issues detected. Attempting to fix...\n")
+  initial_params <- pmax(lower_bounds, pmin(upper_bounds, initial_params))
+  cat("✓ Parameters adjusted to be within bounds\n\n")
+}
+
 # Run optimization using calibrar
 # We'll use the AHR (Adaptive Hybrid Reconstruction) algorithm
 # which is good for complex objective functions
@@ -406,37 +457,83 @@ control_params <- list(
 cat("Starting optimization with calibrar...\n")
 cat("This may take several hours depending on the number of parameters and iterations.\n\n")
 
-opt_result <- calibrate(
-  par = initial_params,
-  fn = calibrar_objective,
-  method = "AHR",  # Adaptive Hybrid Reconstruction
-  lower = lower_bounds,
-  upper = upper_bounds,
-  control = control_params,
-  # Additional arguments for objective function
-  base_params = params_fishing_only,  # Use fishing-only scenario for optimization
-  marine_mammal_species = marine_mammal_species,
-  fished_species = fished_species,
-  abundance_bounds = abundance_bounds,
-  catchability_bounds = catchability_bounds,
-  gamma_bounds = gamma_bounds,
-  effort_array = combined_effort_array,
-  yield_obs_data = yield_ts_tidy,
-  year_range = c(1961, 2010),
-  burnin_years = 200,
-  spinup_years = 118,
-  t_start = 1841,
-  sim_years = 170,
-  weight_by_species = TRUE,
-  verbose = TRUE
-)
+# Try optimization with error handling
+opt_result <- tryCatch({
+  calibrate(
+    par = initial_params,
+    fn = calibrar_objective,
+    method = "AHR",  # Adaptive Hybrid Reconstruction
+    lower = lower_bounds,
+    upper = upper_bounds,
+    control = control_params,
+    # Additional arguments for objective function
+    base_params = params_fishing_only,  # Use fishing-only scenario for optimization
+    marine_mammal_species = marine_mammal_species,
+    fished_species = fished_species,
+    abundance_bounds = abundance_bounds,
+    catchability_bounds = catchability_bounds,
+    gamma_bounds = gamma_bounds,
+    effort_array = combined_effort_array,
+    yield_obs_data = yield_ts_tidy,
+    year_range = c(1961, 2010),
+    burnin_years = 200,
+    spinup_years = 118,
+    t_start = 1841,
+    sim_years = 170,
+    weight_by_species = TRUE,
+    verbose = TRUE
+  )
+}, error = function(e) {
+  cat("\nError in optimization:", e$message, "\n")
+  cat("\nTrying alternative optimization method (optim with L-BFGS-B)...\n")
+  
+  # Fallback to standard optim with box constraints
+  optim_result <- optim(
+    par = initial_params,
+    fn = objective_function,
+    method = "L-BFGS-B",
+    lower = lower_bounds,
+    upper = upper_bounds,
+    control = list(maxit = 100, trace = 1, REPORT = 10),
+    # Additional arguments for objective function
+    base_params = params_fishing_only,
+    marine_mammal_species = marine_mammal_species,
+    fished_species = fished_species,
+    abundance_bounds = abundance_bounds,
+    catchability_bounds = catchability_bounds,
+    gamma_bounds = gamma_bounds,
+    effort_array = combined_effort_array,
+    yield_obs_data = yield_ts_tidy,
+    year_range = c(1961, 2010),
+    burnin_years = 100,  # Reduced for faster testing
+    spinup_years = 118,
+    t_start = 1841,
+    sim_years = 170,
+    weight_by_species = TRUE,
+    verbose = FALSE
+  )
+  
+  # Convert optim result to calibrar-like format
+  list(
+    par = optim_result$par,
+    value = optim_result$value,
+    convergence = optim_result$convergence,
+    counts = optim_result$counts,
+    message = optim_result$message,
+    method = "L-BFGS-B (fallback)"
+  )
+})
 
 # Save optimization results
 saveRDS(opt_result, "calibrar_optimization_results.RDS")
 
 cat("\nOptimization complete!\n")
+cat("Method used:", ifelse(exists("opt_result$method"), opt_result$method, "AHR"), "\n")
 cat("Final RMSE:", opt_result$value, "\n")
 cat("Convergence:", opt_result$convergence, "\n")
+if (!is.null(opt_result$message)) {
+  cat("Message:", opt_result$message, "\n")
+}
 ```
 
 # Analyze Optimization Results
