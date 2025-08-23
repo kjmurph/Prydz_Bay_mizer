@@ -20,7 +20,7 @@ This refined optimization approach addresses key issues identified in initial te
 - **Whale species** receive much higher priority weighting (5-10x)
 - **Biomass stability tolerance** reduced from 0.1 to 0.05
 - **Burn-in period** increased to 300 years
-- **Steady-state tolerance** tightened to 0.001
+- **Steady-state tolerance** tightened to 0.0025
 
 # Setup and Load Required Packages
 
@@ -44,7 +44,7 @@ source("Helper_Functions.R")
 set.seed(42)
 
 # Setup parallel processing with enhanced configuration
-n_cores <- detectCores() - 1  # Leave one core free
+n_cores <- detectCores() - 2  # Leave one core free
 n_cores <- min(n_cores, 8)    # Cap at 8 cores for optimization stability
 
 # Detect system memory to optimize parallel processing
@@ -324,7 +324,7 @@ run_with_enhanced_burnin <- function(params, effort_array,
                                     spinup_years = 118,
                                     t_start = 1841,
                                     sim_years = 170,
-                                    tol = 0.001,  # Tighter steady-state tolerance
+                                    tol = 0.0025,  # Tighter steady-state tolerance
                                     t_max = 2000,
                                     biomass_tol = 0.05,  # Stricter
                                     reject_unstable = TRUE) {
@@ -614,7 +614,7 @@ objective_function_parallel <- function(params_vector,
                            sim_years = sim_years,
                            biomass_tol = biomass_tol,
                            reject_unstable = reject_unstable,
-                           tol = 0.001)
+                           tol = 0.0025)
   }, error = function(e) {
     if (verbose) cat("Simulation failed (parallel_id:", parallel_id, "):", e$message, "\n")
     return(NULL)
@@ -763,7 +763,7 @@ objective_function_refined <- function(params_vector,
                             sim_years = sim_years,
                             biomass_tol = biomass_tol,
                             reject_unstable = reject_unstable,
-                            tol = 0.001)
+                            tol = 0.0025)
   }, error = function(e) {
     if (verbose) cat("Simulation failed:", e$message, "\n")
     return(NULL)
@@ -951,7 +951,7 @@ cat("Method:", optimization_method, "\n")
 cat("Max iterations:", control_params$maxit, "\n")
 cat("Burn-in years:", 500, "\n")
 cat("Biomass tolerance:", 0.05, "\n")
-cat("Steady-state tolerance:", 0.001, "\n")
+cat("Steady-state tolerance:", 0.0025, "\n")
 cat("Reject unstable:", "YES\n")
 cat("Checkpoint save interval: Every 50 iterations\n")
 cat("Progress plot interval: Every 100 iterations\n\n")
@@ -1066,7 +1066,7 @@ if (!is.null(opt_result)) {
     species_weights = species_weights,
     burnin_years = 300,
     biomass_tolerance = 0.05,
-    steady_state_tolerance = 0.001,
+    steady_state_tolerance = 0.0025,
     parameter_strategy = list(
       abundance_species = abundance_bounds$species,
       gamma_species = gamma_bounds$species,
