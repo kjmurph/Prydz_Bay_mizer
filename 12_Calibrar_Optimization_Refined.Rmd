@@ -50,21 +50,53 @@ n_cores <- min(n_cores, 8)    # Cap at 8 cores for optimization stability
 # Check for parallel processing environment variable
 use_parallel_env <- Sys.getenv("R_PARALLELIZE", "TRUE") == "TRUE"
 
-# Detect system memory to optimize parallel processing
+# Detect system memory to optimize parallel processing with robust error handling
 system_ram_gb <- tryCatch({
   if (.Platform$OS.type == "windows") {
-    as.numeric(system('wmic computersystem get TotalPhysicalMemory /value', intern = TRUE)[3]) / 1e9
+    # Windows memory detection
+    mem_info <- system('wmic computersystem get TotalPhysicalMemory /value', intern = TRUE)
+    mem_line <- mem_info[grepl("TotalPhysicalMemory=", mem_info)]
+    if (length(mem_line) > 0) {
+      mem_value <- gsub("TotalPhysicalMemory=", "", mem_line)
+      mem_gb <- as.numeric(mem_value) / 1e9
+      if (is.finite(mem_gb) && mem_gb > 0) {
+        return(mem_gb)
+      }
+    }
+    # Fallback for Windows
+    return(16)
   } else {
-    as.numeric(system("free -b | grep '^Mem' | awk '{print $2}'", intern = TRUE)) / 1e9
+    # Linux/Mac memory detection
+    mem_bytes <- system("free -b | grep '^Mem' | awk '{print $2}'", intern = TRUE)
+    if (length(mem_bytes) > 0) {
+      mem_gb <- as.numeric(mem_bytes) / 1e9
+      if (is.finite(mem_gb) && mem_gb > 0) {
+        return(mem_gb)
+      }
+    }
+    # Fallback for Unix systems
+    return(16)
   }
-}, error = function(e) 16) # Default to 16GB if detection fails
+}, error = function(e) {
+  cat("Memory detection failed:", e$message, "\n")
+  return(16)  # Conservative default
+})
+
+# Ensure system_ram_gb is valid
+if (is.na(system_ram_gb) || !is.finite(system_ram_gb) || system_ram_gb <= 0) {
+  system_ram_gb <- 16
+  cat("Memory detection returned invalid value, using 16GB default\n")
+}
 
 # Adjust cores based on memory (each core needs ~3GB for mizer simulations)
 memory_limited_cores <- floor(system_ram_gb / 3) # Conservative estimate
-n_cores <- min(n_cores, memory_limited_cores, 6) # Cap at 6 for stability
+memory_limited_cores <- max(1, memory_limited_cores)  # Ensure at least 1
 
-# Final decision on parallel processing
-use_parallel <- use_parallel_env && n_cores > 1
+n_cores <- min(n_cores, memory_limited_cores, 6) # Cap at 6 for stability
+n_cores <- max(1, n_cores)  # Ensure at least 1 core
+
+# Final decision on parallel processing with robust logic
+use_parallel <- isTRUE(use_parallel_env) && isTRUE(n_cores > 1) && isTRUE(system_ram_gb >= 8)
 
 cat("=== PARALLEL PROCESSING SETUP ===\n")
 cat("System cores detected:", detectCores(), "\n")
