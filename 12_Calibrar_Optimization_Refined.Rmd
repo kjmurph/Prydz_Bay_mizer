@@ -20,7 +20,7 @@ This refined optimization approach addresses key issues identified in initial te
 - **Whale species** receive much higher priority weighting (5-10x)
 - **Biomass stability tolerance** reduced from 0.1 to 0.05
 - **Burn-in period** increased to 300 years
-- **Steady-state tolerance** tightened to 0.001
+- **Steady-state tolerance** tightened to 0.0025
 
 # Setup and Load Required Packages
 
@@ -44,7 +44,7 @@ source("Helper_Functions.R")
 set.seed(42)
 
 # Setup parallel processing with enhanced configuration
-n_cores <- detectCores() - 1  # Leave one core free
+n_cores <- detectCores() - 2  # Leave one core free
 n_cores <- min(n_cores, 8)    # Cap at 8 cores for optimization stability
 
 # Check for parallel processing environment variable
@@ -365,9 +365,9 @@ run_with_enhanced_burnin <- function(params, effort_array,
                                     spinup_years = 118,
                                     t_start = 1841,
                                     sim_years = 170,
-                                    tol = 0.005,  # Tighter steady-state tolerance
-                                    t_max = 1500,
-                                    biomass_tol = 0.075,  # Stricter
+                                    tol = 0.0025,  # Tighter steady-state tolerance
+                                    t_max = 2000,
+                                    biomass_tol = 0.05,  # Stricter
                                     reject_unstable = TRUE) {
   
   # Step 1: Run to steady state with tighter tolerance
@@ -655,7 +655,7 @@ objective_function_parallel <- function(params_vector,
                            sim_years = sim_years,
                            biomass_tol = biomass_tol,
                            reject_unstable = reject_unstable,
-                           tol = 0.001)
+                           tol = 0.0025)
   }, error = function(e) {
     if (verbose) cat("Simulation failed (parallel_id:", parallel_id, "):", e$message, "\n")
     return(NULL)
@@ -777,7 +777,7 @@ objective_function_refined <- function(params_vector,
                                       sim_years = 170,
                                       species_weights = NULL,
                                       reject_unstable = TRUE,
-                                      biomass_tol = 0.075,
+                                      biomass_tol = 0.05,
                                       save_interval = 50,
                                       plot_interval = 100,
                                       verbose = FALSE) {
@@ -804,7 +804,7 @@ objective_function_refined <- function(params_vector,
                             sim_years = sim_years,
                             biomass_tol = biomass_tol,
                             reject_unstable = reject_unstable,
-                            tol = 0.005)
+                            tol = 0.0025)
   }, error = function(e) {
     if (verbose) cat("Simulation failed:", e$message, "\n")
     return(NULL)
@@ -974,8 +974,8 @@ cat("=== SPECIES WEIGHTING STRATEGY ===\n")
 print(species_weights)
 cat("\n")
 
-# Configure optimization method based on parallel availability
-optimization_method <- ifelse(use_parallel, "L-BFGS-B", "SANN")
+# Optimization method selection
+optimization_method <- "SANN"  # Simulated Annealing for complex landscape
 
 # Control parameters adapted for parallel/sequential processing
 control_params <- if (use_parallel) {
@@ -1000,10 +1000,10 @@ cat("=== OPTIMIZATION CONFIGURATION ===\n")
 cat("Method:", optimization_method, "\n")
 cat("Parallel processing:", ifelse(use_parallel, paste("YES (", n_cores, " cores)"), "NO"), "\n")
 cat("Max iterations:", control_params$maxit, "\n")
-cat("Burn-in years: 300\n")
-cat("Biomass tolerance: 0.075\n")
-cat("Steady-state tolerance: 0.005\n")
-cat("Reject unstable: YES\n")
+cat("Burn-in years:", 300, "\n")
+cat("Biomass tolerance:", 0.075, "\n")
+cat("Steady-state tolerance:", 0.005, "\n")
+cat("Reject unstable:", "YES\n")
 cat("Checkpoint save interval: Every 50 iterations\n")
 cat("Progress plot interval: Every 100 iterations\n\n")
 
@@ -1066,75 +1066,32 @@ if (!checkpoint_exists || .GlobalEnv$iter_count == 0) {
 
 # Run optimization with proper parallel/sequential handling
 opt_result <- tryCatch({
-  if (use_parallel) {
-    cat("Starting PARALLEL optimization using", n_cores, "cores...\n\n")
-    
-    # Parallel calibrar optimization
-    calibrate(
-      par = initial_params,
-      fn = calibrar_objective_refined,
-      method = "optim",  # Use optim wrapper for parallel
-      lower = lower_bounds,
-      upper = upper_bounds,
-      control = list(
-        method = "L-BFGS-B",
-        maxit = control_params$maxit,
-        factr = control_params$factr,
-        pgtol = control_params$pgtol,
-        trace = control_params$trace,
-        REPORT = control_params$REPORT
-      ),
-      parallel = TRUE,  # Enable calibrar's parallel processing
-      # Additional arguments for objective function
-      base_params = params_fishing_only,
-      abundance_bounds = abundance_bounds,
-      catchability_bounds = catchability_bounds,
-      gamma_bounds = gamma_bounds,
-      effort_array = combined_effort_array,
-      yield_obs_data = yield_ts_tidy,
-      year_range = c(1961, 2010),
-      burnin_years = 300,
-      spinup_years = 118,
-      t_start = 1841,
-      sim_years = 170,
-      species_weights = species_weights,
-      reject_unstable = TRUE,
-      biomass_tol = 0.075,
-      save_interval = 50,
-      plot_interval = 100,
-      verbose = TRUE
-    )
-  } else {
-    cat("Starting SEQUENTIAL optimization...\n\n")
-    
-    # Sequential calibrar optimization
-    calibrate(
-      par = initial_params,
-      fn = calibrar_objective_refined,
-      method = optimization_method,
-      lower = lower_bounds,
-      upper = upper_bounds,
-      control = control_params,
-      # Additional arguments for objective function
-      base_params = params_fishing_only,
-      abundance_bounds = abundance_bounds,
-      catchability_bounds = catchability_bounds,
-      gamma_bounds = gamma_bounds,
-      effort_array = combined_effort_array,
-      yield_obs_data = yield_ts_tidy,
-      year_range = c(1961, 2010),
-      burnin_years = 300,
-      spinup_years = 118,
-      t_start = 1841,
-      sim_years = 170,
-      species_weights = species_weights,
-      reject_unstable = TRUE,
-      biomass_tol = 0.075,
-      save_interval = 50,
-      plot_interval = 100,
-      verbose = TRUE
-    )
-  }
+  calibrate(
+    par = initial_params,
+    fn = calibrar_objective_refined,
+    method = optimization_method,
+    lower = lower_bounds,
+    upper = upper_bounds,
+    control = control_params,
+    # Additional arguments
+    base_params = params_base,
+    abundance_bounds = abundance_bounds,
+    catchability_bounds = catchability_bounds,
+    gamma_bounds = gamma_bounds,
+    effort_array = combined_effort_array,
+    yield_obs_data = yield_ts_tidy,
+    year_range = c(1961, 2010),
+    burnin_years = 300,
+    spinup_years = 118,
+    t_start = 1841,
+    sim_years = 170,
+    species_weights = species_weights,
+    reject_unstable = TRUE,
+    biomass_tol = 0.075,
+    save_interval = 50,   # Save checkpoint every 50 iterations
+    plot_interval = 100,  # Plot progress every 100 iterations
+    verbose = TRUE
+  )
 }, error = function(e) {
   cat("\n=== OPTIMIZATION INTERRUPTED OR FAILED ===\n")
   cat("Error message:", e$message, "\n")
@@ -1202,8 +1159,8 @@ if (!is.null(opt_result)) {
     method = optimization_method,
     species_weights = species_weights,
     burnin_years = 300,
-    biomass_tolerance = 0.075,
-    steady_state_tolerance = 0.005,
+    biomass_tolerance = 0.05,
+    steady_state_tolerance = 0.0025,
     parameter_strategy = list(
       abundance_species = abundance_bounds$species,
       gamma_species = gamma_bounds$species,
@@ -1607,3 +1564,140 @@ The optimization should now:
 - Maintain good fits for smaller species
 - Produce more stable biomass trajectories
 - Converge to a better solution
+
+
+# Compare Optimal Simulation with Observations
+
+```{r compare-results}
+
+sim_optimal <- project(optimization_best_params, 
+                       effort= combined_effort_array,
+                       t_start = 1841,
+                       t_max = 170)
+
+
+# Plot yield comparison
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes",
+                  "Squids", "Toothfishes", "Antarctic minke whales", "Orcas",
+                  "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes",
+                         "shelf and coastal fishes", "squids", "toothfishes",
+                         "minke whales", "orca", "sperm whales", "baleen whales")
+
+# Get modeled yield data
+mod_yield_data <- plotYieldGear(sim_optimal, return_data = TRUE)
+
+p_yield_comparison <- ggplot() +
+  # Model predictions
+  geom_line(data = mod_yield_data,
+            aes(x = Year, y = Yield, color = Species),
+            size = 1.2) +
+  # Observed data points
+  geom_point(data = yield_ts_tidy,
+             aes(x = Year, y = Yield, color = Species),
+             size = 2, alpha = 0.7) +
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  geom_vline(xintercept = c(1961, 2010), linetype = "dashed", alpha = 0.5) +
+  theme_bw() +
+  theme(legend.position = "none",
+        strip.text = element_text(size = 10, face = "bold")) +
+  labs(title = "Optimal Model Fit: Modeled vs. Observed Yield",
+       subtitle = paste("Final RMSE =", round(opt_result$value, 3)),
+       x = "Year",
+       y = "Yield (tonnes)")
+
+print(p_yield_comparison)
+# ggsave("plots/calibrar_yield_comparison.png", p_yield_comparison,
+#        width = 14, height = 10, dpi = 300)
+
+# Calculate species-specific RMSE for the optimal simulation
+mod_yield <- getYield(sim_optimal)
+df_mod <- reshape2::melt(mod_yield)
+names(df_mod) <- c("Year", "Species", "Yield")
+
+# Filter to observation period
+df_mod_filtered <- df_mod[df_mod$Year >= 1961 & df_mod$Year <= 2010, ]
+yield_obs_filtered <- yield_ts_tidy[yield_ts_tidy$Year >= 1961 & 
+                                    yield_ts_tidy$Year <= 2010, ]
+
+# Merge and calculate RMSE by species
+comparison <- merge(df_mod_filtered, yield_obs_filtered,
+                   by = c("Year", "Species"),
+                   suffixes = c("_mod", "_obs"))
+
+rmse_by_species <- comparison %>%
+  group_by(Species) %>%
+  summarise(
+    RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
+    Mean_Obs = mean(Yield_obs, na.rm = TRUE),
+    Mean_Mod = mean(Yield_mod, na.rm = TRUE),
+    Relative_Error = RMSE / Mean_Obs * 100,
+    n_obs = n()
+  ) %>%
+  arrange(RMSE)
+
+cat("\n=== Species-specific RMSE (Optimal Model) ===\n")
+print(as.data.frame(rmse_by_species))
+
+# Plot species-specific RMSE
+p_rmse_species <- ggplot(rmse_by_species, aes(x = reorder(Species, RMSE), y = RMSE)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  coord_flip() +
+  theme_bw() +
+  labs(title = "Species-specific RMSE (Optimal Model)",
+       x = "Species",
+       y = "RMSE") +
+  theme(text = element_text(size = 12))
+
+print(p_rmse_species)
+# ggsave("plots/calibrar_rmse_by_species.png", p_rmse_species,
+#        width = 10, height = 6, dpi = 300)
+```
+
+# Biomass Stability Analysis
+
+```{r biomass-stability}
+# Check biomass stability over time
+biomass_optimal <- getBiomass(sim_optimal)
+
+# Calculate coefficient of variation for last 50 years
+last_50_years <- tail(biomass_optimal, 50)
+cv_by_species <- apply(last_50_years, 2, function(x) sd(x) / mean(x) * 100)
+
+cat("\n=== Biomass Stability (CV% for last 50 years) ===\n")
+cv_df <- data.frame(
+  Species = names(cv_by_species),
+  CV_percent = round(cv_by_species, 2)
+) %>%
+  arrange(CV_percent)
+
+print(cv_df)
+
+# Plot biomass time series
+biomass_df <- reshape2::melt(biomass_optimal)
+names(biomass_df) <- c("Year", "Species", "Biomass")
+
+p_biomass <- ggplot(biomass_df, aes(x = Year, y = Biomass, color = Species)) +
+  geom_line(size = 1) +
+  facet_wrap(~Species, scales = "free_y") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(title = "Biomass Trajectories (Optimal Model)",
+       x = "Year",
+       y = "Biomass") +
+  geom_vline(xintercept = c(1961, 2010), linetype = "dashed", alpha = 0.5)
+
+print(p_biomass)
+# ggsave("plots/calibrar_biomass_trajectories.png", p_biomass,
+#        width = 14, height = 10, dpi = 300)
+
+# Check for biomass stability issues
+unstable_species <- cv_df$Species[cv_df$CV_percent > 20]
+if (length(unstable_species) > 0) {
+  cat("\nWARNING: The following species show high biomass variability (CV > 20%):\n")
+  cat(paste("  -", unstable_species, "\n"))
+  cat("\nConsider increasing burn-in period or adjusting steady-state tolerance.\n")
+}
+```
+

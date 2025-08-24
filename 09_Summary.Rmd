@@ -883,10 +883,10 @@ if (!exists("yield_ts_tidy")) {
 # Run combined uncertainty simulations
 # Using moderate uncertainty for both parameters
 combined_uncertainty_results <- run_combined_uncertainty_sims(
-  params = params_1841_2010_fishing_only,
-  n_sims = 100,  # Number of simulations (can be thousands with parallel processing)
-  catchability_sd = 0.2,  # 20% CV for catchability
-  abundance_sd = 0.3,  # 30% CV for marine mammal abundance
+  params = params_1841_2010_climate_only,
+  n_sims = 1000,  # Number of simulations (can be thousands with parallel processing)
+  catchability_sd = .5,  # 20% CV for catchability
+  abundance_sd = 2,  # 30% CV for marine mammal abundance
   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
   effort_scen = combined_effort_array,
   tol = 0.01,
@@ -894,7 +894,7 @@ combined_uncertainty_results <- run_combined_uncertainty_sims(
   spinup_years = 118,
   t_start = 1841,
   sim_years = 170,
-  preserve_erepro = TRUE,  # Set to FALSE to filter out simulations with erepro > 1
+  preserve_erepro = F,  # Set to FALSE to filter out simulations with erepro > 1
   max_erepro = 1,  # Maximum allowed erepro when preserve_erepro = FALSE
   n_cores = NULL,  # NULL = use all available cores minus 1
   parallel = TRUE  # Set to FALSE for sequential processing
@@ -928,7 +928,7 @@ if (length(combined_uncertainty_results$skipped) > 0) {
 }
 
 # Save results
-saveRDS(combined_uncertainty_results, "combined_uncertainty_results.RDS")
+saveRDS(combined_uncertainty_results, "combined_uncertainty_results_flex_erepro_catchSD_0.5_abSD_2.RDS")
 ```
 
 ## Analyze Results and Find Optimal Parameters
@@ -949,7 +949,7 @@ optimal_results <- find_optimal_parameters(
 )
 
 # Save optimal results
-saveRDS(optimal_results, "optimal_parameter_results_preserve_erepro_v3_catchSD_1_abSD_5.RDS")
+saveRDS(optimal_results, "optimal_parameter_results_flex_erepro_catchSD_0.5_abSD_2.RDS")
 
 # Display optimal parameters
 cat("\n=== Optimal Parameter Combination ===\n")
@@ -974,7 +974,7 @@ p_rmse_dist <- plot_rmse_distribution(
   plot_title = "RMSE Distribution from Combined Catchability & Abundance Uncertainty"
 )
 print(p_rmse_dist)
-ggsave("plots/combined_uncertainty_rmse_distribution.png", p_rmse_dist,
+ggsave("plots/combined_uncertainty_rmse_distribution_flex_erepro_catchSD_0.5_abSD_2.png", p_rmse_dist,
        width = 10, height = 6, dpi = 300)
 
 # Plot parameter exploration
@@ -982,7 +982,7 @@ p_param_explore <- plot_parameter_exploration(
   param_combinations = combined_uncertainty_results$parameters,
   rmse_values = optimal_results$all_rmse
 )
-ggsave("plots/combined_parameter_exploration.png", p_param_explore,
+ggsave("plots/combined_parameter_exploration_flex_erepro_catchSD_0.5_abSD_2.png", p_param_explore,
        width = 12, height = 10, dpi = 300)
 ```
 
@@ -1060,7 +1060,7 @@ p_yield_optimal <- plotYield(optimal_results$optimal_sim) +
   )
 
 print(p_yield_optimal)
-ggsave("plots/optimal_simulation_yield.png", p_yield_optimal,
+ggsave("plots/optimal_simulation_yield_flex_erepro_catchSD_0.5_abSD_2.png", p_yield_optimal,
        width = 14, height = 10, dpi = 300)
 
 # Get original model biomass data
@@ -1095,7 +1095,7 @@ p_biomass_optimal <- plot_biomass_comparison(
   )
 
 print(p_biomass_optimal)
-ggsave("plots/optimal_simulation_biomass.png", p_biomass_optimal,
+ggsave("plots/optimal_simulation_biomass_flex_erepro_catchSD_0.5_abSD_2.png", p_biomass_optimal,
        width = 14, height = 10, dpi = 300)
 ```
 
@@ -1135,7 +1135,7 @@ p_species_rmse <- ggplot(rmse_by_species_summary, aes(x = Species, y = RMSE)) +
     y = "RMSE"
   )
 print(p_species_rmse)
-ggsave("plots/rmse_by_species_boxplot.png", p_species_rmse,
+ggsave("plots/rmse_by_species_boxplot_flex_erepro_catchSD_0.5_abSD_2.png", p_species_rmse,
        width = 12, height = 6, dpi = 300)
 
 # Calculate correlation between parameters and RMSE
@@ -1153,7 +1153,7 @@ print(cor_matrix)
 
 # Create a heatmap of correlations
 require(corrplot)
-png("plots/parameter_rmse_correlation.png", width = 800, height = 600)
+png("plots/parameter_rmse_correlation_flex_erepro_catchSD_0.5_abSD_2.png", width = 800, height = 600)
 corrplot(cor_matrix, method = "color", type = "upper",
          addCoef.col = "black", tl.col = "black", tl.srt = 45,
          title = "Parameter-RMSE Correlations")

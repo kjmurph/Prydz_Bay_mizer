@@ -135,7 +135,7 @@ tryCatch({
     dir.create("plots")
   }
   
-  ggsave("plots/optimal_simulation_yield_fixed.png", p_yield_optimal,
+  ggsave("plots/optimal_simulation_yield_fixed_flex_erepro_catchSD_0.5_abSD_2.png", p_yield_optimal,
          width = 14, height = 10, dpi = 300)
   cat("Yield plot saved successfully!\n")
 }, error = function(e) {
@@ -153,7 +153,7 @@ tryCatch({
     theme(legend.position = "none")
   
   print(p_yield_simple)
-  ggsave("plots/optimal_simulation_yield_simple.png", p_yield_simple,
+  ggsave("plots/optimal_simulation_yield_simple_flex_erepro_catchSD_0.5_abSD_2.png", p_yield_simple,
          width = 14, height = 10, dpi = 300)
   cat("Simple yield plot saved instead.\n")
 })
@@ -193,7 +193,7 @@ tryCatch({
     )
   
   print(p_biomass_optimal)
-  ggsave("plots/optimal_simulation_biomass_fixed.png", p_biomass_optimal,
+  ggsave("plots/optimal_simulation_biomass_fixed_flex_erepro_catchSD_0.5_abSD_2.png", p_biomass_optimal,
          width = 14, height = 10, dpi = 300)
   cat("Biomass plot saved successfully!\n")
   
@@ -211,7 +211,7 @@ tryCatch({
     theme(legend.position = "none")
   
   print(p_biomass_simple)
-  ggsave("plots/optimal_simulation_biomass_simple.png", p_biomass_simple,
+  ggsave("plots/optimal_simulation_biomass_simple_flex_erepro_catchSD_0.5_abSD_2.png", p_biomass_simple,
          width = 14, height = 10, dpi = 300)
   cat("Simple biomass plot saved instead.\n")
 })
