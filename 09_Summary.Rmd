@@ -905,6 +905,9 @@ run_enhanced_combined_uncertainty_sims <- function(params,
                        "species_weights_df"), 
                   envir = environment())
     
+    # Export yield_ts_tidy from global environment in case functions reference it
+    clusterExport(cl, "yield_ts_tidy", envir = .GlobalEnv)
+    
     # Run simulations in parallel
     n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 2))
     
