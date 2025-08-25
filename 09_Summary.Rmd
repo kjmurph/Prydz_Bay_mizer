@@ -1910,11 +1910,16 @@ p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) +
   labs(fill = "Functional group", 
        title = "Enhanced Optimal Simulation: Yield with Uncertainty & Whale-Weighted Fitting",
        subtitle = paste("Composite Score:", round(optimal_results_composite$optimal_metric_value, 4),
-                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4))) +
+                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4),
+                       "| Blue dotted = ensemble median, Blue ribbon = 95% CI")) +
   # Add uncertainty ribbon
   geom_ribbon(data = uncertainty_yield_data, 
               aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
               alpha = 0.3, colour = NA, fill = "lightblue") +
+  # Add median line from uncertainty analysis (diagnostic)
+  geom_line(data = uncertainty_yield_data, 
+            aes(x = Year, y = sim_mean), 
+            color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
   # Add baseline model line (original params_new_v4)
   geom_line(data = baseline_yield_data, 
             aes(x = Year, y = Yield), 
@@ -1950,11 +1955,16 @@ p_biomass_optimal <- plotBiomass(optimal_results_composite$optimal_sim) +
   labs(fill = "Functional group", 
        title = "Enhanced Optimal Simulation: Biomass with Uncertainty & Whale-Weighted Fitting",
        subtitle = paste("Composite Score:", round(optimal_results_composite$optimal_metric_value, 4),
-                       "| Avg Correlation:", round(optimal_results_composite$optimal_performance$avg_correlation, 4))) +
+                       "| Avg Correlation:", round(optimal_results_composite$optimal_performance$avg_correlation, 4),
+                       "| Green dotted = ensemble median, Green ribbon = 95% CI")) +
   # Add uncertainty ribbon
   geom_ribbon(data = uncertainty_biomass_data, 
               aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
               alpha = 0.3, colour = NA, fill = "lightgreen") +
+  # Add median line from uncertainty analysis (diagnostic)
+  geom_line(data = uncertainty_biomass_data, 
+            aes(x = Year, y = sim_mean), 
+            color = "darkgreen", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
   # Add baseline model line (original params_new_v4)
   geom_line(data = baseline_biomass_data, 
             aes(x = Year, y = Biomass), 
