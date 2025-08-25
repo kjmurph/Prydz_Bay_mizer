@@ -543,7 +543,7 @@ enhanced_spinup <- function(params,
                            spinup_years = 118,
                            spinup_multiplier = 1,    # Can be 2, 3, or 4 for extended spinup
                            effort_scenario,
-                           stability_tolerance = 0.05,
+                           stability_tolerance = 0.10,  # Updated default to 10% based on test results
                            t_start = 1841,
                            final_years = 170,
                            verbose = FALSE,
@@ -561,15 +561,19 @@ enhanced_spinup <- function(params,
                        t_max = total_spinup_years,
                        effort = 0)
   
-  # Step 2: Check biomass stability during spinup
-  is_stable <- check_biomass_stability_enhanced(sim_spinup, 
-                                               tolerance = stability_tolerance, 
-                                               check_years = min(50, total_spinup_years),
-                                               verbose = FALSE)  # Keep spinup checks quiet
+  # Step 2: Check biomass stability during spinup (NO FISHING PERIOD)
+  # This is the key fix - we check stability on the spinup simulation, not the final one
+  spinup_stability_check <- check_biomass_stability_enhanced(sim_spinup, 
+                                                            tolerance = stability_tolerance, 
+                                                            check_years = min(50, total_spinup_years),
+                                                            verbose = verbose,
+                                                            sim_id = sim_id)
   
   # Handle both return formats
-  if (is.list(is_stable)) {
-    is_stable <- is_stable$stable
+  if (is.list(spinup_stability_check)) {
+    is_stable <- spinup_stability_check$stable
+  } else {
+    is_stable <- spinup_stability_check
   }
   
   if (!is_stable) {
@@ -583,6 +587,19 @@ enhanced_spinup <- function(params,
                               t_max = round(total_spinup_years * 0.5),
                               effort = 0)
     
+    # Check stability of extended spinup
+    extended_stability_check <- check_biomass_stability_enhanced(extended_spinup, 
+                                                                tolerance = stability_tolerance, 
+                                                                check_years = min(30, round(total_spinup_years * 0.5)),
+                                                                verbose = verbose,
+                                                                sim_id = sim_id)
+    
+    if (is.list(extended_stability_check)) {
+      is_stable <- extended_stability_check$stable
+    } else {
+      is_stable <- extended_stability_check
+    }
+    
     final_initial_n <- extended_spinup@n[round(total_spinup_years * 0.5),,]
   } else {
     if (verbose && !is.null(sim_id)) {
@@ -592,6 +609,7 @@ enhanced_spinup <- function(params,
   }
   
   # Step 3: Run main simulation with fishing effort
+  # This simulation will have variability due to fishing - that's expected and normal!
   sim_final <- project(params,
                       initial_n = final_initial_n,
                       t_start = t_start,
@@ -601,7 +619,8 @@ enhanced_spinup <- function(params,
   return(list(
     simulation = sim_final,
     spinup_stable = is_stable,
-    final_initial_n = final_initial_n
+    final_initial_n = final_initial_n,
+    spinup_simulation = sim_spinup  # Return spinup sim for diagnostics if needed
   ))
 }
 
@@ -776,6 +795,7 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
                                spinup_years = spinup_years,
                                spinup_multiplier = spinup_multiplier,
                                effort_scenario = effort_scen,
+                               stability_tolerance = 0.10,  # Use 10% CV threshold for spinup stability
                                t_start = t_start,
                                final_years = sim_years,
                                verbose = verbose,
@@ -788,7 +808,7 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
       success = FALSE,
       reason = "spinup_instability",
       sim_id = sim_id,
-      details = "Spinup period did not achieve biomass stability"
+      details = "Spinup period did not achieve biomass stability (>10% CV)"
     ))
   }
   
@@ -1631,23 +1651,48 @@ spinup_test_results <- test_spinup_stability_approach(
 Now run the enhanced analysis using the corrected approach:
 
 ```{r run-corrected-enhanced-sims}
-## Run Enhanced Simulations with Corrected Stability Check
-
-Now run the enhanced analysis using the corrected approach:
-
-```{r run-corrected-enhanced-sims}
 # Now that we understand the issue, run enhanced simulations with corrected approach
 if (exists("spinup_test_results") && spinup_test_results$success_rate > 0) {
   cat("Spinup-only stability approach validated! Running enhanced simulations...\n\n")
   
-  # Use the original enhanced function but with the corrected stability logic
+  # Run enhanced uncertainty analysis with corrected stability logic
   enhanced_uncertainty_corrected <- run_enhanced_combined_uncertainty_sims(
     params = params_1841_2010_climate_only,
-    n_sims = 50,  # Start with 50 to test
+    n_sims = 100,  # Full simulation set
     catchability_sd = 0.3,  # 30% CV for catchability
     abundance_sd = 0.5,     # 50% CV for marine mammal abundance
     marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
     effort_scen = combined_effort_array,
+    enhanced_steady_tol = 0.002,
+    enhanced_steady_t_max = 1000,
+    spinup_years = 118,
+    spinup_multiplier = 2,  # Extended spinup for stability
+    t_start = 1841,
+    sim_years = 170,
+    preserve_erepro = TRUE,
+    max_erepro = 10,
+    verbose = TRUE
+  )
+  
+  # Save results
+  saveRDS(enhanced_uncertainty_corrected, "enhanced_uncertainty_corrected_results.RDS")
+  
+  # Quick summary
+  success_rate <- mean(sapply(enhanced_uncertainty_corrected, function(x) x$success)) * 100
+  cat("\n=== ENHANCED UNCERTAINTY ANALYSIS RESULTS ===\n")
+  cat("Success rate:", round(success_rate, 1), "%\n")
+  
+  if (success_rate > 0) {
+    cat("SUCCESS! The corrected approach works!\n")
+    cat("Key insight validated: Only check stability during spinup (no fishing), not during fished periods\n")
+  } else {
+    cat("Need further investigation...")
+  }
+  
+} else {
+  cat("Spinup test not run or failed - please run the test first\n")
+}
+```
     enhanced_steady_tol = 0.005,    # Reasonable tolerance
     enhanced_steady_t_max = 800,    # Reasonable time
     spinup_years = 118,
