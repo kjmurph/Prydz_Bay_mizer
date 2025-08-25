@@ -15,6 +15,13 @@ source("Helper_Functions.R")
 ```
 
 
+```{r}
+library(therMizer)
+library(mizer)
+library(tidyverse)
+```
+
+
 # Load params
 Best version of Pyrdz Bay mizer model parameters at steady-state for the contemporary ecosystem 2010 - 2020
 ```{r}
@@ -1070,10 +1077,10 @@ if (!exists("yield_ts_tidy")) {
 # Run enhanced combined uncertainty simulations
 # Using moderate uncertainty for both parameters with enhanced protocols
 enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
-  params = params_1841_2010_fishing_only,
-  n_sims = 50,  # Start with smaller number due to enhanced processing time
-  catchability_sd = 0.2,  # 20% CV for catchability
-  abundance_sd = 0.3,  # 30% CV for marine mammal abundance
+  params = params_1841_2010_climate_only,
+  n_sims = 200,  # Start with smaller number due to enhanced processing time
+  catchability_sd = 0.4,  # 20% CV for catchability
+  abundance_sd = 0.8,  # 30% CV for marine mammal abundance
   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
   effort_scen = combined_effort_array,
   enhanced_steady_tol = 0.002,    # Stricter tolerance (vs 0.01 previously)
@@ -1121,40 +1128,6 @@ if (length(enhanced_uncertainty_results$failed) > 0) {
 
 # Save results
 saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_results.RDS")
-```
-  n_cores = NULL,  # NULL = use all available cores minus 1
-  parallel = TRUE  # Set to FALSE for sequential processing
-)
-
-# Example for running thousands of simulations in parallel
-# combined_uncertainty_results_large <- run_combined_uncertainty_sims(
-#   params = params_1841_2010_fishing_only,
-#   n_sims = 1000,  # Run 1000 simulations
-#   catchability_sd = 0.2,
-#   abundance_sd = 0.3,
-#   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
-#   effort_scen = combined_effort_array,
-#   tol = 0.01,
-#   t_max = 500,
-#   spinup_years = 118,
-#   t_start = 1841,
-#   sim_years = 170,
-#   preserve_erepro = TRUE,
-#   max_erepro = 1,
-#   n_cores = 8,  # Use 8 cores
-#   parallel = TRUE
-# )
-
-# Display summary of results
-cat("\n=== Simulation Summary ===\n")
-cat("Successful simulations:", combined_uncertainty_results$n_successful, "\n")
-cat("Total attempts:", combined_uncertainty_results$n_attempts, "\n")
-if (length(combined_uncertainty_results$skipped) > 0) {
-  cat("Skipped simulations:", length(combined_uncertainty_results$skipped), "\n")
-}
-
-# Save results
-saveRDS(combined_uncertainty_results, "combined_uncertainty_results_flex_erepro_catchSD_0.5_abSD_2.RDS")
 ```
 
 ## Analyze Enhanced Results and Find Optimal Parameters
