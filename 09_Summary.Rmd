@@ -371,6 +371,13 @@ plot_biomass_comparison(sim_scaled_climate_and_fishing)
 
 This section implements a comprehensive uncertainty assessment that combines both catchability uncertainty for fished species and abundance scaling uncertainty for marine mammals. This approach allows us to explore the parameter space more thoroughly and find optimal parameter combinations that best match observed data.
 
+**Key improvements incorporated from optimization scripts 11/12:**
+- **Enhanced whale prioritization**: Whale species receive much higher weighting (5-10x) in fit evaluation
+- **Additional performance metrics**: Beyond RMSE, includes MAE, bias, correlation, and relative error
+- **Stricter steady-state criteria**: Minimum 1000 years t_max, tolerance ≤ 0.002
+- **Enhanced spin-up protocol**: Multiple spin-up cycles with biomass stability validation
+- **Biomass stability tolerance**: Final 50 years CV must be < 5% for stable simulations
+
 ## Setup for Combined Uncertainty Analysis
 
 ```{r combined-uncertainty-setup}
@@ -379,11 +386,243 @@ library(parallel)
 library(doParallel)
 library(foreach)
 
-# Function to run a single simulation with randomized parameters
-run_single_sim <- function(sim_id, params, catchability_sd, abundance_sd,
-                          marine_mammal_species, effort_scen, tol, t_max,
-                          spinup_years, t_start, sim_years,
-                          preserve_erepro, max_erepro) {
+# Define species-specific weights emphasizing whale groups
+species_weights <- data.frame(
+  Species = c("minke whales", "sperm whales", "baleen whales", "orca",
+             "antarctic krill", "bathypelagic fishes", "shelf and coastal fishes",
+             "squids", "toothfishes"),
+  weight = c(5,      # minke whales - high priority
+            10,     # sperm whales - highest priority (worst fit historically)
+            8,      # baleen whales - very high priority
+            3,      # orca - moderate priority
+            1,      # krill - standard (good fit already)
+            1,      # bathypelagic - standard (good fit already)
+            1,      # shelf/coastal - standard (good fit already)
+            1,      # squids - standard
+            1)      # toothfish - standard
+)
+
+cat("=== SPECIES WEIGHTING STRATEGY ===\n")
+print(species_weights)
+cat("Whale species receive 3-10x higher weighting for model fit evaluation\n\n")
+
+# Enhanced biomass stability check function
+check_biomass_stability_enhanced <- function(sim_object, tolerance = 0.05, check_years = 50) {
+  # Check the coefficient of variation for the last check_years
+  biomass <- getBiomass(sim_object)
+  
+  if (nrow(biomass) < check_years) {
+    return(FALSE)  # Not enough data
+  }
+  
+  # Get last check_years of data
+  recent_biomass <- tail(biomass, check_years)
+  
+  # Calculate CV for each species
+  cv_by_species <- apply(recent_biomass, 2, function(x) {
+    if (mean(x) == 0) return(Inf)
+    sd(x) / mean(x)
+  })
+  
+  # Check if all species have CV below tolerance
+  all_stable <- all(cv_by_species < tolerance, na.rm = TRUE)
+  
+  if (!all_stable) {
+    unstable_species <- names(cv_by_species)[cv_by_species >= tolerance]
+    cat("Unstable species (CV >=", tolerance * 100, "%): ", 
+        paste(unstable_species, collapse = ", "), "\n")
+  }
+  
+  return(all_stable)
+}
+
+# Enhanced steady-state function with stricter criteria
+enhanced_steady_state <- function(params, 
+                                  tol = 0.002,           # Stricter tolerance
+                                  t_max = 1000,          # Minimum 1000 years
+                                  preserve_erepro = TRUE,
+                                  max_attempts = 3) {
+  
+  attempt <- 1
+  while (attempt <= max_attempts) {
+    cat("Steady-state attempt", attempt, "of", max_attempts, "\n")
+    
+    tryCatch({
+      if (preserve_erepro) {
+        params_steady <- steady(params, tol = tol, t_max = t_max, preserve = c("erepro"))
+      } else {
+        params_steady <- steady(params, tol = tol, t_max = t_max)
+      }
+      
+      # Validate steady state by running a short simulation
+      test_sim <- project(params_steady, t_max = 50, effort = 0)
+      if (check_biomass_stability_enhanced(test_sim, tolerance = 0.01, check_years = 20)) {
+        cat("Steady-state achieved and validated\n")
+        return(params_steady)
+      } else {
+        cat("Steady-state achieved but not stable, increasing t_max\n")
+        t_max <- t_max * 1.5
+      }
+    }, error = function(e) {
+      cat("Steady-state failed:", e$message, "\nIncreasing t_max and trying again\n")
+      t_max <- t_max * 1.5
+    })
+    
+    attempt <- attempt + 1
+  }
+  
+  # If all attempts failed, return original params with warning
+  warning("Enhanced steady-state failed after", max_attempts, "attempts. Using original parameters.")
+  return(params)
+}
+
+# Enhanced spin-up function with multiple cycles and stability checks
+enhanced_spinup <- function(params,
+                           spinup_years = 118,
+                           spinup_multiplier = 1,    # Can be 2, 3, or 4 for extended spinup
+                           effort_scenario,
+                           stability_tolerance = 0.05,
+                           t_start = 1841,
+                           final_years = 170) {
+  
+  total_spinup_years <- spinup_years * spinup_multiplier
+  cat("Running enhanced spinup for", total_spinup_years, "years (", spinup_multiplier, "x base period)\n")
+  
+  # Step 1: Initial spinup without fishing
+  sim_spinup <- project(params, 
+                       t_start = t_start, 
+                       t_max = total_spinup_years,
+                       effort = 0)
+  
+  # Step 2: Check biomass stability during spinup
+  is_stable <- check_biomass_stability_enhanced(sim_spinup, 
+                                               tolerance = stability_tolerance, 
+                                               check_years = min(50, total_spinup_years))
+  
+  if (!is_stable) {
+    cat("Spinup not stable, extending by 50%\n")
+    # Extend spinup if not stable
+    extended_spinup <- project(params,
+                              initial_n = sim_spinup@n[total_spinup_years,,],
+                              t_start = t_start + total_spinup_years,
+                              t_max = round(total_spinup_years * 0.5),
+                              effort = 0)
+    
+    final_initial_n <- extended_spinup@n[round(total_spinup_years * 0.5),,]
+  } else {
+    cat("Spinup achieved stability\n")
+    final_initial_n <- sim_spinup@n[total_spinup_years,,]
+  }
+  
+  # Step 3: Run main simulation with fishing effort
+  sim_final <- project(params,
+                      initial_n = final_initial_n,
+                      t_start = t_start,
+                      t_max = final_years,
+                      effort = effort_scenario)
+  
+  return(list(
+    simulation = sim_final,
+    spinup_stable = is_stable,
+    final_initial_n = final_initial_n
+  ))
+}
+
+# Enhanced model performance evaluation with multiple metrics
+calculate_enhanced_performance_metrics <- function(sim_object,
+                                                  yield_obs_data,
+                                                  species_weights_df = species_weights,
+                                                  species_list = NULL,
+                                                  year_range = NULL) {
+  
+  # Get modeled yield
+  mod_yield <- getYield(sim_object)
+  df_mod <- reshape2::melt(mod_yield)
+  names(df_mod) <- c("Year", "Species", "Yield")
+  
+  # Filter by year range and species if specified
+  if (!is.null(year_range)) {
+    df_mod <- df_mod[df_mod$Year >= min(year_range) & df_mod$Year <= max(year_range), ]
+    yield_obs_data <- yield_obs_data[yield_obs_data$Year >= min(year_range) &
+                                     yield_obs_data$Year <= max(year_range), ]
+  }
+  
+  if (!is.null(species_list)) {
+    df_mod <- df_mod[df_mod$Species %in% species_list, ]
+    yield_obs_data <- yield_obs_data[yield_obs_data$Species %in% species_list, ]
+  }
+  
+  # Merge modeled and observed data
+  comparison <- merge(df_mod, yield_obs_data,
+                     by = c("Year", "Species"),
+                     suffixes = c("_mod", "_obs"))
+  
+  # Calculate comprehensive metrics by species
+  metrics_by_species <- comparison %>%
+    group_by(Species) %>%
+    summarise(
+      RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
+      MAE = mean(abs(Yield_mod - Yield_obs), na.rm = TRUE),
+      Mean_Obs = mean(Yield_obs, na.rm = TRUE),
+      Mean_Mod = mean(Yield_mod, na.rm = TRUE),
+      Bias = mean(Yield_mod - Yield_obs, na.rm = TRUE),
+      Relative_Error = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)) / mean(Yield_obs, na.rm = TRUE) * 100,
+      Correlation = cor(Yield_mod, Yield_obs, use = "complete.obs"),
+      MAPE = mean(abs((Yield_mod - Yield_obs) / Yield_obs), na.rm = TRUE) * 100,
+      n_obs = n(),
+      .groups = 'drop'
+    )
+  
+  # Apply species weights and calculate weighted metrics
+  metrics_weighted <- metrics_by_species %>%
+    left_join(species_weights_df, by = "Species") %>%
+    mutate(weight = ifelse(is.na(weight), 1, weight)) # Default weight of 1 for unspecified species
+  
+  # Calculate weighted overall metrics
+  total_weighted_rmse <- weighted.mean(metrics_weighted$RMSE, 
+                                       metrics_weighted$weight * metrics_weighted$n_obs, 
+                                       na.rm = TRUE)
+  
+  total_weighted_mae <- weighted.mean(metrics_weighted$MAE,
+                                      metrics_weighted$weight * metrics_weighted$n_obs,
+                                      na.rm = TRUE)
+  
+  total_weighted_bias <- weighted.mean(metrics_weighted$Bias,
+                                       metrics_weighted$weight * metrics_weighted$n_obs,
+                                       na.rm = TRUE)
+  
+  avg_correlation <- mean(metrics_weighted$Correlation, na.rm = TRUE)
+  
+  # Calculate composite score (lower is better)
+  # Combines multiple metrics with emphasis on RMSE
+  composite_score <- (total_weighted_rmse * 0.4) + 
+                    (total_weighted_mae * 0.3) + 
+                    (abs(total_weighted_bias) * 0.2) + 
+                    ((1 - avg_correlation) * 0.1)
+  
+  return(list(
+    total_weighted_rmse = total_weighted_rmse,
+    total_weighted_mae = total_weighted_mae,
+    total_weighted_bias = total_weighted_bias,
+    avg_correlation = avg_correlation,
+    composite_score = composite_score,
+    metrics_by_species = metrics_by_species,
+    metrics_weighted = metrics_weighted,
+    comparison_data = comparison
+  ))
+}
+
+# Function to run a single simulation with enhanced protocols
+run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_sd,
+                                   marine_mammal_species, effort_scen, 
+                                   enhanced_steady_tol, enhanced_steady_t_max,
+                                   spinup_years, spinup_multiplier,
+                                   t_start, sim_years,
+                                   preserve_erepro, max_erepro,
+                                   species_weights_df,
+                                   yield_obs_data) {
+  
+  cat("Starting enhanced simulation", sim_id, "\n")
   
   # Create copy of params
   rand_params <- params
@@ -395,10 +634,8 @@ run_single_sim <- function(sim_id, params, catchability_sd, abundance_sd,
   if(nrow(gear_df) > 0) {
     for(j in 1:nrow(gear_df)) {
       if(gear_df$catchability[j] > 0) {
-        # Generate log-normal noise for catchability
         noise <- rnorm(1, mean = 0, sd = catchability_sd)
         gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise)
-        # Ensure values stay between 0 and 1
         gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
       }
     }
@@ -406,70 +643,68 @@ run_single_sim <- function(sim_id, params, catchability_sd, abundance_sd,
   }
   
   # Step 2: Randomize marine mammal abundance
-  # Get species indices for marine mammals
   sp_params <- species_params(rand_params)
   species_indices <- which(sp_params$species %in% marine_mammal_species)
-  
-  # Generate random scaling factors (log-normal distribution)
   scaling_factors <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
   
-  # Apply scaling to initial abundance
   for (k in seq_along(species_indices)) {
     rand_params@initial_n[species_indices[k],] <-
       rand_params@initial_n[species_indices[k],] * scaling_factors[k]
   }
   
-  # Step 3: Run to steady state with randomized parameters
-  if (preserve_erepro) {
-    # Preserve erepro values during steady state
-    rand_params <- steady(rand_params, tol = tol, t_max = t_max, preserve = c("erepro"))
-  } else {
-    # Don't preserve erepro
-    rand_params <- steady(rand_params, tol = tol, t_max = t_max)
-    
-    # Check if any species require erepro > max_erepro
+  # Step 3: Enhanced steady state
+  rand_params <- enhanced_steady_state(rand_params, 
+                                       tol = enhanced_steady_tol,
+                                       t_max = enhanced_steady_t_max,
+                                       preserve_erepro = preserve_erepro)
+  
+  # Check erepro if not preserving
+  if (!preserve_erepro) {
     current_erepro <- species_params(rand_params)$erepro
     if (any(current_erepro > max_erepro, na.rm = TRUE)) {
-      # Return NULL to indicate this simulation should be skipped
       return(list(
         success = FALSE,
-        skipped_info = list(
-          sim_id = sim_id,
-          erepro_values = current_erepro,
-          species_over_limit = sp_params$species[which(current_erepro > max_erepro)],
-          catchability = gear_df$catchability,
-          marine_mammal_scaling = scaling_factors
-        )
+        reason = "erepro_exceeded",
+        sim_id = sim_id
       ))
     }
   }
   
-  # Step 4: Run spinup if specified
-  if (spinup_years > 0) {
-    sim_spinup <- project(rand_params,
-                         t_start = t_start,
-                         t_max = spinup_years,
-                         effort = 0)
-    
-    # Run main simulation with spinup initial conditions
-    sim <- project(rand_params,
-                  initial_n = sim_spinup@n[spinup_years,,],
-                  t_start = t_start,
-                  t_max = sim_years,
-                  effort = effort_scen)
-  } else {
-    # Run simulation without spinup
-    sim <- project(rand_params,
-                  t_start = t_start,
-                  t_max = sim_years,
-                  effort = effort_scen)
+  # Step 4: Enhanced spinup and main simulation
+  sim_result <- enhanced_spinup(rand_params,
+                               spinup_years = spinup_years,
+                               spinup_multiplier = spinup_multiplier,
+                               effort_scenario = effort_scen,
+                               t_start = t_start,
+                               final_years = sim_years)
+  
+  # Step 5: Validate final simulation stability
+  final_stable <- check_biomass_stability_enhanced(sim_result$simulation, 
+                                                  tolerance = 0.05, 
+                                                  check_years = 50)
+  
+  if (!final_stable) {
+    return(list(
+      success = FALSE,
+      reason = "final_instability",
+      sim_id = sim_id
+    ))
   }
   
-  # Return successful result
+  # Step 6: Calculate enhanced performance metrics
+  performance <- calculate_enhanced_performance_metrics(sim_result$simulation,
+                                                       yield_obs_data,
+                                                       species_weights_df)
+  
+  cat("Simulation", sim_id, "completed successfully. Composite score:", 
+      round(performance$composite_score, 4), "\n")
+  
   return(list(
     success = TRUE,
     sim_id = sim_id,
-    simulation = sim,
+    simulation = sim_result$simulation,
+    performance = performance,
+    spinup_stable = sim_result$spinup_stable,
     params_info = list(
       sim_id = sim_id,
       catchability = gear_df$catchability,
@@ -481,22 +716,25 @@ run_single_sim <- function(sim_id, params, catchability_sd, abundance_sd,
   ))
 }
 
-# Main function to run simulations with combined uncertainty (with parallel processing)
-run_combined_uncertainty_sims <- function(params,
-                                         n_sims = 10,
-                                         catchability_sd = 0.1,
-                                         abundance_sd = 0.2,
-                                         marine_mammal_species = NULL,
-                                         effort_scen,
-                                         tol = 0.01,
-                                         t_max = 500,
-                                         spinup_years = 118,
-                                         t_start = 1841,
-                                         sim_years = 170,
-                                         preserve_erepro = TRUE,
-                                         max_erepro = 1,
-                                         n_cores = NULL,
-                                         parallel = TRUE) {
+# Main function to run enhanced combined uncertainty simulations
+run_enhanced_combined_uncertainty_sims <- function(params,
+                                                   n_sims = 10,
+                                                   catchability_sd = 0.1,
+                                                   abundance_sd = 0.2,
+                                                   marine_mammal_species = NULL,
+                                                   effort_scen,
+                                                   enhanced_steady_tol = 0.002,      # Stricter tolerance
+                                                   enhanced_steady_t_max = 1000,     # Minimum 1000 years
+                                                   spinup_years = 118,
+                                                   spinup_multiplier = 2,             # 2x base spinup by default
+                                                   t_start = 1841,
+                                                   sim_years = 170,
+                                                   preserve_erepro = TRUE,
+                                                   max_erepro = 1,
+                                                   species_weights_df = species_weights,
+                                                   yield_obs_data,
+                                                   n_cores = NULL,
+                                                   parallel = TRUE) {
   
   # Default marine mammal species if not specified
   if (is.null(marine_mammal_species)) {
@@ -505,41 +743,54 @@ run_combined_uncertainty_sims <- function(params,
   
   # Determine number of cores to use
   if (is.null(n_cores)) {
-    n_cores <- detectCores() - 1  # Leave one core free
+    n_cores <- detectCores() - 1
   }
   n_cores <- min(n_cores, detectCores())
   
   # Progress message
-  cat("Running", n_sims, "simulations with combined uncertainty...\n")
+  cat("=== ENHANCED COMBINED UNCERTAINTY ANALYSIS ===\n")
+  cat("Running", n_sims, "simulations with enhanced protocols:\n")
+  cat("  - Steady-state tolerance:", enhanced_steady_tol, "\n")
+  cat("  - Minimum steady-state time:", enhanced_steady_t_max, "years\n")
+  cat("  - Spinup multiplier:", spinup_multiplier, "x (", spinup_years * spinup_multiplier, "years total)\n")
+  cat("  - Whale species weighting: 3-10x higher than fish/krill\n")
+  cat("  - Performance metrics: RMSE, MAE, Bias, Correlation, Composite Score\n")
+  
   if (preserve_erepro) {
-    cat("  Preserving erepro values during steady state\n")
+    cat("  - Preserving erepro values during steady state\n")
   } else {
-    cat("  Not preserving erepro; will skip simulations with erepro >", max_erepro, "\n")
+    cat("  - Will skip simulations with erepro >", max_erepro, "\n")
   }
   
   if (parallel && n_cores > 1) {
-    cat("  Using parallel processing with", n_cores, "cores\n")
+    cat("  - Using parallel processing with", n_cores, "cores\n")
     
     # Set up parallel cluster
     cl <- makeCluster(n_cores)
     registerDoParallel(cl)
     
     # Export necessary objects to cluster
-    clusterExport(cl, c("run_single_sim"), envir = environment())
+    clusterExport(cl, c("run_enhanced_single_sim", "enhanced_steady_state", 
+                       "enhanced_spinup", "check_biomass_stability_enhanced",
+                       "calculate_enhanced_performance_metrics",
+                       "species_weights_df", "yield_obs_data"), 
+                  envir = environment())
     
     # Run simulations in parallel
-    # We'll run extra simulations to account for potential skips
-    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 1.5))
+    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 2))
     
-    cat("  Running", n_attempts, "initial attempts...\n")
+    cat("  - Running", n_attempts, "initial attempts...\n")
     
     results <- foreach(i = 1:n_attempts,
-                      .packages = c("mizer", "therMizer"),
+                      .packages = c("mizer", "therMizer", "dplyr"),
                       .errorhandling = "pass") %dopar% {
-      run_single_sim(i, params, catchability_sd, abundance_sd,
-                    marine_mammal_species, effort_scen, tol, t_max,
-                    spinup_years, t_start, sim_years,
-                    preserve_erepro, max_erepro)
+      run_enhanced_single_sim(i, params, catchability_sd, abundance_sd,
+                             marine_mammal_species, effort_scen, 
+                             enhanced_steady_tol, enhanced_steady_t_max,
+                             spinup_years, spinup_multiplier,
+                             t_start, sim_years,
+                             preserve_erepro, max_erepro,
+                             species_weights_df, yield_obs_data)
     }
     
     # Stop cluster
@@ -547,25 +798,29 @@ run_combined_uncertainty_sims <- function(params,
     
   } else {
     # Sequential processing
-    cat("  Using sequential processing\n")
+    cat("  - Using sequential processing\n")
     
-    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 1.5))
+    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 2))
     results <- list()
     
     for(i in 1:n_attempts) {
-      if(i %% 10 == 0) cat("  Processing simulation", i, "of", n_attempts, "\n")
+      if(i %% 5 == 0) cat("    Processing simulation", i, "of", n_attempts, "\n")
       
-      results[[i]] <- run_single_sim(i, params, catchability_sd, abundance_sd,
-                                    marine_mammal_species, effort_scen, tol, t_max,
-                                    spinup_years, t_start, sim_years,
-                                    preserve_erepro, max_erepro)
+      results[[i]] <- run_enhanced_single_sim(i, params, catchability_sd, abundance_sd,
+                                             marine_mammal_species, effort_scen, 
+                                             enhanced_steady_tol, enhanced_steady_t_max,
+                                             spinup_years, spinup_multiplier,
+                                             t_start, sim_years,
+                                             preserve_erepro, max_erepro,
+                                             species_weights_df, yield_obs_data)
     }
   }
   
   # Process results
   sim_results <- list()
   param_combinations <- list()
-  skipped_sims <- list()
+  performance_results <- list()
+  failed_sims <- list()
   successful_count <- 0
   
   for(res in results) {
@@ -575,189 +830,121 @@ run_combined_uncertainty_sims <- function(params,
         if(successful_count <= n_sims) {
           sim_results[[successful_count]] <- res$simulation
           param_combinations[[successful_count]] <- res$params_info
+          performance_results[[successful_count]] <- res$performance
         }
       } else {
-        skipped_sims[[length(skipped_sims) + 1]] <- res$skipped_info
+        failed_sims[[length(failed_sims) + 1]] <- res
       }
     }
-  }
-  
-  # If we don't have enough successful simulations, run more
-  while(successful_count < n_sims && length(results) < n_sims * 3) {
-    cat("  Need", n_sims - successful_count, "more successful simulations...\n")
-    
-    additional_attempts <- n_sims - successful_count + ceiling((n_sims - successful_count) * 0.5)
-    
-    if (parallel && n_cores > 1) {
-      cl <- makeCluster(n_cores)
-      registerDoParallel(cl)
-      clusterExport(cl, c("run_single_sim"), envir = environment())
-      
-      additional_results <- foreach(i = (length(results) + 1):(length(results) + additional_attempts),
-                                   .packages = c("mizer", "therMizer"),
-                                   .errorhandling = "pass") %dopar% {
-        run_single_sim(i, params, catchability_sd, abundance_sd,
-                      marine_mammal_species, effort_scen, tol, t_max,
-                      spinup_years, t_start, sim_years,
-                      preserve_erepro, max_erepro)
-      }
-      
-      stopCluster(cl)
-    } else {
-      additional_results <- list()
-      for(i in 1:additional_attempts) {
-        additional_results[[i]] <- run_single_sim(length(results) + i, params,
-                                                 catchability_sd, abundance_sd,
-                                                 marine_mammal_species, effort_scen,
-                                                 tol, t_max, spinup_years, t_start,
-                                                 sim_years, preserve_erepro, max_erepro)
-      }
-    }
-    
-    # Process additional results
-    for(res in additional_results) {
-      if(!is.null(res) && !inherits(res, "error")) {
-        if(res$success) {
-          successful_count <- successful_count + 1
-          if(successful_count <= n_sims) {
-            sim_results[[successful_count]] <- res$simulation
-            param_combinations[[successful_count]] <- res$params_info
-          }
-        } else {
-          skipped_sims[[length(skipped_sims) + 1]] <- res$skipped_info
-        }
-      }
-    }
-    
-    results <- c(results, additional_results)
   }
   
   # Final summary
-  cat("\nCompleted", min(successful_count, n_sims), "successful simulations\n")
-  if (length(skipped_sims) > 0) {
-    cat("Skipped", length(skipped_sims), "simulations due to erepro >", max_erepro, "\n")
+  cat("\n=== ENHANCED SIMULATION RESULTS ===\n")
+  cat("Completed", min(successful_count, n_sims), "successful simulations\n")
+  if (length(failed_sims) > 0) {
+    failure_reasons <- table(sapply(failed_sims, function(x) x$reason))
+    cat("Failed simulations by reason:\n")
+    print(failure_reasons)
+  }
+  
+  # Calculate summary statistics of performance
+  if (length(performance_results) > 0) {
+    composite_scores <- sapply(performance_results, function(x) x$composite_score)
+    rmse_scores <- sapply(performance_results, function(x) x$total_weighted_rmse)
     
-    # Summarize which species caused skips
-    all_species_over <- unlist(lapply(skipped_sims, function(x) x$species_over_limit))
-    if(length(all_species_over) > 0) {
-      species_skip_counts <- table(all_species_over)
-      cat("\nSpecies causing skips:\n")
-      print(species_skip_counts)
-    }
+    cat("\nPerformance Summary:\n")
+    cat("  Composite Score - Mean:", round(mean(composite_scores), 4), 
+        "Range:", round(min(composite_scores), 4), "-", round(max(composite_scores), 4), "\n")
+    cat("  Weighted RMSE - Mean:", round(mean(rmse_scores), 4),
+        "Range:", round(min(rmse_scores), 4), "-", round(max(rmse_scores), 4), "\n")
   }
   
   # Trim to requested number of simulations
   if(length(sim_results) > n_sims) {
     sim_results <- sim_results[1:n_sims]
     param_combinations <- param_combinations[1:n_sims]
+    performance_results <- performance_results[1:n_sims]
   }
   
   return(list(
     simulations = sim_results,
     parameters = param_combinations,
-    skipped = skipped_sims,
+    performance = performance_results,
+    failed = failed_sims,
     n_successful = length(sim_results),
     n_attempts = length(results)
   ))
 }
 
-# Function to calculate RMSE between modeled and observed yield
-calculate_yield_rmse <- function(sim_object,
-                                yield_obs_data,
-                                species_list = NULL,
-                                year_range = NULL) {
+# Function to find optimal parameters based on enhanced metrics
+find_optimal_parameters_enhanced <- function(sim_results_list, metric = "composite_score") {
   
-  # Get modeled yield
-  mod_yield <- getYield(sim_object)
+  # Extract performance metrics
+  performance_data <- sim_results_list$performance
   
-  # Convert to data frame
-  df_mod <- reshape2::melt(mod_yield)
-  names(df_mod) <- c("Year", "Species", "Yield")
-  
-  # Filter by year range if specified
-  if (!is.null(year_range)) {
-    df_mod <- df_mod[df_mod$Year >= min(year_range) & df_mod$Year <= max(year_range), ]
-    yield_obs_data <- yield_obs_data[yield_obs_data$Year >= min(year_range) &
-                                     yield_obs_data$Year <= max(year_range), ]
+  if (length(performance_data) == 0) {
+    stop("No performance data available")
   }
   
-  # Filter by species if specified
-  if (!is.null(species_list)) {
-    df_mod <- df_mod[df_mod$Species %in% species_list, ]
-    yield_obs_data <- yield_obs_data[yield_obs_data$Species %in% species_list, ]
+  # Get the specified metric values
+  metric_values <- sapply(performance_data, function(x) {
+    if (metric %in% names(x)) {
+      return(x[[metric]])
+    } else {
+      return(NA)
+    }
+  })
+  
+  # Find optimal (minimum for most metrics)
+  if (metric == "avg_correlation") {
+    optimal_idx <- which.max(metric_values)  # Higher correlation is better
+  } else {
+    optimal_idx <- which.min(metric_values)  # Lower is better for RMSE, MAE, bias, composite
   }
   
-  # Merge modeled and observed data
-  comparison <- merge(df_mod, yield_obs_data,
-                     by = c("Year", "Species"),
-                     suffixes = c("_mod", "_obs"))
-  
-  # Calculate RMSE
-  rmse <- sqrt(mean((comparison$Yield_mod - comparison$Yield_obs)^2, na.rm = TRUE))
-  
-  # Also calculate RMSE by species
-  rmse_by_species <- comparison %>%
-    group_by(Species) %>%
-    summarise(
-      RMSE = sqrt(mean((Yield_mod - Yield_obs)^2, na.rm = TRUE)),
-      n_obs = n()
-    )
-  
-  return(list(
-    total_rmse = rmse,
-    rmse_by_species = rmse_by_species,
-    comparison_data = comparison
-  ))
-}
-
-# Function to find optimal parameter combination based on RMSE
-find_optimal_parameters <- function(sim_results_list,
-                                   yield_obs_data,
-                                   species_list = NULL,
-                                   year_range = NULL) {
-  
-  # Calculate RMSE for each simulation
-  n_sims <- length(sim_results_list$simulations)
-  rmse_values <- numeric(n_sims)
-  rmse_details <- list()
-  
-  cat("Calculating RMSE for each simulation...\n")
-  
-  for(i in seq_along(sim_results_list$simulations)) {
-    rmse_result <- calculate_yield_rmse(sim_results_list$simulations[[i]],
-                                       yield_obs_data,
-                                       species_list = species_list,
-                                       year_range = year_range)
-    rmse_values[i] <- rmse_result$total_rmse
-    rmse_details[[i]] <- rmse_result
+  if (length(optimal_idx) == 0 || is.na(optimal_idx)) {
+    stop("Could not find optimal simulation for metric:", metric)
   }
-  
-  # Find optimal (minimum RMSE)
-  optimal_idx <- which.min(rmse_values)
   
   # Create summary statistics
-  rmse_stats <- data.frame(
-    mean = mean(rmse_values),
-    median = median(rmse_values),
-    sd = sd(rmse_values),
-    min = min(rmse_values),
-    max = max(rmse_values),
-    q25 = quantile(rmse_values, 0.25),
-    q75 = quantile(rmse_values, 0.75)
+  metric_stats <- data.frame(
+    mean = mean(metric_values, na.rm = TRUE),
+    median = median(metric_values, na.rm = TRUE),
+    sd = sd(metric_values, na.rm = TRUE),
+    min = min(metric_values, na.rm = TRUE),
+    max = max(metric_values, na.rm = TRUE),
+    q25 = quantile(metric_values, 0.25, na.rm = TRUE),
+    q75 = quantile(metric_values, 0.75, na.rm = TRUE)
   )
   
-  cat("RMSE Statistics:\n")
-  print(rmse_stats)
-  cat("\nOptimal simulation:", optimal_idx, "with RMSE =", rmse_values[optimal_idx], "\n")
+  cat("\n=== OPTIMAL PARAMETER SELECTION ===\n")
+  cat("Optimization metric:", metric, "\n")
+  cat("Optimal simulation:", optimal_idx, "with", metric, "=", metric_values[optimal_idx], "\n")
+  cat("\nMetric Statistics:\n")
+  print(metric_stats)
+  
+  # Extract detailed performance for optimal simulation
+  optimal_performance <- performance_data[[optimal_idx]]
+  
+  cat("\n=== OPTIMAL SIMULATION PERFORMANCE ===\n")
+  cat("Weighted RMSE:", round(optimal_performance$total_weighted_rmse, 4), "\n")
+  cat("Weighted MAE:", round(optimal_performance$total_weighted_mae, 4), "\n")
+  cat("Weighted Bias:", round(optimal_performance$total_weighted_bias, 4), "\n")
+  cat("Average Correlation:", round(optimal_performance$avg_correlation, 4), "\n")
+  cat("Composite Score:", round(optimal_performance$composite_score, 4), "\n")
+  
+  cat("\nSpecies-specific performance:\n")
+  print(optimal_performance$metrics_by_species)
   
   return(list(
     optimal_index = optimal_idx,
-    optimal_rmse = rmse_values[optimal_idx],
+    optimal_metric_value = metric_values[optimal_idx],
     optimal_sim = sim_results_list$simulations[[optimal_idx]],
     optimal_params = sim_results_list$parameters[[optimal_idx]],
-    all_rmse = rmse_values,
-    rmse_details = rmse_details,
-    rmse_stats = rmse_stats
+    optimal_performance = optimal_performance,
+    all_metric_values = metric_values,
+    metric_stats = metric_stats,
+    metric_used = metric
   ))
 }
 
@@ -866,11 +1053,11 @@ plot_parameter_exploration <- function(param_combinations, rmse_values) {
 }
 ```
 
-## Run Combined Uncertainty Analysis
+## Run Enhanced Combined Uncertainty Analysis
 
-Now we'll run the combined uncertainty analysis with both catchability and abundance scaling uncertainty:
+Now we'll run the enhanced combined uncertainty analysis with stricter steady-state criteria, extended spinup, whale species weighting, and multiple performance metrics:
 
-```{r run-combined-uncertainty, eval=FALSE}
+```{r run-enhanced-combined-uncertainty, eval=FALSE}
 # Load required data if not already loaded
 if (!exists("combined_effort_array")) {
   combined_effort_array <- readRDS("effort_array_1841_2010.rds")
@@ -880,22 +1067,61 @@ if (!exists("yield_ts_tidy")) {
   yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
 }
 
-# Run combined uncertainty simulations
-# Using moderate uncertainty for both parameters
-combined_uncertainty_results <- run_combined_uncertainty_sims(
-  params = params_1841_2010_climate_only,
-  n_sims = 1000,  # Number of simulations (can be thousands with parallel processing)
-  catchability_sd = .5,  # 20% CV for catchability
-  abundance_sd = 2,  # 30% CV for marine mammal abundance
+# Run enhanced combined uncertainty simulations
+# Using moderate uncertainty for both parameters with enhanced protocols
+enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
+  params = params_1841_2010_fishing_only,
+  n_sims = 50,  # Start with smaller number due to enhanced processing time
+  catchability_sd = 0.2,  # 20% CV for catchability
+  abundance_sd = 0.3,  # 30% CV for marine mammal abundance
   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
   effort_scen = combined_effort_array,
-  tol = 0.01,
-  t_max = 500,
+  enhanced_steady_tol = 0.002,    # Stricter tolerance (vs 0.01 previously)
+  enhanced_steady_t_max = 1000,   # Minimum 1000 years (vs 500 previously)
   spinup_years = 118,
+  spinup_multiplier = 2,          # 2x spinup (236 years total)
   t_start = 1841,
   sim_years = 170,
-  preserve_erepro = F,  # Set to FALSE to filter out simulations with erepro > 1
-  max_erepro = 1,  # Maximum allowed erepro when preserve_erepro = FALSE
+  preserve_erepro = TRUE,
+  max_erepro = 1,
+  species_weights_df = species_weights,  # Use whale-weighted evaluation
+  yield_obs_data = yield_ts_tidy,
+  n_cores = NULL,  # NULL = use all available cores minus 1
+  parallel = TRUE  # Set to FALSE for sequential processing if needed
+)
+
+# Example for running with even more intensive protocols
+# enhanced_uncertainty_results_intensive <- run_enhanced_combined_uncertainty_sims(
+#   params = params_1841_2010_fishing_only,
+#   n_sims = 100,
+#   catchability_sd = 0.2,
+#   abundance_sd = 0.3,
+#   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+#   effort_scen = combined_effort_array,
+#   enhanced_steady_tol = 0.001,    # Even stricter
+#   enhanced_steady_t_max = 1500,   # Longer steady-state
+#   spinup_years = 118,
+#   spinup_multiplier = 3,          # 3x spinup (354 years total)
+#   t_start = 1841,
+#   sim_years = 170,
+#   preserve_erepro = TRUE,
+#   species_weights_df = species_weights,
+#   yield_obs_data = yield_ts_tidy,
+#   n_cores = 8,  # Use 8 cores
+#   parallel = TRUE
+# )
+
+# Display summary of results
+cat("\n=== ENHANCED SIMULATION SUMMARY ===\n")
+cat("Successful simulations:", enhanced_uncertainty_results$n_successful, "\n")
+cat("Total attempts:", enhanced_uncertainty_results$n_attempts, "\n")
+if (length(enhanced_uncertainty_results$failed) > 0) {
+  cat("Failed simulations:", length(enhanced_uncertainty_results$failed), "\n")
+}
+
+# Save results
+saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_results.RDS")
+```
   n_cores = NULL,  # NULL = use all available cores minus 1
   parallel = TRUE  # Set to FALSE for sequential processing
 )
@@ -931,47 +1157,168 @@ if (length(combined_uncertainty_results$skipped) > 0) {
 saveRDS(combined_uncertainty_results, "combined_uncertainty_results_flex_erepro_catchSD_0.5_abSD_2.RDS")
 ```
 
-## Analyze Results and Find Optimal Parameters
+## Analyze Enhanced Results and Find Optimal Parameters
 
-```{r analyze-combined-results, eval=FALSE}
-# First, validate and clean the simulation results to remove any invalid simulations
-cat("Validating simulation results...\n")
-cleaned_results <- validate_simulation_results(combined_uncertainty_results, verbose = TRUE)
+```{r analyze-enhanced-results, eval=FALSE}
+# Find optimal parameters based on different metrics
+# 1. Composite score (combines RMSE, MAE, bias, correlation)
+optimal_results_composite <- find_optimal_parameters_enhanced(
+  sim_results_list = enhanced_uncertainty_results,
+  metric = "composite_score"
+)
 
-# Find optimal parameters based on RMSE using cleaned results
-optimal_results <- find_optimal_parameters(
-  sim_results_list = cleaned_results,
-  yield_obs_data = yield_ts_tidy,
-  species_list = c("antarctic krill", "bathypelagic fishes",
-                   "shelf and coastal fishes", "squids", "toothfishes",
-                   "minke whales", "orca", "sperm whales", "baleen whales"),
-  year_range = c(1961, 2010)  # Focus on period with observed data
+# 2. Weighted RMSE only (for comparison)
+optimal_results_rmse <- find_optimal_parameters_enhanced(
+  sim_results_list = enhanced_uncertainty_results,
+  metric = "total_weighted_rmse"
+)
+
+# 3. Correlation (for models that capture yield patterns well)
+optimal_results_correlation <- find_optimal_parameters_enhanced(
+  sim_results_list = enhanced_uncertainty_results,
+  metric = "avg_correlation"
 )
 
 # Save optimal results
-saveRDS(optimal_results, "optimal_parameter_results_flex_erepro_catchSD_0.5_abSD_2.RDS")
+saveRDS(optimal_results_composite, "optimal_parameter_results_composite.RDS")
+saveRDS(optimal_results_rmse, "optimal_parameter_results_rmse.RDS")
+saveRDS(optimal_results_correlation, "optimal_parameter_results_correlation.RDS")
 
-# Display optimal parameters
-cat("\n=== Optimal Parameter Combination ===\n")
-cat("Simulation ID:", optimal_results$optimal_index, "\n")
-cat("RMSE:", optimal_results$optimal_rmse, "\n")
+# Display comparison of different optimization metrics
+cat("\n=== COMPARISON OF OPTIMIZATION APPROACHES ===\n")
+cat("Composite Score Optimal - Simulation:", optimal_results_composite$optimal_index, 
+    "Score:", round(optimal_results_composite$optimal_metric_value, 4), "\n")
+cat("RMSE Optimal - Simulation:", optimal_results_rmse$optimal_index,
+    "RMSE:", round(optimal_results_rmse$optimal_metric_value, 4), "\n")
+cat("Correlation Optimal - Simulation:", optimal_results_correlation$optimal_index,
+    "Correlation:", round(optimal_results_correlation$optimal_metric_value, 4), "\n")
+
+# Compare performance across metrics for the composite score optimal model
+best_model_performance <- optimal_results_composite$optimal_performance
+cat("\n=== BEST MODEL (COMPOSITE SCORE) DETAILED PERFORMANCE ===\n")
+cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "\n")
+cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "\n")
+cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "\n")
+cat("Average Correlation:", round(best_model_performance$avg_correlation, 4), "\n")
+cat("Composite Score:", round(best_model_performance$composite_score, 4), "\n")
+
+# Display whale-specific performance (highest weighted species)
+whale_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
+whale_performance <- best_model_performance$metrics_by_species %>%
+  filter(Species %in% whale_species) %>%
+  arrange(RMSE)
+
+cat("\n=== WHALE SPECIES PERFORMANCE (High Weight Groups) ===\n")
+print(whale_performance)
+
+# Display optimal parameters for the best model
+cat("\n=== OPTIMAL PARAMETER COMBINATION (COMPOSITE SCORE) ===\n")
+cat("Simulation ID:", optimal_results_composite$optimal_index, "\n")
 cat("\nCatchability values:\n")
-print(optimal_results$optimal_params$catchability)
+print(optimal_results_composite$optimal_params$catchability)
 cat("\nMarine mammal scaling factors:\n")
-print(data.frame(
-  Species = optimal_results$optimal_params$marine_mammal_species,
-  Scaling = optimal_results$optimal_params$marine_mammal_scaling
-))
+scaling_df <- data.frame(
+  Species = optimal_results_composite$optimal_params$marine_mammal_species,
+  Scaling_Factor = optimal_results_composite$optimal_params$marine_mammal_scaling,
+  Scaling_Percent = paste0(round((optimal_results_composite$optimal_params$marine_mammal_scaling - 1) * 100, 1), "%")
+)
+print(scaling_df)
 ```
 
-## Visualize Uncertainty Analysis Results
+## Visualize Enhanced Uncertainty Analysis Results
 
-```{r visualize-combined-results, eval=FALSE}
-# Plot RMSE distribution
-p_rmse_dist <- plot_rmse_distribution(
-  rmse_values = optimal_results$all_rmse,
-  optimal_idx = optimal_results$optimal_index,
-  plot_title = "RMSE Distribution from Combined Catchability & Abundance Uncertainty"
+```{r visualize-enhanced-results, eval=FALSE}
+# Plot performance metric distributions
+plot_enhanced_performance_distributions <- function(performance_results, metric_name) {
+  require(ggplot2)
+  
+  metric_values <- sapply(performance_results, function(x) x[[metric_name]])
+  
+  df <- data.frame(
+    Simulation = 1:length(metric_values),
+    Value = metric_values
+  )
+  
+  p <- ggplot(df, aes(x = Value)) +
+    geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7, color = "black") +
+    theme_bw() +
+    labs(
+      title = paste("Distribution of", metric_name),
+      subtitle = paste("n =", length(metric_values), "simulations"),
+      x = metric_name,
+      y = "Frequency"
+    ) +
+    geom_vline(xintercept = mean(metric_values, na.rm = TRUE),
+              color = "red", linetype = "dashed", linewidth = 1) +
+    annotate("text",
+            x = mean(metric_values, na.rm = TRUE),
+            y = max(table(cut(metric_values, 30))) * 0.8,
+            label = paste("Mean =", round(mean(metric_values, na.rm = TRUE), 3)),
+            hjust = -0.1, color = "red")
+  
+  return(p)
+}
+
+# Create performance distribution plots
+p_composite <- plot_enhanced_performance_distributions(
+  enhanced_uncertainty_results$performance, "composite_score")
+p_rmse <- plot_enhanced_performance_distributions(
+  enhanced_uncertainty_results$performance, "total_weighted_rmse")
+p_correlation <- plot_enhanced_performance_distributions(
+  enhanced_uncertainty_results$performance, "avg_correlation")
+
+# Save plots
+ggsave("plots/enhanced_composite_score_distribution.png", p_composite,
+       width = 10, height = 6, dpi = 300)
+ggsave("plots/enhanced_rmse_distribution.png", p_rmse,
+       width = 10, height = 6, dpi = 300)
+ggsave("plots/enhanced_correlation_distribution.png", p_correlation,
+       width = 10, height = 6, dpi = 300)
+
+# Plot species-specific performance comparison
+plot_species_performance_comparison <- function(performance_results, species_weights_df) {
+  require(ggplot2)
+  require(dplyr)
+  
+  # Extract species metrics from all simulations
+  all_species_metrics <- do.call(rbind, lapply(1:length(performance_results), function(i) {
+    metrics <- performance_results[[i]]$metrics_by_species
+    metrics$Simulation <- i
+    return(metrics)
+  }))
+  
+  # Add weights
+  all_species_metrics <- all_species_metrics %>%
+    left_join(species_weights_df, by = "Species") %>%
+    mutate(weight = ifelse(is.na(weight), 1, weight),
+           Species_Type = ifelse(Species %in% c("minke whales", "orca", "sperm whales", "baleen whales"),
+                                "Whale (High Weight)", "Fish/Krill (Standard Weight)"))
+  
+  # Create boxplot
+  p_species <- ggplot(all_species_metrics, aes(x = reorder(Species, RMSE, median), 
+                                               y = RMSE, fill = Species_Type)) +
+    geom_boxplot(alpha = 0.7) +
+    scale_fill_manual(values = c("Whale (High Weight)" = "coral", 
+                                "Fish/Krill (Standard Weight)" = "lightblue")) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(
+      title = "Species-Specific RMSE Distribution",
+      subtitle = "Showing uncertainty across parameter combinations",
+      x = "Species (ordered by median RMSE)",
+      y = "RMSE",
+      fill = "Species Group"
+    )
+  
+  return(p_species)
+}
+
+p_species_comparison <- plot_species_performance_comparison(
+  enhanced_uncertainty_results$performance, species_weights)
+print(p_species_comparison)
+ggsave("plots/enhanced_species_performance_comparison.png", p_species_comparison,
+       width = 14, height = 8, dpi = 300)
+```
 )
 print(p_rmse_dist)
 ggsave("plots/combined_uncertainty_rmse_distribution_flex_erepro_catchSD_0.5_abSD_2.png", p_rmse_dist,
@@ -986,11 +1333,173 @@ ggsave("plots/combined_parameter_exploration_flex_erepro_catchSD_0.5_abSD_2.png"
        width = 12, height = 10, dpi = 300)
 ```
 
-## Compare Optimal Simulation with Observations
+## Compare Enhanced Optimal Simulation with Observations
 
-```{r compare-optimal-simulation, eval=FALSE}
-# First, run the original model with params_new_v4 for comparison
-sim_original <- project(params_new_v4, effort = combined_effort_array)
+```{r compare-enhanced-optimal-simulation, eval=FALSE}
+# Prepare uncertainty bounds data for yield plotting with enhanced results
+# Extract yield data from all simulations for uncertainty bounds
+trimYield_uncertainty <- function(sim) {
+  y <- plotYieldGear(sim, return_data = T)
+  y <- select(y, c(Year, Species, Yield))
+  return(y)
+}
+
+sim_yields_uncertainty <- lapply(enhanced_uncertainty_results$simulations, trimYield_uncertainty)
+for (i in 1:length(sim_yields_uncertainty)) {
+  sim_yields_uncertainty[[i]]$sim <- i
+}
+
+df_sim_yield_uncertainty <- do.call(rbind.data.frame, sim_yields_uncertainty)
+
+# Calculate uncertainty bounds for yield
+sim_mean_yield <- df_sim_yield_uncertainty %>% 
+  group_by(Species, Year) %>% 
+  summarise(Yield = median(Yield)) %>% 
+  ungroup()
+
+sim_lower_yield <- df_sim_yield_uncertainty %>% 
+  group_by(Species, Year) %>% 
+  summarise(Yield = quantile(Yield, 0.025)) %>% 
+  ungroup()
+
+sim_upper_yield <- df_sim_yield_uncertainty %>% 
+  group_by(Species, Year) %>% 
+  summarise(Yield = quantile(Yield, 0.975)) %>% 
+  ungroup()
+
+# Combine uncertainty bounds data
+uncertainty_yield_data <- data.frame(
+  Species = sim_mean_yield$Species, 
+  Year = sim_mean_yield$Year,
+  sim_mean = sim_mean_yield$Yield,
+  sim_lower = sim_lower_yield$Yield,
+  sim_upper = sim_upper_yield$Yield
+)
+
+# Prepare uncertainty bounds data for biomass plotting
+getBiomassData <- function(sim) {
+  biomass <- getBiomass(sim)
+  df_biomass <- reshape2::melt(biomass)
+  names(df_biomass) <- c("Year", "Species", "Biomass")
+  return(df_biomass)
+}
+
+sim_biomass_uncertainty <- lapply(enhanced_uncertainty_results$simulations, getBiomassData)
+for (i in 1:length(sim_biomass_uncertainty)) {
+  sim_biomass_uncertainty[[i]]$sim <- i
+}
+
+df_sim_biomass_uncertainty <- do.call(rbind.data.frame, sim_biomass_uncertainty)
+
+# Calculate uncertainty bounds for biomass
+sim_mean_biomass <- df_sim_biomass_uncertainty %>% 
+  group_by(Species, Year) %>% 
+  summarise(Biomass = median(Biomass)) %>% 
+  ungroup()
+
+sim_lower_biomass <- df_sim_biomass_uncertainty %>% 
+  group_by(Species, Year) %>% 
+  summarise(Biomass = quantile(Biomass, 0.025)) %>% 
+  ungroup()
+
+sim_upper_biomass <- df_sim_biomass_uncertainty %>% 
+  group_by(Species, Year) %>% 
+  summarise(Biomass = quantile(Biomass, 0.975)) %>% 
+  ungroup()
+
+# Combine uncertainty bounds data for biomass
+uncertainty_biomass_data <- data.frame(
+  Species = sim_mean_biomass$Species, 
+  Year = sim_mean_biomass$Year,
+  sim_mean = sim_mean_biomass$Biomass,
+  sim_lower = sim_lower_biomass$Biomass,
+  sim_upper = sim_upper_biomass$Biomass
+)
+
+# Get original baseline model data (params_new_v4)
+sim_baseline_yield <- project(params_new_v4, effort = combined_effort_array, t_start = 1841, t_max = 170)
+baseline_yield_data <- trimYield_uncertainty(sim_baseline_yield)
+
+sim_baseline_biomass <- project(params_new_v4, effort = combined_effort_array, t_start = 1841, t_max = 170)
+baseline_biomass_data <- getBiomassData(sim_baseline_biomass)
+
+# New facet label names for species
+species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", 
+                  "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", 
+                  "Sperm whales", "Baleen whales")
+names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", 
+                         "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# Plot yield comparison for optimal simulation with uncertainty bounds (using composite score optimal)
+p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) + 
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group", 
+       title = "Enhanced Optimal Simulation: Yield with Uncertainty & Whale-Weighted Fitting",
+       subtitle = paste("Composite Score:", round(optimal_results_composite$optimal_metric_value, 4),
+                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4))) +
+  # Add uncertainty ribbon
+  geom_ribbon(data = uncertainty_yield_data, 
+              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+              alpha = 0.3, colour = NA, fill = "lightblue") +
+  # Add baseline model line (original params_new_v4)
+  geom_line(data = baseline_yield_data, 
+            aes(x = Year, y = Yield), 
+            color = "gray60", linetype = "dashed", linewidth = 1) +
+  # Add optimal model line (solid black for best fit)
+  geom_line(aes(color = Species), linewidth = 1.2) +
+  # Add observed data points
+  geom_point(data = yield_ts_tidy, 
+             aes(x = Year, y = Yield, colour = Species), 
+             size = 1) +
+  geom_point(data = yield_ts_tidy, 
+             aes(x = Year, y = Yield), 
+             shape = 1, size = 1, colour = "black") +
+  # Add vertical reference lines
+  geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+  geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 10)
+  )
+
+print(p_yield_optimal)
+ggsave("plots/enhanced_optimal_simulation_yield.png", p_yield_optimal,
+       width = 16, height = 12, dpi = 300)
+
+# Plot biomass comparison for optimal simulation with uncertainty bounds
+p_biomass_optimal <- plotBiomass(optimal_results_composite$optimal_sim) + 
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group", 
+       title = "Enhanced Optimal Simulation: Biomass with Uncertainty & Whale-Weighted Fitting",
+       subtitle = paste("Composite Score:", round(optimal_results_composite$optimal_metric_value, 4),
+                       "| Avg Correlation:", round(optimal_results_composite$optimal_performance$avg_correlation, 4))) +
+  # Add uncertainty ribbon
+  geom_ribbon(data = uncertainty_biomass_data, 
+              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+              alpha = 0.3, colour = NA, fill = "lightgreen") +
+  # Add baseline model line (original params_new_v4)
+  geom_line(data = baseline_biomass_data, 
+            aes(x = Year, y = Biomass), 
+            color = "gray60", linetype = "dashed", linewidth = 1) +
+  # Add optimal model line (solid black for best fit)
+  geom_line(aes(color = Species), linewidth = 1.2) +
+  # Add vertical reference lines
+  geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+  geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 10)
+  )
+
+print(p_biomass_optimal)
+ggsave("plots/enhanced_optimal_simulation_biomass.png", p_biomass_optimal,
+       width = 16, height = 12, dpi = 300)
 
 # Use the cleaned results from the previous chunk (or re-clean if needed)
 if (!exists("cleaned_results")) {
