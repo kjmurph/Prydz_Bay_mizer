@@ -1896,12 +1896,48 @@ baseline_yield_data <- trimYield_uncertainty(sim_baseline_yield)
 sim_baseline_biomass <- project(params_new_v4, effort = combined_effort_array, t_start = 1841, t_max = 170)
 baseline_biomass_data <- getBiomassData(sim_baseline_biomass)
 
+# DIAGNOSTIC: Verify optimal simulation is in the uncertainty ensemble
+cat("=== DIAGNOSTIC: Checking optimal simulation consistency ===\n")
+cat("Optimal index:", optimal_results_composite$optimal_index, "\n")
+cat("Total simulations in ensemble:", length(enhanced_uncertainty_results$simulations), "\n")
+
+# Extract the optimal simulation directly from the ensemble using the index
+optimal_sim_from_ensemble <- enhanced_uncertainty_results$simulations[[optimal_results_composite$optimal_index]]
+
+# Extract yield data using the same method as uncertainty bounds
+optimal_yield_from_ensemble <- trimYield_uncertainty(optimal_sim_from_ensemble)
+optimal_yield_from_composite <- plotYieldGear(optimal_results_composite$optimal_sim, return_data = TRUE)
+
+# Compare a few key values to verify they match
+cat("Checking yield data consistency for baleen whales in year 2000:\n")
+baleen_2000_ensemble <- optimal_yield_from_ensemble[optimal_yield_from_ensemble$Species == "baleen whales" & 
+                                                   optimal_yield_from_ensemble$Year == 2000, "Yield"]
+baleen_2000_composite <- optimal_yield_from_composite[optimal_yield_from_composite$Species == "baleen whales" & 
+                                                     optimal_yield_from_composite$Year == 2000, "Yield"]
+cat("From ensemble[", optimal_results_composite$optimal_index, "]:", baleen_2000_ensemble, "\n")
+cat("From composite result:", baleen_2000_composite, "\n")
+cat("Match:", identical(baleen_2000_ensemble, baleen_2000_composite), "\n")
+
 # New facet label names for species
 species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", 
                   "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", 
                   "Sperm whales", "Baleen whales")
 names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", 
                          "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+
+# Do the same for biomass data
+optimal_biomass_from_ensemble <- getBiomassData(optimal_sim_from_ensemble)
+optimal_biomass_from_composite <- getBiomassData(optimal_results_composite$optimal_sim)
+
+# Compare biomass data too
+cat("Checking biomass data consistency for baleen whales in year 2000:\n")
+baleen_biomass_2000_ensemble <- optimal_biomass_from_ensemble[optimal_biomass_from_ensemble$Species == "baleen whales" & 
+                                                            optimal_biomass_from_ensemble$Year == 2000, "Biomass"]
+baleen_biomass_2000_composite <- optimal_biomass_from_composite[optimal_biomass_from_composite$Species == "baleen whales" & 
+                                                              optimal_biomass_from_composite$Year == 2000, "Biomass"]
+cat("Biomass from ensemble[", optimal_results_composite$optimal_index, "]:", baleen_biomass_2000_ensemble, "\n")
+cat("Biomass from composite result:", baleen_biomass_2000_composite, "\n")
+cat("Biomass match:", identical(baleen_biomass_2000_ensemble, baleen_biomass_2000_composite), "\n\n")
 
 # Plot yield comparison for optimal simulation with uncertainty bounds (using composite score optimal)
 p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) + 
@@ -1924,8 +1960,8 @@ p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) +
   geom_line(data = baseline_yield_data, 
             aes(x = Year, y = Yield), 
             color = "gray60", linetype = "dashed", linewidth = 1) +
-  # Add optimal model line (solid black for best fit)
-  geom_line(data = plotYieldGear(optimal_results_composite$optimal_sim, return_data = TRUE),
+  # Add optimal model line (solid black for best fit) - use ensemble version for consistency
+  geom_line(data = optimal_yield_from_ensemble,
             aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
   # Add observed data points
   geom_point(data = yield_ts_tidy, 
@@ -1969,8 +2005,8 @@ p_biomass_optimal <- plotBiomass(optimal_results_composite$optimal_sim) +
   geom_line(data = baseline_biomass_data, 
             aes(x = Year, y = Biomass), 
             color = "gray60", linetype = "dashed", linewidth = 1) +
-  # Add optimal model line (solid black for best fit)
-  geom_line(data = getBiomassData(optimal_results_composite$optimal_sim),
+  # Add optimal model line (solid black for best fit) - use ensemble version for consistency
+  geom_line(data = optimal_biomass_from_ensemble,
             aes(x = Year, y = Biomass, color = Species), linewidth = 1.2) +
   # Add vertical reference lines
   geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
