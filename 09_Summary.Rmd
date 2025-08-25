@@ -1255,7 +1255,7 @@ cat("Step 1: Validating spinup-only stability approach...\n")
 validation_test <- test_spinup_stability_approach(
   params_1841_2010_climate_only, 
   combined_effort_array, 
-  n_tests = 5
+  n_tests = 1
 )
 
 if (validation_test$success_rate >= 80) {
@@ -1267,9 +1267,9 @@ if (validation_test$success_rate >= 80) {
   # Run the full enhanced uncertainty analysis
   enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
     params = params_1841_2010_climate_only,
-    n_sims = 100,  # Full simulation set
-    catchability_sd = 0.3,  # 30% CV for catchability
-    abundance_sd = 0.5,     # 50% CV for marine mammal abundance
+    n_sims = 3000,  # Full simulation set
+    catchability_sd = 0.4,  # 30% CV for catchability
+    abundance_sd = 0.8,     # 50% CV for marine mammal abundance
     marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
     effort_scen = combined_effort_array,
     enhanced_steady_tol = 0.002,
@@ -1511,485 +1511,135 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   cat("Please run the enhanced uncertainty analysis first.\n")
 }
 ```
-    enhanced_steady_tol = 0.005,    # Reasonable tolerance
-    enhanced_steady_t_max = 800,    # Reasonable time
-    spinup_years = 118,
-    spinup_multiplier = 2,          # 2x spinup for good measure
-    t_start = 1841,
-    sim_years = 170,
-    preserve_erepro = TRUE,
-    max_erepro = 1,
-    species_weights_df = species_weights,
-    yield_obs_data = yield_ts_tidy,
-    n_cores = NULL,
-    parallel = FALSE  # Sequential for better error tracking initially
-  )
-  
-  # Report results
-  cat("\n=== CORRECTED ENHANCED SIMULATION RESULTS ===\n")
-  cat("Successful simulations:", enhanced_uncertainty_corrected$n_successful, "\n")
-  cat("Total attempts:", enhanced_uncertainty_corrected$n_attempts, "\n")
-  cat("Success rate:", round(enhanced_uncertainty_corrected$n_successful / enhanced_uncertainty_corrected$n_attempts * 100, 1), "%\n")
-  
-  if (enhanced_uncertainty_corrected$n_successful > 0) {
-    # Calculate performance summary
-    performance_metrics <- enhanced_uncertainty_corrected$performance
     
-    if (length(performance_metrics) > 0) {
-      composite_scores <- sapply(performance_metrics, function(x) x$composite_score)
-      weighted_rmse <- sapply(performance_metrics, function(x) x$total_weighted_rmse)
-      
-      cat("\nPerformance Summary:\n")
-      cat("Composite Score - Mean:", round(mean(composite_scores), 4), 
-          "Range:", round(min(composite_scores), 4), "-", round(max(composite_scores), 4), "\n")
-      cat("Weighted RMSE - Mean:", round(mean(weighted_rmse), 4),
-          "Range:", round(min(weighted_rmse), 4), "-", round(max(weighted_rmse), 4), "\n")
-      
-      # Find optimal simulation
-      best_idx <- which.min(composite_scores)
-      cat("Best simulation: #", best_idx, "with composite score =", round(composite_scores[best_idx], 4), "\n")
-    }
-    
-    # Save successful results
-    saveRDS(enhanced_uncertainty_corrected, "enhanced_uncertainty_results_corrected.RDS")
-    
-    # If we have good success rate, run larger batch
-    success_rate <- enhanced_uncertainty_corrected$n_successful / enhanced_uncertainty_corrected$n_attempts
-    if (success_rate > 0.6) {  # If >60% success rate
-      cat("\nHigh success rate achieved! Running larger batch of 200 simulations...\n")
-      
-      enhanced_uncertainty_large <- run_enhanced_combined_uncertainty_sims(
-        params = params_1841_2010_climate_only,
-        n_sims = 200,
-        catchability_sd = 0.4,  # Slightly higher uncertainty
-        abundance_sd = 0.8,     # Slightly higher uncertainty
-        marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
-        effort_scen = combined_effort_array,
-        enhanced_steady_tol = 0.002,    # Can use stricter now that we know it works
-        enhanced_steady_t_max = 1000,   # Can use longer now
-        spinup_years = 118,
-        spinup_multiplier = 2,
-        t_start = 1841,
-        sim_years = 170,
-        preserve_erepro = TRUE,
-        species_weights_df = species_weights,
-        yield_obs_data = yield_ts_tidy,
-        n_cores = NULL,
-        parallel = TRUE  # Can use parallel now
-      )
-      
-      cat("Large batch results:", enhanced_uncertainty_large$n_successful, "successful of", enhanced_uncertainty_large$n_attempts, "\n")
-      saveRDS(enhanced_uncertainty_large, "enhanced_uncertainty_results_large_corrected.RDS")
-      
-      # Use the larger results for final analysis
-      enhanced_uncertainty_corrected <- enhanced_uncertainty_large
-    }
-    
-  } else {
-    cat("Still getting failures - check spinup stability requirements\n")
-  }
-  
-} else {
-  cat("Spinup test failed - there may be other issues with the model setup\n")
-}
-
-# Final summary
-if (exists("enhanced_uncertainty_corrected") && enhanced_uncertainty_corrected$n_successful > 10) {
-  cat("\n=== SUCCESS! CORRECTED ENHANCED UNCERTAINTY ANALYSIS COMPLETED ===\n")
-  cat("Final results: ", enhanced_uncertainty_corrected$n_successful, " successful simulations\n")
-  cat("These results can now be used for:\n")
-  cat("- Finding optimal parameter combinations\n")
-  cat("- Creating uncertainty plots with geom_ribbon\n")
-  cat("- Comparing with baseline model\n")
-  cat("- Species-specific performance analysis\n")
-}
-```
-
-# Simple working enhanced simulation function
-run_working_enhanced_sims <- function(params, n_sims = 10, effort_scen, 
-                                     tolerance = stability_tolerance, 
-                                     years = stability_years) {
-  
-  cat("Running", n_sims, "enhanced simulations with working stability check\n")
-  cat("Stability: max", tolerance * 100, "% CV over last", years, "years\n\n")
-  
-  sim_results <- list()
-  performance_results <- list()
-  param_info <- list()
-  failed_count <- 0
-  
-  for (i in 1:n_sims) {
-    if (i %% 5 == 0) cat("Processing simulation", i, "of", n_sims, "\n")
-    
-    tryCatch({
-      # Create parameter variations
-      rand_params <- params
-      
-      # Catchability variations (moderate)
-      gear_df <- gear_params(rand_params)
-      if(nrow(gear_df) > 0) {
-        for(j in 1:nrow(gear_df)) {
-          if(gear_df$catchability[j] > 0) {
-            noise <- rnorm(1, mean = 0, sd = 0.3)
-            gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise)
-            gear_df$catchability[j] <- min(1, max(0.001, gear_df$catchability[j]))
-          }
-        }
-        gear_params(rand_params) <- gear_df
-      }
-      
-      # Marine mammal abundance variations
-      sp_params <- species_params(rand_params)
-      marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
-      species_indices <- which(sp_params$species %in% marine_mammal_species)
-      scaling_factors <- exp(rnorm(length(species_indices), mean = 0, sd = 0.5))
-      
-      for (k in seq_along(species_indices)) {
-        rand_params@initial_n[species_indices[k],] <-
-          rand_params@initial_n[species_indices[k],] * scaling_factors[k]
-      }
-      
-      # Steady state with reasonable criteria
-      steady_params <- steady(rand_params, tol = 0.005, t_max = 800, preserve = c("erepro"))
-      
-      # Run simulation
-      sim <- project(steady_params, t_start = 1841, t_max = 170, effort = effort_scen)
-      
-      # NO FINAL STABILITY CHECK NEEDED - fishing is supposed to cause variability!
-      # We only checked stability during the spinup phase in steady_params
-      
-      # Calculate performance metrics directly
-      mod_yield <- getYield(sim)
-      df_mod <- reshape2::melt(mod_yield)
-      names(df_mod) <- c("Year", "Species", "Yield")
-      
-      comparison <- merge(df_mod, yield_ts_tidy,
-                         by = c("Year", "Species"),
-                         suffixes = c("_mod", "_obs"))
-      
-      # Calculate weighted RMSE with whale emphasis
-      comparison_weighted <- comparison %>%
-        left_join(species_weights, by = "Species") %>%
-        mutate(weight = ifelse(is.na(weight), 1, weight))
-      
-      weighted_rmse <- sqrt(weighted.mean((comparison_weighted$Yield_mod - comparison_weighted$Yield_obs)^2,
-                                         comparison_weighted$weight, na.rm = TRUE))
-      
-      sim_results[[length(sim_results) + 1]] <- sim
-      performance_results[[length(performance_results) + 1]] <- list(
-        weighted_rmse = weighted_rmse
-      )
-      param_info[[length(param_info) + 1]] <- list(
-        sim_id = i,
-        catchability = gear_df$catchability,
-        marine_mammal_scaling = scaling_factors
-      )
-      
-    }, error = function(e) {
-      failed_count <- failed_count + 1
-    })
-  }
-  
-  cat("\nCompleted:", length(sim_results), "successful,", failed_count, "failed\n")
-  
-  return(list(
-    simulations = sim_results,
-    performance = performance_results,
-    parameters = param_info,
-    n_successful = length(sim_results),
-    n_attempts = n_sims,
-    success_rate = length(sim_results) / n_sims * 100
-  ))
-}
-
-# Run working enhanced simulations
-enhanced_results_working <- run_working_enhanced_sims(
-  params = params_1841_2010_climate_only,
-  n_sims = 25,  # Start with 25 to test
-  effort_scen = combined_effort_array
-)
-
-# Report results
-cat("\n=== WORKING ENHANCED SIMULATION RESULTS ===\n")
-cat("Successful simulations:", enhanced_results_working$n_successful, "\n")
-cat("Success rate:", round(enhanced_results_working$success_rate, 1), "%\n")
-
-if (enhanced_results_working$n_successful > 0) {
-  # Show performance summary
-  rmse_values <- sapply(enhanced_results_working$performance, function(x) x$weighted_rmse)
-  cv_values <- sapply(enhanced_results_working$performance, function(x) x$max_cv)
-  
-  cat("Weighted RMSE range:", round(min(rmse_values), 3), "-", round(max(rmse_values), 3), "\n")
-  cat("Max CV range:", round(min(cv_values) * 100, 1), "% -", round(max(cv_values) * 100, 1), "%\n")
-  
-  # Find best simulation
-  best_idx <- which.min(rmse_values)
-  cat("Best simulation: #", best_idx, "with RMSE =", round(rmse_values[best_idx], 3), "\n")
-  
-  # Save results
-  saveRDS(enhanced_results_working, "enhanced_uncertainty_results_working.RDS")
-  
-  # If we got good results, run more simulations
-  if (enhanced_results_working$success_rate > 50) {
-    cat("\nSuccess rate > 50%, running larger batch...\n")
-    
-    enhanced_results_large <- run_working_enhanced_sims(
-      params = params_1841_2010_climate_only,
-      n_sims = 100,
-      effort_scen = combined_effort_array
-    )
-    
-    cat("Large batch results:", enhanced_results_large$n_successful, "successful of", enhanced_results_large$n_attempts, "\n")
-    saveRDS(enhanced_results_large, "enhanced_uncertainty_results_large.RDS")
-  }
-}
-```
 
 ## Alternative Approach: Focus on Key Species Only
 
 If the full stability requirements are still too strict, try this whale-focused approach:
 
 ```{r whale-focused-approach, eval=FALSE}
-# Load the stability test results to get recommended parameters
-# stability_test_results <- readRDS("stability_test_results.RDS")
-
-# Use recommended parameters from stability test, or fall back to more relaxed defaults
-recommended_tolerance <- if (exists("stability_test_results") && 
-                            !is.na(stability_test_results$recommended$tolerance)) {
-  stability_test_results$recommended$tolerance
-} else {
-  0.10  # Default to 10% CV if no test results
-}
-
-recommended_check_years <- if (exists("stability_test_results") && 
-                              !is.na(stability_test_results$recommended$check_years)) {
-  stability_test_results$recommended$check_years
-} else {
-  30  # Default to 30 years if no test results
-}
-
-cat("Using stability parameters:\n")
-cat("  Tolerance:", recommended_tolerance * 100, "% CV\n")
-cat("  Check years:", recommended_check_years, "\n\n")
-
-# Run enhanced combined uncertainty simulations with adjusted stability requirements
-enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
-  params = params_1841_2010_climate_only,
-  n_sims = 50,  # Start smaller to test
-  catchability_sd = 0.3,  # Moderate uncertainty for catchability (30% CV)
-  abundance_sd = 0.5,     # Moderate uncertainty for marine mammal abundance (50% CV)
-  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
-  effort_scen = combined_effort_array,
-  enhanced_steady_tol = 0.005,    # Slightly relaxed from 0.002
-  enhanced_steady_t_max = 800,    # Reduced from 1000
-  spinup_years = 118,
-  spinup_multiplier = 2,          # Keep 2x spinup
-  t_start = 1841,
-  sim_years = 170,
-  preserve_erepro = TRUE,
-  max_erepro = 1,
-  species_weights_df = species_weights,
-  yield_obs_data = yield_ts_tidy,
-  n_cores = NULL,
-  parallel = FALSE  # Use sequential for better debugging initially
-)
-
-# Save results
-saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_results_adjusted.RDS")
-
-# Display results
-cat("\n=== ADJUSTED ENHANCED SIMULATION SUMMARY ===\n")
-cat("Successful simulations:", enhanced_uncertainty_results$n_successful, "\n")
-cat("Total attempts:", enhanced_uncertainty_results$n_attempts, "\n")
-if (enhanced_uncertainty_results$n_successful > 0) {
-  cat("Success rate:", round(enhanced_uncertainty_results$n_successful / enhanced_uncertainty_results$n_attempts * 100, 1), "%\n")
-}
+# # Load the stability test results to get recommended parameters
+# # stability_test_results <- readRDS("stability_test_results.RDS")
+# 
+# # Use recommended parameters from stability test, or fall back to more relaxed defaults
+# recommended_tolerance <- if (exists("stability_test_results") && 
+#                             !is.na(stability_test_results$recommended$tolerance)) {
+#   stability_test_results$recommended$tolerance
+# } else {
+#   0.10  # Default to 10% CV if no test results
+# }
+# 
+# recommended_check_years <- if (exists("stability_test_results") && 
+#                               !is.na(stability_test_results$recommended$check_years)) {
+#   stability_test_results$recommended$check_years
+# } else {
+#   30  # Default to 30 years if no test results
+# }
+# 
+# cat("Using stability parameters:\n")
+# cat("  Tolerance:", recommended_tolerance * 100, "% CV\n")
+# cat("  Check years:", recommended_check_years, "\n\n")
+# 
+# # Run enhanced combined uncertainty simulations with adjusted stability requirements
+# enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
+#   params = params_1841_2010_climate_only,
+#   n_sims = 50,  # Start smaller to test
+#   catchability_sd = 0.3,  # Moderate uncertainty for catchability (30% CV)
+#   abundance_sd = 0.5,     # Moderate uncertainty for marine mammal abundance (50% CV)
+#   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+#   effort_scen = combined_effort_array,
+#   enhanced_steady_tol = 0.005,    # Slightly relaxed from 0.002
+#   enhanced_steady_t_max = 800,    # Reduced from 1000
+#   spinup_years = 118,
+#   spinup_multiplier = 2,          # Keep 2x spinup
+#   t_start = 1841,
+#   sim_years = 170,
+#   preserve_erepro = TRUE,
+#   max_erepro = 1,
+#   species_weights_df = species_weights,
+#   yield_obs_data = yield_ts_tidy,
+#   n_cores = NULL,
+#   parallel = FALSE  # Use sequential for better debugging initially
+# )
+# 
+# # Save results
+# saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_results_adjusted.RDS")
+# 
+# # Display results
+# cat("\n=== ADJUSTED ENHANCED SIMULATION SUMMARY ===\n")
+# cat("Successful simulations:", enhanced_uncertainty_results$n_successful, "\n")
+# cat("Total attempts:", enhanced_uncertainty_results$n_attempts, "\n")
+# if (enhanced_uncertainty_results$n_successful > 0) {
+#   cat("Success rate:", round(enhanced_uncertainty_results$n_successful / enhanced_uncertainty_results$n_attempts * 100, 1), "%\n")
+# }
 ```
 
-# If still getting failures, create an even more relaxed version
-## Quick Diagnostic Test
-
-## Adaptive Uncertainty Assessment
-
-This section implements advanced adaptive optimization that learns from simulation results:
-# Simple diagnostic function to test a single simulation
-test_single_enhanced_sim <- function(params, effort_scen, verbose = TRUE) {
-  
-  cat("=== DIAGNOSTIC TEST FOR ENHANCED SIMULATION ===\n")
-  
-  # Create moderate parameter variations
-  rand_params <- params
-  
-  # Step 1: Moderate catchability changes
-  gear_df <- gear_params(rand_params)
-  if(nrow(gear_df) > 0) {
-    for(j in 1:nrow(gear_df)) {
-      if(gear_df$catchability[j] > 0) {
-        # Use moderate 20% change instead of random
-        gear_df$catchability[j] <- gear_df$catchability[j] * 1.2
-      }
-    }
-    gear_params(rand_params) <- gear_df
-    cat("✓ Applied moderate catchability changes\n")
-  }
-  
-  # Step 2: Moderate marine mammal scaling
-  sp_params <- species_params(rand_params)
-  marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
-  species_indices <- which(sp_params$species %in% marine_mammal_species)
-  
-  # Use moderate 50% increase instead of random
-  for (k in seq_along(species_indices)) {
-    rand_params@initial_n[species_indices[k],] <-
-      rand_params@initial_n[species_indices[k],] * 1.5
-  }
-  cat("✓ Applied moderate marine mammal abundance scaling\n")
-  
-  # Step 3: Try steady state with relaxed parameters
-  cat("Testing steady state...\n")
-  tryCatch({
-    steady_params <- steady(rand_params, tol = 0.01, t_max = 500, preserve = c("erepro"))
-    cat("✓ Steady state achieved\n")
-  }, error = function(e) {
-    cat("✗ Steady state failed:", e$message, "\n")
-    return(list(success = FALSE, stage = "steady_state", error = e$message))
-  })
-  
-  # Step 4: Test basic simulation
-  cat("Testing basic simulation...\n")
-  tryCatch({
-    sim <- project(steady_params, t_start = 1841, t_max = 170, effort = effort_scen)
-    cat("✓ Basic simulation completed\n")
-  }, error = function(e) {
-    cat("✗ Basic simulation failed:", e$message, "\n")
-    return(list(success = FALSE, stage = "simulation", error = e$message))
-  })
-  
-  # Step 5: Test different stability requirements
-  cat("Testing stability requirements...\n")
-  
-  stability_tests <- list(
-    list(tolerance = 0.05, years = 50, name = "Original (5% CV, 50 years)"),
-    list(tolerance = 0.10, years = 50, name = "Relaxed tolerance (10% CV, 50 years)"),
-    list(tolerance = 0.15, years = 30, name = "More relaxed (15% CV, 30 years)"),
-    list(tolerance = 0.20, years = 20, name = "Very relaxed (20% CV, 20 years)")
-  )
-  
-  for (test in stability_tests) {
-    stability_result <- check_biomass_stability_enhanced(sim, 
-                                                        tolerance = test$tolerance, 
-                                                        check_years = test$years,
-                                                        verbose = TRUE,
-                                                        sim_id = "TEST")
-    
-    if (is.logical(stability_result)) {
-      stable <- stability_result
-    } else {
-      stable <- stability_result$stable
-    }
-    
-    cat("  ", test$name, ":", if (stable) "✓ PASSED" else "✗ FAILED", "\n")
-  }
-  
-  # Get biomass data for manual inspection
-  biomass <- getBiomass(sim)
-  cat("\nBiomass data summary:\n")
-  cat("  Time range:", min(as.numeric(rownames(biomass))), "-", max(as.numeric(rownames(biomass))), "\n")
-  cat("  Species:", paste(colnames(biomass), collapse = ", "), "\n")
-  
-  # Check CV for last 50 years manually
-  recent_biomass <- tail(biomass, 50)
-  cv_values <- apply(recent_biomass, 2, function(x) {
-    if (mean(x) == 0) return(Inf)
-    sd(x) / mean(x)
-  })
-  
-  cat("\nCV values for last 50 years:\n")
-  for (i in 1:length(cv_values)) {
-    cv_pct <- round(cv_values[i] * 100, 1)
-    status <- if (cv_values[i] < 0.05) "✓" else if (cv_values[i] < 0.10) "~" else "✗"
-    cat("  ", names(cv_values)[i], ":", cv_pct, "%", status, "\n")
-  }
-  
-  return(list(
-    success = TRUE,
-    simulation = sim,
-    cv_values = cv_values,
-    max_cv = max(cv_values, na.rm = TRUE),
-    stability_tests = stability_tests
-  ))
-}
-
-# Run the diagnostic test
-cat("Running diagnostic test...\n")
-diagnostic_result <- test_single_enhanced_sim(params_1841_2010_climate_only, combined_effort_array)
-```
 
 ## Alternative: Modified Stability Check Approach
 
 If the stability requirements are still too strict, we can modify the approach to focus on the most important species:
 
 ```{r alternative-stability-approach, eval=FALSE}
-# Create a modified stability check that focuses on key species only
-check_key_species_stability <- function(sim_object, 
-                                       key_species = c("minke whales", "sperm whales", "baleen whales"),
-                                       tolerance = 0.15,  # More relaxed 15% CV
-                                       check_years = 30) {
-  
-  biomass <- getBiomass(sim_object)
-  
-  if (nrow(biomass) < check_years) {
-    return(FALSE)
-  }
-  
-  # Focus only on key species (whales)
-  recent_biomass <- tail(biomass, check_years)
-  key_biomass <- recent_biomass[, colnames(recent_biomass) %in% key_species, drop = FALSE]
-  
-  if (ncol(key_biomass) == 0) {
-    return(TRUE)  # No key species to check
-  }
-  
-  # Calculate CV for key species only
-  cv_values <- apply(key_biomass, 2, function(x) {
-    if (mean(x) == 0) return(Inf)
-    sd(x) / mean(x)
-  })
-  
-  # Check if key species are stable
-  key_stable <- all(cv_values < tolerance, na.rm = TRUE)
-  
-  return(key_stable)
-}
-
-# Function to run simulations with key species stability only
-run_key_species_uncertainty <- function(params, n_sims = 50, ...) {
-  
-  # This would be a simplified version focusing only on whale stability
-  # Implementation would modify the final stability check to use 
-  # check_key_species_stability instead of check_biomass_stability_enhanced
-  
-  cat("Running uncertainty analysis with key species stability check only...\n")
-  cat("Key species: minke whales, sperm whales, baleen whales\n")
-  cat("Tolerance: 15% CV over last 30 years\n\n")
-  
-  # Would need to modify run_enhanced_single_sim to use this check
-  # For now, let's return a placeholder
-  return(list(
-    message = "This approach focuses stability checks on whale species only",
-    recommended_next_steps = c(
-      "Modify final stability check in run_enhanced_single_sim",
-      "Use check_key_species_stability instead of check_biomass_stability_enhanced",
-      "Focus tolerance on whale species which are most important for fitting"
-    )
-  ))
-}
-
-# Show the approach
-key_species_approach <- run_key_species_uncertainty(params_1841_2010_climate_only)
-print(key_species_approach)
+# # Create a modified stability check that focuses on key species only
+# check_key_species_stability <- function(sim_object, 
+#                                        key_species = c("minke whales", "sperm whales", "baleen whales"),
+#                                        tolerance = 0.15,  # More relaxed 15% CV
+#                                        check_years = 30) {
+#   
+#   biomass <- getBiomass(sim_object)
+#   
+#   if (nrow(biomass) < check_years) {
+#     return(FALSE)
+#   }
+#   
+#   # Focus only on key species (whales)
+#   recent_biomass <- tail(biomass, check_years)
+#   key_biomass <- recent_biomass[, colnames(recent_biomass) %in% key_species, drop = FALSE]
+#   
+#   if (ncol(key_biomass) == 0) {
+#     return(TRUE)  # No key species to check
+#   }
+#   
+#   # Calculate CV for key species only
+#   cv_values <- apply(key_biomass, 2, function(x) {
+#     if (mean(x) == 0) return(Inf)
+#     sd(x) / mean(x)
+#   })
+#   
+#   # Check if key species are stable
+#   key_stable <- all(cv_values < tolerance, na.rm = TRUE)
+#   
+#   return(key_stable)
+# }
+# 
+# # Function to run simulations with key species stability only
+# run_key_species_uncertainty <- function(params, n_sims = 50, ...) {
+#   
+#   # This would be a simplified version focusing only on whale stability
+#   # Implementation would modify the final stability check to use 
+#   # check_key_species_stability instead of check_biomass_stability_enhanced
+#   
+#   cat("Running uncertainty analysis with key species stability check only...\n")
+#   cat("Key species: minke whales, sperm whales, baleen whales\n")
+#   cat("Tolerance: 15% CV over last 30 years\n\n")
+#   
+#   # Would need to modify run_enhanced_single_sim to use this check
+#   # For now, let's return a placeholder
+#   return(list(
+#     message = "This approach focuses stability checks on whale species only",
+#     recommended_next_steps = c(
+#       "Modify final stability check in run_enhanced_single_sim",
+#       "Use check_key_species_stability instead of check_biomass_stability_enhanced",
+#       "Focus tolerance on whale species which are most important for fitting"
+#     )
+#   ))
+# }
+# 
+# # Show the approach
+# key_species_approach <- run_key_species_uncertainty(params_1841_2010_climate_only)
+# print(key_species_approach)
 ```
-```
+
 
 ## Analyze Enhanced Results and Find Optimal Parameters
 
