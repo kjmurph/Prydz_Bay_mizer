@@ -2016,81 +2016,81 @@ names(species.labs) <- c("antarctic krill", "bathypelagic fishes",
                          "shelf and coastal fishes", "squids", "toothfishes",
                          "minke whales", "orca", "sperm whales", "baleen whales")
 
-# Plot yield comparison for optimal simulation with uncertainty bounds
-p_yield_optimal <- plotYield(optimal_results$optimal_sim) +
+# Plot yield comparison using same data as the first plots for consistency
+p_yield_optimal_v2 <- ggplot() +
+  # Add uncertainty ribbon first (behind other elements)
+  geom_ribbon(data = uncertainty_yield_data, 
+              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+              alpha = 0.3, fill = "lightblue") +
+  # Add baseline model line (original params_new_v4)
+  geom_line(data = baseline_yield_data, 
+            aes(x = Year, y = Yield), 
+            color = "gray60", linetype = "dashed", linewidth = 1) +
+  # Add optimal model line (from composite results)
+  geom_line(data = plotYieldGear(optimal_results_composite$optimal_sim, return_data = TRUE),
+            aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
+  # Add observed data points
+  geom_point(data = yield_ts_tidy, 
+             aes(x = Year, y = Yield, colour = Species), 
+             size = 1) +
+  geom_point(data = yield_ts_tidy, 
+             aes(x = Year, y = Yield), 
+             shape = 1, size = 1, colour = "black") +
+  # Add vertical reference lines
+  geom_vline(xintercept = 1961, linetype = "dotted", alpha = 0.7) + 
+  geom_vline(xintercept = 2010, linetype = "dotted", alpha = 0.7) +
+  # Faceting and theming
   facet_wrap(~Species, scales = "free_y",
              labeller = labeller(Species = species.labs)) +
-  # Add uncertainty ribbon
-  geom_ribbon(data = yield_bounds,
-              aes(x = Year, ymin = yield_lower, ymax = yield_upper),
-              alpha = 0.3, fill = "lightblue", inherit.aes = FALSE) +
-  # Add original model fit line
-  geom_line(data = plotYieldGear(sim_original, return_data = TRUE),
-            aes(x = Year, y = Yield),
-            color = "darkgray", linetype = "dashed", linewidth = 1, inherit.aes = FALSE) +
-  # Add best fit model line (solid black)
-  geom_line(data = plotYieldGear(optimal_results$optimal_sim, return_data = TRUE),
-            aes(x = Year, y = Yield),
-            color = "black", linetype = "solid", linewidth = 1.2, inherit.aes = FALSE) +
-  # Add observed data points
-  geom_point(data = yield_ts_tidy,
-             aes(x = Year, y = Yield, colour = Species),
-             size = 1, inherit.aes = FALSE) +
-  geom_point(data = yield_ts_tidy,
-             aes(x = Year, y = Yield),
-             shape = 1, size = 1, colour = "black", inherit.aes = FALSE) +
-  # Add vertical reference lines
-  geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) +
-  geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
   theme_bw() +
   theme(
     legend.position = "none",
     strip.text = element_text(face = "bold", size = 10)
   ) +
   labs(
-    title = "Optimal Simulation: Modeled vs. Observed Yield with Uncertainty",
-    subtitle = "Gray dashed = original model, Black solid = best fit, Blue ribbon = 95% CI",
+    title = "Enhanced Optimal Simulation: Yield with Uncertainty",
+    subtitle = "Gray dashed = baseline model, Colored solid = optimal fit, Blue ribbon = 95% CI",
     x = "Year",
     y = "Yield"
   )
 
-print(p_yield_optimal)
-ggsave("plots/optimal_simulation_yield_flex_erepro_catchSD_0.5_abSD_2.png", p_yield_optimal,
+print(p_yield_optimal_v2)
+ggsave("plots/enhanced_optimal_simulation_yield_v2.png", p_yield_optimal_v2,
        width = 14, height = 10, dpi = 300)
 
-# Get original model biomass data
-original_biomass_matrix <- getBiomass(sim_original)
-original_biomass_data <- reshape2::melt(original_biomass_matrix)
-names(original_biomass_data) <- c("Year", "Species", "Biomass")
-
-# Get optimal model biomass data
-optimal_biomass_matrix <- getBiomass(optimal_results$optimal_sim)
-optimal_biomass_data <- reshape2::melt(optimal_biomass_matrix)
-names(optimal_biomass_data) <- c("Year", "Species", "Biomass")
-
-# Plot biomass comparison for optimal simulation with uncertainty bounds
-p_biomass_optimal <- plot_biomass_comparison(
-  sim_object = optimal_results$optimal_sim,
-  plot_title = "Optimal Simulation: Modeled vs. Observed Biomass with Uncertainty"
-) +
-  # Add uncertainty ribbon
-  geom_ribbon(data = biomass_bounds,
-              aes(x = Year, ymin = biomass_lower, ymax = biomass_upper),
-              alpha = 0.3, fill = "lightcoral", inherit.aes = FALSE) +
-  # Add original model fit line
-  geom_line(data = original_biomass_data,
-            aes(x = Year, y = Biomass),
-            color = "darkgray", linetype = "dashed", linewidth = 1, inherit.aes = FALSE) +
-  # Add best fit model line (solid black)
-  geom_line(data = optimal_biomass_data,
-            aes(x = Year, y = Biomass),
-            color = "black", linetype = "solid", linewidth = 1.2, inherit.aes = FALSE) +
+# Plot biomass comparison using same approach
+p_biomass_optimal_v2 <- ggplot() +
+  # Add uncertainty ribbon first (behind other elements)
+  geom_ribbon(data = uncertainty_biomass_data, 
+              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+              alpha = 0.3, fill = "lightgreen") +
+  # Add baseline model line (original params_new_v4)
+  geom_line(data = baseline_biomass_data, 
+            aes(x = Year, y = Biomass), 
+            color = "gray60", linetype = "dashed", linewidth = 1) +
+  # Add optimal model line (from composite results)
+  geom_line(data = getBiomassData(optimal_results_composite$optimal_sim),
+            aes(x = Year, y = Biomass, color = Species), linewidth = 1.2) +
+  # Add vertical reference lines
+  geom_vline(xintercept = 1961, linetype = "dotted", alpha = 0.7) + 
+  geom_vline(xintercept = 2010, linetype = "dotted", alpha = 0.7) +
+  # Faceting and theming
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 10)
+  ) +
   labs(
-    subtitle = "Gray dashed = original model, Black solid = best fit, Coral ribbon = 95% CI"
+    title = "Enhanced Optimal Simulation: Biomass with Uncertainty",
+    subtitle = "Gray dashed = baseline model, Colored solid = optimal fit, Green ribbon = 95% CI",
+    x = "Year",
+    y = "Biomass"
   )
 
-print(p_biomass_optimal)
-ggsave("plots/optimal_simulation_biomass_flex_erepro_catchSD_0.5_abSD_2.png", p_biomass_optimal,
+print(p_biomass_optimal_v2)
+ggsave("plots/enhanced_optimal_simulation_biomass_v2.png", p_biomass_optimal_v2,
        width = 14, height = 10, dpi = 300)
 ```
 
