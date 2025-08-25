@@ -26,6 +26,8 @@ library(tidyverse)
 Best version of Pyrdz Bay mizer model parameters at steady-state for the contemporary ecosystem 2010 - 2020
 ```{r}
 params_new_v4 <- readRDS("params_steady_state_2011_2020_tol_0.00025.RDS")
+
+combined_effort_array <- readRDS("effort_array_1841_2010.rds")
 ```
 
 # Load climate forcings
