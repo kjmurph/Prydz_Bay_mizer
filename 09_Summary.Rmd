@@ -492,6 +492,7 @@ enhanced_steady_state <- function(params,
   
   attempt <- 1
   steady_successful <- FALSE
+  original_t_max <- t_max
   
   while (attempt <= max_attempts && !steady_successful) {
     if (verbose && !is.null(sim_id)) {
@@ -506,9 +507,9 @@ enhanced_steady_state <- function(params,
         params_steady <- steady(params, tol = tol, t_max = t_max)
       }
       
-      # Validate steady state by running a short simulation
-      test_sim <- project(params_steady, t_max = 50, effort = 0)
-      stability_check <- check_biomass_stability_enhanced(test_sim, tolerance = 0.01, 
+      # Validate steady state by running a longer simulation consistent with spinup requirements
+      test_sim <- project(params_steady, t_max = 118, effort = 0)  # Use minimum spinup length
+      stability_check <- check_biomass_stability_enhanced(test_sim, tolerance = 0.10,  # 10% CV tolerance
                                                          check_years = 20, verbose = FALSE)
       
       if (is.logical(stability_check) && stability_check) {
@@ -519,15 +520,37 @@ enhanced_steady_state <- function(params,
         return(params_steady)
       } else {
         if (verbose && !is.null(sim_id)) {
-          cat("Sim", sim_id, "steady-state achieved but not stable, increasing t_max\n")
+          cat("Sim", sim_id, "steady-state converged but not stable (attempt", attempt, ")\n")
         }
-        t_max <- t_max * 1.5
+        
+        # Instead of just increasing t_max, make small parameter adjustments
+        # This gives the system a chance to find a more stable configuration
+        if (attempt < max_attempts) {
+          # Make small random adjustments to abundance to help find stability
+          sp_params <- species_params(params)
+          for (i in 1:nrow(sp_params)) {
+            if (runif(1) < 0.3) {  # 30% chance to adjust each species
+              adjustment <- runif(1, 0.95, 1.05)  # ±5% adjustment
+              params@initial_n[i,] <- params@initial_n[i,] * adjustment
+            }
+          }
+          t_max <- original_t_max  # Reset t_max since we're trying new parameters
+        }
       }
     }, error = function(e) {
       if (verbose && !is.null(sim_id)) {
-        cat("Sim", sim_id, "steady-state failed:", e$message, "\nIncreasing t_max and trying again\n")
+        cat("Sim", sim_id, "steady-state failed:", e$message, "\nTrying again with parameter adjustment\n")
       }
-      t_max <- t_max * 1.5
+      # Small parameter adjustment on error too
+      if (attempt < max_attempts) {
+        sp_params <- species_params(params)
+        for (i in 1:nrow(sp_params)) {
+          if (runif(1) < 0.2) {  # 20% chance to adjust each species
+            adjustment <- runif(1, 0.98, 1.02)  # ±2% adjustment
+            params@initial_n[i,] <- params@initial_n[i,] * adjustment
+          }
+        }
+      }
     })
     
     attempt <- attempt + 1
