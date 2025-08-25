@@ -1418,7 +1418,11 @@ if (file.exists("enhanced_simulations_for_plotting.RDS")) {
     
     # Add observed data if provided
     if (!is.null(observed_data)) {
-      p <- p + geom_point(data = observed_data, 
+      # Ensure column names are consistent (convert to lowercase if needed)
+      obs_data_plot <- observed_data
+      names(obs_data_plot) <- tolower(names(obs_data_plot))
+      
+      p <- p + geom_point(data = obs_data_plot, 
                          aes(x = year, y = yield, color = species), 
                          size = 2, alpha = 0.7)
     }
