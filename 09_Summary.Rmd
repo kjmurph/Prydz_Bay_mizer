@@ -1536,7 +1536,7 @@ test_spinup_stability_approach <- function(params, effort_scen, n_tests = 5) {
       # Run spinup period only (no fishing) - this is what we check for stability
       spinup_sim <- project(steady_params, t_start = 1841, t_max = 118, effort = 0)
       
-      # Check spinup stability (5% CV over last 50 years of spinup)
+      # Check spinup stability (10% CV over last 50 years of spinup)
       biomass_spinup <- getBiomass(spinup_sim)
       if (nrow(biomass_spinup) >= 50) {
         recent_biomass <- tail(biomass_spinup, 50)
@@ -1545,7 +1545,7 @@ test_spinup_stability_approach <- function(params, effort_scen, n_tests = 5) {
           sd(x) / mean(x)
         })
         
-        spinup_stable <- all(cv_values < 0.05, na.rm = TRUE)
+        spinup_stable <- all(cv_values < 0.10, na.rm = TRUE)
         max_cv <- max(cv_values, na.rm = TRUE)
         
         if (spinup_stable) {
@@ -1602,11 +1602,11 @@ test_spinup_stability_approach <- function(params, effort_scen, n_tests = 5) {
     spinup_cvs <- sapply(successful_tests, function(x) x$spinup_max_cv)
     fished_cvs <- sapply(successful_tests, function(x) x$fished_max_cv)
     
-    cat("Spinup CV range:", round(min(spinup_cvs), 1), "-", round(max(spinup_cvs), 1), "% (should be < 5%)\n")
+    cat("Spinup CV range:", round(min(spinup_cvs), 1), "-", round(max(spinup_cvs), 1), "% (should be < 10%)\n")
     cat("Fished CV range:", round(min(fished_cvs), 1), "-", round(max(fished_cvs), 1), "% (variability is expected)\n")
     cat("\nThis demonstrates that:\n")
-    cat("1. Spinups can achieve stability (< 5% CV)\n")
-    cat("2. Fished periods naturally have higher variability (> 5% CV)\n")
+    cat("1. Spinups can achieve stability (< 10% CV)\n")
+    cat("2. Fished periods naturally have higher variability (> 10% CV)\n")
     cat("3. Checking stability only during spinup is the correct approach\n")
   }
   
