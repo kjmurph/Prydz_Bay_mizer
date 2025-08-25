@@ -914,9 +914,6 @@ run_enhanced_combined_uncertainty_sims <- function(params,
     cat("  - Will skip simulations with erepro >", max_erepro, "\n")
   }
   
-  # Force sequential processing to avoid variable scoping issues
-  parallel <- FALSE
-  
   if (parallel && n_cores > 1) {
     cat("  - Using parallel processing with", n_cores, "cores\n")
     
