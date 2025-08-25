@@ -901,8 +901,8 @@ run_enhanced_combined_uncertainty_sims <- function(params,
     # Export necessary objects to cluster
     clusterExport(cl, c("run_enhanced_single_sim", "enhanced_steady_state", 
                        "enhanced_spinup", "check_biomass_stability_enhanced",
-                       "calculate_enhanced_performance_metrics",
-                       "species_weights_df", "yield_obs_data"), 
+                       "calculate_enhanced_performance_metrics", "calculate_yield_rmse",
+                       "species_weights_df"), 
                   envir = environment())
     
     # Run simulations in parallel
