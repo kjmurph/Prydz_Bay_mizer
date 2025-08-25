@@ -1803,19 +1803,8 @@ print(p_species_comparison)
 ggsave("plots/enhanced_species_performance_comparison.png", p_species_comparison,
        width = 14, height = 8, dpi = 300)
 ```
-)
-print(p_rmse_dist)
-ggsave("plots/combined_uncertainty_rmse_distribution_flex_erepro_catchSD_0.5_abSD_2.png", p_rmse_dist,
-       width = 10, height = 6, dpi = 300)
 
-# Plot parameter exploration
-p_param_explore <- plot_parameter_exploration(
-  param_combinations = combined_uncertainty_results$parameters,
-  rmse_values = optimal_results$all_rmse
-)
-ggsave("plots/combined_parameter_exploration_flex_erepro_catchSD_0.5_abSD_2.png", p_param_explore,
-       width = 12, height = 10, dpi = 300)
-```
+
 
 ## Compare Enhanced Optimal Simulation with Observations
 
@@ -1986,120 +1975,6 @@ p_biomass_optimal <- plotBiomass(optimal_results_composite$optimal_sim) +
 print(p_biomass_optimal)
 ggsave("plots/enhanced_optimal_simulation_biomass.png", p_biomass_optimal,
        width = 16, height = 12, dpi = 300)
-
-# Use the cleaned results from the previous chunk (or re-clean if needed)
-if (!exists("cleaned_results")) {
-  cleaned_results <- validate_simulation_results(combined_uncertainty_results, verbose = TRUE)
-}
-
-# Extract uncertainty bounds using the new helper function
-# This automatically validates simulations and handles any invalid ones
-cat("Extracting uncertainty bounds from simulations...\n")
-uncertainty_bounds <- extract_uncertainty_bounds(
-  sim_results_list = cleaned_results,
-  confidence_level = 0.95,
-  validate_first = FALSE,  # Already validated above
-  verbose = TRUE
-)
-
-# Get the bounds
-yield_bounds <- uncertainty_bounds$yield_bounds
-biomass_bounds <- uncertainty_bounds$biomass_bounds
-
-cat("Successfully extracted bounds from", uncertainty_bounds$n_simulations, "valid simulations\n")
-
-# Species labels for faceting
-species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes",
-                  "Squids", "Toothfishes", "Antarctic minke whales", "Orcas",
-                  "Sperm whales", "Baleen whales")
-names(species.labs) <- c("antarctic krill", "bathypelagic fishes",
-                         "shelf and coastal fishes", "squids", "toothfishes",
-                         "minke whales", "orca", "sperm whales", "baleen whales")
-
-# Plot yield comparison using same data as the first plots for consistency
-p_yield_optimal_v2 <- ggplot() +
-  # Add uncertainty ribbon first (behind other elements)
-  geom_ribbon(data = uncertainty_yield_data, 
-              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
-              alpha = 0.3, fill = "lightblue") +
-  # Add median line from uncertainty analysis (should be close to optimal)
-  geom_line(data = uncertainty_yield_data, 
-            aes(x = Year, y = sim_mean), 
-            color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
-  # Add baseline model line (original params_new_v4)
-  geom_line(data = baseline_yield_data, 
-            aes(x = Year, y = Yield), 
-            color = "gray60", linetype = "dashed", linewidth = 1) +
-  # Add optimal model line (from composite results)
-  geom_line(data = plotYieldGear(optimal_results_composite$optimal_sim, return_data = TRUE),
-            aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
-  # Add observed data points
-  geom_point(data = yield_ts_tidy, 
-             aes(x = Year, y = Yield, colour = Species), 
-             size = 1) +
-  geom_point(data = yield_ts_tidy, 
-             aes(x = Year, y = Yield), 
-             shape = 1, size = 1, colour = "black") +
-  # Add vertical reference lines
-  geom_vline(xintercept = 1961, linetype = "dotted", alpha = 0.7) + 
-  geom_vline(xintercept = 2010, linetype = "dotted", alpha = 0.7) +
-  # Faceting and theming
-  facet_wrap(~Species, scales = "free_y",
-             labeller = labeller(Species = species.labs)) +
-  theme_bw() +
-  theme(
-    legend.position = "none",
-    strip.text = element_text(face = "bold", size = 10)
-  ) +
-  labs(
-    title = "Enhanced Optimal Simulation: Yield with Uncertainty",
-    subtitle = "Gray dashed = baseline model, Colored solid = optimal fit, Blue dotted = ensemble median, Blue ribbon = 95% CI",
-    x = "Year",
-    y = "Yield"
-  )
-
-print(p_yield_optimal_v2)
-ggsave("plots/enhanced_optimal_simulation_yield_v2.png", p_yield_optimal_v2,
-       width = 14, height = 10, dpi = 300)
-
-# Plot biomass comparison using same approach
-p_biomass_optimal_v2 <- ggplot() +
-  # Add uncertainty ribbon first (behind other elements)
-  geom_ribbon(data = uncertainty_biomass_data, 
-              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
-              alpha = 0.3, fill = "lightgreen") +
-  # Add median line from uncertainty analysis (should be close to optimal)
-  geom_line(data = uncertainty_biomass_data, 
-            aes(x = Year, y = sim_mean), 
-            color = "darkgreen", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
-  # Add baseline model line (original params_new_v4)
-  geom_line(data = baseline_biomass_data, 
-            aes(x = Year, y = Biomass), 
-            color = "gray60", linetype = "dashed", linewidth = 1) +
-  # Add optimal model line (from composite results)
-  geom_line(data = getBiomassData(optimal_results_composite$optimal_sim),
-            aes(x = Year, y = Biomass, color = Species), linewidth = 1.2) +
-  # Add vertical reference lines
-  geom_vline(xintercept = 1961, linetype = "dotted", alpha = 0.7) + 
-  geom_vline(xintercept = 2010, linetype = "dotted", alpha = 0.7) +
-  # Faceting and theming
-  facet_wrap(~Species, scales = "free_y",
-             labeller = labeller(Species = species.labs)) +
-  theme_bw() +
-  theme(
-    legend.position = "none",
-    strip.text = element_text(face = "bold", size = 10)
-  ) +
-  labs(
-    title = "Enhanced Optimal Simulation: Biomass with Uncertainty",
-    subtitle = "Gray dashed = baseline model, Colored solid = optimal fit, Green dotted = ensemble median, Green ribbon = 95% CI",
-    x = "Year",
-    y = "Biomass"
-  )
-
-print(p_biomass_optimal_v2)
-ggsave("plots/enhanced_optimal_simulation_biomass_v2.png", p_biomass_optimal_v2,
-       width = 14, height = 10, dpi = 300)
 ```
 
 ## Summary Statistics and Sensitivity Analysis
