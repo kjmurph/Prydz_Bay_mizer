@@ -2281,7 +2281,8 @@ p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) +
             aes(x = Year, y = Yield), 
             color = "gray60", linetype = "dashed", linewidth = 1) +
   # Add optimal model line (solid black for best fit)
-  geom_line(aes(color = Species), linewidth = 1.2) +
+  geom_line(data = plotYieldGear(optimal_results_composite$optimal_sim, return_data = TRUE),
+            aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
   # Add observed data points
   geom_point(data = yield_ts_tidy, 
              aes(x = Year, y = Yield, colour = Species), 
@@ -2320,7 +2321,8 @@ p_biomass_optimal <- plotBiomass(optimal_results_composite$optimal_sim) +
             aes(x = Year, y = Biomass), 
             color = "gray60", linetype = "dashed", linewidth = 1) +
   # Add optimal model line (solid black for best fit)
-  geom_line(aes(color = Species), linewidth = 1.2) +
+  geom_line(data = getBiomassData(optimal_results_composite$optimal_sim),
+            aes(x = Year, y = Biomass, color = Species), linewidth = 1.2) +
   # Add vertical reference lines
   geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
   geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
