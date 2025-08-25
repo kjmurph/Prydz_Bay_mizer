@@ -892,6 +892,9 @@ run_enhanced_combined_uncertainty_sims <- function(params,
   }
   
   if (parallel && n_cores > 1) {
+    cat("  - Temporarily using sequential processing to debug variable scoping\n")
+    parallel <- FALSE  # Force sequential for debugging
+  }
     cat("  - Using parallel processing with", n_cores, "cores\n")
     
     # Set up parallel cluster
