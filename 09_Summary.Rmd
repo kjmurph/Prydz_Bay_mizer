@@ -905,8 +905,13 @@ run_enhanced_combined_uncertainty_sims <- function(params,
                        "species_weights_df"), 
                   envir = environment())
     
-    # Export yield_ts_tidy from global environment in case functions reference it
-    clusterExport(cl, "yield_ts_tidy", envir = .GlobalEnv)
+    # Export yield data for any legacy references in cluster functions
+    clusterExport(cl, "yield_obs_data", envir = environment())
+    
+    # Also create yield_ts_tidy alias in cluster environment for backward compatibility
+    clusterEvalQ(cl, {
+      yield_ts_tidy <- yield_obs_data
+    })
     
     # Run simulations in parallel
     n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 2))
