@@ -1243,26 +1243,26 @@ if (validation_test$success_rate >= 80) {
     sim_years = 170,
     preserve_erepro = TRUE,
     max_erepro = 10,
-    verbose = TRUE
+    yield_obs_data = yield_ts_tidy
   )
   
   # Save results
   saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_final_results.RDS")
   
   # Calculate success rate
-  success_rate <- mean(sapply(enhanced_uncertainty_results, function(x) x$success)) * 100
+  success_rate <- (enhanced_uncertainty_results$n_successful / enhanced_uncertainty_results$n_attempts) * 100
   cat("\n=== ENHANCED UNCERTAINTY ANALYSIS RESULTS ===\n")
   cat("Success rate:", round(success_rate, 1), "%\n")
+  cat("Successful simulations:", enhanced_uncertainty_results$n_successful, "out of", enhanced_uncertainty_results$n_attempts, "attempts\n")
   
   if (success_rate >= 70) {
-    successful_sims <- enhanced_uncertainty_results[sapply(enhanced_uncertainty_results, function(x) x$success)]
+    successful_sims <- enhanced_uncertainty_results$simulations
     cat("✓ SUCCESS! Enhanced uncertainty analysis completed successfully\n")
     cat("Number of successful simulations:", length(successful_sims), "\n")
     cat("Ready for uncertainty plotting with geom_ribbon\n")
     
     # Store successful simulations for plotting
-    enhanced_simulations <- lapply(successful_sims, function(x) x$simulation)
-    saveRDS(enhanced_simulations, "enhanced_simulations_for_plotting.RDS")
+    saveRDS(successful_sims, "enhanced_simulations_for_plotting.RDS")
     
   } else {
     cat("⚠ Moderate success rate. May need further optimization.\n")
