@@ -1246,6 +1246,10 @@ source("Enhanced_Stability_Tests.R")
 ### Run Enhanced Uncertainty Analysis
 
 ```{r run-enhanced-uncertainty-analysis}
+# Ensure yield_ts_tidy is available for any functions that reference it directly
+if (!exists("yield_ts_tidy")) {
+  yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
+}
 # Run enhanced uncertainty analysis with corrected stability logic
 cat("Running Enhanced Uncertainty Analysis with corrected approach...\n\n")
 
