@@ -1089,6 +1089,12 @@ find_optimal_parameters_enhanced <- function(sim_results_list, metric = "composi
     stop("No performance data available")
   }
   
+  # Debug: Show available metrics from first performance entry
+  if (length(performance_data) > 0) {
+    available_metrics <- names(performance_data[[1]])
+    cat("Available metrics:", paste(available_metrics, collapse = ", "), "\n")
+  }
+  
   # Get the specified metric values
   metric_values <- sapply(performance_data, function(x) {
     if (metric %in% names(x)) {
@@ -1098,6 +1104,14 @@ find_optimal_parameters_enhanced <- function(sim_results_list, metric = "composi
     }
   })
   
+  # Debug: Show how many valid values we found
+  valid_values <- sum(!is.na(metric_values))
+  cat("Found", valid_values, "valid values for metric:", metric, "\n")
+  
+  if (valid_values == 0) {
+    stop("Could not find any valid values for metric: ", metric)
+  }
+  
   # Find optimal (minimum for most metrics)
   if (metric == "avg_correlation") {
     optimal_idx <- which.max(metric_values)  # Higher correlation is better
@@ -1105,8 +1119,12 @@ find_optimal_parameters_enhanced <- function(sim_results_list, metric = "composi
     optimal_idx <- which.min(metric_values)  # Lower is better for RMSE, MAE, bias, composite
   }
   
-  if (length(optimal_idx) == 0 || is.na(optimal_idx)) {
-    stop("Could not find optimal simulation for metric:", metric)
+  if (length(optimal_idx) == 0 || is.na(optimal_idx) || is.na(metric_values[optimal_idx])) {
+    cat("Debug info:\n")
+    cat("  metric_values length:", length(metric_values), "\n")
+    cat("  valid values:", sum(!is.na(metric_values)), "\n")
+    cat("  metric_values range:", range(metric_values, na.rm = TRUE), "\n")
+    stop("Could not find optimal simulation for metric: ", metric)
   }
   
   # Create summary statistics
@@ -1494,6 +1512,104 @@ if (file.exists("enhanced_simulations_for_plotting.RDS")) {
   
 } else {
   cat("Enhanced simulations not found. Please run the enhanced uncertainty analysis first.\n")
+}
+```
+
+### Load and Analyze Enhanced Uncertainty Results
+
+```{r load-and-analyze-results}
+# Load enhanced uncertainty results if not already in environment
+if (!exists("enhanced_uncertainty_results")) {
+  if (file.exists("enhanced_uncertainty_final_results.RDS")) {
+    cat("Loading enhanced uncertainty results from file...\n")
+    enhanced_uncertainty_results <- readRDS("enhanced_uncertainty_final_results.RDS")
+  } else {
+    stop("Enhanced uncertainty results not found. Please run the enhanced uncertainty analysis first.")
+  }
+}
+
+# Check if we have valid results
+if (exists("enhanced_uncertainty_results") && length(enhanced_uncertainty_results$performance) > 0) {
+  cat("Enhanced uncertainty results loaded successfully!\n")
+  cat("Number of simulations:", length(enhanced_uncertainty_results$simulations), "\n")
+  cat("Number of performance records:", length(enhanced_uncertainty_results$performance), "\n")
+  
+  # Find optimal parameters based on different metrics
+  # 1. Composite score - WEIGHTED approach (current: 40-30-20-10)
+  cat("\n=== FINDING OPTIMAL PARAMETERS (WEIGHTED COMPOSITE) ===\n")
+  optimal_results_composite_weighted <- find_optimal_parameters_enhanced(
+    sim_results_list = enhanced_uncertainty_results,
+    metric = "composite_score_weighted"
+  )
+  
+  # 2. Composite score - EQUAL approach (25-25-25-25)
+  cat("\n=== FINDING OPTIMAL PARAMETERS (EQUAL COMPOSITE) ===\n")
+  optimal_results_composite_equal <- find_optimal_parameters_enhanced(
+    sim_results_list = enhanced_uncertainty_results,
+    metric = "composite_score_equal"
+  )
+  
+  # 3. Traditional composite score (default)
+  cat("\n=== FINDING OPTIMAL PARAMETERS (DEFAULT COMPOSITE) ===\n")
+  optimal_results_composite <- find_optimal_parameters_enhanced(
+    sim_results_list = enhanced_uncertainty_results,
+    metric = "composite_score"
+  )
+  
+  # 4. Weighted RMSE only (for comparison)
+  cat("\n=== FINDING OPTIMAL PARAMETERS (RMSE ONLY) ===\n")
+  optimal_results_rmse <- find_optimal_parameters_enhanced(
+    sim_results_list = enhanced_uncertainty_results,
+    metric = "total_weighted_rmse"
+  )
+  
+} else {
+  cat("No enhanced uncertainty results available for analysis.\n")
+}
+```
+
+### Compare Different Optimization Approaches
+
+```{r compare-optimization-approaches}
+# Compare performance across different optimization metrics
+if (exists("optimal_results_composite_weighted") && exists("optimal_results_composite_equal")) {
+  
+  cat("\n=== DETAILED COMPARISON: WEIGHTED vs EQUAL WEIGHTING ===\n")
+  weighted_perf <- optimal_results_composite_weighted$optimal_performance
+  equal_perf <- optimal_results_composite_equal$optimal_performance
+  
+  cat("WEIGHTED approach (40-30-20-10):\n")
+  cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "tonnes\n")
+  cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "tonnes\n") 
+  cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
+  cat("  Correlation:", round(weighted_perf$avg_correlation, 4), "\n")
+  cat("  Composite:", round(weighted_perf$composite_score_weighted, 4), "\n")
+  
+  cat("\nEQUAL approach (25-25-25-25):\n")
+  cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "tonnes\n")
+  cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "tonnes\n")
+  cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "tonnes\n")
+  cat("  Correlation:", round(equal_perf$avg_correlation, 4), "\n")
+  cat("  Composite:", round(equal_perf$composite_score_equal, 4), "\n")
+  
+  cat("\nDifference (Equal - Weighted):\n")
+  cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "tonnes\n")
+  cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "tonnes\n")
+  cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
+  cat("  Correlation Δ:", round(equal_perf$avg_correlation - weighted_perf$avg_correlation, 4), "\n")
+  
+  # Use weighted approach as default for backward compatibility
+  # Compare performance across metrics for the composite score optimal model
+  best_model_performance <- optimal_results_composite_weighted$optimal_performance
+  cat("\n=== BEST MODEL (COMPOSITE SCORE) DETAILED PERFORMANCE ===\n")
+  cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "tonnes\n")
+  cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "tonnes\n")
+  cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "tonnes\n")
+  cat("Average Correlation:", round(best_model_performance$avg_correlation, 4), "\n")
+  cat("Composite Score:", round(best_model_performance$composite_score, 4), "\n")
+  
+  cat("\nSpecies-specific performance:\n")
+  print(best_model_performance$metrics_by_species)
 }
 ```
 
