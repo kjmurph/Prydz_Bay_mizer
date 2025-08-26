@@ -3452,6 +3452,19 @@ p_biomass <- ggplot() +
 ggsave("plots/Catchability_v1_Biomass_1841_2010.tiff", plot = p_biomass, units="cm", width=23, height=14, dpi =300)
 ```
 
+```{r}
+# Load required package
+library(magick)
+
+# Read and convert
+img <- image_read("plots/Catchability_v1_Biomass_1841_2010.tiff")
+image_write(img, "plots/Catchability_v1_Biomass_1841_2010.png", format = "png")
+
+
+# Read and convert
+img <- image_read("plots/Catchability_v1_Yield_1841_2010.tiff")
+image_write(img, "plots/Catchability_v1_Yield_1841_2010.png", format = "png")
+```
 
 
 Can we try to adjust the R_max and re-run the steady-state? Add uncertainty around R_max to see if the distribution will adjust into the right ball park of biomass and yield.
