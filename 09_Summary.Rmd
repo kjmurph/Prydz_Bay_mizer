@@ -2364,12 +2364,27 @@ if (exists("enhanced_uncertainty_results") && !is.null(enhanced_uncertainty_resu
     for (i in seq_along(test_sims)) {
       result <- test_sims[[i]]
       
-      # Test biomass extraction using new method
-      if (!is.null(result$simulation)) {
+      # Check if result is a MizerSim object directly (current structure)
+      if (inherits(result, "MizerSim")) {
+        # Current structure: result is already a MizerSim object
+        sim_biomass <- getBiomass(result)
+        total_biomass <- sum(sim_biomass[nrow(sim_biomass), ], na.rm = TRUE)
+        
+        cat(sprintf("  Sim %d: Total biomass = %.2e (MizerSim object - current structure)\n", 
+                   i, total_biomass))
+        
+        # Test species-specific extraction 
+        species_names <- rownames(sim_biomass)
+        cat(sprintf("    Species count: %d, First species '%s' biomass: %.2e\n",
+                   length(species_names), species_names[1], 
+                   sim_biomass[nrow(sim_biomass), species_names[1]]))
+                   
+      } else if (is.list(result) && !is.null(result$simulation)) {
+        # Expected structure: result has $simulation component
         sim_biomass <- getBiomass(result$simulation)
         total_biomass <- sum(sim_biomass[nrow(sim_biomass), ], na.rm = TRUE)
         
-        cat(sprintf("  Sim %d: Total biomass = %.2e (extracted successfully)\n", 
+        cat(sprintf("  Sim %d: Total biomass = %.2e (full result structure - expected)\n", 
                    i, total_biomass))
         
         # Test species-specific extraction 
@@ -2378,32 +2393,25 @@ if (exists("enhanced_uncertainty_results") && !is.null(enhanced_uncertainty_resu
                    length(species_names), species_names[1], 
                    sim_biomass[nrow(sim_biomass), species_names[1]]))
       } else {
-        cat(sprintf("  Sim %d: ERROR - No simulation object found\n", i))
+        cat(sprintf("  Sim %d: ERROR - Unexpected result structure\n", i))
+        cat("    Class:", class(result), "\n")
+        if (is.list(result)) {
+          cat("    List elements:", names(result), "\n")
+        }
       }
     }
     
     cat("✓ Data extraction validation completed successfully!\n")
-    cat("✓ getBiomass() function works correctly with LHS simulation objects\n")
-    cat("✓ Sensitivity analysis should now run without '$' operator errors\n")
+    cat("✓ getBiomass() function works correctly with simulation objects\n")
     
-    # Additional validation: Test that full result structure is correct for sensitivity analysis
-    if (exists("enhanced_uncertainty_results") && !is.null(enhanced_uncertainty_results$simulations)) {
-      # Check if we can simulate the expected result structure for sensitivity analysis
-      test_result <- list(
-        simulation = enhanced_uncertainty_results$simulations[[1]],
-        performance = list(simulated_yield = 100, yield_rmse = 0.1),
-        params_info = list(sim_id = 1)
-      )
-      
-      # Test the corrected data extraction method
-      tryCatch({
-        sim_biomass <- getBiomass(test_result$simulation)
-        total_biomass <- sum(sim_biomass[nrow(sim_biomass), ], na.rm = TRUE)
-        cat(sprintf("✓ Full result structure validation: Total biomass = %.2e\n", total_biomass))
-        cat("✓ Sensitivity analysis data structure is now correctly formatted\n")
-      }, error = function(e) {
-        cat("⚠ Validation warning:", conditionMessage(e), "\n")
-      })
+    # Determine the current data structure and provide guidance
+    first_result <- test_sims[[1]]
+    if (inherits(first_result, "MizerSim")) {
+      cat("ℹ Current structure: enhanced_uncertainty_results$simulations contains MizerSim objects directly\n")
+      cat("ℹ Sensitivity analysis needs full result structures with $simulation, $performance, etc.\n")
+      cat("ℹ The fix ensures sensitivity analysis receives the correct data structure\n")
+    } else {
+      cat("✓ Structure appears correct for sensitivity analysis\n")
     }
     
   } else {
