@@ -252,7 +252,6 @@ trimYield<-function(sim){
   
   y<-plotYieldGear(sim, return_data = T)
   y<-select(y,c(Year, Species,Yield))
-  y$Yield <- y$Yield / 1e6  # Convert grams to tonnes
   return(y)
   
 }
@@ -667,11 +666,10 @@ calculate_enhanced_performance_metrics <- function(sim_object,
                                                   species_list = NULL,
                                                   year_range = NULL) {
   
-  # Get modeled yield and convert from grams to tonnes
+  # Get modeled yield 
   mod_yield <- getYield(sim_object)
   df_mod <- reshape2::melt(mod_yield)
   names(df_mod) <- c("Year", "Species", "Yield")
-  df_mod$Yield <- df_mod$Yield / 1e6  # Convert grams to tonnes
   
   # Filter by year range and species if specified
   if (!is.null(year_range)) {
@@ -684,9 +682,6 @@ calculate_enhanced_performance_metrics <- function(sim_object,
     df_mod <- df_mod[df_mod$Species %in% species_list, ]
     yield_obs_data <- yield_obs_data[yield_obs_data$Species %in% species_list, ]
   }
-  
-  # Convert observed yield to tonnes (assuming it's in grams to match model output)
-  yield_obs_data$Yield <- yield_obs_data$Yield / 1e6  # Convert grams to tonnes
   
   # Merge modeled and observed data
   comparison <- merge(df_mod, yield_obs_data,
@@ -1058,8 +1053,8 @@ run_enhanced_combined_uncertainty_sims <- function(params,
     cat("\nPerformance Summary:\n")
     cat("  Composite Score - Mean:", round(mean(composite_scores), 4), 
         "Range:", round(min(composite_scores), 4), "-", round(max(composite_scores), 4), "\n")
-    cat("  Weighted RMSE - Mean:", round(mean(rmse_scores), 4), "tonnes",
-        "Range:", round(min(rmse_scores), 4), "-", round(max(rmse_scores), 4), "tonnes\n")
+    cat("  Weighted RMSE - Mean:", round(mean(rmse_scores), 4), 
+        "Range:", round(min(rmse_scores), 4), "-", round(max(rmse_scores), 4), "\n")
   }
   
   # Trim to requested number of simulations
@@ -1148,9 +1143,9 @@ find_optimal_parameters_enhanced <- function(sim_results_list, metric = "composi
   optimal_performance <- performance_data[[optimal_idx]]
   
   cat("\n=== OPTIMAL SIMULATION PERFORMANCE ===\n")
-  cat("Weighted RMSE:", round(optimal_performance$total_weighted_rmse, 4), "tonnes\n")
-  cat("Weighted MAE:", round(optimal_performance$total_weighted_mae, 4), "tonnes\n")
-  cat("Weighted Bias:", round(optimal_performance$total_weighted_bias, 4), "tonnes\n")
+  cat("Weighted RMSE:", round(optimal_performance$total_weighted_rmse, 4), "\n")
+  cat("Weighted MAE:", round(optimal_performance$total_weighted_mae, 4), "\n")
+  cat("Weighted Bias:", round(optimal_performance$total_weighted_bias, 4), "\n")
   cat("Average Correlation:", round(optimal_performance$avg_correlation, 4), "\n")
   cat("Composite Score:", round(optimal_performance$composite_score, 4), "\n")
   
@@ -1456,7 +1451,7 @@ if (file.exists("enhanced_simulations_for_plotting.RDS")) {
       labs(
         title = title,
         x = "Year",
-        y = "Yield (tonnes)",
+        y = "Yield",
         subtitle = "Ribbons show 50% (dark) and 90% (light) confidence intervals"
       ) +
       theme_minimal() +
@@ -1497,7 +1492,7 @@ if (file.exists("enhanced_simulations_for_plotting.RDS")) {
       labs(
         title = title,
         x = "Year", 
-        y = "Biomass (tonnes, log scale)",
+        y = "Biomass",
         subtitle = "Ribbons show 50% (dark) and 90% (light) confidence intervals"
       ) +
       theme_minimal() +
@@ -1541,39 +1536,34 @@ if (exists("enhanced_uncertainty_results") && length(enhanced_uncertainty_result
   # Calculate missing composite score variants if not present
   if (!"composite_score_weighted" %in% available_metrics) {
     cat("Adding missing composite score variants to existing data...\n")
-    cat("Converting gram-scale metrics to tonne-scale for composite scores...\n")
+    cat("Converting gram-scale metrics for composite scores...\n")
     
     # Add the missing metrics to each performance record
     for (i in 1:length(enhanced_uncertainty_results$performance)) {
       perf <- enhanced_uncertainty_results$performance[[i]]
       
-      # Convert metrics from grams to tonnes for composite score calculation
-      rmse_tonnes <- perf$total_weighted_rmse / 1e6
-      mae_tonnes <- perf$total_weighted_mae / 1e6
-      bias_tonnes <- perf$total_weighted_bias / 1e6
+      # Use original gram-scale metrics for composite score calculation
+      rmse_grams <- perf$total_weighted_rmse
+      mae_grams <- perf$total_weighted_mae
+      bias_grams <- perf$total_weighted_bias
       correlation <- perf$avg_correlation
       
-      # Calculate weighted composite (40-30-20-10) using tonne-scale values
-      perf$composite_score_weighted <- (rmse_tonnes * 0.4) +
-                                       (mae_tonnes * 0.3) +
-                                       (abs(bias_tonnes) * 0.2) +
+      # Calculate weighted composite (40-30-20-10) using original gram-scale values
+      perf$composite_score_weighted <- (rmse_grams * 0.4) +
+                                       (mae_grams * 0.3) +
+                                       (abs(bias_grams) * 0.2) +
                                        ((1 - correlation) * 0.1)
       
-      # Calculate equal composite (25-25-25-25) using tonne-scale values
-      perf$composite_score_equal <- (rmse_tonnes * 0.25) +
-                                    (mae_tonnes * 0.25) +
-                                    (abs(bias_tonnes) * 0.25) +
+      # Calculate equal composite (25-25-25-25) using original gram-scale values
+      perf$composite_score_equal <- (rmse_grams * 0.25) +
+                                    (mae_grams * 0.25) +
+                                    (abs(bias_grams) * 0.25) +
                                     ((1 - correlation) * 0.25)
-      
-      # Also update the original metrics to tonne-scale for consistency
-      perf$total_weighted_rmse_tonnes <- rmse_tonnes
-      perf$total_weighted_mae_tonnes <- mae_tonnes
-      perf$total_weighted_bias_tonnes <- bias_tonnes
       
       # Update the performance record
       enhanced_uncertainty_results$performance[[i]] <- perf
     }
-    cat("Successfully added tonne-scale composite score variants!\n")
+    cat("Successfully added composite score variants!\n")
   }
   
   # Find optimal parameters based on different metrics
@@ -1621,32 +1611,32 @@ if (exists("optimal_results_composite_weighted") && exists("optimal_results_comp
   equal_perf <- optimal_results_composite_equal$optimal_performance
   
   cat("WEIGHTED approach (40-30-20-10):\n")
-  cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "tonnes\n")
-  cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "tonnes\n") 
-  cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
+  cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "\n")
+  cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "\n") 
+  cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "\n")
   cat("  Correlation:", round(weighted_perf$avg_correlation, 4), "\n")
   cat("  Composite:", round(weighted_perf$composite_score_weighted, 4), "\n")
   
   cat("\nEQUAL approach (25-25-25-25):\n")
-  cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "tonnes\n")
-  cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "tonnes\n")
-  cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "tonnes\n")
+  cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "\n")
+  cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "\n")
+  cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "\n")
   cat("  Correlation:", round(equal_perf$avg_correlation, 4), "\n")
   cat("  Composite:", round(equal_perf$composite_score_equal, 4), "\n")
   
   cat("\nDifference (Equal - Weighted):\n")
-  cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "tonnes\n")
-  cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "tonnes\n")
-  cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
+  cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "\n")
+  cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "\n")
+  cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "\n")
   cat("  Correlation Δ:", round(equal_perf$avg_correlation - weighted_perf$avg_correlation, 4), "\n")
   
   # Use weighted approach as default for backward compatibility
   # Compare performance across metrics for the composite score optimal model
   best_model_performance <- optimal_results_composite_weighted$optimal_performance
   cat("\n=== BEST MODEL (COMPOSITE SCORE) DETAILED PERFORMANCE ===\n")
-  cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "tonnes\n")
-  cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "tonnes\n")
-  cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "tonnes\n")
+  cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "\n")
+  cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "\n")
+  cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "\n")
   cat("Average Correlation:", round(best_model_performance$avg_correlation, 4), "\n")
   cat("Composite Score:", round(best_model_performance$composite_score, 4), "\n")
   
@@ -1762,32 +1752,32 @@ weighted_perf <- optimal_results_composite_weighted$optimal_performance
 equal_perf <- optimal_results_composite_equal$optimal_performance
 
 cat("WEIGHTED approach (40-30-20-10):\n")
-cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "tonnes\n")
-cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "tonnes\n") 
-cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
+cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "\n")
+cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "\n") 
+cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "\n")
 cat("  Correlation:", round(weighted_perf$avg_correlation, 4), "\n")
 cat("  Composite:", round(weighted_perf$composite_score_weighted, 4), "\n")
 
 cat("\nEQUAL approach (25-25-25-25):\n")
-cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "tonnes\n")
-cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "tonnes\n")
-cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "tonnes\n")
+cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "\n")
+cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "\n")
+cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "\n")
 cat("  Correlation:", round(equal_perf$avg_correlation, 4), "\n")
 cat("  Composite:", round(equal_perf$composite_score_equal, 4), "\n")
 
 cat("\nDifference (Equal - Weighted):\n")
-cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "tonnes\n")
-cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "tonnes\n")
-cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
+cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "\n")
+cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "\n")
+cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "\n")
 cat("  Correlation Δ:", round(equal_perf$avg_correlation - weighted_perf$avg_correlation, 4), "\n")
 
 # Use weighted approach as default for backward compatibility
 # Compare performance across metrics for the composite score optimal model
 best_model_performance <- optimal_results_composite_weighted$optimal_performance
 cat("\n=== BEST MODEL (COMPOSITE SCORE) DETAILED PERFORMANCE ===\n")
-cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "tonnes\n")
-cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "tonnes\n")
-cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "tonnes\n")
+cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "\n")
+cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "\n")
+cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "\n")
 cat("Average Correlation:", round(best_model_performance$avg_correlation, 4), "\n")
 cat("Composite Score:", round(best_model_performance$composite_score, 4), "\n")
 
@@ -1919,7 +1909,6 @@ ggsave("plots/enhanced_species_performance_comparison.png", p_species_comparison
 trimYield_uncertainty <- function(sim) {
   y <- plotYieldGear(sim, return_data = T)
   y <- select(y, c(Year, Species, Yield))
-  y$Yield <- y$Yield / 1e6  # Convert grams to tonnes
   return(y)
 }
 
@@ -2066,14 +2055,14 @@ p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) +
   geom_line(data = baseline_yield_data, 
             aes(x = Year, y = Yield), 
             color = "gray60", linetype = "dashed", linewidth = 1) +
-  # Add optimal model line (solid black for best fit) - use ensemble version for consistency (data already converted to tonnes)
+  # Add optimal model line (solid black for best fit) - use ensemble version for consistency
   geom_line(data = optimal_yield_from_ensemble,
             aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
   # Add observed data points
   geom_point(data = yield_ts_tidy, 
              aes(x = Year, y = Yield, colour = Species), 
              size = 1) +
-  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6), 
+  geom_point(data = yield_ts_tidy, 
              aes(x = Year, y = Yield), 
              shape = 1, size = 1, colour = "black") +
   # Add vertical reference lines
@@ -2532,13 +2521,11 @@ optimal_sim_adaptive <- adaptive_results$optimal$optimal_simulation
 # Plot yield comparison with observations
 p_yield_adaptive <- plotYield(optimal_sim_adaptive) +
   facet_wrap(~Species, scales = "free_y") +
-  # Convert plotYield output from grams to tonnes
-  scale_y_continuous(labels = function(x) x / 1e6) +
-  # Add observed data points (convert from grams to tonnes)
-  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6),
+  # Add observed data points 
+  geom_point(data = yield_ts_tidy,
              aes(x = Year, y = Yield, colour = Species),
              size = 1) +
-  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6),
+  geom_point(data = yield_ts_tidy,
              aes(x = Year, y = Yield),
              shape = 1, size = 1, colour = "black") +
   geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) +
@@ -2546,8 +2533,8 @@ p_yield_adaptive <- plotYield(optimal_sim_adaptive) +
   theme_bw() +
   theme(legend.position = "none") +
   labs(title = "Optimal Simulation from Adaptive Search",
-       subtitle = paste("RMSE =", round(adaptive_results$optimal$optimal_rmse, 3), "tonnes"),
-       y = "Yield (tonnes)")
+       subtitle = paste("RMSE =", round(adaptive_results$optimal$optimal_rmse, 3)),
+       y = "Yield")
 
 print(p_yield_adaptive)
 ggsave("plots/adaptive_optimal_yield.png", p_yield_adaptive,
@@ -2556,16 +2543,14 @@ ggsave("plots/adaptive_optimal_yield.png", p_yield_adaptive,
 # Create detailed species-specific comparison plots
 species_focus <- c("antarctic krill", "minke whales")
 for (sp in species_focus) {
-  # Get modeled yield for this species and convert to tonnes
+  # Get modeled yield for this species
   mod_yield <- getYield(optimal_sim_adaptive)
   df_mod <- reshape2::melt(mod_yield)
   names(df_mod) <- c("Year", "Species", "Yield")
-  df_mod$Yield <- df_mod$Yield / 1e6  # Convert grams to tonnes
   df_mod_sp <- df_mod[df_mod$Species == sp, ]
   
-  # Get observed yield for this species and convert to tonnes
+  # Get observed yield for this species
   obs_sp <- yield_ts_tidy[yield_ts_tidy$Species == sp, ]
-  obs_sp$Yield <- obs_sp$Yield / 1e6  # Convert grams to tonnes
   
   p_sp <- ggplot() +
     geom_line(data = df_mod_sp, aes(x = Year, y = Yield),
