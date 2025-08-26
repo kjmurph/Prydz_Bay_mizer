@@ -1541,27 +1541,39 @@ if (exists("enhanced_uncertainty_results") && length(enhanced_uncertainty_result
   # Calculate missing composite score variants if not present
   if (!"composite_score_weighted" %in% available_metrics) {
     cat("Adding missing composite score variants to existing data...\n")
+    cat("Converting gram-scale metrics to tonne-scale for composite scores...\n")
     
     # Add the missing metrics to each performance record
     for (i in 1:length(enhanced_uncertainty_results$performance)) {
       perf <- enhanced_uncertainty_results$performance[[i]]
       
-      # Calculate weighted composite (40-30-20-10)
-      perf$composite_score_weighted <- (perf$total_weighted_rmse * 0.4) +
-                                       (perf$total_weighted_mae * 0.3) +
-                                       (abs(perf$total_weighted_bias) * 0.2) +
-                                       ((1 - perf$avg_correlation) * 0.1)
+      # Convert metrics from grams to tonnes for composite score calculation
+      rmse_tonnes <- perf$total_weighted_rmse / 1e6
+      mae_tonnes <- perf$total_weighted_mae / 1e6
+      bias_tonnes <- perf$total_weighted_bias / 1e6
+      correlation <- perf$avg_correlation
       
-      # Calculate equal composite (25-25-25-25)
-      perf$composite_score_equal <- (perf$total_weighted_rmse * 0.25) +
-                                    (perf$total_weighted_mae * 0.25) +
-                                    (abs(perf$total_weighted_bias) * 0.25) +
-                                    ((1 - perf$avg_correlation) * 0.25)
+      # Calculate weighted composite (40-30-20-10) using tonne-scale values
+      perf$composite_score_weighted <- (rmse_tonnes * 0.4) +
+                                       (mae_tonnes * 0.3) +
+                                       (abs(bias_tonnes) * 0.2) +
+                                       ((1 - correlation) * 0.1)
+      
+      # Calculate equal composite (25-25-25-25) using tonne-scale values
+      perf$composite_score_equal <- (rmse_tonnes * 0.25) +
+                                    (mae_tonnes * 0.25) +
+                                    (abs(bias_tonnes) * 0.25) +
+                                    ((1 - correlation) * 0.25)
+      
+      # Also update the original metrics to tonne-scale for consistency
+      perf$total_weighted_rmse_tonnes <- rmse_tonnes
+      perf$total_weighted_mae_tonnes <- mae_tonnes
+      perf$total_weighted_bias_tonnes <- bias_tonnes
       
       # Update the performance record
       enhanced_uncertainty_results$performance[[i]] <- perf
     }
-    cat("Successfully added composite score variants!\n")
+    cat("Successfully added tonne-scale composite score variants!\n")
   }
   
   # Find optimal parameters based on different metrics
