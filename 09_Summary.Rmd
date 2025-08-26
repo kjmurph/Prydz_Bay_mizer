@@ -1658,47 +1658,47 @@ if (exists("optimal_results_composite_weighted") && exists("optimal_results_comp
 ### Create Enhanced Uncertainty Plots
 
 ```{r create-enhanced-uncertainty-plots}
-# Create enhanced plots with uncertainty ribbons if data is available
-if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
-  
-  cat("Creating enhanced uncertainty plots with", length(enhanced_sims), "simulations...\n")
-  
-  # Load observed yield data for comparison
-  if (file.exists("yield_observed_timeseries_tidy.RDS")) {
-    observed_yield <- readRDS("yield_observed_timeseries_tidy.RDS")
-  } else {
-    observed_yield <- NULL
-  }
-  
-  # Create yield uncertainty plot
-  p_yield_enhanced <- plot_yield_uncertainty(
-    enhanced_sims, 
-    observed_data = observed_yield,
-    title = "Enhanced Yield Projections with Uncertainty"
-  )
-  
-  # Create biomass uncertainty plot  
-  p_biomass_enhanced <- plot_biomass_uncertainty(
-    enhanced_sims,
-    title = "Enhanced Biomass Projections with Uncertainty"
-  )
-  
-  # Display plots
-  print(p_yield_enhanced)
-  print(p_biomass_enhanced)
-  
-  # Save plots
-  # ggsave("enhanced_yield_uncertainty.png", p_yield_enhanced, width = 12, height = 8, dpi = 300)
-  # ggsave("enhanced_biomass_uncertainty.png", p_biomass_enhanced, width = 12, height = 8, dpi = 300)
-  
-  cat("✓ Enhanced uncertainty plots created and saved\n")
-  cat("✓ Plots show 50% (dark ribbons) and 90% (light ribbons) confidence intervals\n")
-  cat("✓ Marine mammal species weighted 3-10x higher in uncertainty analysis\n")
-  
-} else {
-  cat("No enhanced simulation data available for plotting.\n")
-  cat("Please run the enhanced uncertainty analysis first.\n")
-}
+# # Create enhanced plots with uncertainty ribbons if data is available
+# if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
+#   
+#   cat("Creating enhanced uncertainty plots with", length(enhanced_sims), "simulations...\n")
+#   
+#   # Load observed yield data for comparison
+#   if (file.exists("yield_observed_timeseries_tidy.RDS")) {
+#     observed_yield <- readRDS("yield_observed_timeseries_tidy.RDS")
+#   } else {
+#     observed_yield <- NULL
+#   }
+#   
+#   # Create yield uncertainty plot
+#   p_yield_enhanced <- plot_yield_uncertainty(
+#     enhanced_sims, 
+#     observed_data = observed_yield,
+#     title = "Enhanced Yield Projections with Uncertainty"
+#   )
+#   
+#   # Create biomass uncertainty plot  
+#   p_biomass_enhanced <- plot_biomass_uncertainty(
+#     enhanced_sims,
+#     title = "Enhanced Biomass Projections with Uncertainty"
+#   )
+#   
+#   # Display plots
+#   print(p_yield_enhanced)
+#   print(p_biomass_enhanced)
+#   
+#   # Save plots
+#   # ggsave("enhanced_yield_uncertainty.png", p_yield_enhanced, width = 12, height = 8, dpi = 300)
+#   # ggsave("enhanced_biomass_uncertainty.png", p_biomass_enhanced, width = 12, height = 8, dpi = 300)
+#   
+#   cat("✓ Enhanced uncertainty plots created and saved\n")
+#   cat("✓ Plots show 50% (dark ribbons) and 90% (light ribbons) confidence intervals\n")
+#   cat("✓ Marine mammal species weighted 3-10x higher in uncertainty analysis\n")
+#   
+# } else {
+#   cat("No enhanced simulation data available for plotting.\n")
+#   cat("Please run the enhanced uncertainty analysis first.\n")
+# }
 ```
 
 
@@ -2087,8 +2087,8 @@ p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) +
   )
 
 print(p_yield_optimal)
-ggsave("plots/enhanced_optimal_simulation_yield.png", p_yield_optimal,
-       width = 16, height = 12, dpi = 300)
+# ggsave("plots/enhanced_optimal_simulation_yield.png", p_yield_optimal,
+#        width = 16, height = 12, dpi = 300)
 
 
 ```
