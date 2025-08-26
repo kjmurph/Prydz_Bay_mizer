@@ -1534,6 +1534,36 @@ if (exists("enhanced_uncertainty_results") && length(enhanced_uncertainty_result
   cat("Number of simulations:", length(enhanced_uncertainty_results$simulations), "\n")
   cat("Number of performance records:", length(enhanced_uncertainty_results$performance), "\n")
   
+  # Check what metrics are available in the saved data
+  available_metrics <- names(enhanced_uncertainty_results$performance[[1]])
+  cat("Available metrics:", paste(available_metrics, collapse = ", "), "\n")
+  
+  # Calculate missing composite score variants if not present
+  if (!"composite_score_weighted" %in% available_metrics) {
+    cat("Adding missing composite score variants to existing data...\n")
+    
+    # Add the missing metrics to each performance record
+    for (i in 1:length(enhanced_uncertainty_results$performance)) {
+      perf <- enhanced_uncertainty_results$performance[[i]]
+      
+      # Calculate weighted composite (40-30-20-10)
+      perf$composite_score_weighted <- (perf$total_weighted_rmse * 0.4) +
+                                       (perf$total_weighted_mae * 0.3) +
+                                       (abs(perf$total_weighted_bias) * 0.2) +
+                                       ((1 - perf$avg_correlation) * 0.1)
+      
+      # Calculate equal composite (25-25-25-25)
+      perf$composite_score_equal <- (perf$total_weighted_rmse * 0.25) +
+                                    (perf$total_weighted_mae * 0.25) +
+                                    (abs(perf$total_weighted_bias) * 0.25) +
+                                    ((1 - perf$avg_correlation) * 0.25)
+      
+      # Update the performance record
+      enhanced_uncertainty_results$performance[[i]] <- perf
+    }
+    cat("Successfully added composite score variants!\n")
+  }
+  
   # Find optimal parameters based on different metrics
   # 1. Composite score - WEIGHTED approach (current: 40-30-20-10)
   cat("\n=== FINDING OPTIMAL PARAMETERS (WEIGHTED COMPOSITE) ===\n")
