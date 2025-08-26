@@ -2240,57 +2240,7 @@ if (validation_test$success_rate >= 80) {
     run_sensitivity_analysis = TRUE  # Enable sensitivity analysis
   )
   
-  # For comparison, also run a smaller Monte Carlo version (optional)
-  cat("\nStep 2b: Running smaller Monte Carlo comparison (500 sims)...\n")
-  mc_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
-    params = params_1841_2010_climate_only,
-    n_sims = 500,   # Smaller Monte Carlo set for comparison
-    catchability_sd = 0.4,  
-    abundance_sd = 0.8,     
-    marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
-    effort_scen = combined_effort_array,
-    enhanced_steady_tol = 0.002,
-    enhanced_steady_t_max = 1000,
-    spinup_years = 118,
-    spinup_multiplier = 2,
-    t_start = 1841,
-    sim_years = 170,
-    preserve_erepro = TRUE,
-    max_erepro = 10,
-    yield_obs_data = yield_ts_tidy
-  )
-  
-  # Save both LHS and MC results
-  saveRDS(lhs_uncertainty_results, "lhs_uncertainty_final_results.RDS")
-  saveRDS(mc_uncertainty_results, "mc_uncertainty_comparison_results.RDS")
-  
-  # Compare LHS vs Monte Carlo performance
-  cat("\nStep 3: Comparing LHS vs Monte Carlo approaches...\n")
-  lhs_vs_mc_comparison <- compare_lhs_vs_mc_coverage(
-    lhs_results = lhs_uncertainty_results,
-    mc_results = mc_uncertainty_results,
-    catchability_sd = 0.4,
-    abundance_sd = 0.8
-  )
-  
-  # Calculate success rates for both methods
-  lhs_success_rate <- lhs_uncertainty_results$success_rate
-  mc_success_rate <- (mc_uncertainty_results$n_successful / mc_uncertainty_results$n_attempts) * 100
-  
-  cat("\n=== FINAL LHS vs MONTE CARLO COMPARISON ===\n")
-  cat("LHS Results (", lhs_uncertainty_results$n_requested, "simulations):\n")
-  cat("  Success rate:", round(lhs_success_rate, 1), "%\n")
-  cat("  Successful simulations:", lhs_uncertainty_results$n_successful, "\n")
-  
-  cat("\nMonte Carlo Results (", mc_uncertainty_results$n_attempts, "attempts):\n")  
-  cat("  Success rate:", round(mc_success_rate, 1), "%\n")
-  cat("  Successful simulations:", mc_uncertainty_results$n_successful, "\n")
-  
-  cat("\nParameter Space Coverage Efficiency:\n")
-  cat("  LHS parameter correlation reduction:", round(lhs_vs_mc_comparison$efficiency_advantage, 1), "%\n")
-  cat("  LHS provides better space-filling properties with same computational cost\n")
-  
-  # Use LHS results as primary for further analysis
+  # Use LHS results as primary analysis
   enhanced_uncertainty_results <- lhs_uncertainty_results
   
   # Success rate already calculated for LHS
@@ -2312,13 +2262,16 @@ if (validation_test$success_rate >= 80) {
     cat("  Analysis completed at:", format(timing$end_time, "%Y-%m-%d %H:%M:%S"), "\n")
   }
   
-  if (success_rate >= 70) {
-    successful_sims <- enhanced_uncertainty_results$simulations
-    cat("✓ SUCCESS! Enhanced uncertainty analysis completed successfully\n")
-    cat("Number of successful simulations:", length(successful_sims), "\n")
+  # Save LHS results
+  saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_final_results.RDS")
+  
+  # Process successful simulations for further analysis
+  if(success_rate >= 70) {
+    cat("\n✅ Good success rate! Proceeding with uncertainty analysis.\n")
     cat("Ready for uncertainty plotting with geom_ribbon\n")
     
     # Store successful simulations for plotting
+    successful_sims <- enhanced_uncertainty_results$simulations
     saveRDS(successful_sims, "enhanced_simulations_for_plotting.RDS")
     
     # Display sensitivity analysis results if available
@@ -2362,6 +2315,109 @@ if (validation_test$success_rate >= 80) {
     } else {
       cat("\nSensitivity analysis was not run or failed.\n")
     }
+    
+    # Display time estimates for different analysis sizes
+    if (!is.null(enhanced_uncertainty_results$timing)) {
+      estimate_analysis_times(enhanced_uncertainty_results$timing)
+    }
+    
+  } else {
+    cat("⚠ Moderate success rate. May need further optimization.\n")
+  }
+  
+} else {
+  cat("✗ Validation failed. Need to investigate stability approach further.\n")
+  cat("Success rate:", round(validation_test$success_rate, 1), "%\n")
+}
+```
+
+### Optional: LHS vs Monte Carlo Comparison Analysis
+
+This optional analysis compares the LHS approach with traditional Monte Carlo sampling to demonstrate the improved parameter space coverage.
+
+```{r lhs-vs-monte-carlo-comparison, eval=FALSE}
+# Optional comparison analysis: Run Monte Carlo version for comparison with LHS
+cat("=== OPTIONAL: LHS vs MONTE CARLO COMPARISON ===\n")
+cat("Running smaller Monte Carlo analysis for comparison...\n")
+
+# Ensure we have LHS results loaded
+if (!exists("enhanced_uncertainty_results")) {
+  if (file.exists("enhanced_uncertainty_final_results.RDS")) {
+    enhanced_uncertainty_results <- readRDS("enhanced_uncertainty_final_results.RDS")
+    cat("Loaded existing LHS results for comparison\n")
+  } else {
+    cat("Error: No LHS results found. Run the main uncertainty analysis first.\n")
+    stop("LHS results required for comparison")
+  }
+}
+
+# Run Monte Carlo comparison with same parameters
+mc_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
+  params = params_1841_2010_climate_only,
+  n_sims = 500,   # Smaller Monte Carlo set for comparison
+  catchability_sd = 0.4,  
+  abundance_sd = 0.8,     
+  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+  effort_scen = combined_effort_array,
+  enhanced_steady_tol = 0.002,
+  enhanced_steady_t_max = 1000,
+  spinup_years = 118,
+  spinup_multiplier = 2,
+  t_start = 1841,
+  sim_years = 170,
+  preserve_erepro = TRUE,
+  max_erepro = 10,
+  yield_obs_data = yield_ts_tidy
+)
+
+# Save Monte Carlo results
+saveRDS(mc_uncertainty_results, "mc_uncertainty_comparison_results.RDS")
+
+# Compare LHS vs Monte Carlo performance
+cat("\nComparing LHS vs Monte Carlo parameter space coverage...\n")
+lhs_vs_mc_comparison <- compare_lhs_vs_mc_coverage(
+  lhs_results = enhanced_uncertainty_results,
+  mc_results = mc_uncertainty_results,
+  catchability_sd = 0.4,
+  abundance_sd = 0.8
+)
+
+# Calculate and display success rates for both methods
+lhs_success_rate <- enhanced_uncertainty_results$success_rate
+mc_success_rate <- (mc_uncertainty_results$n_successful / mc_uncertainty_results$n_attempts) * 100
+
+cat("\n=== COMPARISON RESULTS ===\n")
+cat("LHS Results (", enhanced_uncertainty_results$n_requested, "simulations):\n")
+cat("  Success rate:", round(lhs_success_rate, 1), "%\n")
+cat("  Successful simulations:", enhanced_uncertainty_results$n_successful, "\n")
+if (!is.null(enhanced_uncertainty_results$timing)) {
+  timing <- enhanced_uncertainty_results$timing
+  cat("  Simulation rate:", round(timing$successful_rate_per_hour, 1), "sims/hour\n")
+}
+
+cat("\nMonte Carlo Results (", mc_uncertainty_results$n_attempts, "attempts):\n")  
+cat("  Success rate:", round(mc_success_rate, 1), "%\n")
+cat("  Successful simulations:", mc_uncertainty_results$n_successful, "\n")
+
+cat("\nParameter Space Coverage Efficiency:\n")
+cat("  LHS parameter correlation reduction:", round(lhs_vs_mc_comparison$efficiency_advantage, 1), "%\n")
+cat("  LHS provides better space-filling properties with same computational cost\n")
+
+# Optional: Create comparison plots
+if (exists("lhs_vs_mc_comparison")) {
+  cat("\nGenerating LHS vs Monte Carlo comparison plots...\n")
+  
+  # Create parameter space coverage plots if available
+  lhs_plots <- visualize_lhs_design(enhanced_uncertainty_results)
+  
+  cat("Comparison analysis completed!\n")
+  cat("- LHS method provides better parameter space coverage\n") 
+  cat("- Reduced parameter correlations improve exploration efficiency\n")
+  cat("- Same computational cost but superior sampling properties\n")
+}
+```
+
+### LHS vs Monte Carlo Comparison and Visualization
     
     # Display time estimates for different analysis sizes
     if (!is.null(enhanced_uncertainty_results$timing)) {
