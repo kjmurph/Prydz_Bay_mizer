@@ -1925,6 +1925,91 @@ species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fis
 names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", 
                          "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
 
+# Plot yield comparison for optimal simulation with uncertainty bounds (using composite score optimal)
+p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) + 
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  labs(fill = "Functional group", 
+       title = "Enhanced Optimal Simulation: Yield with Uncertainty & Whale-Weighted Fitting",
+       subtitle = paste("Composite Score:", round(optimal_results_composite$optimal_metric_value, 4),
+                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4),
+                       "| Blue dotted = ensemble median, Blue ribbon = 95% CI")) +
+  # Add uncertainty ribbon
+  geom_ribbon(data = uncertainty_yield_data, 
+              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+              alpha = 0.3, colour = NA, fill = "lightblue") +
+  # Add median line from uncertainty analysis (diagnostic)
+  geom_line(data = uncertainty_yield_data, 
+            aes(x = Year, y = sim_mean), 
+            color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
+  # Add baseline model line (original params_new_v4)
+  geom_line(data = baseline_yield_data, 
+            aes(x = Year, y = Yield), 
+            color = "gray60", linetype = "dashed", linewidth = 1) +
+  # Add optimal model line (solid black for best fit) - use ensemble version for consistency
+  geom_line(data = optimal_yield_from_ensemble,
+            aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
+  # Add observed data points
+  geom_point(data = yield_ts_tidy, 
+             aes(x = Year, y = Yield, colour = Species), 
+             size = 1) +
+  geom_point(data = yield_ts_tidy, 
+             aes(x = Year, y = Yield), 
+             shape = 1, size = 1, colour = "black") +
+  # Add vertical reference lines
+  geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+  geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 10)
+  )
+
+print(p_yield_optimal)
+ggsave("plots/enhanced_optimal_simulation_yield.png", p_yield_optimal,
+       width = 16, height = 12, dpi = 300)
+
+# Create new yield plot in the style you requested
+p_yield_styled <- ggplot() +
+  # Add observed data points first (black points)
+  geom_point(data = yield_ts_tidy, 
+             aes(x = Year, y = Yield), 
+             colour = "black", size = 0.5) +
+  # Add uncertainty ribbon (grey)
+  geom_ribbon(data = uncertainty_yield_data, 
+              aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+              alpha = 0.3, colour = NA, fill = "grey") +
+  # Add ensemble mean line (species colors)
+  geom_line(data = uncertainty_yield_data, 
+            aes(x = Year, y = sim_mean, colour = Species), 
+            linewidth = 1) +
+  # Add baseline model line (grey long dashed)
+  geom_line(data = baseline_yield_data, 
+            aes(x = Year, y = Yield), 
+            color = "grey60", linetype = "longdash", linewidth = 1.2) +
+  # Add vertical reference lines
+  geom_vline(xintercept = 1961, linetype = "dashed", alpha = 0.7) + 
+  geom_vline(xintercept = 2010, linetype = "dashed", alpha = 0.7) +
+  # Faceting and theming
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold"),
+    axis.title.x = element_blank()
+  ) +
+  labs(
+    title = "Enhanced Optimal Simulation: Yield with Uncertainty (Styled)",
+    subtitle = "Grey ribbon = 95% CI, Colored lines = ensemble mean, Grey dashed = baseline model",
+    y = "Yield"
+  )
+
+print(p_yield_styled)
+ggsave("plots/enhanced_optimal_simulation_yield_styled.png", p_yield_styled,
+       width = 16, height = 12, dpi = 300)
+
 # Do the same for biomass data
 optimal_biomass_from_ensemble <- getBiomassData(optimal_sim_from_ensemble)
 optimal_biomass_from_composite <- getBiomassData(optimal_results_composite$optimal_sim)
@@ -1939,7 +2024,44 @@ cat("Biomass from ensemble[", optimal_results_composite$optimal_index, "]:", bal
 cat("Biomass from composite result:", baleen_biomass_2000_composite, "\n")
 cat("Biomass match:", identical(baleen_biomass_2000_ensemble, baleen_biomass_2000_composite), "\n\n")
 
-# Plot yield comparison for optimal simulation with uncertainty bounds (using composite score optimal)
+# Create observational biomass data frame for 2010-2020
+obs_biomass <- data.frame(
+  Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps","mesopelagic fishes"  ,"bathypelagic fishes"   ,"shelf and coastal fishes","flying birds","small divers","squids","toothfishes","leopard seals","medium divers","large divers","minke whales","orca","sperm whales","baleen whales"),
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+)
+
+# Add uncertainty bounds (±10%)
+obs_biomass <- obs_biomass %>%
+  mutate(
+    Lower = ObsBiomass * 0.9,
+    Upper = ObsBiomass * 1.1
+  )
+
+# Create a version that repeats for each year from 2010 to 2020
+obs_biomass_ts <- obs_biomass %>%
+  crossing(Year = 2010:2020)
+
+# Define species order for consistent plotting
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+# Convert Species to factors with specified order
+obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+
+# Calculate biomass summary statistics from uncertainty ensemble for ribbon plot
+biomass_summary <- df_sim_biomass_uncertainty %>%
+  group_by(Species, Year) %>%
+  summarise(
+    Mean = mean(Biomass),
+    Min = min(Biomass),
+    Max = max(Biomass),
+    Q25 = quantile(Biomass, 0.25),
+    Q75 = quantile(Biomass, 0.75),
+    .groups = 'drop'
+  )
 p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) + 
   facet_wrap(~Species, scales = "free_y",
              labeller = labeller(Species = species.labs)) +
@@ -2020,6 +2142,56 @@ p_biomass_optimal <- plotBiomass(optimal_results_composite$optimal_sim) +
 
 print(p_biomass_optimal)
 ggsave("plots/enhanced_optimal_simulation_biomass.png", p_biomass_optimal,
+       width = 16, height = 12, dpi = 300)
+
+# Create new biomass plot in the style you requested
+p_biomass_styled <- ggplot() +
+  # Add ribbon showing range from all simulations (light shade)
+  geom_ribbon(data = biomass_summary,
+              aes(x = Year, ymin = Min, ymax = Max, fill = Species),
+              alpha = 0.3) +
+  # Add ribbon showing interquartile range (darker shade)
+  geom_ribbon(data = biomass_summary, 
+              aes(x = Year, ymin = Q25, ymax = Q75, fill = Species), 
+              alpha = 0.5) +
+  # Plot mean line from simulations (solid colored lines)
+  geom_line(data = biomass_summary,
+            aes(x = Year, y = Mean, color = Species),
+            linewidth = 0.81) +
+  # Plot baseline model line (grey long dashed)
+  geom_line(data = baseline_biomass_data,
+            aes(x = Year, y = Biomass),
+            linewidth = 0.81, linetype = "longdash", color = "grey60") +
+  # Plot observed biomass as points (2010-2020)
+  geom_point(data = obs_biomass_ts, 
+             aes(x = Year, y = ObsBiomass, color = Species), 
+             size = 0.4) +
+  geom_point(data = obs_biomass_ts, 
+             aes(x = Year, y = ObsBiomass), 
+             shape = 1, size = 0.4, colour = "black") +
+  # Add observed uncertainty ribbon (±10%, grey)
+  geom_ribbon(data = obs_biomass_ts,
+              aes(x = Year, ymin = Lower, ymax = Upper),
+              alpha = 0.2, fill = "grey") +
+  # Facet by species with free y scales
+  facet_wrap(~Species, scales = "free_y",
+             labeller = labeller(Species = species.labs)) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 6),
+    axis.text = element_text(size = 8)
+  ) +
+  # Labels and theme
+  labs(
+    x = "Year",
+    y = "Biomass",
+    title = "Enhanced Optimal Simulation: Biomass with Uncertainty (Styled)",
+    subtitle = "Simulation range (light shade), IQR (darker shade), mean (solid), baseline model (dashed), observed values (points)"
+  )
+
+print(p_biomass_styled)
+ggsave("plots/enhanced_optimal_simulation_biomass_styled.png", p_biomass_styled,
        width = 16, height = 12, dpi = 300)
 ```
 
