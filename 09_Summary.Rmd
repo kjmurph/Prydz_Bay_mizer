@@ -714,12 +714,26 @@ calculate_enhanced_performance_metrics <- function(sim_object,
   
   avg_correlation <- mean(metrics_weighted$Correlation, na.rm = TRUE)
   
+  # ============================================================================
+  # 🎯 COMPOSITE SCORE CALCULATION (MAIN EVALUATION POINT)
+  # ============================================================================
+  # Option 1: Current weighted approach (emphasizes RMSE)
   # Calculate composite score (lower is better)
   # Combines multiple metrics with emphasis on RMSE
-  composite_score <- (total_weighted_rmse * 0.4) + 
-                    (total_weighted_mae * 0.3) + 
-                    (abs(total_weighted_bias) * 0.2) + 
-                    ((1 - avg_correlation) * 0.1)
+  composite_score_weighted <- (total_weighted_rmse * 0.4) +     # 40% weight: How far off predictions are (Root Mean Square Error)
+                             (total_weighted_mae * 0.3) +       # 30% weight: Average absolute difference (Mean Absolute Error)  
+                             (abs(total_weighted_bias) * 0.2) + # 20% weight: Systematic over/under-prediction (Bias)
+                             ((1 - avg_correlation) * 0.1)      # 10% weight: How well patterns match (1 minus Correlation)
+  
+  # Option 2: Equal weighting approach (balanced contribution)
+  composite_score_equal <- (total_weighted_rmse * 0.25) +       # 25% weight: How far off predictions are
+                          (total_weighted_mae * 0.25) +         # 25% weight: Average absolute difference
+                          (abs(total_weighted_bias) * 0.25) +   # 25% weight: Systematic over/under-prediction
+                          ((1 - avg_correlation) * 0.25)        # 25% weight: How well patterns match
+  
+  # Default to weighted approach for backward compatibility
+  composite_score <- composite_score_weighted
+  # ============================================================================
   
   return(list(
     total_weighted_rmse = total_weighted_rmse,
@@ -727,6 +741,8 @@ calculate_enhanced_performance_metrics <- function(sim_object,
     total_weighted_bias = total_weighted_bias,
     avg_correlation = avg_correlation,
     composite_score = composite_score,
+    composite_score_weighted = composite_score_weighted,
+    composite_score_equal = composite_score_equal,
     metrics_by_species = metrics_by_species,
     metrics_weighted = metrics_weighted,
     comparison_data = comparison
@@ -1645,40 +1661,84 @@ If the stability requirements are still too strict, we can modify the approach t
 
 ```{r analyze-enhanced-results, eval=FALSE}
 # Find optimal parameters based on different metrics
-# 1. Composite score (combines RMSE, MAE, bias, correlation)
+# 1. Composite score - WEIGHTED approach (current: 40-30-20-10)
+optimal_results_composite_weighted <- find_optimal_parameters_enhanced(
+  sim_results_list = enhanced_uncertainty_results,
+  metric = "composite_score_weighted"
+)
+
+# 2. Composite score - EQUAL weighting approach (25-25-25-25)
+optimal_results_composite_equal <- find_optimal_parameters_enhanced(
+  sim_results_list = enhanced_uncertainty_results,
+  metric = "composite_score_equal"
+)
+
+# 3. Original composite score (for backward compatibility)
 optimal_results_composite <- find_optimal_parameters_enhanced(
   sim_results_list = enhanced_uncertainty_results,
   metric = "composite_score"
 )
 
-# 2. Weighted RMSE only (for comparison)
+# 4. Weighted RMSE only (for comparison)
 optimal_results_rmse <- find_optimal_parameters_enhanced(
   sim_results_list = enhanced_uncertainty_results,
   metric = "total_weighted_rmse"
 )
 
-# 3. Correlation (for models that capture yield patterns well)
+# 5. Correlation (for models that capture yield patterns well)
 optimal_results_correlation <- find_optimal_parameters_enhanced(
   sim_results_list = enhanced_uncertainty_results,
   metric = "avg_correlation"
 )
 
-# Save optimal results
+# Save optimal results (including both weighting approaches)
+saveRDS(optimal_results_composite_weighted, "optimal_parameter_results_composite_weighted.RDS")
+saveRDS(optimal_results_composite_equal, "optimal_parameter_results_composite_equal.RDS")
 saveRDS(optimal_results_composite, "optimal_parameter_results_composite.RDS")
 saveRDS(optimal_results_rmse, "optimal_parameter_results_rmse.RDS")
 saveRDS(optimal_results_correlation, "optimal_parameter_results_correlation.RDS")
 
-# Display comparison of different optimization metrics
+# Display comparison of different optimization approaches
 cat("\n=== COMPARISON OF OPTIMIZATION APPROACHES ===\n")
-cat("Composite Score Optimal - Simulation:", optimal_results_composite$optimal_index, 
+cat("Weighted Composite (40-30-20-10) - Simulation:", optimal_results_composite_weighted$optimal_index, 
+    "Score:", round(optimal_results_composite_weighted$optimal_metric_value, 4), "\n")
+cat("Equal Composite (25-25-25-25) - Simulation:", optimal_results_composite_equal$optimal_index, 
+    "Score:", round(optimal_results_composite_equal$optimal_metric_value, 4), "\n")
+cat("Original Composite - Simulation:", optimal_results_composite$optimal_index, 
     "Score:", round(optimal_results_composite$optimal_metric_value, 4), "\n")
 cat("RMSE Optimal - Simulation:", optimal_results_rmse$optimal_index,
     "RMSE:", round(optimal_results_rmse$optimal_metric_value, 4), "\n")
 cat("Correlation Optimal - Simulation:", optimal_results_correlation$optimal_index,
     "Correlation:", round(optimal_results_correlation$optimal_metric_value, 4), "\n")
 
+# Compare performance metrics between weighted and equal approaches
+cat("\n=== DETAILED COMPARISON: WEIGHTED vs EQUAL WEIGHTING ===\n")
+weighted_perf <- optimal_results_composite_weighted$optimal_performance
+equal_perf <- optimal_results_composite_equal$optimal_performance
+
+cat("WEIGHTED approach (40-30-20-10):\n")
+cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "\n")
+cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "\n") 
+cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "\n")
+cat("  Correlation:", round(weighted_perf$avg_correlation, 4), "\n")
+cat("  Composite:", round(weighted_perf$composite_score_weighted, 4), "\n")
+
+cat("\nEQUAL approach (25-25-25-25):\n")
+cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "\n")
+cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "\n")
+cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "\n")
+cat("  Correlation:", round(equal_perf$avg_correlation, 4), "\n")
+cat("  Composite:", round(equal_perf$composite_score_equal, 4), "\n")
+
+cat("\nDifference (Equal - Weighted):\n")
+cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "\n")
+cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "\n")
+cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "\n")
+cat("  Correlation Δ:", round(equal_perf$avg_correlation - weighted_perf$avg_correlation, 4), "\n")
+
+# Use weighted approach as default for backward compatibility
 # Compare performance across metrics for the composite score optimal model
-best_model_performance <- optimal_results_composite$optimal_performance
+best_model_performance <- optimal_results_composite_weighted$optimal_performance
 cat("\n=== BEST MODEL (COMPOSITE SCORE) DETAILED PERFORMANCE ===\n")
 cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "\n")
 cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "\n")
