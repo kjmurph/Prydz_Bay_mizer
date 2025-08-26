@@ -1872,6 +1872,7 @@ run_lhs_enhanced_uncertainty_sims <- function(params,
   performance_results <- list()
   failed_sims <- list()
   successful_count <- 0
+  full_results_for_sensitivity <- list()  # NEW: Store full results for sensitivity analysis
   
   for(res in results) {
     if(!is.null(res) && !inherits(res, "error")) {
@@ -1880,6 +1881,7 @@ run_lhs_enhanced_uncertainty_sims <- function(params,
         sim_results[[successful_count]] <- res$simulation
         param_combinations[[successful_count]] <- res$params_info
         performance_results[[successful_count]] <- res$performance
+        full_results_for_sensitivity[[successful_count]] <- res  # NEW: Store full result for sensitivity
       } else {
         failed_sims[[length(failed_sims) + 1]] <- res
       }
