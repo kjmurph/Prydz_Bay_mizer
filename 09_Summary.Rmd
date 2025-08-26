@@ -2373,11 +2373,21 @@ if (exists("enhanced_uncertainty_results") && !is.null(enhanced_uncertainty_resu
         cat(sprintf("  Sim %d: Total biomass = %.2e (MizerSim object - current structure)\n", 
                    i, total_biomass))
         
-        # Test species-specific extraction 
+        # Test species-specific extraction with error handling
         species_names <- rownames(sim_biomass)
-        cat(sprintf("    Species count: %d, First species '%s' biomass: %.2e\n",
-                   length(species_names), species_names[1], 
-                   sim_biomass[nrow(sim_biomass), species_names[1]]))
+        if (length(species_names) > 0 && nrow(sim_biomass) > 0) {
+          tryCatch({
+            first_species_biomass <- sim_biomass[nrow(sim_biomass), species_names[1]]
+            cat(sprintf("    Species count: %d, First species '%s' biomass: %.2e\n",
+                       length(species_names), species_names[1], 
+                       first_species_biomass))
+          }, error = function(e) {
+            cat(sprintf("    Species count: %d, First species '%s' - extraction error: %s\n",
+                       length(species_names), species_names[1], conditionMessage(e)))
+          })
+        } else {
+          cat("    No species data available\n")
+        }
                    
       } else if (is.list(result) && !is.null(result$simulation)) {
         # Expected structure: result has $simulation component
@@ -2387,11 +2397,21 @@ if (exists("enhanced_uncertainty_results") && !is.null(enhanced_uncertainty_resu
         cat(sprintf("  Sim %d: Total biomass = %.2e (full result structure - expected)\n", 
                    i, total_biomass))
         
-        # Test species-specific extraction 
+        # Test species-specific extraction with error handling
         species_names <- rownames(sim_biomass)
-        cat(sprintf("    Species count: %d, First species '%s' biomass: %.2e\n",
-                   length(species_names), species_names[1], 
-                   sim_biomass[nrow(sim_biomass), species_names[1]]))
+        if (length(species_names) > 0 && nrow(sim_biomass) > 0) {
+          tryCatch({
+            first_species_biomass <- sim_biomass[nrow(sim_biomass), species_names[1]]
+            cat(sprintf("    Species count: %d, First species '%s' biomass: %.2e\n",
+                       length(species_names), species_names[1], 
+                       first_species_biomass))
+          }, error = function(e) {
+            cat(sprintf("    Species count: %d, First species '%s' - extraction error: %s\n",
+                       length(species_names), species_names[1], conditionMessage(e)))
+          })
+        } else {
+          cat("    No species data available\n")
+        }
       } else {
         cat(sprintf("  Sim %d: ERROR - Unexpected result structure\n", i))
         cat("    Class:", class(result), "\n")
