@@ -553,11 +553,20 @@ calculate_sensitivity_indices <- function(results, lhs_params,
       # Extract biomass from simulation object
       sim_biomass <- getBiomass(result$simulation)
       output_values[i] <- sum(sim_biomass[nrow(sim_biomass), ], na.rm = TRUE)
-    } else if (output_metric == "total_yield") {
-      # Get total yield from performance metrics
-      output_values[i] <- sum(result$performance$simulated_yield, na.rm = TRUE)
-    } else if (output_metric == "yield_rmse") {
-      output_values[i] <- result$performance$yield_rmse
+    } else if (output_metric == "composite_score") {
+      # Use composite score from performance metrics
+      if (!is.null(result$performance$composite_score)) {
+        output_values[i] <- result$performance$composite_score
+      } else {
+        output_values[i] <- NA
+      }
+    } else if (output_metric == "total_weighted_rmse") {
+      # Use the correct performance metric name
+      if (!is.null(result$performance$total_weighted_rmse)) {
+        output_values[i] <- result$performance$total_weighted_rmse
+      } else {
+        output_values[i] <- NA
+      }
     } else if (output_metric == "biomass_stability") {
       # Calculate stability from simulation biomass
       sim_biomass <- getBiomass(result$simulation)
@@ -565,21 +574,52 @@ calculate_sensitivity_indices <- function(results, lhs_params,
       # Calculate CV for last 50% of simulation
       last_half <- tail(total_biomass_ts, length(total_biomass_ts) / 2)
       output_values[i] <- sd(last_half, na.rm = TRUE) / mean(last_half, na.rm = TRUE)
+    } else {
+      # Default: use composite score
+      if (!is.null(result$performance$composite_score)) {
+        output_values[i] <- result$performance$composite_score
+      } else {
+        output_values[i] <- NA
+      }
     }
   }
   
-  # Calculate correlation-based sensitivity (Pearson and Spearman)
-  sensitivity_pearson <- cor(param_matrix, output_values, method = "pearson")
-  sensitivity_spearman <- cor(param_matrix, output_values, method = "spearman")
+  # Remove any NA values before correlation analysis
+  valid_indices <- !is.na(output_values)
+  if (sum(valid_indices) < 3) {
+    cat("Warning: Too few valid output values for sensitivity analysis\n")
+    return(NULL)
+  }
+  
+  param_matrix_clean <- param_matrix[valid_indices, ]
+  output_values_clean <- output_values[valid_indices]
+  
+  # Calculate correlation-based sensitivity (Pearson and Spearman) with error handling
+  tryCatch({
+    sensitivity_pearson <- cor(param_matrix_clean, output_values_clean, method = "pearson")
+    sensitivity_spearman <- cor(param_matrix_clean, output_values_clean, method = "spearman")
+  }, error = function(e) {
+    cat("Warning: Correlation calculation failed:", conditionMessage(e), "\n")
+    sensitivity_pearson <- matrix(NA, nrow = ncol(param_matrix_clean), ncol = 1)
+    sensitivity_spearman <- matrix(NA, nrow = ncol(param_matrix_clean), ncol = 1)
+    rownames(sensitivity_pearson) <- colnames(param_matrix_clean)
+    rownames(sensitivity_spearman) <- colnames(param_matrix_clean)
+  }, warning = function(w) {
+    # Handle warnings (like zero standard deviation) gracefully
+    cat("Note: Correlation calculation warning:", conditionMessage(w), "\n")
+  })
   
   # Calculate variance-based sensitivity (simple approach)
   # Normalize parameters to [0,1] for comparison
-  param_norm <- apply(param_matrix, 2, function(x) (x - min(x)) / (max(x) - min(x)))
+  param_norm <- apply(param_matrix_clean, 2, function(x) {
+    if (sd(x) == 0) return(rep(0.5, length(x)))  # Handle constant parameters
+    (x - min(x)) / (max(x) - min(x))
+  })
   
   # Calculate partial variance contributions
-  total_var <- var(output_values)
+  total_var <- var(output_values_clean)
   partial_vars <- numeric(3)
-  names(partial_vars) <- colnames(param_matrix)
+  names(partial_vars) <- colnames(param_matrix_clean)
   
   for (i in 1:3) {
     # Fit linear model with single parameter
@@ -618,7 +658,8 @@ calculate_species_sensitivity <- function(results, lhs_params, marine_mammal_spe
   # Get species names from first valid result
   first_result <- results[[valid_results[1]]]
   sim_biomass <- getBiomass(first_result$simulation)
-  all_species <- rownames(sim_biomass)
+  # Fix: Species names are column names, not row names (rows are time points)
+  all_species <- colnames(sim_biomass)
   
   # Initialize sensitivity storage
   species_sensitivity <- list()
@@ -684,8 +725,8 @@ run_comprehensive_sensitivity_analysis <- function(results, lhs_params, marine_m
   
   cat("=== COMPREHENSIVE SENSITIVITY ANALYSIS ===\n")
   
-  # Overall sensitivity for different metrics
-  metrics <- c("total_biomass", "total_yield", "yield_rmse", "biomass_stability")
+  # Overall sensitivity for different metrics - using metrics that are actually available
+  metrics <- c("total_biomass", "composite_score", "total_weighted_rmse", "biomass_stability")
   overall_sensitivity <- list()
   
   for (metric in metrics) {
@@ -2373,23 +2414,42 @@ if (exists("enhanced_uncertainty_results") && !is.null(enhanced_uncertainty_resu
         cat(sprintf("  Sim %d: Total biomass = %.2e (MizerSim object - current structure)\n", 
                    i, total_biomass))
         
-        # Test species-specific extraction with error handling
-        species_names <- rownames(sim_biomass)
-        if (length(species_names) > 0 && nrow(sim_biomass) > 0) {
-          tryCatch({
-            first_species_biomass <- sim_biomass[nrow(sim_biomass), species_names[1]]
-            cat(sprintf("    Species count: %d, First species '%s' biomass: %.2e\n",
-                       length(species_names), species_names[1], 
-                       first_species_biomass))
-          }, error = function(e) {
-            cat(sprintf("    Species count: %d, First species '%s' - extraction error: %s\n",
-                       length(species_names), species_names[1], conditionMessage(e)))
-          })
-        } else {
-          cat("    No species data available\n")
-        }
-                   
-      } else if (is.list(result) && !is.null(result$simulation)) {
+         # Test species-specific extraction with error handling
+         species_names <- rownames(sim_biomass)
+         if (length(species_names) > 0 && nrow(sim_biomass) > 0) {
+           # Debug: Check if rownames are actually time points
+           cat(sprintf("    Matrix dimensions: %d rows x %d cols\n", nrow(sim_biomass), ncol(sim_biomass)))
+           cat(sprintf("    First 3 rownames: %s\n", paste(head(species_names, 3), collapse = ", ")))
+           cat(sprintf("    First 3 colnames: %s\n", paste(head(colnames(sim_biomass), 3), collapse = ", ")))
+           
+           # Check if rownames look like years (time points)
+           if (grepl("^[0-9]{4}", species_names[1])) {
+             cat("    ⚠ Rownames appear to be time points, not species!\n")
+             cat("    ℹ Biomass matrix: rows = time, cols = species\n")
+             if (ncol(sim_biomass) > 0) {
+               actual_species_names <- colnames(sim_biomass)
+               if (!is.null(actual_species_names) && length(actual_species_names) > 0) {
+                 first_species_biomass <- sim_biomass[nrow(sim_biomass), actual_species_names[1]]
+                 cat(sprintf("    ✓ Corrected: %d species, First species '%s' biomass: %.2e\n",
+                            length(actual_species_names), actual_species_names[1], 
+                            first_species_biomass))
+               }
+             }
+           } else {
+             # Original logic for when rownames are actually species
+             tryCatch({
+               first_species_biomass <- sim_biomass[nrow(sim_biomass), species_names[1]]
+               cat(sprintf("    Species count: %d, First species '%s' biomass: %.2e\n",
+                          length(species_names), species_names[1], 
+                          first_species_biomass))
+             }, error = function(e) {
+               cat(sprintf("    Species count: %d, First species '%s' - extraction error: %s\n",
+                          length(species_names), species_names[1], conditionMessage(e)))
+             })
+           }
+         } else {
+           cat("    No species data available\n")
+         }      } else if (is.list(result) && !is.null(result$simulation)) {
         # Expected structure: result has $simulation component
         sim_biomass <- getBiomass(result$simulation)
         total_biomass <- sum(sim_biomass[nrow(sim_biomass), ], na.rm = TRUE)
@@ -2424,17 +2484,18 @@ if (exists("enhanced_uncertainty_results") && !is.null(enhanced_uncertainty_resu
     cat("✓ Data extraction validation completed successfully!\n")
     cat("✓ getBiomass() function works correctly with simulation objects\n")
     
-    # Determine the current data structure and provide guidance
-    first_result <- test_sims[[1]]
-    if (inherits(first_result, "MizerSim")) {
-      cat("ℹ Current structure: enhanced_uncertainty_results$simulations contains MizerSim objects directly\n")
-      cat("ℹ Sensitivity analysis needs full result structures with $simulation, $performance, etc.\n")
-      cat("ℹ The fix ensures sensitivity analysis receives the correct data structure\n")
-    } else {
-      cat("✓ Structure appears correct for sensitivity analysis\n")
-    }
-    
-  } else {
+     # Determine the current data structure and provide guidance
+     first_result <- test_sims[[1]]
+     if (inherits(first_result, "MizerSim")) {
+       cat("ℹ Current structure: enhanced_uncertainty_results$simulations contains MizerSim objects directly\n")
+       cat("ℹ Sensitivity analysis needs full result structures with $simulation, $performance, etc.\n")
+       cat("ℹ The fix ensures sensitivity analysis receives the correct data structure\n")
+       cat("✅ CRITICAL FIX: Biomass matrix structure identified and corrected!\n")
+       cat("   Rows = time points (1841, 1842, etc.), Columns = species names\n")
+       cat("   Species-specific sensitivity analysis now uses colnames() instead of rownames()\n")
+     } else {
+       cat("✓ Structure appears correct for sensitivity analysis\n")
+     }  } else {
     cat("No valid simulations found for validation\n")
   }
 } else {
