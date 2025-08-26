@@ -252,6 +252,7 @@ trimYield<-function(sim){
   
   y<-plotYieldGear(sim, return_data = T)
   y<-select(y,c(Year, Species,Yield))
+  y$Yield <- y$Yield / 1e6  # Convert grams to tonnes
   return(y)
   
 }
@@ -656,10 +657,11 @@ calculate_enhanced_performance_metrics <- function(sim_object,
                                                   species_list = NULL,
                                                   year_range = NULL) {
   
-  # Get modeled yield
+  # Get modeled yield and convert from grams to tonnes
   mod_yield <- getYield(sim_object)
   df_mod <- reshape2::melt(mod_yield)
   names(df_mod) <- c("Year", "Species", "Yield")
+  df_mod$Yield <- df_mod$Yield / 1e6  # Convert grams to tonnes
   
   # Filter by year range and species if specified
   if (!is.null(year_range)) {
@@ -672,6 +674,9 @@ calculate_enhanced_performance_metrics <- function(sim_object,
     df_mod <- df_mod[df_mod$Species %in% species_list, ]
     yield_obs_data <- yield_obs_data[yield_obs_data$Species %in% species_list, ]
   }
+  
+  # Convert observed yield to tonnes (assuming it's in grams to match model output)
+  yield_obs_data$Yield <- yield_obs_data$Yield / 1e6  # Convert grams to tonnes
   
   # Merge modeled and observed data
   comparison <- merge(df_mod, yield_obs_data,
@@ -1043,8 +1048,8 @@ run_enhanced_combined_uncertainty_sims <- function(params,
     cat("\nPerformance Summary:\n")
     cat("  Composite Score - Mean:", round(mean(composite_scores), 4), 
         "Range:", round(min(composite_scores), 4), "-", round(max(composite_scores), 4), "\n")
-    cat("  Weighted RMSE - Mean:", round(mean(rmse_scores), 4),
-        "Range:", round(min(rmse_scores), 4), "-", round(max(rmse_scores), 4), "\n")
+    cat("  Weighted RMSE - Mean:", round(mean(rmse_scores), 4), "tonnes",
+        "Range:", round(min(rmse_scores), 4), "-", round(max(rmse_scores), 4), "tonnes\n")
   }
   
   # Trim to requested number of simulations
@@ -1115,9 +1120,9 @@ find_optimal_parameters_enhanced <- function(sim_results_list, metric = "composi
   optimal_performance <- performance_data[[optimal_idx]]
   
   cat("\n=== OPTIMAL SIMULATION PERFORMANCE ===\n")
-  cat("Weighted RMSE:", round(optimal_performance$total_weighted_rmse, 4), "\n")
-  cat("Weighted MAE:", round(optimal_performance$total_weighted_mae, 4), "\n")
-  cat("Weighted Bias:", round(optimal_performance$total_weighted_bias, 4), "\n")
+  cat("Weighted RMSE:", round(optimal_performance$total_weighted_rmse, 4), "tonnes\n")
+  cat("Weighted MAE:", round(optimal_performance$total_weighted_mae, 4), "tonnes\n")
+  cat("Weighted Bias:", round(optimal_performance$total_weighted_bias, 4), "tonnes\n")
   cat("Average Correlation:", round(optimal_performance$avg_correlation, 4), "\n")
   cat("Composite Score:", round(optimal_performance$composite_score, 4), "\n")
   
@@ -1717,32 +1722,32 @@ weighted_perf <- optimal_results_composite_weighted$optimal_performance
 equal_perf <- optimal_results_composite_equal$optimal_performance
 
 cat("WEIGHTED approach (40-30-20-10):\n")
-cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "\n")
-cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "\n") 
-cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "\n")
+cat("  RMSE:", round(weighted_perf$total_weighted_rmse, 4), "tonnes\n")
+cat("  MAE:", round(weighted_perf$total_weighted_mae, 4), "tonnes\n") 
+cat("  Bias:", round(abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
 cat("  Correlation:", round(weighted_perf$avg_correlation, 4), "\n")
 cat("  Composite:", round(weighted_perf$composite_score_weighted, 4), "\n")
 
 cat("\nEQUAL approach (25-25-25-25):\n")
-cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "\n")
-cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "\n")
-cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "\n")
+cat("  RMSE:", round(equal_perf$total_weighted_rmse, 4), "tonnes\n")
+cat("  MAE:", round(equal_perf$total_weighted_mae, 4), "tonnes\n")
+cat("  Bias:", round(abs(equal_perf$total_weighted_bias), 4), "tonnes\n")
 cat("  Correlation:", round(equal_perf$avg_correlation, 4), "\n")
 cat("  Composite:", round(equal_perf$composite_score_equal, 4), "\n")
 
 cat("\nDifference (Equal - Weighted):\n")
-cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "\n")
-cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "\n")
-cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "\n")
+cat("  RMSE Δ:", round(equal_perf$total_weighted_rmse - weighted_perf$total_weighted_rmse, 4), "tonnes\n")
+cat("  MAE Δ:", round(equal_perf$total_weighted_mae - weighted_perf$total_weighted_mae, 4), "tonnes\n")
+cat("  Bias Δ:", round(abs(equal_perf$total_weighted_bias) - abs(weighted_perf$total_weighted_bias), 4), "tonnes\n")
 cat("  Correlation Δ:", round(equal_perf$avg_correlation - weighted_perf$avg_correlation, 4), "\n")
 
 # Use weighted approach as default for backward compatibility
 # Compare performance across metrics for the composite score optimal model
 best_model_performance <- optimal_results_composite_weighted$optimal_performance
 cat("\n=== BEST MODEL (COMPOSITE SCORE) DETAILED PERFORMANCE ===\n")
-cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "\n")
-cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "\n")
-cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "\n")
+cat("Weighted RMSE:", round(best_model_performance$total_weighted_rmse, 4), "tonnes\n")
+cat("Weighted MAE:", round(best_model_performance$total_weighted_mae, 4), "tonnes\n")
+cat("Weighted Bias:", round(best_model_performance$total_weighted_bias, 4), "tonnes\n")
 cat("Average Correlation:", round(best_model_performance$avg_correlation, 4), "\n")
 cat("Composite Score:", round(best_model_performance$composite_score, 4), "\n")
 
@@ -1874,6 +1879,7 @@ ggsave("plots/enhanced_species_performance_comparison.png", p_species_comparison
 trimYield_uncertainty <- function(sim) {
   y <- plotYieldGear(sim, return_data = T)
   y <- select(y, c(Year, Species, Yield))
+  y$Yield <- y$Yield / 1e6  # Convert grams to tonnes
   return(y)
 }
 
@@ -1992,28 +1998,31 @@ p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) +
   labs(fill = "Functional group", 
        title = "Enhanced Optimal Simulation: Yield with Uncertainty & Whale-Weighted Fitting",
        subtitle = paste("Composite Score:", round(optimal_results_composite$optimal_metric_value, 4),
-                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4),
-                       "| Blue dotted = ensemble median, Blue ribbon = 95% CI")) +
-  # Add uncertainty ribbon
+                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4), "tonnes",
+                       "| Blue dotted = ensemble median, Blue ribbon = 95% CI"),
+       y = "Yield (tonnes)") +
+  # Convert plotYield output from grams to tonnes
+  scale_y_continuous(labels = function(x) x / 1e6) +
+  # Add uncertainty ribbon (data already converted to tonnes)
   geom_ribbon(data = uncertainty_yield_data, 
               aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
               alpha = 0.3, colour = NA, fill = "lightblue") +
-  # Add median line from uncertainty analysis (diagnostic)
+  # Add median line from uncertainty analysis (diagnostic) (data already converted to tonnes)
   geom_line(data = uncertainty_yield_data, 
             aes(x = Year, y = sim_mean), 
             color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
-  # Add baseline model line (original params_new_v4)
+  # Add baseline model line (original params_new_v4) (data will be converted to tonnes)
   geom_line(data = baseline_yield_data, 
             aes(x = Year, y = Yield), 
             color = "gray60", linetype = "dashed", linewidth = 1) +
-  # Add optimal model line (solid black for best fit) - use ensemble version for consistency
+  # Add optimal model line (solid black for best fit) - use ensemble version for consistency (data already converted to tonnes)
   geom_line(data = optimal_yield_from_ensemble,
             aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
-  # Add observed data points
-  geom_point(data = yield_ts_tidy, 
+  # Add observed data points (convert from grams to tonnes)
+  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6), 
              aes(x = Year, y = Yield, colour = Species), 
              size = 1) +
-  geom_point(data = yield_ts_tidy, 
+  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6), 
              aes(x = Year, y = Yield), 
              shape = 1, size = 1, colour = "black") +
   # Add vertical reference lines
@@ -2128,28 +2137,31 @@ p_yield_optimal <- plotYield(optimal_results_composite$optimal_sim) +
   labs(fill = "Functional group", 
        title = "Enhanced Optimal Simulation: Yield with Uncertainty & Whale-Weighted Fitting",
        subtitle = paste("Composite Score:", round(optimal_results_composite$optimal_metric_value, 4),
-                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4),
-                       "| Blue dotted = ensemble median, Blue ribbon = 95% CI")) +
-  # Add uncertainty ribbon
+                       "| Weighted RMSE:", round(optimal_results_composite$optimal_performance$total_weighted_rmse, 4), "tonnes",
+                       "| Blue dotted = ensemble median, Blue ribbon = 95% CI"),
+       y = "Yield (tonnes)") +
+  # Convert plotYield output from grams to tonnes
+  scale_y_continuous(labels = function(x) x / 1e6) +
+  # Add uncertainty ribbon (data already converted to tonnes)
   geom_ribbon(data = uncertainty_yield_data, 
               aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
               alpha = 0.3, colour = NA, fill = "lightblue") +
-  # Add median line from uncertainty analysis (diagnostic)
+  # Add median line from uncertainty analysis (diagnostic) (data already converted to tonnes)
   geom_line(data = uncertainty_yield_data, 
             aes(x = Year, y = sim_mean), 
             color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
-  # Add baseline model line (original params_new_v4)
+  # Add baseline model line (original params_new_v4) (data will be converted to tonnes)
   geom_line(data = baseline_yield_data, 
             aes(x = Year, y = Yield), 
             color = "gray60", linetype = "dashed", linewidth = 1) +
-  # Add optimal model line (solid black for best fit) - use ensemble version for consistency
+  # Add optimal model line (solid black for best fit) - use ensemble version for consistency (data already converted to tonnes)
   geom_line(data = optimal_yield_from_ensemble,
             aes(x = Year, y = Yield, color = Species), linewidth = 1.2) +
-  # Add observed data points
-  geom_point(data = yield_ts_tidy, 
+  # Add observed data points (convert from grams to tonnes)
+  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6), 
              aes(x = Year, y = Yield, colour = Species), 
              size = 1) +
-  geom_point(data = yield_ts_tidy, 
+  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6), 
              aes(x = Year, y = Yield), 
              shape = 1, size = 1, colour = "black") +
   # Add vertical reference lines
@@ -2544,10 +2556,13 @@ optimal_sim_adaptive <- adaptive_results$optimal$optimal_simulation
 # Plot yield comparison with observations
 p_yield_adaptive <- plotYield(optimal_sim_adaptive) +
   facet_wrap(~Species, scales = "free_y") +
-  geom_point(data = yield_ts_tidy,
+  # Convert plotYield output from grams to tonnes
+  scale_y_continuous(labels = function(x) x / 1e6) +
+  # Add observed data points (convert from grams to tonnes)
+  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6),
              aes(x = Year, y = Yield, colour = Species),
              size = 1) +
-  geom_point(data = yield_ts_tidy,
+  geom_point(data = transform(yield_ts_tidy, Yield = Yield / 1e6),
              aes(x = Year, y = Yield),
              shape = 1, size = 1, colour = "black") +
   geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) +
@@ -2555,7 +2570,8 @@ p_yield_adaptive <- plotYield(optimal_sim_adaptive) +
   theme_bw() +
   theme(legend.position = "none") +
   labs(title = "Optimal Simulation from Adaptive Search",
-       subtitle = paste("RMSE =", round(adaptive_results$optimal$optimal_rmse, 3)))
+       subtitle = paste("RMSE =", round(adaptive_results$optimal$optimal_rmse, 3), "tonnes"),
+       y = "Yield (tonnes)")
 
 print(p_yield_adaptive)
 ggsave("plots/adaptive_optimal_yield.png", p_yield_adaptive,
@@ -2564,14 +2580,16 @@ ggsave("plots/adaptive_optimal_yield.png", p_yield_adaptive,
 # Create detailed species-specific comparison plots
 species_focus <- c("antarctic krill", "minke whales")
 for (sp in species_focus) {
-  # Get modeled yield for this species
+  # Get modeled yield for this species and convert to tonnes
   mod_yield <- getYield(optimal_sim_adaptive)
   df_mod <- reshape2::melt(mod_yield)
   names(df_mod) <- c("Year", "Species", "Yield")
+  df_mod$Yield <- df_mod$Yield / 1e6  # Convert grams to tonnes
   df_mod_sp <- df_mod[df_mod$Species == sp, ]
   
-  # Get observed yield for this species
+  # Get observed yield for this species and convert to tonnes
   obs_sp <- yield_ts_tidy[yield_ts_tidy$Species == sp, ]
+  obs_sp$Yield <- obs_sp$Yield / 1e6  # Convert grams to tonnes
   
   p_sp <- ggplot() +
     geom_line(data = df_mod_sp, aes(x = Year, y = Yield),
