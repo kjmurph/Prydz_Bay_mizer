@@ -1530,8 +1530,8 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   print(p_biomass_enhanced)
   
   # Save plots
-  ggsave("enhanced_yield_uncertainty.png", p_yield_enhanced, width = 12, height = 8, dpi = 300)
-  ggsave("enhanced_biomass_uncertainty.png", p_biomass_enhanced, width = 12, height = 8, dpi = 300)
+  # ggsave("enhanced_yield_uncertainty.png", p_yield_enhanced, width = 12, height = 8, dpi = 300)
+  # ggsave("enhanced_biomass_uncertainty.png", p_biomass_enhanced, width = 12, height = 8, dpi = 300)
   
   cat("✓ Enhanced uncertainty plots created and saved\n")
   cat("✓ Plots show 50% (dark ribbons) and 90% (light ribbons) confidence intervals\n")
@@ -1541,134 +1541,6 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   cat("No enhanced simulation data available for plotting.\n")
   cat("Please run the enhanced uncertainty analysis first.\n")
 }
-```
-    
-
-## Alternative Approach: Focus on Key Species Only
-
-If the full stability requirements are still too strict, try this whale-focused approach:
-
-```{r whale-focused-approach, eval=FALSE}
-# # Load the stability test results to get recommended parameters
-# # stability_test_results <- readRDS("stability_test_results.RDS")
-# 
-# # Use recommended parameters from stability test, or fall back to more relaxed defaults
-# recommended_tolerance <- if (exists("stability_test_results") && 
-#                             !is.na(stability_test_results$recommended$tolerance)) {
-#   stability_test_results$recommended$tolerance
-# } else {
-#   0.10  # Default to 10% CV if no test results
-# }
-# 
-# recommended_check_years <- if (exists("stability_test_results") && 
-#                               !is.na(stability_test_results$recommended$check_years)) {
-#   stability_test_results$recommended$check_years
-# } else {
-#   30  # Default to 30 years if no test results
-# }
-# 
-# cat("Using stability parameters:\n")
-# cat("  Tolerance:", recommended_tolerance * 100, "% CV\n")
-# cat("  Check years:", recommended_check_years, "\n\n")
-# 
-# # Run enhanced combined uncertainty simulations with adjusted stability requirements
-# enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
-#   params = params_1841_2010_climate_only,
-#   n_sims = 50,  # Start smaller to test
-#   catchability_sd = 0.3,  # Moderate uncertainty for catchability (30% CV)
-#   abundance_sd = 0.5,     # Moderate uncertainty for marine mammal abundance (50% CV)
-#   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
-#   effort_scen = combined_effort_array,
-#   enhanced_steady_tol = 0.005,    # Slightly relaxed from 0.002
-#   enhanced_steady_t_max = 800,    # Reduced from 1000
-#   spinup_years = 118,
-#   spinup_multiplier = 2,          # Keep 2x spinup
-#   t_start = 1841,
-#   sim_years = 170,
-#   preserve_erepro = TRUE,
-#   max_erepro = 1,
-#   species_weights_df = species_weights,
-#   yield_obs_data = yield_ts_tidy,
-#   n_cores = NULL,
-#   parallel = FALSE  # Use sequential for better debugging initially
-# )
-# 
-# # Save results
-# saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_results_adjusted.RDS")
-# 
-# # Display results
-# cat("\n=== ADJUSTED ENHANCED SIMULATION SUMMARY ===\n")
-# cat("Successful simulations:", enhanced_uncertainty_results$n_successful, "\n")
-# cat("Total attempts:", enhanced_uncertainty_results$n_attempts, "\n")
-# if (enhanced_uncertainty_results$n_successful > 0) {
-#   cat("Success rate:", round(enhanced_uncertainty_results$n_successful / enhanced_uncertainty_results$n_attempts * 100, 1), "%\n")
-# }
-```
-
-
-## Alternative: Modified Stability Check Approach
-
-If the stability requirements are still too strict, we can modify the approach to focus on the most important species:
-
-```{r alternative-stability-approach, eval=FALSE}
-# # Create a modified stability check that focuses on key species only
-# check_key_species_stability <- function(sim_object, 
-#                                        key_species = c("minke whales", "sperm whales", "baleen whales"),
-#                                        tolerance = 0.15,  # More relaxed 15% CV
-#                                        check_years = 30) {
-#   
-#   biomass <- getBiomass(sim_object)
-#   
-#   if (nrow(biomass) < check_years) {
-#     return(FALSE)
-#   }
-#   
-#   # Focus only on key species (whales)
-#   recent_biomass <- tail(biomass, check_years)
-#   key_biomass <- recent_biomass[, colnames(recent_biomass) %in% key_species, drop = FALSE]
-#   
-#   if (ncol(key_biomass) == 0) {
-#     return(TRUE)  # No key species to check
-#   }
-#   
-#   # Calculate CV for key species only
-#   cv_values <- apply(key_biomass, 2, function(x) {
-#     if (mean(x) == 0) return(Inf)
-#     sd(x) / mean(x)
-#   })
-#   
-#   # Check if key species are stable
-#   key_stable <- all(cv_values < tolerance, na.rm = TRUE)
-#   
-#   return(key_stable)
-# }
-# 
-# # Function to run simulations with key species stability only
-# run_key_species_uncertainty <- function(params, n_sims = 50, ...) {
-#   
-#   # This would be a simplified version focusing only on whale stability
-#   # Implementation would modify the final stability check to use 
-#   # check_key_species_stability instead of check_biomass_stability_enhanced
-#   
-#   cat("Running uncertainty analysis with key species stability check only...\n")
-#   cat("Key species: minke whales, sperm whales, baleen whales\n")
-#   cat("Tolerance: 15% CV over last 30 years\n\n")
-#   
-#   # Would need to modify run_enhanced_single_sim to use this check
-#   # For now, let's return a placeholder
-#   return(list(
-#     message = "This approach focuses stability checks on whale species only",
-#     recommended_next_steps = c(
-#       "Modify final stability check in run_enhanced_single_sim",
-#       "Use check_key_species_stability instead of check_biomass_stability_enhanced",
-#       "Focus tolerance on whale species which are most important for fitting"
-#     )
-#   ))
-# }
-# 
-# # Show the approach
-# key_species_approach <- run_key_species_uncertainty(params_1841_2010_climate_only)
-# print(key_species_approach)
 ```
 
 
