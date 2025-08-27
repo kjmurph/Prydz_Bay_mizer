@@ -3198,38 +3198,77 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     # Create the plot (matching your exact structure)
     cat("Creating ggplot object...\n")
     tryCatch({
-      p <- ggplot() +
-        facet_wrap(~Species, scales = "free_y", 
-                   labeller = labeller(Species = species.labs)) +
-        # Add uncertainty ribbon (95% CI, light blue)
-        geom_ribbon(data = uncertainty_yield_data, 
-                    aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
-                    alpha = 0.3, colour = NA, fill = "lightblue") +
-        # Add median line from uncertainty analysis (blue dotted)
-        geom_line(data = uncertainty_yield_data, 
-                  aes(x = Year, y = sim_mean), 
-                  color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
-        # Add vertical reference lines
-        geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
-        geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
-        scale_fill_viridis_d(name = "Species") +
-        scale_color_viridis_d(name = "Species") +
-        labs(
-          title = "Yield Projections with LHS Uncertainty",
-          subtitle = "Blue dotted = ensemble median, Blue ribbon = 95% CI",
-          x = "Year",
-          y = "Yield [g/year]"
-        ) +
-        theme_bw() +
-        theme(
-          legend.position = "none",
-          strip.background = element_rect(fill = "lightgrey"),
-          strip.text = element_text(face = "bold", size = 10),
-          axis.text = element_text(size = 9),
-          axis.title.x = element_blank()
-        )
-      
-      cat("Base plot created successfully\n")
+      # Try with custom labeller first
+      tryCatch({
+        p <- ggplot() +
+          facet_wrap(~Species, scales = "free_y", 
+                     labeller = labeller(Species = species.labs)) +
+          # Add uncertainty ribbon (95% CI, light blue)
+          geom_ribbon(data = uncertainty_yield_data, 
+                      aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+                      alpha = 0.3, colour = NA, fill = "lightblue") +
+          # Add median line from uncertainty analysis (blue dotted)
+          geom_line(data = uncertainty_yield_data, 
+                    aes(x = Year, y = sim_mean), 
+                    color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
+          # Add vertical reference lines
+          geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+          geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
+          scale_fill_viridis_d(name = "Species") +
+          scale_color_viridis_d(name = "Species") +
+          labs(
+            title = "Yield Projections with LHS Uncertainty",
+            subtitle = "Blue dotted = ensemble median, Blue ribbon = 95% CI",
+            x = "Year",
+            y = "Yield [g/year]"
+          ) +
+          theme_bw() +
+          theme(
+            legend.position = "none",
+            strip.background = element_rect(fill = "lightgrey"),
+            strip.text = element_text(face = "bold", size = 10),
+            axis.text = element_text(size = 9),
+            axis.title.x = element_blank()
+          )
+        
+        cat("Base plot with custom labeller created successfully\n")
+        
+      }, error = function(e) {
+        cat("Custom labeller failed, trying simple facets:", e$message, "\n")
+        
+        # Fallback: simple facet without custom labels
+        p <- ggplot() +
+          facet_wrap(~Species, scales = "free_y") +
+          # Add uncertainty ribbon (95% CI, light blue)
+          geom_ribbon(data = uncertainty_yield_data, 
+                      aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+                      alpha = 0.3, colour = NA, fill = "lightblue") +
+          # Add median line from uncertainty analysis (blue dotted)
+          geom_line(data = uncertainty_yield_data, 
+                    aes(x = Year, y = sim_mean), 
+                    color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
+          # Add vertical reference lines
+          geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+          geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
+          scale_fill_viridis_d(name = "Species") +
+          scale_color_viridis_d(name = "Species") +
+          labs(
+            title = "Yield Projections with LHS Uncertainty",
+            subtitle = "Blue dotted = ensemble median, Blue ribbon = 95% CI",
+            x = "Year",
+            y = "Yield [g/year]"
+          ) +
+          theme_bw() +
+          theme(
+            legend.position = "none",
+            strip.background = element_rect(fill = "lightgrey"),
+            strip.text = element_text(face = "bold", size = 10),
+            axis.text = element_text(size = 9),
+            axis.title.x = element_blank()
+          )
+        
+        cat("Base plot with simple facets created successfully\n")
+      })
       
     }, error = function(e) {
       cat("Error creating base plot:", e$message, "\n")
@@ -3497,10 +3536,23 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   )
   
   if (!is.null(p_yield_faceted)) {
-    print(p_yield_faceted)
-    ggsave("faceted_yield_uncertainty_lhs_test.png", p_yield_faceted, 
-           width = 15, height = 12, dpi = 300)
-    cat("✓ Faceted yield plot created and saved\n")
+    cat("Attempting to print yield plot...\n")
+    tryCatch({
+      print(p_yield_faceted)
+      cat("✓ Yield plot printed successfully\n")
+    }, error = function(e) {
+      cat("✗ Error printing yield plot:", e$message, "\n")
+      cat("Plot object exists but cannot be displayed\n")
+    })
+    
+    cat("Attempting to save yield plot...\n")
+    tryCatch({
+      ggsave("faceted_yield_uncertainty_lhs_test.png", p_yield_faceted, 
+             width = 15, height = 12, dpi = 300)
+      cat("✓ Faceted yield plot saved successfully\n")
+    }, error = function(e) {
+      cat("✗ Error saving yield plot:", e$message, "\n")
+    })
   } else {
     cat("✗ Failed to create faceted yield plot\n")
   }
@@ -3533,10 +3585,23 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   )
   
   if (!is.null(p_biomass_faceted)) {
-    print(p_biomass_faceted)
-    ggsave("faceted_biomass_uncertainty_lhs_test.png", p_biomass_faceted, 
-           width = 15, height = 12, dpi = 300)
-    cat("✓ Faceted biomass plot created and saved\n")
+    cat("Attempting to print biomass plot...\n")
+    tryCatch({
+      print(p_biomass_faceted)
+      cat("✓ Biomass plot printed successfully\n")
+    }, error = function(e) {
+      cat("✗ Error printing biomass plot:", e$message, "\n")
+      cat("Plot object exists but cannot be displayed\n")
+    })
+    
+    cat("Attempting to save biomass plot...\n")
+    tryCatch({
+      ggsave("faceted_biomass_uncertainty_lhs_test.png", p_biomass_faceted, 
+             width = 15, height = 12, dpi = 300)
+      cat("✓ Faceted biomass plot saved successfully\n")
+    }, error = function(e) {
+      cat("✗ Error saving biomass plot:", e$message, "\n")
+    })
   } else {
     cat("✗ Failed to create faceted biomass plot\n")
   }
