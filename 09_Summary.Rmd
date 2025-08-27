@@ -3034,48 +3034,106 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   obs_biomass_ts <- obs_biomass %>%
     crossing(Year = 2010:2020)
   
-  # Define species order for consistent plotting
+  # Define species order and labels for consistent plotting
   species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
                      "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
                      "shelf and coastal fishes", "flying birds", "small divers", "squids", 
                      "toothfishes", "leopard seals", "medium divers", "large divers", 
                      "minke whales", "orca", "sperm whales", "baleen whales")
   
+  # Species labels for nice facet titles
+  species.labs <- c("Antarctic krill", "Bathypelagic fishes", "Shelf & Coastal fishes", 
+                    "Squids", "Toothfishes", "Antarctic minke whales", "Orcas", 
+                    "Sperm whales", "Baleen whales")
+  names(species.labs) <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", 
+                           "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+  
   # Convert Species to factor with specified order
   obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
   
-  # Enhanced faceted yield plot function
+  # Enhanced faceted yield plot function (only fished species)
   create_faceted_yield_plot <- function(sim_list, observed_data = NULL) {
     
-    # Calculate yield uncertainty for subset
-    cat("Calculating yield uncertainty ribbons...\n")
-    yield_uncertainty <- calculate_uncertainty_ribbons(sim_list, getYield)
+    # Extract yield data from simulations using a trimming function
+    cat("Extracting yield data from", length(sim_list), "simulations...\n")
     
-    if (is.null(yield_uncertainty)) {
-      cat("Failed to calculate yield uncertainty\n")
+    # Function to extract and trim yield data (similar to trimYield)
+    extract_yield <- function(sim) {
+      tryCatch({
+        yield_data <- getYield(sim)
+        
+        # Convert to data frame
+        if (is.matrix(yield_data) || is.data.frame(yield_data)) {
+          yield_df <- as.data.frame(yield_data)
+          yield_df$Year <- as.numeric(rownames(yield_df))
+          
+          # Reshape to long format
+          yield_long <- yield_df %>%
+            pivot_longer(cols = -Year, names_to = "Species", values_to = "Yield") %>%
+            filter(Yield > 0)  # Only include species with actual yield
+          
+          return(yield_long)
+        }
+        return(NULL)
+      }, error = function(e) {
+        return(NULL)
+      })
+    }
+    
+    # Extract yield from all simulations
+    sim_yields <- lapply(1:length(sim_list), function(i) {
+      yield_data <- extract_yield(sim_list[[i]])
+      if (!is.null(yield_data)) {
+        yield_data$sim <- i
+        return(yield_data)
+      }
+      return(NULL)
+    })
+    
+    # Remove NULL results and combine
+    sim_yields <- sim_yields[!sapply(sim_yields, is.null)]
+    if (length(sim_yields) == 0) {
+      cat("No valid yield data extracted\n")
       return(NULL)
     }
     
-    # Ensure species factor ordering
-    if ("species" %in% names(yield_uncertainty)) {
-      yield_uncertainty$species <- factor(yield_uncertainty$species, levels = species_order)
-    }
+    df_sim_yield <- do.call(rbind, sim_yields)
     
-    # Create base plot
-    p <- ggplot(yield_uncertainty, aes(x = year)) +
-      geom_ribbon(aes(ymin = q05, ymax = q95, fill = species), alpha = 0.2) +
-      geom_ribbon(aes(ymin = q25, ymax = q75, fill = species), alpha = 0.4) +
-      geom_line(aes(y = median, color = species), size = 1) +
-      facet_wrap(~species, scales = "free_y") +
-      scale_fill_viridis_d(name = "Species") +
-      scale_color_viridis_d(name = "Species") +
+    # Calculate summary statistics
+    sim_summary <- df_sim_yield %>%
+      group_by(Species, Year) %>%
+      summarise(
+        sim_mean = median(Yield),
+        sim_lower = min(Yield),
+        sim_upper = max(Yield),
+        .groups = 'drop'
+      )
+    
+    # Filter to only include fished species (those present in yield data)
+    fished_species <- unique(sim_summary$Species)
+    cat("Fished species found:", paste(fished_species, collapse = ", "), "\n")
+    
+    # Ensure species factor ordering (only for fished species)
+    sim_summary$Species <- factor(sim_summary$Species, levels = intersect(species_order, fished_species))
+    
+    # Create the plot
+    p <- ggplot(sim_summary, aes(x = Year, y = sim_mean, colour = Species)) +
+      facet_wrap(~Species, scales = "free_y", 
+                 labeller = labeller(Species = species.labs)) +
+      # Add uncertainty ribbon
+      geom_ribbon(aes(ymin = sim_lower, ymax = sim_upper, fill = Species), 
+                  alpha = 0.3, colour = NA) +
+      # Add mean line
+      geom_line(aes(y = sim_mean), size = 1) +
+      # Add vertical reference lines
       geom_vline(xintercept = 1961, linetype = "dashed", alpha = 0.6) +
       geom_vline(xintercept = 2010, linetype = "dashed", alpha = 0.6) +
+      scale_fill_viridis_d(name = "Species") +
+      scale_color_viridis_d(name = "Species") +
       labs(
         title = "Yield Projections with LHS Uncertainty",
         x = "Year",
-        y = "Yield [g/year]",
-        subtitle = "Ribbons show 50% (dark) and 90% (light) confidence intervals"
+        y = "Yield [g/year]"
       ) +
       theme_bw() +
       theme(
@@ -3083,27 +3141,30 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
         strip.background = element_rect(fill = "lightgrey"),
         strip.text = element_text(face = "bold", size = 10),
         axis.text = element_text(size = 9),
-        plot.title = element_text(size = 14, face = "bold"),
-        plot.subtitle = element_text(size = 11)
+        axis.title.x = element_blank()
       )
     
     # Add observed data if provided
     if (!is.null(observed_data)) {
-      # Ensure column names and factor ordering
+      # Ensure column names and filter to only fished species
       obs_data_plot <- observed_data
       names(obs_data_plot) <- tolower(names(obs_data_plot))
       
       if ("species" %in% names(obs_data_plot)) {
-        obs_data_plot$species <- factor(obs_data_plot$species, levels = species_order)
+        obs_data_plot <- obs_data_plot %>%
+          filter(species %in% fished_species)
+        obs_data_plot$species <- factor(obs_data_plot$species, 
+                                        levels = intersect(species_order, fished_species))
       }
       
+      # Add observed points
       p <- p + 
         geom_point(data = obs_data_plot, 
-                   aes(x = year, y = yield), 
-                   color = "black", size = 1.5, alpha = 0.8) +
+                   aes(x = year, y = yield, colour = species), 
+                   size = 1) +
         geom_point(data = obs_data_plot, 
-                   aes(x = year, y = yield, color = species), 
-                   size = 1, alpha = 0.7)
+                   aes(x = year, y = yield), 
+                   shape = 1, size = 1, colour = "black")
     }
     
     return(p)
@@ -3112,38 +3173,73 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   # Enhanced faceted biomass plot function
   create_faceted_biomass_plot <- function(sim_list, obs_biomass_data = NULL) {
     
-    # Calculate biomass uncertainty for subset
-    cat("Calculating biomass uncertainty ribbons...\n")
-    biomass_uncertainty <- calculate_uncertainty_ribbons(sim_list, getBiomass)
+    cat("Extracting biomass data from", length(sim_list), "simulations...\n")
     
-    if (is.null(biomass_uncertainty)) {
-      cat("Failed to calculate biomass uncertainty\n")
+    # Extract biomass data from all simulations
+    sim_biomass_range <- data.frame()
+    
+    for(i in 1:length(sim_list)) {
+      tryCatch({
+        # Extract biomass from each simulation
+        sim_biomass <- getBiomass(sim_list[[i]])
+        
+        # Convert to data frame
+        if (is.matrix(sim_biomass) || is.data.frame(sim_biomass)) {
+          sim_df <- sim_biomass %>% 
+            as.data.frame() %>%
+            mutate(Year = as.numeric(rownames(.))) %>%
+            pivot_longer(cols = -Year, names_to = "Species", values_to = "Biomass") %>%
+            mutate(SimID = i)
+          
+          # Append to the main data frame
+          sim_biomass_range <- rbind(sim_biomass_range, sim_df)
+        }
+      }, error = function(e) {
+        # Skip failed simulations
+      })
+    }
+    
+    if (nrow(sim_biomass_range) == 0) {
+      cat("No valid biomass data extracted\n")
       return(NULL)
     }
     
-    # Ensure species factor ordering
-    if ("species" %in% names(biomass_uncertainty)) {
-      biomass_uncertainty$species <- factor(biomass_uncertainty$species, levels = species_order)
-    }
+    # Calculate summary statistics for each species and year
+    sim_summary <- sim_biomass_range %>%
+      group_by(Year, Species) %>%
+      summarize(
+        Min = min(Biomass, na.rm = TRUE),
+        Max = max(Biomass, na.rm = TRUE),
+        Median = median(Biomass, na.rm = TRUE),
+        Mean = mean(Biomass, na.rm = TRUE),
+        Q25 = quantile(Biomass, 0.25, na.rm = TRUE),
+        Q75 = quantile(Biomass, 0.75, na.rm = TRUE),
+        .groups = 'drop'
+      )
     
-    # Create base plot
+    # Apply species ordering
+    sim_summary$Species <- factor(sim_summary$Species, levels = species_order)
+    
+    # Create the base plot
     p <- ggplot() +
-      # Model uncertainty ribbons
-      geom_ribbon(data = biomass_uncertainty,
-                  aes(x = year, ymin = q05, ymax = q95, fill = species), 
-                  alpha = 0.2) +
-      geom_ribbon(data = biomass_uncertainty,
-                  aes(x = year, ymin = q25, ymax = q75, fill = species), 
-                  alpha = 0.4) +
-      # Model median line
-      geom_line(data = biomass_uncertainty,
-                aes(x = year, y = median, color = species), 
-                size = 1.2) +
-      # Add baseline model line if available
-      geom_line(data = biomass_uncertainty,
-                aes(x = year, y = mean, color = species), 
-                linetype = "dashed", size = 0.8, alpha = 0.7) +
-      facet_wrap(~species, scales = "free_y") +
+      # Add ribbon showing full range from all simulations (light)
+      geom_ribbon(data = sim_summary,
+                  aes(x = Year, ymin = Min, ymax = Max, fill = Species),
+                  alpha = 0.3) +
+      # Add ribbon showing interquartile range (darker)
+      geom_ribbon(data = sim_summary, 
+                  aes(x = Year, ymin = Q25, ymax = Q75, fill = Species), 
+                  alpha = 0.5) +
+      # Plot mean line from simulations (solid)
+      geom_line(data = sim_summary,
+                aes(x = Year, y = Mean, color = Species),
+                linewidth = 0.8) +
+      # Add baseline model line if available (dashed) - you might need to provide this
+      # geom_line(data = df_mod_biomass,
+      #           aes(x = Year, y = Biomass, color = Species),
+      #           linewidth = 0.8, linetype = "dashed") +
+      facet_wrap(~Species, scales = "free_y",
+                 labeller = labeller(Species = species.labs)) +
       scale_y_log10() +
       scale_fill_viridis_d(name = "Species") +
       scale_color_viridis_d(name = "Species") +
@@ -3158,27 +3254,33 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
         legend.position = "none",
         strip.background = element_rect(fill = "lightgrey"),
         strip.text = element_text(face = "bold", size = 10),
-        axis.text = element_text(size = 9),
-        plot.title = element_text(size = 14, face = "bold"),
-        plot.subtitle = element_text(size = 11)
+        axis.text = element_text(size = 9)
       )
     
-    # Add observed biomass data if provided
+    # Add observed biomass data if provided (only in matching species facets)
     if (!is.null(obs_biomass_data)) {
-      # Ensure factor ordering
+      # Ensure proper factor ordering and species matching
       obs_biomass_data$Species <- factor(obs_biomass_data$Species, levels = species_order)
       
-      # Add observed points and uncertainty ribbon
-      p <- p +
-        geom_ribbon(data = obs_biomass_data,
-                    aes(x = Year, ymin = Lower, ymax = Upper),
-                    fill = "lightgrey", alpha = 0.3) +
-        geom_point(data = obs_biomass_data,
-                   aes(x = Year, y = ObsBiomass, color = Species),
-                   size = 1.5, alpha = 0.8) +
-        geom_point(data = obs_biomass_data,
-                   aes(x = Year, y = ObsBiomass),
-                   color = "black", size = 1, alpha = 0.6)
+      # Filter to only include species that exist in both observed and simulated data
+      common_species <- intersect(unique(sim_summary$Species), unique(obs_biomass_data$Species))
+      obs_filtered <- obs_biomass_data %>% filter(Species %in% common_species)
+      
+      if (nrow(obs_filtered) > 0) {
+        # Add observed uncertainty ribbon (light grey, only in relevant facets)
+        p <- p +
+          geom_ribbon(data = obs_filtered,
+                      aes(x = Year, ymin = Lower, ymax = Upper),
+                      fill = "lightgrey", alpha = 0.2) +
+          # Add observed points with species-specific colors
+          geom_point(data = obs_filtered,
+                     aes(x = Year, y = ObsBiomass, color = Species),
+                     size = 0.8) +
+          # Add black outline points
+          geom_point(data = obs_filtered,
+                     aes(x = Year, y = ObsBiomass),
+                     shape = 1, size = 0.8, colour = "black")
+      }
     }
     
     return(p)
