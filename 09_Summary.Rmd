@@ -3115,23 +3115,34 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     df_sim_yield_uncertainty <- do.call(rbind, sim_yields)
     
     # Calculate uncertainty summary statistics (matching your approach)
-    uncertainty_yield_data <- df_sim_yield_uncertainty %>%
-      group_by(Species, Year) %>%
-      summarise(
-        sim_mean = median(Yield),
-        sim_lower = quantile(Yield, 0.025, na.rm = TRUE),  # 95% CI
-        sim_upper = quantile(Yield, 0.975, na.rm = TRUE),  # 95% CI
-        Mean = mean(Yield),
-        Min = min(Yield),
-        Max = max(Yield),
-        Q25 = quantile(Yield, 0.25),
-        Q75 = quantile(Yield, 0.75),
-        .groups = 'drop'
-      )
+    cat("Calculating uncertainty summary statistics...\n")
+    tryCatch({
+      uncertainty_yield_data <- df_sim_yield_uncertainty %>%
+        group_by(Species, Year) %>%
+        summarise(
+          sim_mean = median(Yield),
+          sim_lower = quantile(Yield, 0.025, na.rm = TRUE),  # 95% CI
+          sim_upper = quantile(Yield, 0.975, na.rm = TRUE),  # 95% CI
+          Mean = mean(Yield),
+          Min = min(Yield),
+          Max = max(Yield),
+          Q25 = quantile(Yield, 0.25),
+          Q75 = quantile(Yield, 0.75),
+          .groups = 'drop'
+        )
+      
+      cat("Summary statistics calculated successfully. Rows:", nrow(uncertainty_yield_data), "\n")
+      cat("Species in summary:", paste(unique(uncertainty_yield_data$Species), collapse = ", "), "\n")
+      
+    }, error = function(e) {
+      cat("Error in calculating summary statistics:", e$message, "\n")
+      return(NULL)
+    })
     
     # Get baseline model yield data if provided
     baseline_yield_data <- NULL
     if (!is.null(baseline_sim)) {
+      cat("Extracting baseline yield data...\n")
       tryCatch({
         baseline_yield_data <- plotYield(baseline_sim, return_data = TRUE)
         # Convert to long format if needed
@@ -3141,20 +3152,27 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
             mutate(Year = as.numeric(rownames(.))) %>%
             pivot_longer(cols = -Year, names_to = "Species", values_to = "Yield")
         }
+        cat("Baseline yield data extracted successfully\n")
       }, error = function(e) {
-        cat("Could not extract baseline yield data\n")
+        cat("Could not extract baseline yield data:", e$message, "\n")
         baseline_yield_data <- NULL
       })
+    } else {
+      cat("No baseline simulation provided\n")
     }
     
     # Get optimal simulation data (best performing model)
     optimal_yield_data <- NULL
+    cat("Checking for optimal simulation data...\n")
     if (exists("optimal_results_composite") && !is.null(optimal_results_composite$optimal_sim)) {
       tryCatch({
         optimal_yield_data <- trimYield_uncertainty(optimal_results_composite$optimal_sim)
+        cat("Optimal yield data extracted successfully\n")
       }, error = function(e) {
-        cat("Could not extract optimal yield data\n")
+        cat("Could not extract optimal yield data:", e$message, "\n")
       })
+    } else {
+      cat("No optimal_results_composite found\n")
     }
     
     # Filter to only fished species
@@ -3162,86 +3180,124 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     cat("Fished species found:", paste(fished_species, collapse = ", "), "\n")
     
     # Ensure species factor ordering
-    uncertainty_yield_data$Species <- factor(uncertainty_yield_data$Species, levels = intersect(species_order, fished_species))
-    if (!is.null(baseline_yield_data)) {
-      baseline_yield_data$Species <- factor(baseline_yield_data$Species, levels = intersect(species_order, fished_species))
-    }
-    if (!is.null(optimal_yield_data)) {
-      optimal_yield_data$Species <- factor(optimal_yield_data$Species, levels = intersect(species_order, fished_species))
-    }
+    cat("Setting species factor ordering...\n")
+    tryCatch({
+      uncertainty_yield_data$Species <- factor(uncertainty_yield_data$Species, levels = intersect(species_order, fished_species))
+      if (!is.null(baseline_yield_data)) {
+        baseline_yield_data$Species <- factor(baseline_yield_data$Species, levels = intersect(species_order, fished_species))
+      }
+      if (!is.null(optimal_yield_data)) {
+        optimal_yield_data$Species <- factor(optimal_yield_data$Species, levels = intersect(species_order, fished_species))
+      }
+      cat("Species factor ordering completed\n")
+    }, error = function(e) {
+      cat("Error in species factor ordering:", e$message, "\n")
+      return(NULL)
+    })
     
     # Create the plot (matching your exact structure)
-    p <- ggplot() +
-      facet_wrap(~Species, scales = "free_y", 
-                 labeller = labeller(Species = species.labs)) +
-      # Add uncertainty ribbon (95% CI, light blue)
-      geom_ribbon(data = uncertainty_yield_data, 
-                  aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
-                  alpha = 0.3, colour = NA, fill = "lightblue") +
-      # Add median line from uncertainty analysis (blue dotted)
-      geom_line(data = uncertainty_yield_data, 
-                aes(x = Year, y = sim_mean), 
-                color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
-      # Add vertical reference lines
-      geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
-      geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
-      scale_fill_viridis_d(name = "Species") +
-      scale_color_viridis_d(name = "Species") +
-      labs(
-        title = "Yield Projections with LHS Uncertainty",
-        subtitle = "Blue dotted = ensemble median, Blue ribbon = 95% CI",
-        x = "Year",
-        y = "Yield [g/year]"
-      ) +
-      theme_bw() +
-      theme(
-        legend.position = "none",
-        strip.background = element_rect(fill = "lightgrey"),
-        strip.text = element_text(face = "bold", size = 10),
-        axis.text = element_text(size = 9),
-        axis.title.x = element_blank()
-      )
+    cat("Creating ggplot object...\n")
+    tryCatch({
+      p <- ggplot() +
+        facet_wrap(~Species, scales = "free_y", 
+                   labeller = labeller(Species = species.labs)) +
+        # Add uncertainty ribbon (95% CI, light blue)
+        geom_ribbon(data = uncertainty_yield_data, 
+                    aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+                    alpha = 0.3, colour = NA, fill = "lightblue") +
+        # Add median line from uncertainty analysis (blue dotted)
+        geom_line(data = uncertainty_yield_data, 
+                  aes(x = Year, y = sim_mean), 
+                  color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
+        # Add vertical reference lines
+        geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+        geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
+        scale_fill_viridis_d(name = "Species") +
+        scale_color_viridis_d(name = "Species") +
+        labs(
+          title = "Yield Projections with LHS Uncertainty",
+          subtitle = "Blue dotted = ensemble median, Blue ribbon = 95% CI",
+          x = "Year",
+          y = "Yield [g/year]"
+        ) +
+        theme_bw() +
+        theme(
+          legend.position = "none",
+          strip.background = element_rect(fill = "lightgrey"),
+          strip.text = element_text(face = "bold", size = 10),
+          axis.text = element_text(size = 9),
+          axis.title.x = element_blank()
+        )
+      
+      cat("Base plot created successfully\n")
+      
+    }, error = function(e) {
+      cat("Error creating base plot:", e$message, "\n")
+      return(NULL)
+    })
     
     # Add baseline model line (grey dashed) if available
     if (!is.null(baseline_yield_data)) {
-      p <- p + 
-        geom_line(data = baseline_yield_data,
-                  aes(x = Year, y = Yield),
-                  color = "gray60", linetype = "dashed", linewidth = 1,
-                  inherit.aes = FALSE)
+      cat("Adding baseline model line...\n")
+      tryCatch({
+        p <- p + 
+          geom_line(data = baseline_yield_data,
+                    aes(x = Year, y = Yield),
+                    color = "gray60", linetype = "dashed", linewidth = 1,
+                    inherit.aes = FALSE)
+        cat("Baseline line added successfully\n")
+      }, error = function(e) {
+        cat("Error adding baseline line:", e$message, "\n")
+      })
     }
     
     # Add optimal model line (colored by species, solid) if available
     if (!is.null(optimal_yield_data)) {
-      p <- p + 
-        geom_line(data = optimal_yield_data,
-                  aes(x = Year, y = Yield, color = Species),
-                  linewidth = 1.2)
+      cat("Adding optimal model line...\n")
+      tryCatch({
+        p <- p + 
+          geom_line(data = optimal_yield_data,
+                    aes(x = Year, y = Yield, color = Species),
+                    linewidth = 1.2)
+        cat("Optimal line added successfully\n")
+      }, error = function(e) {
+        cat("Error adding optimal line:", e$message, "\n")
+      })
     }
     
     # Add observed data if provided (matching your dual-point approach)
     if (!is.null(observed_data)) {
-      # Ensure column names and filter to only fished species
-      obs_data_plot <- observed_data
-      names(obs_data_plot) <- tolower(names(obs_data_plot))
-      
-      if ("species" %in% names(obs_data_plot)) {
-        obs_data_plot <- obs_data_plot %>%
-          filter(species %in% fished_species)
-        obs_data_plot$species <- factor(obs_data_plot$species, 
-                                        levels = intersect(species_order, fished_species))
-      }
-      
-      # Add observed points (matching your dual-point approach)
-      p <- p + 
-        geom_point(data = obs_data_plot, 
-                   aes(x = year, y = yield, colour = species), 
-                   size = 1) +
-        geom_point(data = obs_data_plot, 
-                   aes(x = year, y = yield), 
-                   shape = 1, size = 1, colour = "black", inherit.aes = FALSE)
+      cat("Adding observed data points...\n")
+      tryCatch({
+        # Ensure column names and filter to only fished species
+        obs_data_plot <- observed_data
+        names(obs_data_plot) <- tolower(names(obs_data_plot))
+        
+        if ("species" %in% names(obs_data_plot)) {
+          obs_data_plot <- obs_data_plot %>%
+            filter(species %in% fished_species)
+          obs_data_plot$species <- factor(obs_data_plot$species, 
+                                          levels = intersect(species_order, fished_species))
+        }
+        
+        # Add observed points (matching your dual-point approach)
+        p <- p + 
+          geom_point(data = obs_data_plot, 
+                     aes(x = year, y = yield, colour = species), 
+                     size = 1) +
+          geom_point(data = obs_data_plot, 
+                     aes(x = year, y = yield), 
+                     shape = 1, size = 1, colour = "black", inherit.aes = FALSE)
+        
+        cat("Observed data points added successfully\n")
+      }, error = function(e) {
+        cat("Error adding observed data:", e$message, "\n")
+      })
+    } else {
+      cat("No observed data provided\n")
     }
     
+    cat("Plot creation completed successfully\n")
     return(p)
   }
   
