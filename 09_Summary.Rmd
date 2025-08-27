@@ -3201,7 +3201,7 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   }
   
   # Enhanced faceted biomass plot function
-  create_faceted_biomass_plot <- function(sim_list, obs_biomass_data = NULL) {
+  create_faceted_biomass_plot <- function(sim_list, obs_biomass_data = NULL, baseline_sim = NULL) {
     
     cat("Extracting biomass data from", length(sim_list), "simulations...\n")
     
@@ -3250,6 +3250,26 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     # Apply species ordering
     sim_summary$Species <- factor(sim_summary$Species, levels = species_order)
     
+    # Get baseline model biomass data if provided
+    baseline_biomass <- NULL
+    if (!is.null(baseline_sim)) {
+      tryCatch({
+        baseline_biomass <- getBiomass(baseline_sim)
+        # Convert to long format
+        if (is.matrix(baseline_biomass) || is.data.frame(baseline_biomass)) {
+          baseline_biomass <- baseline_biomass %>%
+            as.data.frame() %>%
+            mutate(Year = as.numeric(rownames(.))) %>%
+            pivot_longer(cols = -Year, names_to = "Species", values_to = "Baseline_Biomass")
+          
+          baseline_biomass$Species <- factor(baseline_biomass$Species, levels = species_order)
+        }
+      }, error = function(e) {
+        cat("Could not extract baseline biomass data\n")
+        baseline_biomass <- NULL
+      })
+    }
+    
     # Create the base plot
     p <- ggplot() +
       # Add ribbon showing full range from all simulations (light)
@@ -3264,10 +3284,6 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
       geom_line(data = sim_summary,
                 aes(x = Year, y = Mean, color = Species),
                 linewidth = 0.8) +
-      # Add baseline model line if available (dashed) - you might need to provide this
-      # geom_line(data = df_mod_biomass,
-      #           aes(x = Year, y = Biomass, color = Species),
-      #           linewidth = 0.8, linetype = "dashed") +
       facet_wrap(~Species, scales = "free_y",
                  labeller = labeller(Species = species.labs)) +
       scale_y_log10() +
@@ -3287,6 +3303,15 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
         axis.text = element_text(size = 9)
       )
     
+    # Add baseline model line (grey dashed) if available
+    if (!is.null(baseline_biomass)) {
+      p <- p + 
+        geom_line(data = baseline_biomass,
+                  aes(x = Year, y = Baseline_Biomass),
+                  color = "grey50", linetype = "dashed", size = 0.8,
+                  inherit.aes = FALSE)
+    }
+    
     # Add observed biomass data if provided (only in matching species facets)
     if (!is.null(obs_biomass_data)) {
       # Ensure proper factor ordering and species matching
@@ -3297,7 +3322,7 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
       obs_filtered <- obs_biomass_data %>% filter(Species %in% common_species)
       
       if (nrow(obs_filtered) > 0) {
-        # Add observed uncertainty ribbon (light grey, only in relevant facets)
+        # Add observed uncertainty ribbon (±10%, light grey, only in relevant facets)
         p <- p +
           geom_ribbon(data = obs_filtered,
                       aes(x = Year, ymin = Lower, ymax = Upper),
@@ -3346,9 +3371,29 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   
   # Create faceted biomass uncertainty plot with test subset
   cat("Creating faceted biomass plot...\n")
+  
+  # Try to get baseline simulation for biomass (try different possible names)
+  baseline_biomass_sim <- NULL
+  possible_names <- c("sim_1841_2010_climate_fishing", "sim_1841_2010_fishing_only", 
+                      "baseline_simulation", "sim_baseline")
+  
+  for (sim_name in possible_names) {
+    if (exists(sim_name)) {
+      baseline_biomass_sim <- get(sim_name)
+      cat("Found baseline simulation:", sim_name, "\n")
+      break
+    }
+  }
+  
+  if (is.null(baseline_biomass_sim)) {
+    cat("No baseline simulation found - will plot without baseline reference\n")
+    cat("Tried:", paste(possible_names, collapse = ", "), "\n")
+  }
+  
   p_biomass_faceted <- create_faceted_biomass_plot(
     enhanced_sims_test,
-    obs_biomass_data = obs_biomass_ts
+    obs_biomass_data = obs_biomass_ts,
+    baseline_sim = baseline_biomass_sim
   )
   
   if (!is.null(p_biomass_faceted)) {
@@ -3435,9 +3480,23 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   
   # Create faceted biomass plot with full dataset
   cat("Creating full faceted biomass plot...\n")
+  
+  # Try to get baseline simulation for biomass
+  baseline_biomass_sim <- NULL
+  possible_names <- c("sim_1841_2010_climate_fishing", "sim_1841_2010_fishing_only", 
+                      "baseline_simulation", "sim_baseline")
+  
+  for (sim_name in possible_names) {
+    if (exists(sim_name)) {
+      baseline_biomass_sim <- get(sim_name)
+      break
+    }
+  }
+  
   p_biomass_full <- create_faceted_biomass_plot(
     enhanced_sims,
-    obs_biomass_data = obs_biomass_ts
+    obs_biomass_data = obs_biomass_ts,
+    baseline_sim = baseline_biomass_sim
   )
   
   if (!is.null(p_biomass_full)) {
