@@ -2276,16 +2276,16 @@ if (validation_test$success_rate >= 80) {
   # Run the LHS-based enhanced uncertainty analysis
   lhs_uncertainty_results <- run_lhs_enhanced_uncertainty_sims(
     params = params_1841_2010_climate_only,
-    n_sims = 3000,  # Full simulation set with LHS
-    catchability_sd = 0.4,  # SD=0.4 gives ~49% CV for log-normal
-    abundance_sd = 0.8,     # SD=0.8 gives ~122% CV for log-normal  
-    gamma_sd = 0.4,         # SD=0.4 gives ~49% CV for gamma (search rate)
+    n_sims = 5000,  # Full simulation set with LHS
+    catchability_sd = 1.5,  # SD=0.4 gives ~49% CV for log-normal
+    abundance_sd = 1.5,     # SD=0.8 gives ~122% CV for log-normal  
+    gamma_sd = 1.5,         # SD=0.4 gives ~49% CV for gamma (search rate)
     marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
     effort_scen = combined_effort_array,
     enhanced_steady_tol = 0.002,
     enhanced_steady_t_max = 1000,
     spinup_years = 118,
-    spinup_multiplier = 2,  # Extended spinup for stability
+    spinup_multiplier = 1,  # Extended spinup for stability
     t_start = 1841,
     sim_years = 170,
     preserve_erepro = TRUE,
@@ -2611,24 +2611,7 @@ if (exists("lhs_vs_mc_comparison")) {
 ```
 
 ### LHS vs Monte Carlo Comparison and Visualization
-    
-    # Display time estimates for different analysis sizes
-    if (!is.null(enhanced_uncertainty_results$timing)) {
-      estimate_analysis_times(enhanced_uncertainty_results$timing)
-    }
-    
-  } else {
-    cat("⚠ Moderate success rate. May need further optimization.\n")
-  }
-  
-} else {
-  cat("✗ Validation failed. Need to investigate stability approach further.\n")
-  cat("Success rate:", round(validation_test$success_rate, 1), "%\n")
-}
-```
-
-### LHS vs Monte Carlo Comparison and Visualization
-
+   
 Now we can compare the LHS and Monte Carlo approaches and visualize the improved parameter space coverage:
 
 ```{r lhs-analysis-and-comparison}
