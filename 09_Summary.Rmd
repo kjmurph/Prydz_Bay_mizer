@@ -2738,20 +2738,6 @@ if (!is.null(enhanced_sims) && length(enhanced_sims) > 0) {
     }))
     
     if (ncol(all_data) > 3) {  # Multiple species/groups
-        )
-      }
-      
-      return(metric_df)
-    })
-    
-    # Combine all simulations and calculate quantiles
-    all_data <- do.call(rbind, lapply(1:length(metric_data), function(i) {
-      df <- metric_data[[i]]
-      df$sim_id <- i
-      return(df)
-    }))
-    
-    if (ncol(all_data) > 3) {  # Multiple species/groups
       # For multiple columns, calculate uncertainty for each
       species_cols <- names(all_data)[!names(all_data) %in% c("year", "sim_id")]
       
