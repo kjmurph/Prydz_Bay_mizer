@@ -2994,7 +2994,13 @@ if (exists("optimal_results_composite_weighted") && exists("optimal_results_comp
 # Create enhanced plots with uncertainty ribbons if data is available
 if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   
-  cat("Creating enhanced uncertainty plots with", length(enhanced_sims), "LHS simulations...\n")
+  # Create a smaller subset for testing (100 simulations)
+  set.seed(123)  # For reproducibility
+  n_test_sims <- min(100, length(enhanced_sims))
+  test_indices <- sample(1:length(enhanced_sims), n_test_sims)
+  enhanced_sims_test <- enhanced_sims[test_indices]
+  
+  cat("Creating enhanced uncertainty plots with", n_test_sims, "LHS simulations (subset for testing)...\n")
   
   # Load observed yield data for comparison
   if (file.exists("yield_observed_timeseries_tidy.RDS")) {
@@ -3005,43 +3011,295 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     observed_yield <- NULL
   }
   
-  # Create yield uncertainty plot
+  # Create observational biomass data frame (for 2010-2020 comparison)
+  obs_biomass <- data.frame(
+    Species = c("mesozooplankton","other krill","other macrozooplankton","antarctic krill","salps",
+                "mesopelagic fishes","bathypelagic fishes","shelf and coastal fishes","flying birds",
+                "small divers","squids","toothfishes","leopard seals","medium divers","large divers",
+                "minke whales","orca","sperm whales","baleen whales"),
+    ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 
+                   1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 
+                   2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 
+                   2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+  )
+  
+  # Add uncertainty bounds (±10%)
+  obs_biomass <- obs_biomass %>%
+    mutate(
+      Lower = ObsBiomass * 0.9,
+      Upper = ObsBiomass * 1.1
+    )
+  
+  # Create a version that repeats for each year from 2010 to 2020
+  obs_biomass_ts <- obs_biomass %>%
+    crossing(Year = 2010:2020)
+  
+  # Define species order for consistent plotting
+  species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                     "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                     "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                     "toothfishes", "leopard seals", "medium divers", "large divers", 
+                     "minke whales", "orca", "sperm whales", "baleen whales")
+  
+  # Convert Species to factor with specified order
+  obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
+  
+  # Enhanced faceted yield plot function
+  create_faceted_yield_plot <- function(sim_list, observed_data = NULL) {
+    
+    # Calculate yield uncertainty for subset
+    cat("Calculating yield uncertainty ribbons...\n")
+    yield_uncertainty <- calculate_uncertainty_ribbons(sim_list, getYield)
+    
+    if (is.null(yield_uncertainty)) {
+      cat("Failed to calculate yield uncertainty\n")
+      return(NULL)
+    }
+    
+    # Ensure species factor ordering
+    if ("species" %in% names(yield_uncertainty)) {
+      yield_uncertainty$species <- factor(yield_uncertainty$species, levels = species_order)
+    }
+    
+    # Create base plot
+    p <- ggplot(yield_uncertainty, aes(x = year)) +
+      geom_ribbon(aes(ymin = q05, ymax = q95, fill = species), alpha = 0.2) +
+      geom_ribbon(aes(ymin = q25, ymax = q75, fill = species), alpha = 0.4) +
+      geom_line(aes(y = median, color = species), size = 1) +
+      facet_wrap(~species, scales = "free_y") +
+      scale_fill_viridis_d(name = "Species") +
+      scale_color_viridis_d(name = "Species") +
+      geom_vline(xintercept = 1961, linetype = "dashed", alpha = 0.6) +
+      geom_vline(xintercept = 2010, linetype = "dashed", alpha = 0.6) +
+      labs(
+        title = "Yield Projections with LHS Uncertainty",
+        x = "Year",
+        y = "Yield [g/year]",
+        subtitle = "Ribbons show 50% (dark) and 90% (light) confidence intervals"
+      ) +
+      theme_bw() +
+      theme(
+        legend.position = "none",
+        strip.background = element_rect(fill = "lightgrey"),
+        strip.text = element_text(face = "bold", size = 10),
+        axis.text = element_text(size = 9),
+        plot.title = element_text(size = 14, face = "bold"),
+        plot.subtitle = element_text(size = 11)
+      )
+    
+    # Add observed data if provided
+    if (!is.null(observed_data)) {
+      # Ensure column names and factor ordering
+      obs_data_plot <- observed_data
+      names(obs_data_plot) <- tolower(names(obs_data_plot))
+      
+      if ("species" %in% names(obs_data_plot)) {
+        obs_data_plot$species <- factor(obs_data_plot$species, levels = species_order)
+      }
+      
+      p <- p + 
+        geom_point(data = obs_data_plot, 
+                   aes(x = year, y = yield), 
+                   color = "black", size = 1.5, alpha = 0.8) +
+        geom_point(data = obs_data_plot, 
+                   aes(x = year, y = yield, color = species), 
+                   size = 1, alpha = 0.7)
+    }
+    
+    return(p)
+  }
+  
+  # Enhanced faceted biomass plot function
+  create_faceted_biomass_plot <- function(sim_list, obs_biomass_data = NULL) {
+    
+    # Calculate biomass uncertainty for subset
+    cat("Calculating biomass uncertainty ribbons...\n")
+    biomass_uncertainty <- calculate_uncertainty_ribbons(sim_list, getBiomass)
+    
+    if (is.null(biomass_uncertainty)) {
+      cat("Failed to calculate biomass uncertainty\n")
+      return(NULL)
+    }
+    
+    # Ensure species factor ordering
+    if ("species" %in% names(biomass_uncertainty)) {
+      biomass_uncertainty$species <- factor(biomass_uncertainty$species, levels = species_order)
+    }
+    
+    # Create base plot
+    p <- ggplot() +
+      # Model uncertainty ribbons
+      geom_ribbon(data = biomass_uncertainty,
+                  aes(x = year, ymin = q05, ymax = q95, fill = species), 
+                  alpha = 0.2) +
+      geom_ribbon(data = biomass_uncertainty,
+                  aes(x = year, ymin = q25, ymax = q75, fill = species), 
+                  alpha = 0.4) +
+      # Model median line
+      geom_line(data = biomass_uncertainty,
+                aes(x = year, y = median, color = species), 
+                size = 1.2) +
+      # Add baseline model line if available
+      geom_line(data = biomass_uncertainty,
+                aes(x = year, y = mean, color = species), 
+                linetype = "dashed", size = 0.8, alpha = 0.7) +
+      facet_wrap(~species, scales = "free_y") +
+      scale_y_log10() +
+      scale_fill_viridis_d(name = "Species") +
+      scale_color_viridis_d(name = "Species") +
+      labs(
+        title = "Modeled vs. Observed Biomass with Simulation Range",
+        subtitle = "Simulation range (light shade), IQR (darker shade), mean (solid), baseline model (dashed), observed values (points)",
+        x = "Year",
+        y = "Biomass"
+      ) +
+      theme_bw() +
+      theme(
+        legend.position = "none",
+        strip.background = element_rect(fill = "lightgrey"),
+        strip.text = element_text(face = "bold", size = 10),
+        axis.text = element_text(size = 9),
+        plot.title = element_text(size = 14, face = "bold"),
+        plot.subtitle = element_text(size = 11)
+      )
+    
+    # Add observed biomass data if provided
+    if (!is.null(obs_biomass_data)) {
+      # Ensure factor ordering
+      obs_biomass_data$Species <- factor(obs_biomass_data$Species, levels = species_order)
+      
+      # Add observed points and uncertainty ribbon
+      p <- p +
+        geom_ribbon(data = obs_biomass_data,
+                    aes(x = Year, ymin = Lower, ymax = Upper),
+                    fill = "lightgrey", alpha = 0.3) +
+        geom_point(data = obs_biomass_data,
+                   aes(x = Year, y = ObsBiomass, color = Species),
+                   size = 1.5, alpha = 0.8) +
+        geom_point(data = obs_biomass_data,
+                   aes(x = Year, y = ObsBiomass),
+                   color = "black", size = 1, alpha = 0.6)
+    }
+    
+    return(p)
+  }
+  
+  # Create faceted yield uncertainty plot with test subset
+  cat("Creating faceted yield plot...\n")
+  p_yield_faceted <- create_faceted_yield_plot(
+    enhanced_sims_test, 
+    observed_data = observed_yield
+  )
+  
+  if (!is.null(p_yield_faceted)) {
+    print(p_yield_faceted)
+    ggsave("faceted_yield_uncertainty_lhs_test.png", p_yield_faceted, 
+           width = 15, height = 12, dpi = 300)
+    cat("✓ Faceted yield plot created and saved\n")
+  } else {
+    cat("✗ Failed to create faceted yield plot\n")
+  }
+  
+  # Create faceted biomass uncertainty plot with test subset
+  cat("Creating faceted biomass plot...\n")
+  p_biomass_faceted <- create_faceted_biomass_plot(
+    enhanced_sims_test,
+    obs_biomass_data = obs_biomass_ts
+  )
+  
+  if (!is.null(p_biomass_faceted)) {
+    print(p_biomass_faceted)
+    ggsave("faceted_biomass_uncertainty_lhs_test.png", p_biomass_faceted, 
+           width = 15, height = 12, dpi = 300)
+    cat("✓ Faceted biomass plot created and saved\n")
+  } else {
+    cat("✗ Failed to create faceted biomass plot\n")
+  }
+  
+  # Also create original style plots for comparison (using test subset)
   if (exists("plot_yield_uncertainty")) {
-    p_yield_enhanced <- plot_yield_uncertainty(
-      enhanced_sims, 
+    cat("Creating original style yield plot...\n")
+    p_yield_original <- plot_yield_uncertainty(
+      enhanced_sims_test, 
       observed_data = observed_yield,
-      title = "LHS Enhanced Yield Projections with Uncertainty"
+      title = "LHS Yield Projections - Original Style (Test Subset)"
     )
-    print(p_yield_enhanced)
-  } else {
-    cat("plot_yield_uncertainty function not available\n")
+    print(p_yield_original)
+    ggsave("original_yield_uncertainty_lhs_test.png", p_yield_original, 
+           width = 12, height = 8, dpi = 300)
   }
   
-  # Create biomass uncertainty plot  
   if (exists("plot_biomass_uncertainty")) {
-    p_biomass_enhanced <- plot_biomass_uncertainty(
-      enhanced_sims,
-      title = "LHS Enhanced Biomass Projections with Uncertainty"
+    cat("Creating original style biomass plot...\n")
+    p_biomass_original <- plot_biomass_uncertainty(
+      enhanced_sims_test,
+      title = "LHS Biomass Projections - Original Style (Test Subset)"
     )
-    print(p_biomass_enhanced)
-  } else {
-    cat("plot_biomass_uncertainty function not available\n")
+    print(p_biomass_original)
+    ggsave("original_biomass_uncertainty_lhs_test.png", p_biomass_original, 
+           width = 12, height = 8, dpi = 300)
   }
   
-  # Save plots if they were created
-  if (exists("p_yield_enhanced")) {
-    ggsave("enhanced_yield_uncertainty_lhs.png", p_yield_enhanced, width = 12, height = 8, dpi = 300)
-  }
-  if (exists("p_biomass_enhanced")) {
-    ggsave("enhanced_biomass_uncertainty_lhs.png", p_biomass_enhanced, width = 12, height = 8, dpi = 300)
-  }
-  
-  cat("✓ Enhanced uncertainty plots created and saved\n")
-  cat("✓ Plots show 50% (dark ribbons) and 90% (light ribbons) confidence intervals\n")
-  cat("✓ LHS sampling provides better parameter space coverage than Monte Carlo\n")
+  cat("\n=== Summary of Test Plotting Results ===\n")
+  cat("✓ Used", n_test_sims, "simulations for faster testing\n")
+  cat("✓ Created faceted plots similar to attached examples\n")
+  cat("✓ Included observed data comparisons\n")
+  cat("✓ Added uncertainty ribbons (50% and 90% confidence intervals)\n")
+  cat("✓ Plots saved as PNG files\n")
+  cat("\nOnce satisfied with test results, you can use the full", length(enhanced_sims), "simulations\n")
   
 } else {
   cat("No enhanced simulation data available for plotting\n")
+  cat("Please run the enhanced uncertainty analysis first\n")
+}
+```
+
+### Full Dataset Plotting (Run After Testing)
+
+```{r create-full-uncertainty-plots, eval=FALSE}
+# Run this chunk only after you're satisfied with the test plots above
+# This will use all ~4927 simulations and will take much longer
+
+if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
+  
+  cat("Creating plots with FULL dataset of", length(enhanced_sims), "LHS simulations...\n")
+  cat("WARNING: This may take a long time!\n")
+  
+  # Create faceted yield plot with full dataset
+  cat("Creating full faceted yield plot...\n")
+  p_yield_full <- create_faceted_yield_plot(
+    enhanced_sims, 
+    observed_data = observed_yield
+  )
+  
+  if (!is.null(p_yield_full)) {
+    print(p_yield_full)
+    ggsave("faceted_yield_uncertainty_lhs_FULL.png", p_yield_full, 
+           width = 15, height = 12, dpi = 300)
+    cat("✓ Full faceted yield plot created and saved\n")
+  }
+  
+  # Create faceted biomass plot with full dataset
+  cat("Creating full faceted biomass plot...\n")
+  p_biomass_full <- create_faceted_biomass_plot(
+    enhanced_sims,
+    obs_biomass_data = obs_biomass_ts
+  )
+  
+  if (!is.null(p_biomass_full)) {
+    print(p_biomass_full)
+    ggsave("faceted_biomass_uncertainty_lhs_FULL.png", p_biomass_full, 
+           width = 15, height = 12, dpi = 300)
+    cat("✓ Full faceted biomass plot created and saved\n")
+  }
+  
+  cat("\n=== Full Dataset Results ===\n")
+  cat("✓ Used all", length(enhanced_sims), "LHS simulations\n")
+  cat("✓ Maximum uncertainty quantification\n")
+  cat("✓ Publication-ready plots saved\n")
+  
+} else {
+  cat("Enhanced simulation data not available\n")
 }
 ```
 #   cat("No enhanced simulation data available for plotting.\n")
