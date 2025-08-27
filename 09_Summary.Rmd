@@ -3051,80 +3051,101 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   # Convert Species to factor with specified order
   obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
   
-  # Enhanced faceted yield plot function (only fished species)
-  create_faceted_yield_plot <- function(sim_list, observed_data = NULL) {
+  # Enhanced faceted yield plot function (matching original code structure)
+  create_faceted_yield_plot <- function(sim_list, observed_data = NULL, baseline_sim = NULL) {
     
-    # Extract yield data from simulations using a trimming function
-    cat("Extracting yield data from", length(sim_list), "simulations...\n")
-    
-    # Function to extract and trim yield data (similar to trimYield)
-    extract_yield <- function(sim) {
+    # Function to extract and trim yield data (matching trimYield function)
+    trimYield <- function(sim) {
       tryCatch({
-        yield_data <- getYield(sim)
-        
-        # Convert to data frame
-        if (is.matrix(yield_data) || is.data.frame(yield_data)) {
-          yield_df <- as.data.frame(yield_data)
-          yield_df$Year <- as.numeric(rownames(yield_df))
-          
-          # Reshape to long format
-          yield_long <- yield_df %>%
-            pivot_longer(cols = -Year, names_to = "Species", values_to = "Yield") %>%
-            filter(Yield > 0)  # Only include species with actual yield
-          
-          return(yield_long)
-        }
-        return(NULL)
+        y <- plotYieldGear(sim, return_data = TRUE)
+        # y <- filter(y, Gear != "Seals")  # Uncomment if needed
+        y <- select(y, c(Year, Species, Yield))
+        return(y)
       }, error = function(e) {
         return(NULL)
       })
     }
     
-    # Extract yield from all simulations
-    sim_yields <- lapply(1:length(sim_list), function(i) {
-      yield_data <- extract_yield(sim_list[[i]])
-      if (!is.null(yield_data)) {
-        yield_data$sim <- i
-        return(yield_data)
+    cat("Extracting yield data from", length(sim_list), "simulations using trimYield approach...\n")
+    
+    # Extract yield data from all LHS simulations (matching your approach)
+    sim_catches <- lapply(sim_list, trimYield)
+    
+    # Add simulation IDs
+    for (i in 1:length(sim_catches)) {
+      if (!is.null(sim_catches[[i]])) {
+        sim_catches[[i]]$sim <- i
       }
-      return(NULL)
-    })
+    }
     
     # Remove NULL results and combine
-    sim_yields <- sim_yields[!sapply(sim_yields, is.null)]
-    if (length(sim_yields) == 0) {
+    sim_catches <- sim_catches[!sapply(sim_catches, is.null)]
+    if (length(sim_catches) == 0) {
       cat("No valid yield data extracted\n")
       return(NULL)
     }
     
-    df_sim_yield <- do.call(rbind, sim_yields)
+    df_sim_catch <- do.call(rbind.data.frame, sim_catches)
     
-    # Calculate summary statistics
-    sim_summary <- df_sim_yield %>%
-      group_by(Species, Year) %>%
-      summarise(
-        sim_mean = median(Yield),
-        sim_lower = min(Yield),
-        sim_upper = max(Yield),
-        .groups = 'drop'
-      )
+    # Calculate summary statistics (matching your exact approach)
+    sim_mean_c <- df_sim_catch %>% 
+      group_by(Species, Year) %>% 
+      summarise(Yield = median(Yield), .groups = 'drop')
     
-    # Filter to only include fished species (those present in yield data)
-    fished_species <- unique(sim_summary$Species)
+    sim_lower_c <- df_sim_catch %>% 
+      group_by(Species, Year) %>% 
+      summarise(Yield = min(Yield), .groups = 'drop') 
+    
+    sim_upper_c <- df_sim_catch %>% 
+      group_by(Species, Year) %>% 
+      summarise(Yield = max(Yield), .groups = 'drop') 
+    
+    # Create combined data frame (matching your sim1_c structure)
+    sim1_c <- data.frame(
+      Species = sim_mean_c$Species, 
+      Year = sim_mean_c$Year,
+      sim_mean = sim_mean_c$Yield,
+      sim_lower = sim_lower_c$Yield,
+      sim_upper = sim_upper_c$Yield
+    )
+    
+    # Get baseline model yield data if provided
+    baseline_yield <- NULL
+    if (!is.null(baseline_sim)) {
+      tryCatch({
+        baseline_yield <- plotYield(baseline_sim, return_data = TRUE)
+        # Convert to long format if needed
+        if (is.matrix(baseline_yield) || is.data.frame(baseline_yield)) {
+          baseline_yield <- baseline_yield %>%
+            as.data.frame() %>%
+            mutate(Year = as.numeric(rownames(.))) %>%
+            pivot_longer(cols = -Year, names_to = "Species", values_to = "Baseline_Yield")
+        }
+      }, error = function(e) {
+        cat("Could not extract baseline yield data\n")
+        baseline_yield <- NULL
+      })
+    }
+    
+    # Filter to only fished species
+    fished_species <- unique(sim1_c$Species)
     cat("Fished species found:", paste(fished_species, collapse = ", "), "\n")
     
-    # Ensure species factor ordering (only for fished species)
-    sim_summary$Species <- factor(sim_summary$Species, levels = intersect(species_order, fished_species))
+    # Ensure species factor ordering
+    sim1_c$Species <- factor(sim1_c$Species, levels = intersect(species_order, fished_species))
+    if (!is.null(baseline_yield)) {
+      baseline_yield$Species <- factor(baseline_yield$Species, levels = intersect(species_order, fished_species))
+    }
     
-    # Create the plot
-    p <- ggplot(sim_summary, aes(x = Year, y = sim_mean, colour = Species)) +
+    # Create the plot (matching your exact ggplot structure)
+    p <- ggplot(sim1_c, aes(x = Year, y = sim_mean, colour = Species)) +
       facet_wrap(~Species, scales = "free_y", 
                  labeller = labeller(Species = species.labs)) +
-      # Add uncertainty ribbon
+      # Add uncertainty ribbon (matching your approach)
       geom_ribbon(aes(ymin = sim_lower, ymax = sim_upper, fill = Species), 
                   alpha = 0.3, colour = NA) +
-      # Add mean line
-      geom_line(aes(y = sim_mean), size = 1) +
+      # Add LHS mean line (colored by species)
+      geom_line(aes(y = sim_mean, colour = Species), size = 1) +
       # Add vertical reference lines
       geom_vline(xintercept = 1961, linetype = "dashed", alpha = 0.6) +
       geom_vline(xintercept = 2010, linetype = "dashed", alpha = 0.6) +
@@ -3144,7 +3165,16 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
         axis.title.x = element_blank()
       )
     
-    # Add observed data if provided
+    # Add baseline model line (grey dashed) if available
+    if (!is.null(baseline_yield)) {
+      p <- p + 
+        geom_line(data = baseline_yield,
+                  aes(x = Year, y = Baseline_Yield),
+                  color = "grey50", linetype = "dashed", size = 0.8,
+                  inherit.aes = FALSE)
+    }
+    
+    # Add observed data if provided (matching your approach)
     if (!is.null(observed_data)) {
       # Ensure column names and filter to only fished species
       obs_data_plot <- observed_data
@@ -3157,14 +3187,14 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
                                         levels = intersect(species_order, fished_species))
       }
       
-      # Add observed points
+      # Add observed points (matching your dual-point approach)
       p <- p + 
         geom_point(data = obs_data_plot, 
                    aes(x = year, y = yield, colour = species), 
                    size = 1) +
         geom_point(data = obs_data_plot, 
                    aes(x = year, y = yield), 
-                   shape = 1, size = 1, colour = "black")
+                   shape = 1, size = 1, colour = "black", inherit.aes = FALSE)
     }
     
     return(p)
@@ -3288,9 +3318,21 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   
   # Create faceted yield uncertainty plot with test subset
   cat("Creating faceted yield plot...\n")
+  
+  # Try to get baseline simulation (you may need to adjust this variable name)
+  baseline_sim <- NULL
+  if (exists("sim_1841_2010_fishing_only")) {
+    baseline_sim <- sim_1841_2010_fishing_only
+  } else if (exists("baseline_simulation")) {
+    baseline_sim <- baseline_simulation
+  } else {
+    cat("No baseline simulation found - will plot without baseline reference\n")
+  }
+  
   p_yield_faceted <- create_faceted_yield_plot(
     enhanced_sims_test, 
-    observed_data = observed_yield
+    observed_data = observed_yield,
+    baseline_sim = baseline_sim
   )
   
   if (!is.null(p_yield_faceted)) {
@@ -3369,9 +3411,19 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   
   # Create faceted yield plot with full dataset
   cat("Creating full faceted yield plot...\n")
+  
+  # Try to get baseline simulation
+  baseline_sim <- NULL
+  if (exists("sim_1841_2010_fishing_only")) {
+    baseline_sim <- sim_1841_2010_fishing_only
+  } else if (exists("baseline_simulation")) {
+    baseline_sim <- baseline_simulation
+  }
+  
   p_yield_full <- create_faceted_yield_plot(
     enhanced_sims, 
-    observed_data = observed_yield
+    observed_data = observed_yield,
+    baseline_sim = baseline_sim
   )
   
   if (!is.null(p_yield_full)) {
