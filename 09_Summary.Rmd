@@ -3023,11 +3023,11 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
                    2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
   )
   
-  # Add uncertainty bounds (±10%)
+  # Add uncertainty bounds (±20% to match your code)
   obs_biomass <- obs_biomass %>%
     mutate(
-      Lower = ObsBiomass * 0.9,
-      Upper = ObsBiomass * 1.1
+      Lower = ObsBiomass * 0.8,
+      Upper = ObsBiomass * 1.2
     )
   
   # Create a version that repeats for each year from 2010 to 2020
@@ -3051,11 +3051,11 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   # Convert Species to factor with specified order
   obs_biomass_ts$Species <- factor(obs_biomass_ts$Species, levels = species_order)
   
-  # Enhanced faceted yield plot function (matching original code structure)
+  # Enhanced faceted yield plot function (matching your working code structure)
   create_faceted_yield_plot <- function(sim_list, observed_data = NULL, baseline_sim = NULL) {
     
-    # Function to extract and trim yield data (matching trimYield function)
-    trimYield <- function(sim) {
+    # Function to extract and trim yield data (matching your trimYield_uncertainty function)
+    trimYield_uncertainty <- function(sim) {
       tryCatch({
         y <- plotYieldGear(sim, return_data = TRUE)
         # y <- filter(y, Gear != "Seals")  # Uncomment if needed
@@ -3066,93 +3066,103 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
       })
     }
     
-    cat("Extracting yield data from", length(sim_list), "simulations using trimYield approach...\n")
+    cat("Extracting yield data from", length(sim_list), "simulations using trimYield_uncertainty approach...\n")
     
-    # Extract yield data from all LHS simulations (matching your approach)
-    sim_catches <- lapply(sim_list, trimYield)
-    
-    # Add simulation IDs
-    for (i in 1:length(sim_catches)) {
-      if (!is.null(sim_catches[[i]])) {
-        sim_catches[[i]]$sim <- i
+    # Extract yield data from all LHS simulations
+    sim_yields <- lapply(1:length(sim_list), function(i) {
+      yield_data <- trimYield_uncertainty(sim_list[[i]])
+      if (!is.null(yield_data)) {
+        yield_data$sim <- i
+        return(yield_data)
       }
-    }
+      return(NULL)
+    })
     
     # Remove NULL results and combine
-    sim_catches <- sim_catches[!sapply(sim_catches, is.null)]
-    if (length(sim_catches) == 0) {
+    sim_yields <- sim_yields[!sapply(sim_yields, is.null)]
+    if (length(sim_yields) == 0) {
       cat("No valid yield data extracted\n")
       return(NULL)
     }
     
-    df_sim_catch <- do.call(rbind.data.frame, sim_catches)
+    df_sim_yield_uncertainty <- do.call(rbind, sim_yields)
     
-    # Calculate summary statistics (matching your exact approach)
-    sim_mean_c <- df_sim_catch %>% 
-      group_by(Species, Year) %>% 
-      summarise(Yield = median(Yield), .groups = 'drop')
-    
-    sim_lower_c <- df_sim_catch %>% 
-      group_by(Species, Year) %>% 
-      summarise(Yield = min(Yield), .groups = 'drop') 
-    
-    sim_upper_c <- df_sim_catch %>% 
-      group_by(Species, Year) %>% 
-      summarise(Yield = max(Yield), .groups = 'drop') 
-    
-    # Create combined data frame (matching your sim1_c structure)
-    sim1_c <- data.frame(
-      Species = sim_mean_c$Species, 
-      Year = sim_mean_c$Year,
-      sim_mean = sim_mean_c$Yield,
-      sim_lower = sim_lower_c$Yield,
-      sim_upper = sim_upper_c$Yield
-    )
+    # Calculate uncertainty summary statistics (matching your approach)
+    uncertainty_yield_data <- df_sim_yield_uncertainty %>%
+      group_by(Species, Year) %>%
+      summarise(
+        sim_mean = median(Yield),
+        sim_lower = quantile(Yield, 0.025, na.rm = TRUE),  # 95% CI
+        sim_upper = quantile(Yield, 0.975, na.rm = TRUE),  # 95% CI
+        Mean = mean(Yield),
+        Min = min(Yield),
+        Max = max(Yield),
+        Q25 = quantile(Yield, 0.25),
+        Q75 = quantile(Yield, 0.75),
+        .groups = 'drop'
+      )
     
     # Get baseline model yield data if provided
-    baseline_yield <- NULL
+    baseline_yield_data <- NULL
     if (!is.null(baseline_sim)) {
       tryCatch({
-        baseline_yield <- plotYield(baseline_sim, return_data = TRUE)
+        baseline_yield_data <- plotYield(baseline_sim, return_data = TRUE)
         # Convert to long format if needed
-        if (is.matrix(baseline_yield) || is.data.frame(baseline_yield)) {
-          baseline_yield <- baseline_yield %>%
+        if (is.matrix(baseline_yield_data) || is.data.frame(baseline_yield_data)) {
+          baseline_yield_data <- baseline_yield_data %>%
             as.data.frame() %>%
             mutate(Year = as.numeric(rownames(.))) %>%
-            pivot_longer(cols = -Year, names_to = "Species", values_to = "Baseline_Yield")
+            pivot_longer(cols = -Year, names_to = "Species", values_to = "Yield")
         }
       }, error = function(e) {
         cat("Could not extract baseline yield data\n")
-        baseline_yield <- NULL
+        baseline_yield_data <- NULL
+      })
+    }
+    
+    # Get optimal simulation data (best performing model)
+    optimal_yield_data <- NULL
+    if (exists("optimal_results_composite") && !is.null(optimal_results_composite$optimal_sim)) {
+      tryCatch({
+        optimal_yield_data <- trimYield_uncertainty(optimal_results_composite$optimal_sim)
+      }, error = function(e) {
+        cat("Could not extract optimal yield data\n")
       })
     }
     
     # Filter to only fished species
-    fished_species <- unique(sim1_c$Species)
+    fished_species <- unique(uncertainty_yield_data$Species)
     cat("Fished species found:", paste(fished_species, collapse = ", "), "\n")
     
     # Ensure species factor ordering
-    sim1_c$Species <- factor(sim1_c$Species, levels = intersect(species_order, fished_species))
-    if (!is.null(baseline_yield)) {
-      baseline_yield$Species <- factor(baseline_yield$Species, levels = intersect(species_order, fished_species))
+    uncertainty_yield_data$Species <- factor(uncertainty_yield_data$Species, levels = intersect(species_order, fished_species))
+    if (!is.null(baseline_yield_data)) {
+      baseline_yield_data$Species <- factor(baseline_yield_data$Species, levels = intersect(species_order, fished_species))
+    }
+    if (!is.null(optimal_yield_data)) {
+      optimal_yield_data$Species <- factor(optimal_yield_data$Species, levels = intersect(species_order, fished_species))
     }
     
-    # Create the plot (matching your exact ggplot structure)
-    p <- ggplot(sim1_c, aes(x = Year, y = sim_mean, colour = Species)) +
+    # Create the plot (matching your exact structure)
+    p <- ggplot() +
       facet_wrap(~Species, scales = "free_y", 
                  labeller = labeller(Species = species.labs)) +
-      # Add uncertainty ribbon (matching your approach)
-      geom_ribbon(aes(ymin = sim_lower, ymax = sim_upper, fill = Species), 
-                  alpha = 0.3, colour = NA) +
-      # Add LHS mean line (colored by species)
-      geom_line(aes(y = sim_mean, colour = Species), size = 1) +
+      # Add uncertainty ribbon (95% CI, light blue)
+      geom_ribbon(data = uncertainty_yield_data, 
+                  aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+                  alpha = 0.3, colour = NA, fill = "lightblue") +
+      # Add median line from uncertainty analysis (blue dotted)
+      geom_line(data = uncertainty_yield_data, 
+                aes(x = Year, y = sim_mean), 
+                color = "blue", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
       # Add vertical reference lines
-      geom_vline(xintercept = 1961, linetype = "dashed", alpha = 0.6) +
-      geom_vline(xintercept = 2010, linetype = "dashed", alpha = 0.6) +
+      geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+      geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7) +
       scale_fill_viridis_d(name = "Species") +
       scale_color_viridis_d(name = "Species") +
       labs(
         title = "Yield Projections with LHS Uncertainty",
+        subtitle = "Blue dotted = ensemble median, Blue ribbon = 95% CI",
         x = "Year",
         y = "Yield [g/year]"
       ) +
@@ -3166,15 +3176,23 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
       )
     
     # Add baseline model line (grey dashed) if available
-    if (!is.null(baseline_yield)) {
+    if (!is.null(baseline_yield_data)) {
       p <- p + 
-        geom_line(data = baseline_yield,
-                  aes(x = Year, y = Baseline_Yield),
-                  color = "grey50", linetype = "dashed", size = 0.8,
+        geom_line(data = baseline_yield_data,
+                  aes(x = Year, y = Yield),
+                  color = "gray60", linetype = "dashed", linewidth = 1,
                   inherit.aes = FALSE)
     }
     
-    # Add observed data if provided (matching your approach)
+    # Add optimal model line (colored by species, solid) if available
+    if (!is.null(optimal_yield_data)) {
+      p <- p + 
+        geom_line(data = optimal_yield_data,
+                  aes(x = Year, y = Yield, color = Species),
+                  linewidth = 1.2)
+    }
+    
+    # Add observed data if provided (matching your dual-point approach)
     if (!is.null(observed_data)) {
       # Ensure column names and filter to only fished species
       obs_data_plot <- observed_data
@@ -3200,98 +3218,106 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     return(p)
   }
   
-  # Enhanced faceted biomass plot function
+  # Enhanced faceted biomass plot function (matching your working code structure)
   create_faceted_biomass_plot <- function(sim_list, obs_biomass_data = NULL, baseline_sim = NULL) {
     
     cat("Extracting biomass data from", length(sim_list), "simulations...\n")
     
-    # Extract biomass data from all simulations
-    sim_biomass_range <- data.frame()
-    
-    for(i in 1:length(sim_list)) {
+    # Function to extract biomass data (matching your getBiomassData approach)
+    getBiomassData <- function(sim) {
       tryCatch({
-        # Extract biomass from each simulation
-        sim_biomass <- getBiomass(sim_list[[i]])
-        
-        # Convert to data frame
-        if (is.matrix(sim_biomass) || is.data.frame(sim_biomass)) {
-          sim_df <- sim_biomass %>% 
-            as.data.frame() %>%
-            mutate(Year = as.numeric(rownames(.))) %>%
-            pivot_longer(cols = -Year, names_to = "Species", values_to = "Biomass") %>%
-            mutate(SimID = i)
-          
-          # Append to the main data frame
-          sim_biomass_range <- rbind(sim_biomass_range, sim_df)
-        }
+        biomass_matrix <- getBiomass(sim)
+        # Convert to long format
+        biomass_df <- biomass_matrix %>%
+          as.data.frame() %>%
+          mutate(Year = as.numeric(rownames(.))) %>%
+          pivot_longer(cols = -Year, names_to = "Species", values_to = "Biomass")
+        return(biomass_df)
       }, error = function(e) {
-        # Skip failed simulations
+        return(NULL)
       })
     }
     
-    if (nrow(sim_biomass_range) == 0) {
+    # Extract biomass data from all simulations
+    sim_biomass_list <- lapply(1:length(sim_list), function(i) {
+      biomass_data <- getBiomassData(sim_list[[i]])
+      if (!is.null(biomass_data)) {
+        biomass_data$sim <- i
+        return(biomass_data)
+      }
+      return(NULL)
+    })
+    
+    # Remove NULL results and combine
+    sim_biomass_list <- sim_biomass_list[!sapply(sim_biomass_list, is.null)]
+    if (length(sim_biomass_list) == 0) {
       cat("No valid biomass data extracted\n")
       return(NULL)
     }
     
-    # Calculate summary statistics for each species and year
-    sim_summary <- sim_biomass_range %>%
-      group_by(Year, Species) %>%
-      summarize(
-        Min = min(Biomass, na.rm = TRUE),
-        Max = max(Biomass, na.rm = TRUE),
-        Median = median(Biomass, na.rm = TRUE),
-        Mean = mean(Biomass, na.rm = TRUE),
-        Q25 = quantile(Biomass, 0.25, na.rm = TRUE),
-        Q75 = quantile(Biomass, 0.75, na.rm = TRUE),
+    df_sim_biomass_uncertainty <- do.call(rbind, sim_biomass_list)
+    
+    # Calculate biomass summary statistics (matching your approach)
+    biomass_summary <- df_sim_biomass_uncertainty %>%
+      group_by(Species, Year) %>%
+      summarise(
+        Mean = mean(Biomass),
+        Min = min(Biomass),
+        Max = max(Biomass),
+        Q25 = quantile(Biomass, 0.25),
+        Q75 = quantile(Biomass, 0.75),
+        Q025 = quantile(Biomass, 0.025),
+        Q975 = quantile(Biomass, 0.975),
+        sim_mean = median(Biomass),  # For consistency
+        sim_lower = quantile(Biomass, 0.025),
+        sim_upper = quantile(Biomass, 0.975),
         .groups = 'drop'
       )
     
     # Apply species ordering
-    sim_summary$Species <- factor(sim_summary$Species, levels = species_order)
+    biomass_summary$Species <- factor(biomass_summary$Species, levels = species_order)
     
     # Get baseline model biomass data if provided
-    baseline_biomass <- NULL
+    baseline_biomass_data <- NULL
     if (!is.null(baseline_sim)) {
       tryCatch({
-        baseline_biomass <- getBiomass(baseline_sim)
-        # Convert to long format
-        if (is.matrix(baseline_biomass) || is.data.frame(baseline_biomass)) {
-          baseline_biomass <- baseline_biomass %>%
-            as.data.frame() %>%
-            mutate(Year = as.numeric(rownames(.))) %>%
-            pivot_longer(cols = -Year, names_to = "Species", values_to = "Baseline_Biomass")
-          
-          baseline_biomass$Species <- factor(baseline_biomass$Species, levels = species_order)
-        }
+        baseline_biomass_data <- getBiomassData(baseline_sim)
+        baseline_biomass_data$Species <- factor(baseline_biomass_data$Species, levels = species_order)
       }, error = function(e) {
         cat("Could not extract baseline biomass data\n")
-        baseline_biomass <- NULL
+        baseline_biomass_data <- NULL
       })
     }
     
-    # Create the base plot
+    # Get optimal simulation data (best performing model)
+    optimal_biomass_data <- NULL
+    if (exists("optimal_results_composite") && !is.null(optimal_results_composite$optimal_sim)) {
+      tryCatch({
+        optimal_biomass_data <- getBiomassData(optimal_results_composite$optimal_sim)
+        optimal_biomass_data$Species <- factor(optimal_biomass_data$Species, levels = species_order)
+      }, error = function(e) {
+        cat("Could not extract optimal biomass data\n")
+      })
+    }
+    
+    # Create the base plot (matching your structure)
     p <- ggplot() +
-      # Add ribbon showing full range from all simulations (light)
-      geom_ribbon(data = sim_summary,
-                  aes(x = Year, ymin = Min, ymax = Max, fill = Species),
-                  alpha = 0.3) +
-      # Add ribbon showing interquartile range (darker)
-      geom_ribbon(data = sim_summary, 
-                  aes(x = Year, ymin = Q25, ymax = Q75, fill = Species), 
-                  alpha = 0.5) +
-      # Plot mean line from simulations (solid)
-      geom_line(data = sim_summary,
-                aes(x = Year, y = Mean, color = Species),
-                linewidth = 0.8) +
       facet_wrap(~Species, scales = "free_y",
                  labeller = labeller(Species = species.labs)) +
+      # Add uncertainty ribbon (95% CI, light green)
+      geom_ribbon(data = biomass_summary, 
+                  aes(x = Year, ymin = sim_lower, ymax = sim_upper), 
+                  alpha = 0.3, colour = NA, fill = "lightgreen") +
+      # Add median line from uncertainty analysis (green dotted)
+      geom_line(data = biomass_summary, 
+                aes(x = Year, y = sim_mean), 
+                color = "darkgreen", linetype = "dotted", linewidth = 0.8, alpha = 0.7) +
       scale_y_log10() +
       scale_fill_viridis_d(name = "Species") +
       scale_color_viridis_d(name = "Species") +
       labs(
         title = "Modeled vs. Observed Biomass with Simulation Range",
-        subtitle = "Simulation range (light shade), IQR (darker shade), mean (solid), baseline model (dashed), observed values (points)",
+        subtitle = "Green dotted = ensemble median, Green ribbon = 95% CI",
         x = "Year",
         y = "Biomass"
       ) +
@@ -3304,12 +3330,20 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
       )
     
     # Add baseline model line (grey dashed) if available
-    if (!is.null(baseline_biomass)) {
+    if (!is.null(baseline_biomass_data)) {
       p <- p + 
-        geom_line(data = baseline_biomass,
-                  aes(x = Year, y = Baseline_Biomass),
-                  color = "grey50", linetype = "dashed", size = 0.8,
+        geom_line(data = baseline_biomass_data,
+                  aes(x = Year, y = Biomass),
+                  color = "gray60", linetype = "dashed", linewidth = 1,
                   inherit.aes = FALSE)
+    }
+    
+    # Add optimal model line (colored by species, solid) if available
+    if (!is.null(optimal_biomass_data)) {
+      p <- p + 
+        geom_line(data = optimal_biomass_data,
+                  aes(x = Year, y = Biomass, color = Species),
+                  linewidth = 1.2)
     }
     
     # Add observed biomass data if provided (only in matching species facets)
@@ -3318,11 +3352,11 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
       obs_biomass_data$Species <- factor(obs_biomass_data$Species, levels = species_order)
       
       # Filter to only include species that exist in both observed and simulated data
-      common_species <- intersect(unique(sim_summary$Species), unique(obs_biomass_data$Species))
+      common_species <- intersect(unique(biomass_summary$Species), unique(obs_biomass_data$Species))
       obs_filtered <- obs_biomass_data %>% filter(Species %in% common_species)
       
       if (nrow(obs_filtered) > 0) {
-        # Add observed uncertainty ribbon (±10%, light grey, only in relevant facets)
+        # Add observed uncertainty ribbon (±20%, light grey, only in relevant facets)
         p <- p +
           geom_ribbon(data = obs_filtered,
                       aes(x = Year, ymin = Lower, ymax = Upper),
@@ -3337,6 +3371,11 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
                      shape = 1, size = 0.8, colour = "black")
       }
     }
+    
+    # Add vertical reference lines
+    p <- p + 
+      geom_vline(aes(xintercept = 1961), linetype = "dotted", alpha = 0.7) + 
+      geom_vline(aes(xintercept = 2010), linetype = "dotted", alpha = 0.7)
     
     return(p)
   }
