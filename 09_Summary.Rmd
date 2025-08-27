@@ -2997,6 +2997,19 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
   # Create a smaller subset for testing (100 simulations)
   set.seed(123)  # For reproducibility
   n_test_sims <- min(100, length(enhanced_sims))
+  
+  # Check if enhanced_sims is valid
+  if (length(enhanced_sims) == 0) {
+    cat("Error: enhanced_sims is empty\n")
+    return(NULL)
+  }
+  
+  # Check for NULL simulations in the list
+  null_count <- sum(sapply(enhanced_sims, is.null))
+  if (null_count > 0) {
+    cat("Warning:", null_count, "NULL simulations found in enhanced_sims\n")
+  }
+  
   test_indices <- sample(1:length(enhanced_sims), n_test_sims)
   enhanced_sims_test <- enhanced_sims[test_indices]
   
@@ -3068,23 +3081,37 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     
     cat("Extracting yield data from", length(sim_list), "simulations using trimYield_uncertainty approach...\n")
     
-    # Extract yield data from all LHS simulations
-    sim_yields <- lapply(1:length(sim_list), function(i) {
-      yield_data <- trimYield_uncertainty(sim_list[[i]])
-      if (!is.null(yield_data)) {
-        yield_data$sim <- i
-        return(yield_data)
-      }
-      return(NULL)
-    })
+    # Extract yield data from all LHS simulations with better error handling
+    sim_yields <- list()
+    successful_extractions <- 0
+    
+    for (i in 1:length(sim_list)) {
+      tryCatch({
+        if (is.null(sim_list[[i]])) {
+          cat("Simulation", i, "is NULL, skipping...\n")
+          next
+        }
+        
+        yield_data <- trimYield_uncertainty(sim_list[[i]])
+        if (!is.null(yield_data) && nrow(yield_data) > 0) {
+          yield_data$sim <- i
+          sim_yields[[length(sim_yields) + 1]] <- yield_data
+          successful_extractions <- successful_extractions + 1
+        }
+      }, error = function(e) {
+        cat("Error extracting yield from simulation", i, ":", e$message, "\n")
+      })
+    }
+    
+    cat("Successfully extracted yield data from", successful_extractions, "out of", length(sim_list), "simulations\n")
     
     # Remove NULL results and combine
-    sim_yields <- sim_yields[!sapply(sim_yields, is.null)]
     if (length(sim_yields) == 0) {
-      cat("No valid yield data extracted\n")
+      cat("No valid yield data extracted from any simulation\n")
       return(NULL)
     }
     
+    cat("Combining yield data from", length(sim_yields), "successful simulations...\n")
     df_sim_yield_uncertainty <- do.call(rbind, sim_yields)
     
     # Calculate uncertainty summary statistics (matching your approach)
@@ -3238,23 +3265,37 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
       })
     }
     
-    # Extract biomass data from all simulations
-    sim_biomass_list <- lapply(1:length(sim_list), function(i) {
-      biomass_data <- getBiomassData(sim_list[[i]])
-      if (!is.null(biomass_data)) {
-        biomass_data$sim <- i
-        return(biomass_data)
-      }
-      return(NULL)
-    })
+    # Extract biomass data from all simulations with better error handling
+    sim_biomass_list <- list()
+    successful_extractions <- 0
+    
+    for (i in 1:length(sim_list)) {
+      tryCatch({
+        if (is.null(sim_list[[i]])) {
+          cat("Simulation", i, "is NULL, skipping...\n")
+          next
+        }
+        
+        biomass_data <- getBiomassData(sim_list[[i]])
+        if (!is.null(biomass_data) && nrow(biomass_data) > 0) {
+          biomass_data$sim <- i
+          sim_biomass_list[[length(sim_biomass_list) + 1]] <- biomass_data
+          successful_extractions <- successful_extractions + 1
+        }
+      }, error = function(e) {
+        cat("Error extracting biomass from simulation", i, ":", e$message, "\n")
+      })
+    }
+    
+    cat("Successfully extracted biomass data from", successful_extractions, "out of", length(sim_list), "simulations\n")
     
     # Remove NULL results and combine
-    sim_biomass_list <- sim_biomass_list[!sapply(sim_biomass_list, is.null)]
     if (length(sim_biomass_list) == 0) {
-      cat("No valid biomass data extracted\n")
+      cat("No valid biomass data extracted from any simulation\n")
       return(NULL)
     }
     
+    cat("Combining biomass data from", length(sim_biomass_list), "successful simulations...\n")
     df_sim_biomass_uncertainty <- do.call(rbind, sim_biomass_list)
     
     # Calculate biomass summary statistics (matching your approach)
