@@ -4980,6 +4980,30 @@ suppressMessages({
 # Load helper functions
 source('Helper_Functions.R')
 
+# Define helper functions for uncertainty analysis
+trimYield_uncertainty <- function(sim) {
+  tryCatch({
+    y <- plotYieldGear(sim, return_data = TRUE)
+    y <- select(y, c(Year, Species, Yield))
+    return(y)
+  }, error = function(e) {
+    cat("Warning: Could not extract yield from simulation\n")
+    return(NULL)
+  })
+}
+
+getBiomassData <- function(sim) {
+  tryCatch({
+    biomass <- getBiomass(sim)
+    df_biomass <- reshape2::melt(biomass)
+    names(df_biomass) <- c("Year", "Species", "Biomass")
+    return(df_biomass)
+  }, error = function(e) {
+    cat("Warning: Could not extract biomass from simulation\n")
+    return(NULL)
+  })
+}
+
 # Global variable to store baseline simulation (to avoid running multiple times)
 baseline_simulation_cache <- NULL
 
