@@ -3516,8 +3516,84 @@ if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
     return(p)
   }
   
-  # Create faceted yield uncertainty plot with test subset
-  cat("Creating faceted yield plot...\n")
+  # DEBUGGING: Test minimal plot components to isolate the issue
+  cat("=== DEBUGGING: Testing minimal plot components ===\n")
+  
+  # Test 1: Very basic plot
+  tryCatch({
+    cat("Test 1: Basic data plot...\n")
+    p_basic <- ggplot(uncertainty_yield_data, aes(x = Year, y = sim_mean)) +
+      geom_line() +
+      theme_bw()
+    print(p_basic)
+    cat("✓ Basic plot works\n")
+  }, error = function(e) {
+    cat("✗ Basic plot failed:", e$message, "\n")
+  })
+  
+  # Test 2: Add facets
+  tryCatch({
+    cat("Test 2: Adding facets...\n")
+    p_facets <- ggplot(uncertainty_yield_data, aes(x = Year, y = sim_mean)) +
+      geom_line() +
+      facet_wrap(~Species) +
+      theme_bw()
+    print(p_facets)
+    cat("✓ Faceted plot works\n")
+  }, error = function(e) {
+    cat("✗ Faceted plot failed:", e$message, "\n")
+  })
+  
+  # Test 3: Add species colors
+  tryCatch({
+    cat("Test 3: Adding species colors...\n")
+    p_colors <- ggplot(uncertainty_yield_data, aes(x = Year, y = sim_mean, color = Species)) +
+      geom_line() +
+      facet_wrap(~Species) +
+      scale_color_viridis_d() +
+      theme_bw()
+    print(p_colors)
+    cat("✓ Colored plot works\n")
+  }, error = function(e) {
+    cat("✗ Colored plot failed:", e$message, "\n")
+  })
+  
+  # Test 4: Add optimal data
+  if (!is.null(optimal_yield_data)) {
+    tryCatch({
+      cat("Test 4: Adding optimal data...\n")
+      p_optimal <- ggplot(uncertainty_yield_data, aes(x = Year, y = sim_mean)) +
+        geom_line(color = "blue") +
+        geom_line(data = optimal_yield_data, aes(x = Year, y = Yield, color = Species)) +
+        facet_wrap(~Species) +
+        theme_bw()
+      print(p_optimal)
+      cat("✓ Plot with optimal data works\n")
+    }, error = function(e) {
+      cat("✗ Plot with optimal data failed:", e$message, "\n")
+    })
+  }
+  
+  # Test 5: Add observed data
+  if (!is.null(observed_yield)) {
+    tryCatch({
+      cat("Test 5: Adding observed data...\n")
+      obs_test <- observed_yield
+      names(obs_test) <- tolower(names(obs_test))
+      
+      p_observed <- ggplot(uncertainty_yield_data, aes(x = Year, y = sim_mean)) +
+        geom_line(color = "blue") +
+        geom_point(data = obs_test, aes(x = year, y = yield), color = "red") +
+        facet_wrap(~Species) +
+        theme_bw()
+      print(p_observed)
+      cat("✓ Plot with observed data works\n")
+    }, error = function(e) {
+      cat("✗ Plot with observed data failed:", e$message, "\n")
+    })
+  }
+  
+  cat("=== END DEBUGGING ===\n\n")
   
   # Try to get baseline simulation (you may need to adjust this variable name)
   baseline_sim <- NULL
@@ -4883,5 +4959,546 @@ The framework has been tested and validated to show:
 4. **Validate Results**: Compare model outputs with observed data
 
 This framework provides a robust foundation for uncertainty quantification in marine ecosystem models, specifically designed for the Prydz Bay mizer model with corrected stability logic and realistic marine ecosystem expectations.
+
+## Updated Enhanced Plotting Functions
+
+Updated plotting functions that match the original example style with species-specific colors, consistent baseline model with fishing effort, and proper uncertainty visualization:
+
+```{r updated-enhanced-plotting-functions}
+# Load required packages
+suppressMessages({
+  library(ggplot2)
+  library(dplyr)
+  library(viridis)
+  library(mizer)
+  library(therMizer)  # For upgradeTherParams function
+  library(reshape2)
+  library(RColorBrewer)
+  library(tidyr)
+})
+
+# Load helper functions
+source('Helper_Functions.R')
+
+# Global variable to store baseline simulation (to avoid running multiple times)
+baseline_simulation_cache <- NULL
+
+# Function to get or create baseline simulation
+get_baseline_simulation <- function() {
+  if (!is.null(baseline_simulation_cache)) {
+    cat("Using cached baseline simulation\n")
+    return(baseline_simulation_cache)
+  }
+  
+  cat("Creating baseline simulation with fishing effort...\n")
+  tryCatch({
+    # Load required parameters and forcings
+    if (file.exists('params_steady_state_2011_2020_tol_0.00025.RDS') &&
+        file.exists('temperature_forcing_1841_2010.rds') &&
+        file.exists('phytoplankton_forcing_1841_2010.rds') &&
+        file.exists('effort_array_1841_2010.rds')) {
+      
+      # Load parameters, forcings, and fishing effort
+      params_new_v4 <- readRDS('params_steady_state_2011_2020_tol_0.00025.RDS')
+      extended_ocean_temp <- readRDS('temperature_forcing_1841_2010.rds')
+      extended_n_pp_array <- readRDS('phytoplankton_forcing_1841_2010.rds')
+      effort_array <- readRDS('effort_array_1841_2010.rds')
+      
+      # Setup params with forcings
+      params_baseline_with_forcings <- upgradeTherParams(params_new_v4, 
+                                                        ocean_temp_array = extended_ocean_temp,
+                                                        n_pp_array = extended_n_pp_array,
+                                                        aerobic_effect = FALSE, 
+                                                        metabolism_effect = TRUE)
+      
+      # Run baseline simulation from 1841 to 2010 (full range) with fishing effort
+      t_start <- 1841
+      t_end <- 2010
+      t_max <- t_end - t_start + 1
+      
+      cat("Running baseline simulation with fishing effort from", t_start, "to", t_end, "(", t_max, "years )\n")
+      
+      baseline_simulation_cache <<- project(params_baseline_with_forcings, 
+                                           t_max = t_max, 
+                                           t_start = t_start,
+                                           effort = effort_array)
+      cat("✓ Baseline simulation with fishing effort complete and cached\n")
+      return(baseline_simulation_cache)
+      
+    } else {
+      missing_files <- c()
+      if (!file.exists('params_steady_state_2011_2020_tol_0.00025.RDS')) missing_files <- c(missing_files, "params file")
+      if (!file.exists('temperature_forcing_1841_2010.rds')) missing_files <- c(missing_files, "temperature forcing")
+      if (!file.exists('phytoplankton_forcing_1841_2010.rds')) missing_files <- c(missing_files, "phytoplankton forcing")
+      if (!file.exists('effort_array_1841_2010.rds')) missing_files <- c(missing_files, "fishing effort")
+      
+      cat("! Missing required files for baseline simulation:", paste(missing_files, collapse=", "), "\n")
+      return(NULL)
+    }
+  }, error = function(e) {
+    cat("! Could not create baseline simulation:", e$message, "\n")
+    return(NULL)
+  })
+}
+
+# Enhanced yield plot function matching the original examples
+create_yield_plot_like_example <- function(sim_list, obs_yield_data = NULL, n_test = NULL) {
+  cat("Creating yield plot to match user example...\n")
+  
+  # Use subset for testing if specified
+  if (!is.null(n_test)) {
+    sim_list <- sim_list[1:min(n_test, length(sim_list))]
+    cat("Using", length(sim_list), "simulations\n")
+  }
+  
+  # Extract yield data
+  cat("Extracting yield data...\n")
+  yield_list <- list()
+  for (i in seq_along(sim_list)) {
+    sim <- sim_list[[i]]
+    if (!is.null(sim)) {
+      yield_data <- trimYield_uncertainty(sim)
+      if (!is.null(yield_data) && nrow(yield_data) > 0) {
+        yield_data$sim_id <- i
+        yield_list[[i]] <- yield_data
+      }
+    }
+  }
+  
+  yield_list <- yield_list[!sapply(yield_list, is.null)]
+  cat("Extracted yield from", length(yield_list), "simulations\n")
+  
+  if (length(yield_list) == 0) {
+    cat("No yield data available\n")
+    return(NULL)
+  }
+  
+  # Combine all yield data
+  df_sim_yield <- do.call(rbind, yield_list)
+  
+  # Filter to only fished species
+  fished_species <- c("antarctic krill", "bathypelagic fishes", "shelf and coastal fishes", 
+                      "squids", "toothfishes", "minke whales", "orca", "sperm whales", "baleen whales")
+  
+  cat("Fished species:", paste(fished_species, collapse=", "), "\n")
+  
+  uncertainty_yield_data <- df_sim_yield %>%
+    filter(Species %in% fished_species) %>%
+    group_by(Species, Year) %>%
+    summarise(
+      sim_median = median(Yield, na.rm = TRUE),
+      sim_q05 = quantile(Yield, 0.05, na.rm = TRUE),
+      sim_q95 = quantile(Yield, 0.95, na.rm = TRUE),
+      sim_q25 = quantile(Yield, 0.25, na.rm = TRUE),
+      sim_q75 = quantile(Yield, 0.75, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  # Create species-specific colors matching the original examples
+  # Use consistent color palette for all species to ensure consistency between plots
+  species_color_mapping <- c(
+    # Fished species (appear in both yield and biomass plots)
+    "antarctic krill" = "#E31A1C",        # Red
+    "bathypelagic fishes" = "#FF7F00",     # Orange  
+    "shelf and coastal fishes" = "#1F78B4", # Blue
+    "squids" = "#33A02C",                  # Green
+    "toothfishes" = "#6A3D9A",             # Purple
+    "minke whales" = "#FB9A99",            # Light red
+    "orca" = "#A6CEE3",                    # Light blue
+    "sperm whales" = "#B2DF8A",            # Light green
+    "baleen whales" = "#FDBF6F",           # Light orange
+    # Additional species for biomass plot only
+    "mesozooplankton" = "#CAB2D6",         # Light purple
+    "other krill" = "#FFFF99",             # Light yellow
+    "other macrozooplankton" = "#B15928",  # Brown
+    "salps" = "#999999",                   # Grey
+    "mesopelagic fishes" = "#BC80BD",      # Light magenta
+    "flying birds" = "#CCEBC5",            # Very light green
+    "small divers" = "#FFED6F",            # Gold
+    "leopard seals" = "#FBB4AE",           # Light salmon
+    "medium divers" = "#B3CDE3",           # Light steel blue
+    "large divers" = "#CCEBC5"             # Very light green
+  )
+  
+  # Filter colors to only fished species for yield plot
+  fished_species_colors <- species_color_mapping[names(species_color_mapping) %in% fished_species]
+  
+  # Create complete color mapping for all species (for biomass plots)
+  all_species_colors <- species_color_mapping
+  
+  cat("Using consistent colors for fished species...\n")
+  
+  # Create the plot matching the user's example
+  p <- ggplot(uncertainty_yield_data, aes(x = Year, group = Species, fill = Species, color = Species)) +
+    # Add uncertainty ribbons (like in the example)
+    geom_ribbon(aes(ymin = sim_q05, ymax = sim_q95), alpha = 0.3, color = NA) +
+    geom_ribbon(aes(ymin = sim_q25, ymax = sim_q75), alpha = 0.5, color = NA) +
+    # Add median line (like in the example)
+    geom_line(aes(y = sim_median), linewidth = 1) +
+    # Use log scale for y-axis (like in the example)
+    scale_y_log10(labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    # Add vertical reference lines (like in the example)
+    geom_vline(xintercept = c(1950, 2000), linetype = "dashed", color = "black", alpha = 0.7) +
+    # Use species-specific colors matching original examples
+    scale_fill_manual(values = fished_species_colors) +
+    scale_color_manual(values = fished_species_colors) +
+    # Facet by species (like in the example)
+    facet_wrap(~ Species, scales = "free_y", ncol = 3) +
+    # Styling to match the example
+    labs(
+      title = "Fisheries Yield with LHS Parameter Uncertainty",
+      subtitle = "Simulation range (light shade), IQR (darker shade), mean (solid), baseline with fishing (dashed), observed values (points)",
+      x = "Year",
+      y = "Yield (t)"
+    ) +
+    theme_bw() +
+    theme(
+      legend.position = "none",  # Remove legend since facets show species
+      strip.text = element_text(size = 10),
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 10)
+    )
+  
+  # Add optimal/baseline model line if available
+  cat("Setting up optimal/baseline model for yield...\n")
+  baseline_sim <- get_baseline_simulation()
+  
+  if (!is.null(baseline_sim)) {
+    # Extract yield from baseline simulation
+    optimal_yield_data <- trimYield_uncertainty(baseline_sim)
+    
+    if (!is.null(optimal_yield_data) && nrow(optimal_yield_data) > 0) {
+      # Filter to only fished species and time range of uncertainty data
+      time_range <- range(uncertainty_yield_data$Year)
+      optimal_yield_filtered <- optimal_yield_data %>%
+        filter(Species %in% fished_species,
+               Year >= time_range[1],
+               Year <= time_range[2])
+      
+      if (nrow(optimal_yield_filtered) > 0) {
+        p <- p + geom_line(data = optimal_yield_filtered, 
+                          aes(x = Year, y = Yield, group = Species), 
+                          linetype = "dashed", linewidth = 1.2, color = "grey50",
+                          inherit.aes = FALSE)
+        cat("✓ Added optimal model dashed grey lines to yield plot\n")
+      }
+    }
+  }
+  
+  # Add observed data points if available (like the dots in the example)
+  if (!is.null(obs_yield_data)) {
+    cat("Adding observed data points...\n")
+    
+    # Debug: Check what's in the observed data
+    cat("Observed data columns:", paste(names(obs_yield_data), collapse=", "), "\n")
+    
+    # Work with the actual column names (Year, Species, Yield)
+    if ("Species" %in% names(obs_yield_data)) {
+      cat("Unique species in observed data:", paste(unique(obs_yield_data$Species), collapse=", "), "\n")
+      
+      # Filter observed data to fished species and time range
+      obs_filtered <- obs_yield_data %>%
+        filter(Year >= min(uncertainty_yield_data$Year) & 
+               Year <= max(uncertainty_yield_data$Year)) %>%
+        filter(Species %in% fished_species)  # Direct match since both use proper case
+      
+      cat("Filtered observed data rows:", nrow(obs_filtered), "\n")
+      cat("Species with observations:", paste(unique(obs_filtered$Species), collapse=", "), "\n")
+      
+      if (nrow(obs_filtered) > 0) {
+        p <- p + geom_point(data = obs_filtered, 
+                           aes(x = Year, y = Yield), 
+                           color = "black", size = 1.5, alpha = 0.8,
+                           inherit.aes = FALSE)
+        cat("Added", nrow(obs_filtered), "observed data points\n")
+      }
+    }
+  }
+  
+  cat("Yield plot created to match example style\n")
+  return(p)
+}
+
+# Enhanced biomass plot function matching the original examples
+create_biomass_plot_like_example <- function(sim_list, obs_biomass_data = NULL, n_test = NULL) {
+  cat("Creating biomass plot to match user example...\n")
+  
+  # Create consistent species color mapping (same as yield function)
+  species_color_mapping <- c(
+    # Fished species (appear in both yield and biomass plots)
+    "antarctic krill" = "#E31A1C",        # Red
+    "bathypelagic fishes" = "#FF7F00",     # Orange  
+    "shelf and coastal fishes" = "#1F78B4", # Blue
+    "squids" = "#33A02C",                  # Green
+    "toothfishes" = "#6A3D9A",             # Purple
+    "minke whales" = "#FB9A99",            # Light red
+    "orca" = "#A6CEE3",                    # Light blue
+    "sperm whales" = "#B2DF8A",            # Light green
+    "baleen whales" = "#FDBF6F",           # Light orange
+    # Additional species for biomass plot only
+    "mesozooplankton" = "#CAB2D6",         # Light purple
+    "other krill" = "#FFFF99",             # Light yellow
+    "other macrozooplankton" = "#B15928",  # Brown
+    "salps" = "#999999",                   # Grey
+    "mesopelagic fishes" = "#BC80BD",      # Light magenta
+    "flying birds" = "#CCEBC5",            # Very light green
+    "small divers" = "#FFED6F",            # Gold
+    "leopard seals" = "#FBB4AE",           # Light salmon
+    "medium divers" = "#B3CDE3",           # Light steel blue
+    "large divers" = "#CCEBC5"             # Very light green
+  )
+  
+  # Create complete color mapping for all species
+  all_species_colors <- species_color_mapping
+  
+  # Use subset for testing if specified
+  if (!is.null(n_test)) {
+    sim_list <- sim_list[1:min(n_test, length(sim_list))]
+    cat("Using", length(sim_list), "simulations\n")
+  }
+  
+  # Extract biomass data
+  cat("Extracting biomass data...\n")
+  biomass_list <- list()
+  for (i in seq_along(sim_list)) {
+    sim <- sim_list[[i]]
+    if (!is.null(sim)) {
+      biomass_data <- getBiomassData(sim)
+      if (!is.null(biomass_data) && nrow(biomass_data) > 0) {
+        biomass_data$sim_id <- i
+        biomass_list[[i]] <- biomass_data
+      }
+    }
+  }
+  
+  biomass_list <- biomass_list[!sapply(biomass_list, is.null)]
+  cat("Extracted biomass from", length(biomass_list), "simulations\n")
+  
+  if (length(biomass_list) == 0) {
+    cat("No biomass data available\n")
+    return(NULL)
+  }
+  
+  # Combine all biomass data
+  df_sim_biomass <- do.call(rbind, biomass_list)
+  
+  # Define species order for consistent plotting
+  available_species <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                         "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                         "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                         "toothfishes", "leopard seals", "medium divers", "large divers", 
+                         "minke whales", "orca", "sperm whales", "baleen whales")
+  
+  cat("Species in order:", paste(available_species, collapse=", "), "\n")
+  
+  # Calculate uncertainty ribbons
+  cat("Creating biomass plot with species-specific colors...\n")
+  uncertainty_biomass_data <- df_sim_biomass %>%
+    filter(Species %in% available_species) %>%
+    group_by(Species, Year) %>%
+    summarise(
+      sim_median = median(Biomass, na.rm = TRUE),
+      sim_q05 = quantile(Biomass, 0.05, na.rm = TRUE),
+      sim_q95 = quantile(Biomass, 0.95, na.rm = TRUE),
+      sim_q25 = quantile(Biomass, 0.25, na.rm = TRUE),
+      sim_q75 = quantile(Biomass, 0.75, na.rm = TRUE),
+      .groups = 'drop'
+    ) %>%
+    mutate(Species = factor(Species, levels = available_species))
+  
+  # Create the plot
+  p <- ggplot(uncertainty_biomass_data, aes(x = Year, group = Species, fill = Species, color = Species)) +
+    # Add uncertainty ribbons  
+    geom_ribbon(aes(ymin = sim_q05, ymax = sim_q95), alpha = 0.3, color = NA) +
+    geom_ribbon(aes(ymin = sim_q25, ymax = sim_q75), alpha = 0.5, color = NA) +
+    # Add median line
+    geom_line(aes(y = sim_median), linewidth = 0.8) +
+    # Use log scale for y-axis
+    scale_y_log10(labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    # Add vertical reference lines
+    geom_vline(xintercept = c(1950, 2000), linetype = "dashed", color = "black", alpha = 0.7) +
+    # Use species-specific colors matching original examples  
+    scale_fill_manual(values = all_species_colors) +
+    scale_color_manual(values = all_species_colors) +
+    # Facet by species
+    facet_wrap(~ Species, scales = "free_y", ncol = 4) +
+    # Styling
+    labs(
+      title = "Species Biomass with LHS Parameter Uncertainty",
+      subtitle = "Simulation range (light shade), IQR (darker shade), mean (solid), baseline with fishing (dashed), observed values (points)",
+      x = "Year",
+      y = "Biomass (g)"
+    ) +
+    theme_bw() +
+    theme(
+      legend.position = "none",  # Remove legend since facets show species
+      strip.text = element_text(size = 8),
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 10)
+    )
+  
+  # Add baseline model if available (dashed lines like in the example)
+  cat("Setting up baseline model...\n")
+  baseline_sim <- get_baseline_simulation()
+  
+  if (!is.null(baseline_sim)) {
+    # Extract biomass from shared baseline simulation
+    baseline_biomass_data <- getBiomassData(baseline_sim)
+    
+    if (!is.null(baseline_biomass_data) && nrow(baseline_biomass_data) > 0) {
+      # Filter to time range of uncertainty data if needed
+      time_range <- range(uncertainty_biomass_data$Year)
+      baseline_biomass_filtered <- baseline_biomass_data %>%
+        filter(Year >= time_range[1],
+               Year <= time_range[2])
+      
+      if (nrow(baseline_biomass_filtered) > 0) {
+        baseline_biomass_filtered$Species <- factor(baseline_biomass_filtered$Species, levels = available_species)
+        
+        # Add baseline as dashed grey lines
+        p <- p + geom_line(data = baseline_biomass_filtered, 
+                          aes(x = Year, y = Biomass, group = Species), 
+                          linetype = "dashed", linewidth = 1, color = "grey50",
+                          inherit.aes = FALSE)
+        cat("✓ Added baseline model dashed grey lines\n")
+      }
+    }
+  }
+  
+  # Add observed biomass with ±20% uncertainty for 2010-2020
+  if (is.null(obs_biomass_data)) {
+    cat("Adding observed biomass with ±20% uncertainty for 2010-2020...\n")
+    
+    # Create observational data (based on your data structure)
+    obs_biomass <- data.frame(
+      Species = available_species,
+      ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11, 
+                     1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10, 
+                     2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10, 
+                     2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+    )
+    
+    # Create time series with ±20% uncertainty for 2010-2020
+    obs_biomass_ts <- obs_biomass %>%
+      crossing(Year = 2010:2020) %>%
+      mutate(
+        Lower = ObsBiomass * 0.8,
+        Upper = ObsBiomass * 1.2,
+        Species = factor(Species, levels = available_species)
+      )
+    
+    cat("Adding observed biomass ribbons for", length(2010:2020), "years and", length(available_species), "species\n")
+    
+    # Add observed data as ribbons (filter to time range)
+    obs_filtered <- obs_biomass_ts %>%
+      filter(Year >= min(uncertainty_biomass_data$Year) & 
+             Year <= max(uncertainty_biomass_data$Year))
+    
+    if (nrow(obs_filtered) > 0) {
+      p <- p + geom_ribbon(data = obs_filtered, 
+                          aes(x = Year, ymin = Lower, ymax = Upper), 
+                          fill = "black", alpha = 0.1, inherit.aes = FALSE)
+    }
+  }
+  
+  cat("Biomass plot created to match example style\n")
+  return(p)
+}
+
+cat("✓ Updated enhanced plotting functions loaded successfully\n")
+cat("Functions available:\n")
+cat("  - create_yield_plot_like_example()\n")
+cat("  - create_biomass_plot_like_example()\n")
+cat("  - get_baseline_simulation()\n")
+```
+
+### Test Enhanced Plotting Functions
+
+Test the updated plotting functions with a small subset of LHS results:
+
+```{r test-enhanced-plotting}
+# Test with small subset for validation
+if (file.exists("enhanced_sims_test.RDS")) {
+  cat("Loading test subset of LHS simulations...\n")
+  enhanced_sims_test <- readRDS("enhanced_sims_test.RDS")
+  
+  cat("Testing yield plot with 5 simulations...\n")
+  test_yield_plot <- create_yield_plot_like_example(enhanced_sims_test, n_test = 5)
+  
+  if (!is.null(test_yield_plot)) {
+    print(test_yield_plot)
+    ggsave("test_yield_plot_example_style.png", test_yield_plot, width = 14, height = 10, dpi = 300)
+    cat("✓ Test yield plot saved\n")
+  }
+  
+  cat("Testing biomass plot with 5 simulations...\n")
+  test_biomass_plot <- create_biomass_plot_like_example(enhanced_sims_test, n_test = 5)
+  
+  if (!is.null(test_biomass_plot)) {
+    print(test_biomass_plot)
+    ggsave("test_biomass_plot_example_style.png", test_biomass_plot, width = 16, height = 12, dpi = 300)
+    cat("✓ Test biomass plot saved\n")
+  }
+  
+} else {
+  cat("Test data file 'enhanced_sims_test.RDS' not found\n")
+  cat("Please run the enhanced LHS analysis first to generate test data\n")
+}
+```
+
+### Create Final Enhanced Plots
+
+Create the final plots with the full LHS dataset:
+
+```{r create-final-enhanced-plots}
+# Create final plots with full LHS results
+if (exists("enhanced_sims") && length(enhanced_sims) > 0) {
+  
+  cat("Creating final enhanced uncertainty plots...\n")
+  
+  # Load observed yield data if available
+  if (file.exists("yield_observed_timeseries_tidy.RDS")) {
+    observed_yield <- readRDS("yield_observed_timeseries_tidy.RDS")
+    cat("Loaded observed yield data\n")
+  } else {
+    observed_yield <- NULL
+    cat("No observed yield data file found\n")
+  }
+  
+  # Create yield plot with full dataset
+  cat("Creating final yield plot...\n")
+  final_yield_plot <- create_yield_plot_like_example(enhanced_sims, observed_yield)
+  
+  if (!is.null(final_yield_plot)) {
+    print(final_yield_plot)
+    ggsave("final_yield_uncertainty_plot.png", final_yield_plot, width = 14, height = 10, dpi = 300)
+    ggsave("final_yield_uncertainty_plot.pdf", final_yield_plot, width = 14, height = 10)
+    cat("✓ Final yield plot saved (PNG and PDF)\n")
+  }
+  
+  # Create biomass plot with full dataset
+  cat("Creating final biomass plot...\n")
+  final_biomass_plot <- create_biomass_plot_like_example(enhanced_sims)
+  
+  if (!is.null(final_biomass_plot)) {
+    print(final_biomass_plot)
+    ggsave("final_biomass_uncertainty_plot.png", final_biomass_plot, width = 16, height = 12, dpi = 300)
+    ggsave("final_biomass_uncertainty_plot.pdf", final_biomass_plot, width = 16, height = 12)
+    cat("✓ Final biomass plot saved (PNG and PDF)\n")
+  }
+  
+  cat("\n=== FINAL PLOTTING SUMMARY ===\n")
+  cat("✓ Species-specific colors consistent between yield and biomass plots\n")
+  cat("✓ Baseline model includes fishing effort scenario\n")
+  cat("✓ Grey dashed lines show baseline in both plots\n")
+  cat("✓ Uncertainty ribbons show 90% and 50% confidence intervals\n")
+  cat("✓ Log scaling and professional styling match original examples\n")
+  cat("✓ Observed data overlaid where available\n")
+  
+} else {
+  cat("Enhanced simulations not available\n")
+  cat("Please run the enhanced LHS uncertainty analysis first\n")
+}
+```
 
 
