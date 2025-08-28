@@ -5235,7 +5235,11 @@ create_yield_plot_like_example <- function(sim_list, obs_yield_data = NULL, n_te
                            color = "black", size = 1.5, alpha = 0.8,
                            inherit.aes = FALSE)
         cat("Added", nrow(obs_filtered), "observed data points\n")
+      } else {
+        cat("No matching observations found for fished species\n")
       }
+    } else {
+      cat("No 'Species' column found in observed data\n")
     }
   }
   
@@ -5402,26 +5406,79 @@ create_biomass_plot_like_example <- function(sim_list, obs_biomass_data = NULL, 
                      2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
     )
     
-    # Create time series with ±20% uncertainty for 2010-2020
-    obs_biomass_ts <- obs_biomass %>%
-      crossing(Year = 2010:2020) %>%
-      mutate(
-        Lower = ObsBiomass * 0.8,
-        Upper = ObsBiomass * 1.2,
-        Species = factor(Species, levels = available_species)
-      )
+    # Define observation period
+    obs_years <- 2010:2020
     
-    cat("Adding observed biomass ribbons for", length(2010:2020), "years and", length(available_species), "species\n")
+    # Create observed data for the 2010-2020 period only
+    obs_data_period <- data.frame()
+    for (year in obs_years) {
+      year_data <- obs_biomass
+      year_data$Year <- year
+      # Calculate ±20% bounds
+      year_data$ObsBiomass_lower <- year_data$ObsBiomass * 0.8
+      year_data$ObsBiomass_upper <- year_data$ObsBiomass * 1.2
+      obs_data_period <- rbind(obs_data_period, year_data)
+    }
     
-    # Add observed data as ribbons (filter to time range)
-    obs_filtered <- obs_biomass_ts %>%
-      filter(Year >= min(uncertainty_biomass_data$Year) & 
-             Year <= max(uncertainty_biomass_data$Year))
+    # Filter to species in the plot and set factor order
+    obs_data_filtered <- obs_data_period %>%
+      filter(Species %in% available_species)
+    obs_data_filtered$Species <- factor(obs_data_filtered$Species, levels = available_species)
     
-    if (nrow(obs_filtered) > 0) {
-      p <- p + geom_ribbon(data = obs_filtered, 
-                          aes(x = Year, ymin = Lower, ymax = Upper), 
-                          fill = "black", alpha = 0.1, inherit.aes = FALSE)
+    cat("Adding observed biomass ribbons for", length(obs_years), "years and", length(unique(obs_data_filtered$Species)), "species\n")
+    
+    # Add ±20% uncertainty ribbon (grey shading for 2010-2020)
+    p <- p + geom_ribbon(data = obs_data_filtered,
+                        aes(x = Year, ymin = ObsBiomass_lower, ymax = ObsBiomass_upper),
+                        fill = "grey50", alpha = 0.3, color = NA, inherit.aes = FALSE)
+    
+    # Add observed biomass as horizontal line for 2010-2020 period
+    p <- p + geom_line(data = obs_data_filtered,
+                      aes(x = Year, y = ObsBiomass),
+                      color = "black", linewidth = 1.5, inherit.aes = FALSE)
+    
+    # Add observed points at the ends for clarity
+    p <- p + geom_point(data = obs_data_filtered %>% filter(Year %in% c(2010, 2020)),
+                       aes(x = Year, y = ObsBiomass),
+                       color = "black", size = 2, inherit.aes = FALSE)
+  } else {
+    # Handle provided observed biomass data
+    cat("Adding provided observed biomass data...\n")
+    
+    # Define observation period
+    obs_years <- 2010:2020
+    
+    # Create observed data for the 2010-2020 period only
+    obs_data_period <- data.frame()
+    for (year in obs_years) {
+      year_data <- obs_biomass_data
+      year_data$Year <- year
+      # Calculate ±20% bounds
+      year_data$ObsBiomass_lower <- year_data$ObsBiomass * 0.8
+      year_data$ObsBiomass_upper <- year_data$ObsBiomass * 1.2
+      obs_data_period <- rbind(obs_data_period, year_data)
+    }
+    
+    # Filter to species in the plot and set factor order
+    obs_data_filtered <- obs_data_period %>%
+      filter(Species %in% available_species)
+    obs_data_filtered$Species <- factor(obs_data_filtered$Species, levels = available_species)
+    
+    if (nrow(obs_data_filtered) > 0) {
+      # Add ±20% uncertainty ribbon (grey shading for 2010-2020)
+      p <- p + geom_ribbon(data = obs_data_filtered,
+                          aes(x = Year, ymin = ObsBiomass_lower, ymax = ObsBiomass_upper),
+                          fill = "grey50", alpha = 0.3, color = NA, inherit.aes = FALSE)
+      
+      # Add observed biomass as horizontal line for 2010-2020 period
+      p <- p + geom_line(data = obs_data_filtered,
+                        aes(x = Year, y = ObsBiomass),
+                        color = "black", linewidth = 1.5, inherit.aes = FALSE)
+      
+      # Add observed points at the ends for clarity
+      p <- p + geom_point(data = obs_data_filtered %>% filter(Year %in% c(2010, 2020)),
+                         aes(x = Year, y = ObsBiomass),
+                         color = "black", size = 2, inherit.aes = FALSE)
     }
   }
   
@@ -5446,8 +5503,17 @@ if (file.exists("enhanced_sims_test.RDS")) {
   cat("Loading test subset of LHS simulations...\n")
   enhanced_sims_test <- readRDS("enhanced_sims_test.RDS")
   
+  # Load observed yield data if available
+  observed_yield <- NULL
+  if (file.exists("yield_observed_timeseries_tidy.RDS")) {
+    observed_yield <- readRDS("yield_observed_timeseries_tidy.RDS")
+    cat("Loaded observed yield data\n")
+  } else {
+    cat("No observed yield data file found\n")
+  }
+  
   cat("Testing yield plot with 5 simulations...\n")
-  test_yield_plot <- create_yield_plot_like_example(enhanced_sims_test, n_test = 5)
+  test_yield_plot <- create_yield_plot_like_example(enhanced_sims_test, observed_yield, n_test = 5)
   
   if (!is.null(test_yield_plot)) {
     print(test_yield_plot)
