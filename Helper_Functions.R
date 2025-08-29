@@ -1585,17 +1585,20 @@ analyze_enhanced_parameter_variations <- function(enhanced_results, top_percent 
   
   cat("=== ENHANCED PARAMETER VARIATION ANALYSIS ===\n")
   
-  # Extract parameter information
-  param_info <- enhanced_results$parameters
+  # Extract parameter information from simulation results
+  param_info <- lapply(enhanced_results$simulations, function(x) x$params_info)
   performance_scores <- sapply(enhanced_results$simulations, function(x) {
     tryCatch({
       # Try to get a composite score or use a simple performance metric
       if (!is.null(x$performance) && !is.null(x$performance$composite_score)) {
         return(x$performance$composite_score)
       } else {
-        # Fallback: use negative of total RMSE as performance score
-        rmse_info <- calculate_yield_rmse(x, enhanced_results$yield_obs_data)
-        return(-rmse_info$total_rmse)
+        # Fallback: use total weighted RMSE as performance score (lower is better)
+        if (!is.null(x$performance) && !is.null(x$performance$total_weighted_rmse)) {
+          return(-x$performance$total_weighted_rmse)  # Negative because lower RMSE is better
+        } else {
+          return(NA)
+        }
       }
     }, error = function(e) {
       return(NA)
@@ -1619,27 +1622,47 @@ analyze_enhanced_parameter_variations <- function(enhanced_results, top_percent 
   param_data <- data.frame(
     sim_id = sapply(param_info, function(x) x$sim_id),
     performance = performance_scores,
-    mean_catchability = sapply(param_info, function(x) mean(x$catchability, na.rm = TRUE)),
-    mean_gamma = sapply(param_info, function(x) mean(x$gamma_values, na.rm = TRUE)),
-    mean_gamma_change = sapply(param_info, function(x) mean(x$gamma_change, na.rm = TRUE)),
-    all_species_abundance = sapply(param_info, function(x) x$all_species_abundance),
+    mean_catchability = sapply(param_info, function(x) {
+      if (!is.null(x$catchability)) {
+        return(mean(x$catchability, na.rm = TRUE))
+      } else {
+        return(NA)
+      }
+    }),
+    mean_gamma = sapply(param_info, function(x) {
+      if (!is.null(x$gamma_values)) {
+        return(mean(x$gamma_values, na.rm = TRUE))
+      } else {
+        return(NA)
+      }
+    }),
+    mean_gamma_change = sapply(param_info, function(x) {
+      if (!is.null(x$gamma_change)) {
+        return(mean(x$gamma_change, na.rm = TRUE))
+      } else {
+        return(NA)
+      }
+    }),
+    all_species_abundance = sapply(param_info, function(x) {
+      if (!is.null(x$all_species_abundance)) {
+        return(x$all_species_abundance)
+      } else {
+        return(FALSE)
+      }
+    }),
     stringsAsFactors = FALSE
   )
   
   # Add abundance scaling metrics
-  if (any(param_data$all_species_abundance)) {
-    param_data$mean_abundance_scaling <- sapply(param_info, function(x) {
-      if (x$all_species_abundance && !is.null(x$all_species_scaling)) {
-        return(mean(x$all_species_scaling, na.rm = TRUE))
-      } else if (!is.null(x$marine_mammal_scaling)) {
-        return(mean(x$marine_mammal_scaling, na.rm = TRUE))
-      } else {
-        return(NA)
-      }
-    })
-  } else {
-    param_data$mean_abundance_scaling <- sapply(param_info, function(x) mean(x$marine_mammal_scaling, na.rm = TRUE))
-  }
+  param_data$mean_abundance_scaling <- sapply(param_info, function(x) {
+    if (!is.null(x$all_species_abundance) && x$all_species_abundance && !is.null(x$all_species_scaling)) {
+      return(mean(x$all_species_scaling, na.rm = TRUE))
+    } else if (!is.null(x$marine_mammal_scaling)) {
+      return(mean(x$marine_mammal_scaling, na.rm = TRUE))
+    } else {
+      return(NA)
+    }
+  })
   
   # Summary statistics
   cat("\n=== PARAMETER SUMMARY STATISTICS ===\n")

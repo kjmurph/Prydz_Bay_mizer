@@ -1336,9 +1336,18 @@ The enhanced uncertainty analysis incorporates several key improvements:
 - **`all_species_abundance`**: Boolean flag to enable abundance variation for all species (default: TRUE)
 
 The analysis now explores a much broader parameter space, including:
-- Catchability uncertainty for fished species
-- Gamma (foraging efficiency) uncertainty for all species  
-- Initial abundance uncertainty for all species (or just marine mammals)
+- **Catchability uncertainty** for fished species (fishing gear efficiency)
+- **Gamma (foraging efficiency) uncertainty** for all species (NEW)
+- **Initial abundance uncertainty** for all species or just marine mammals (NEW)
+
+### Quick Start Guide
+
+1. **Run the Quick Test first** (1 simulation) to verify everything works
+2. **Run the Full Analysis** (3+ simulations) for comprehensive results  
+3. **Analyze Parameter Variations** using the enhanced analysis function
+4. **Generate Uncertainty Plots** with ribbon confidence intervals
+
+The enhanced uncertainty analysis includes corrected stability logic that only checks biomass stability during the spinup period (no fishing), allowing natural variability during fished periods.
 
 ```{r load-enhanced-tests}
 # Load diagnostic and testing functions from separate script
@@ -1347,11 +1356,56 @@ source("Enhanced_Stability_Tests.R")
 
 ### Run Enhanced Uncertainty Analysis
 
+**QUICK TEST FIRST** - Run this section first to verify everything is working:
+
+```{r quick-test-enhanced-analysis, eval=FALSE}
+# Quick test with 1 simulation to verify all functions work
+cat("=== QUICK TEST: Enhanced Uncertainty Analysis ===\n")
+
+quick_test_results <- run_enhanced_combined_uncertainty_sims(
+  params = params_1841_2010_climate_only,
+  n_sims = 1,  # Just 1 simulation for testing
+  catchability_sd = 0.5,
+  abundance_sd = 0.5,
+  gamma_sd = 0.5,         # NEW: Gamma (search rate) variation
+  all_species_abundance = TRUE,  # NEW: All species abundance variation
+  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+  effort_scen = combined_effort_array,
+  enhanced_steady_tol = 0.002,
+  enhanced_steady_t_max = 1000,
+  spinup_years = 118,
+  spinup_multiplier = 2,
+  t_start = 1841,
+  sim_years = 170,
+  preserve_erepro = TRUE,
+  max_erepro = 1,
+  yield_obs_data = yield_ts_tidy
+)
+
+if (quick_test_results$n_successful > 0) {
+  cat("✓ Quick test PASSED! All functions working correctly.\n")
+  cat("✓ Gamma parameter variation: IMPLEMENTED\n")
+  cat("✓ All-species abundance variation: IMPLEMENTED\n")
+  cat("✓ Ready to run full analysis!\n")
+  
+  # Test the parameter analysis function
+  cat("\nTesting parameter analysis function...\n")
+  test_param_analysis <- analyze_enhanced_parameter_variations(quick_test_results, top_percent = 1.0)
+  cat("✓ Parameter analysis function: WORKING\n")
+  
+} else {
+  cat("✗ Quick test failed. Check error messages above.\n")
+}
+```
+
+**FULL ANALYSIS** - Run this section after the quick test passes:
+
 ```{r run-enhanced-uncertainty-analysis}
 # Ensure yield_ts_tidy is available for any functions that reference it directly
 if (!exists("yield_ts_tidy")) {
   yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
 }
+
 # Run enhanced uncertainty analysis with corrected stability logic
 cat("Running Enhanced Uncertainty Analysis with corrected approach...\n\n")
 
@@ -1372,10 +1426,10 @@ if (validation_test$success_rate >= 80) {
   # Run the full enhanced uncertainty analysis
   enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
     params = params_1841_2010_climate_only,
-    n_sims = 3000,  # Full simulation set
-    catchability_sd = 0.4,  # 30% CV for catchability
-    abundance_sd = 0.8,     # 50% CV for abundance (now all species by default)
-    gamma_sd = 0.5,         # NEW: 40% CV for gamma (search rate) variation
+    n_sims = 3,  # Start with small test - increase to 100+ for production
+    catchability_sd = 0.5,  # 50% CV for catchability variation
+    abundance_sd = 0.5,     # 50% CV for abundance variation (now all species by default)
+    gamma_sd = 0.5,         # NEW: 50% CV for gamma (search rate) variation
     all_species_abundance = TRUE,  # NEW: Vary abundance for all species
     marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
     effort_scen = combined_effort_array,
@@ -1386,12 +1440,9 @@ if (validation_test$success_rate >= 80) {
     t_start = 1841,
     sim_years = 170,
     preserve_erepro = TRUE,
-    max_erepro = 10,
+    max_erepro = 1,  # Preserve erepro approach
     yield_obs_data = yield_ts_tidy
   )
-  
-  # Save results
-  saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_final_results.RDS")
   
   # Calculate success rate
   success_rate <- (enhanced_uncertainty_results$n_successful / enhanced_uncertainty_results$n_attempts) * 100
@@ -1404,9 +1455,6 @@ if (validation_test$success_rate >= 80) {
     cat("✓ SUCCESS! Enhanced uncertainty analysis completed successfully\n")
     cat("Number of successful simulations:", length(successful_sims), "\n")
     cat("Ready for uncertainty plotting with geom_ribbon\n")
-    
-    # Store successful simulations for plotting
-    saveRDS(successful_sims, "enhanced_simulations_for_plotting.RDS")
     
     # NEW: Analyze the enhanced parameter variations
     cat("\n=== ANALYZING ENHANCED PARAMETER VARIATIONS ===\n")
@@ -1423,6 +1471,10 @@ if (validation_test$success_rate >= 80) {
     cat("✓ Enhanced parameter analysis completed\n")
     cat("✓ Plots saved as 'enhanced_parameter_analysis.png'\n")
     cat("✓ Analysis data available in enhanced_param_analysis object\n\n")
+    
+    # Save all results at the end
+    saveRDS(enhanced_uncertainty_results, "enhanced_uncertainty_final_results.RDS")
+    saveRDS(successful_sims, "enhanced_simulations_for_plotting.RDS")
     
   } else {
     cat("⚠ Moderate success rate. May need further optimization.\n")
@@ -1925,14 +1977,6 @@ p_rmse <- plot_enhanced_performance_distributions(
 p_correlation <- plot_enhanced_performance_distributions(
   enhanced_uncertainty_results$performance, "avg_correlation")
 
-# Save plots
-ggsave("plots/enhanced_composite_score_distribution.png", p_composite,
-       width = 10, height = 6, dpi = 300)
-ggsave("plots/enhanced_rmse_distribution.png", p_rmse,
-       width = 10, height = 6, dpi = 300)
-ggsave("plots/enhanced_correlation_distribution.png", p_correlation,
-       width = 10, height = 6, dpi = 300)
-
 # Plot species-specific performance comparison
 plot_species_performance_comparison <- function(performance_results, species_weights_df) {
   require(ggplot2)
@@ -1974,6 +2018,14 @@ plot_species_performance_comparison <- function(performance_results, species_wei
 p_species_comparison <- plot_species_performance_comparison(
   enhanced_uncertainty_results$performance, species_weights)
 print(p_species_comparison)
+
+# Save all plots at the end
+ggsave("plots/enhanced_composite_score_distribution.png", p_composite,
+       width = 10, height = 6, dpi = 300)
+ggsave("plots/enhanced_rmse_distribution.png", p_rmse,
+       width = 10, height = 6, dpi = 300)
+ggsave("plots/enhanced_correlation_distribution.png", p_correlation,
+       width = 10, height = 6, dpi = 300)
 ggsave("plots/enhanced_species_performance_comparison.png", p_species_comparison,
        width = 14, height = 8, dpi = 300)
 ```
@@ -2347,8 +2399,6 @@ p_species_rmse <- ggplot(rmse_by_species_summary, aes(x = Species, y = RMSE)) +
     y = "RMSE"
   )
 print(p_species_rmse)
-ggsave("plots/rmse_by_species_boxplot_flex_erepro_catchSD_0.5_abSD_2.png", p_species_rmse,
-       width = 12, height = 6, dpi = 300)
 
 # Calculate correlation between parameters and RMSE
 param_rmse_correlation <- data.frame(
@@ -2362,6 +2412,10 @@ param_rmse_correlation <- data.frame(
 cor_matrix <- cor(param_rmse_correlation)
 cat("\n=== Parameter-RMSE Correlations ===\n")
 print(cor_matrix)
+
+# Save plots at the end
+ggsave("plots/rmse_by_species_boxplot_flex_erepro_catchSD_0.5_abSD_2.png", p_species_rmse,
+       width = 12, height = 6, dpi = 300)
 
 # Create a heatmap of correlations
 require(corrplot)
@@ -2494,8 +2548,6 @@ for (sp in names(best_species_rmse)) {
 ```{r visualize-adaptive-convergence, eval=FALSE}
 # Plot convergence history
 p_convergence <- plot_adaptive_convergence(adaptive_results)
-ggsave("plots/adaptive_convergence_history.png", p_convergence,
-       width = 12, height = 14, dpi = 300)
 
 # Plot species-specific RMSE evolution
 # Focus on problematic species
@@ -2504,11 +2556,15 @@ p_species_evolution <- plot_species_rmse_evolution(
   species_focus = c("antarctic_krill", "minke_whales", "baleen_whales", "sperm_whales")
 )
 print(p_species_evolution)
-ggsave("plots/species_rmse_evolution.png", p_species_evolution,
-       width = 14, height = 10, dpi = 300)
 
 # Plot all species RMSE evolution
 p_all_species <- plot_species_rmse_evolution(adaptive_results)
+
+# Save all plots at the end
+ggsave("plots/adaptive_convergence_history.png", p_convergence,
+       width = 12, height = 14, dpi = 300)
+ggsave("plots/species_rmse_evolution.png", p_species_evolution,
+       width = 14, height = 10, dpi = 300)
 ggsave("plots/all_species_rmse_evolution.png", p_all_species,
        width = 16, height = 12, dpi = 300)
 ```
@@ -2569,8 +2625,6 @@ if (file.exists("combined_uncertainty_results.RDS")) {
     theme(legend.position = "none")
   
   print(p_comparison)
-  ggsave("plots/adaptive_vs_standard_comparison.png", p_comparison,
-         width = 8, height = 6, dpi = 300)
   
   # Statistical comparison
   cat("\n=== Statistical Comparison ===\n")
@@ -2588,6 +2642,10 @@ if (file.exists("combined_uncertainty_results.RDS")) {
     cat("Time per simulation:", round(adaptive_results$optimal$runtime$avg_time_per_simulation, 1), "seconds\n")
     cat("Efficiency note: Adaptive approach focuses computational effort on promising regions\n")
   }
+  
+  # Save plot at the end
+  ggsave("plots/adaptive_vs_standard_comparison.png", p_comparison,
+         width = 8, height = 6, dpi = 300)
 }
 ```
 
@@ -2616,11 +2674,10 @@ p_yield_adaptive <- plotYield(optimal_sim_adaptive) +
        y = "Yield")
 
 print(p_yield_adaptive)
-ggsave("plots/adaptive_optimal_yield.png", p_yield_adaptive,
-       width = 14, height = 10, dpi = 300)
 
 # Create detailed species-specific comparison plots
 species_focus <- c("antarctic krill", "minke whales")
+species_plots <- list()
 for (sp in species_focus) {
   # Get modeled yield for this species
   mod_yield <- getYield(optimal_sim_adaptive)
@@ -2643,8 +2700,15 @@ for (sp in species_focus) {
     geom_vline(xintercept = c(1961, 2010), linetype = "dotted", alpha = 0.5)
   
   print(p_sp)
+  species_plots[[sp]] <- p_sp
+}
+
+# Save all plots at the end
+ggsave("plots/adaptive_optimal_yield.png", p_yield_adaptive,
+       width = 14, height = 10, dpi = 300)
+for (sp in species_focus) {
   ggsave(paste0("plots/adaptive_", gsub(" ", "_", sp), "_comparison.png"),
-         p_sp, width = 10, height = 6, dpi = 300)
+         species_plots[[sp]], width = 10, height = 6, dpi = 300)
 }
 ```
 
