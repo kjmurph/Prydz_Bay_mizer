@@ -760,8 +760,8 @@ calculate_enhanced_performance_metrics <- function(sim_object,
 }
 
 # Function to run a single simulation with enhanced protocols and diagnostics
-run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_sd,
-                                   marine_mammal_species, effort_scen, 
+run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_sd, gamma_sd,
+                                   all_species_abundance, marine_mammal_species, effort_scen, 
                                    enhanced_steady_tol, enhanced_steady_t_max,
                                    spinup_years, spinup_multiplier,
                                    t_start, sim_years,
@@ -792,20 +792,59 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
     gear_params(rand_params) <- gear_df
   }
   
-  # Step 2: Randomize marine mammal abundance
+  # Step 2: Randomize gamma (search rate) for all species
   sp_params <- species_params(rand_params)
-  species_indices <- which(sp_params$species %in% marine_mammal_species)
-  scaling_factors <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
+  original_gamma <- sp_params$gamma
   
-  for (k in seq_along(species_indices)) {
-    rand_params@initial_n[species_indices[k],] <-
-      rand_params@initial_n[species_indices[k],] * scaling_factors[k]
+  # Apply gamma variation to all species
+  for(j in 1:nrow(sp_params)) {
+    gamma_noise <- rnorm(1, mean = 0, sd = gamma_sd)
+    sp_params$gamma[j] <- sp_params$gamma[j] * exp(gamma_noise)
+    # Ensure gamma stays within reasonable bounds (e.g., 0.01 to 1000)
+    sp_params$gamma[j] <- min(1000, max(0.01, sp_params$gamma[j]))
   }
   
-  if (verbose) {
-    cat("Sim", sim_id, "parameter modifications:\n")
-    cat("  - Catchability changes: ", paste(round(gear_df$catchability / original_catchability, 2), collapse = ", "), "\n")
-    cat("  - Marine mammal scaling: ", paste(round(scaling_factors, 2), collapse = ", "), "\n")
+  species_params(rand_params) <- sp_params
+  
+  # Step 3: Randomize initial abundance
+  if (all_species_abundance) {
+    # NEW: Vary abundance for ALL species, not just marine mammals
+    all_species <- sp_params$species
+    scaling_factors <- exp(rnorm(length(all_species), mean = 0, sd = abundance_sd))
+    
+    for (k in seq_along(all_species)) {
+      rand_params@initial_n[k,] <- rand_params@initial_n[k,] * scaling_factors[k]
+    }
+    
+    if (verbose) {
+      cat("Sim", sim_id, "parameter modifications:\n")
+      cat("  - Catchability changes: ", paste(round(gear_df$catchability / original_catchability, 2), collapse = ", "), "\n")
+      cat("  - Gamma changes: ", paste(round(sp_params$gamma / original_gamma, 2), collapse = ", "), "\n")
+      cat("  - All species abundance scaling: ", paste(round(scaling_factors, 2), collapse = ", "), "\n")
+    }
+    
+    # Store marine mammal scaling for tracking
+    marine_mammal_indices <- which(sp_params$species %in% marine_mammal_species)
+    marine_mammal_scaling <- scaling_factors[marine_mammal_indices]
+    
+  } else {
+    # Original behavior: Only marine mammals
+    species_indices <- which(sp_params$species %in% marine_mammal_species)
+    scaling_factors <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
+    
+    for (k in seq_along(species_indices)) {
+      rand_params@initial_n[species_indices[k],] <-
+        rand_params@initial_n[species_indices[k],] * scaling_factors[k]
+    }
+    
+    if (verbose) {
+      cat("Sim", sim_id, "parameter modifications:\n")
+      cat("  - Catchability changes: ", paste(round(gear_df$catchability / original_catchability, 2), collapse = ", "), "\n")
+      cat("  - Gamma changes: ", paste(round(sp_params$gamma / original_gamma, 2), collapse = ", "), "\n")
+      cat("  - Marine mammal abundance scaling: ", paste(round(scaling_factors, 2), collapse = ", "), "\n")
+    }
+    
+    marine_mammal_scaling <- scaling_factors
   }
   
   # Step 3: Enhanced steady state
@@ -887,8 +926,12 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
       sim_id = sim_id,
       catchability = gear_df$catchability,
       catchability_change = gear_df$catchability / original_catchability,
-      marine_mammal_scaling = scaling_factors,
-      marine_mammal_species = marine_mammal_species[seq_along(scaling_factors)],
+      gamma_values = sp_params$gamma,                               # NEW: Store gamma values
+      gamma_change = sp_params$gamma / original_gamma,              # NEW: Store gamma changes
+      marine_mammal_scaling = marine_mammal_scaling,                # Updated variable name
+      all_species_scaling = if(all_species_abundance) scaling_factors else NULL,  # NEW: All species scaling if used
+      marine_mammal_species = marine_mammal_species,
+      all_species_abundance = all_species_abundance,                # NEW: Track which approach was used
       erepro_values = species_params(rand_params)$erepro
     )
   ))
@@ -899,6 +942,8 @@ run_enhanced_combined_uncertainty_sims <- function(params,
                                                    n_sims = 10,
                                                    catchability_sd = 0.1,
                                                    abundance_sd = 0.2,
+                                                   gamma_sd = 0.3,                    # NEW: Standard deviation for gamma variation
+                                                   all_species_abundance = TRUE,      # NEW: Vary abundance for all species
                                                    marine_mammal_species = NULL,
                                                    effort_scen,
                                                    enhanced_steady_tol = 0.002,      # Stricter tolerance
@@ -931,6 +976,10 @@ run_enhanced_combined_uncertainty_sims <- function(params,
   cat("  - Steady-state tolerance:", enhanced_steady_tol, "\n")
   cat("  - Minimum steady-state time:", enhanced_steady_t_max, "years\n")
   cat("  - Spinup multiplier:", spinup_multiplier, "x (", spinup_years * spinup_multiplier, "years total)\n")
+  cat("  - Catchability SD:", catchability_sd, "\n")
+  cat("  - Abundance SD:", abundance_sd, "\n")
+  cat("  - Gamma SD:", gamma_sd, "(NEW)\n")
+  cat("  - All species abundance variation:", all_species_abundance, "(NEW)\n")
   cat("  - Whale species weighting: 3-10x higher than fish/krill\n")
   cat("  - Performance metrics: RMSE, MAE, Bias, Correlation, Composite Score\n")
   
@@ -970,8 +1019,8 @@ run_enhanced_combined_uncertainty_sims <- function(params,
     results <- foreach(i = 1:n_attempts,
                       .packages = c("mizer", "therMizer", "dplyr"),
                       .errorhandling = "pass") %dopar% {
-      run_enhanced_single_sim(i, params, catchability_sd, abundance_sd,
-                             marine_mammal_species, effort_scen, 
+      run_enhanced_single_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
+                             all_species_abundance, marine_mammal_species, effort_scen, 
                              enhanced_steady_tol, enhanced_steady_t_max,
                              spinup_years, spinup_multiplier,
                              t_start, sim_years,
@@ -992,8 +1041,8 @@ run_enhanced_combined_uncertainty_sims <- function(params,
     for(i in 1:n_attempts) {
       if(i %% 5 == 0) cat("    Processing simulation", i, "of", n_attempts, "\n")
       
-      results[[i]] <- run_enhanced_single_sim(i, params, catchability_sd, abundance_sd,
-                                             marine_mammal_species, effort_scen, 
+      results[[i]] <- run_enhanced_single_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
+                                             all_species_abundance, marine_mammal_species, effort_scen, 
                                              enhanced_steady_tol, enhanced_steady_t_max,
                                              spinup_years, spinup_multiplier,
                                              t_start, sim_years,
@@ -1269,7 +1318,7 @@ plot_parameter_exploration <- function(param_combinations, rmse_values) {
 }
 ```
 
-## Enhanced Uncertainty Analysis with Corrected Stability Logic
+## Enhanced Uncertainty Analysis with Gamma and All-Species Abundance Variation
 
 The enhanced uncertainty analysis incorporates several key improvements:
 
@@ -1278,6 +1327,18 @@ The enhanced uncertainty analysis incorporates several key improvements:
 3. **Enhanced Steady-State Protocols**: Stricter tolerance (≤0.002) and longer convergence times (≥1000 years)
 4. **Corrected Stability Validation**: Stability checked **only during spinup period** (no fishing), not during fished simulations
 5. **Realistic CV Thresholds**: 10% CV threshold for spinup stability, allowing natural variability during fishing periods
+6. **NEW: Gamma (Search Rate) Variation**: Randomizes foraging efficiency for all species using `gamma_sd` parameter
+7. **NEW: All-Species Abundance Variation**: Option to vary initial abundance for all species with `all_species_abundance = TRUE`
+
+### Key New Parameters:
+
+- **`gamma_sd`**: Standard deviation for gamma (search rate) variation across all species
+- **`all_species_abundance`**: Boolean flag to enable abundance variation for all species (default: TRUE)
+
+The analysis now explores a much broader parameter space, including:
+- Catchability uncertainty for fished species
+- Gamma (foraging efficiency) uncertainty for all species  
+- Initial abundance uncertainty for all species (or just marine mammals)
 
 ```{r load-enhanced-tests}
 # Load diagnostic and testing functions from separate script
@@ -1313,7 +1374,9 @@ if (validation_test$success_rate >= 80) {
     params = params_1841_2010_climate_only,
     n_sims = 3000,  # Full simulation set
     catchability_sd = 0.4,  # 30% CV for catchability
-    abundance_sd = 0.8,     # 50% CV for marine mammal abundance
+    abundance_sd = 0.8,     # 50% CV for abundance (now all species by default)
+    gamma_sd = 0.5,         # NEW: 40% CV for gamma (search rate) variation
+    all_species_abundance = TRUE,  # NEW: Vary abundance for all species
     marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
     effort_scen = combined_effort_array,
     enhanced_steady_tol = 0.002,
@@ -1344,6 +1407,22 @@ if (validation_test$success_rate >= 80) {
     
     # Store successful simulations for plotting
     saveRDS(successful_sims, "enhanced_simulations_for_plotting.RDS")
+    
+    # NEW: Analyze the enhanced parameter variations
+    cat("\n=== ANALYZING ENHANCED PARAMETER VARIATIONS ===\n")
+    cat("Analyzing variations in:\n")
+    cat("  - Catchability (fishing gear efficiency)\n")
+    cat("  - Gamma (search rates for all species)\n")
+    cat("  - Initial abundance (all species vs. marine mammals only)\n\n")
+    
+    enhanced_param_analysis <- analyze_enhanced_parameter_variations(
+      enhanced_uncertainty_results, 
+      top_percent = 0.1
+    )
+    
+    cat("✓ Enhanced parameter analysis completed\n")
+    cat("✓ Plots saved as 'enhanced_parameter_analysis.png'\n")
+    cat("✓ Analysis data available in enhanced_param_analysis object\n\n")
     
   } else {
     cat("⚠ Moderate success rate. May need further optimization.\n")
