@@ -723,14 +723,14 @@ set.seed(123)
 
 monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
   params = params_1841_2010_climate_only,
-  n_sims = 10,  # Small number for testing - increase for production runs
+  n_sims = 50,  # Small number for testing - increase for production runs
   catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
   abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
   gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
   all_species_abundance = TRUE,  # NEW: Vary all species by default for historical recovery problem
   # species_to_vary = c("minke whales", "orca", "sperm whales", "baleen whales"),  # Alternative: specify particular species
   effort_scen = combined_effort_array,
-  enhanced_steady_tol = 0.002,
+  enhanced_steady_tol = 0.005,
   enhanced_steady_t_max = 2000,  # INCREASED: Allow more time for extreme parameter combinations to converge
   spinup_years = 118,
   t_start = 1841,
