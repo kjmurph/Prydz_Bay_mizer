@@ -188,16 +188,82 @@ run_enhanced_combined_uncertainty_sims <- function(params,
       }
       
       # Step 4: Run to steady state with randomized parameters
-      if (preserve_erepro) {
-        rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
-                             t_max = enhanced_steady_t_max, preserve = c("erepro"))
-      } else {
-        rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
-                             t_max = enhanced_steady_t_max)
+      steady_success <- tryCatch({
+        if (preserve_erepro) {
+          rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                               t_max = enhanced_steady_t_max, preserve = c("erepro"))
+        } else {
+          rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                               t_max = enhanced_steady_t_max)
+        }
         
-        # Check erepro constraint
-        current_erepro <- species_params(rand_params)$erepro
+        # Check if steady state was achieved by testing parameter validity
+        test_sp_params <- species_params(rand_params)
+        if (any(is.na(test_sp_params$gamma)) || any(is.infinite(test_sp_params$gamma))) {
+          if (verbose) {
+            cat("    Sim", i, ": Steady state produced invalid gamma values\n")
+          }
+          return(FALSE)
+        }
+        
+        return(TRUE)
+        
+      }, warning = function(w) {
+        # Handle convergence warnings from steady()
+        if (grepl("did not converge", w$message, ignore.case = TRUE)) {
+          if (verbose) {
+            cat("    Sim", i, ": Steady state convergence failed -", w$message, "\n")
+          }
+          return(FALSE)
+        } else {
+          # For other warnings, continue but log the warning
+          if (verbose) {
+            cat("    Sim", i, ": Steady state warning -", w$message, "\n")
+          }
+          if (preserve_erepro) {
+            rand_params <<- steady(rand_params, tol = enhanced_steady_tol, 
+                                   t_max = enhanced_steady_t_max, preserve = c("erepro"))
+          } else {
+            rand_params <<- steady(rand_params, tol = enhanced_steady_tol, 
+                                   t_max = enhanced_steady_t_max)
+          }
+          return(TRUE)
+        }
+      }, error = function(e) {
+        if (verbose) {
+          cat("    Sim", i, ": Steady state error -", e$message, "\n")
+        }
+        return(FALSE)
+      })
+      
+      # Skip this simulation if steady state failed
+      if (!steady_success) {
+        next
+      }
+      
+      # Step 4b: Additional parameter validation
+      if (!preserve_erepro) {
+        # Check erepro constraint with proper error handling
+        current_erepro <- tryCatch({
+          species_params(rand_params)$erepro
+        }, error = function(e) {
+          if (verbose) {
+            cat("    Sim", i, ": Error accessing erepro values -", e$message, "\n")
+          }
+          return(rep(NA, nrow(species_params(rand_params))))
+        })
+        
+        if (any(is.na(current_erepro))) {
+          if (verbose) {
+            cat("    Sim", i, ": erepro values contain NA after steady state\n")
+          }
+          next  # Skip this simulation
+        }
+        
         if (any(current_erepro > max_erepro, na.rm = TRUE)) {
+          if (verbose) {
+            cat("    Sim", i, ": erepro constraint violated\n")
+          }
           next  # Skip this simulation
         }
       }
@@ -359,15 +425,62 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
     }
     
     # Step 4: Run to steady state with randomized parameters
-    if (preserve_erepro) {
-      rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
-                           t_max = enhanced_steady_t_max, preserve = c("erepro"))
-    } else {
-      rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
-                           t_max = enhanced_steady_t_max)
+    steady_result <- tryCatch({
+      if (preserve_erepro) {
+        steady_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                               t_max = enhanced_steady_t_max, preserve = c("erepro"))
+      } else {
+        steady_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                               t_max = enhanced_steady_t_max)
+      }
       
-      # Check erepro constraint
-      current_erepro <- species_params(rand_params)$erepro
+      # Check if steady state was achieved by testing parameter validity
+      test_sp_params <- species_params(steady_params)
+      if (any(is.na(test_sp_params$gamma)) || any(is.infinite(test_sp_params$gamma))) {
+        return(list(success = FALSE, error = "steady state produced invalid gamma values"))
+      }
+      
+      list(success = TRUE, params = steady_params)
+      
+    }, warning = function(w) {
+      # Handle convergence warnings from steady()
+      if (grepl("did not converge", w$message, ignore.case = TRUE)) {
+        return(list(success = FALSE, error = paste("steady state convergence failed:", w$message)))
+      } else {
+        # For other warnings, continue but log the warning
+        if (preserve_erepro) {
+          steady_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                                 t_max = enhanced_steady_t_max, preserve = c("erepro"))
+        } else {
+          steady_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                                 t_max = enhanced_steady_t_max)
+        }
+        list(success = TRUE, params = steady_params, warning = w$message)
+      }
+    }, error = function(e) {
+      return(list(success = FALSE, error = paste("steady state error:", e$message)))
+    })
+    
+    # Check if steady state was successful
+    if (!steady_result$success) {
+      return(list(success = FALSE, error = steady_result$error))
+    }
+    
+    rand_params <- steady_result$params
+    
+    # Step 4b: Additional parameter validation after steady state
+    if (!preserve_erepro) {
+      # Check erepro constraint with proper error handling
+      current_erepro <- tryCatch({
+        species_params(rand_params)$erepro
+      }, error = function(e) {
+        return(rep(NA, nrow(species_params(rand_params))))
+      })
+      
+      if (any(is.na(current_erepro))) {
+        return(list(success = FALSE, error = "erepro values contain NA after steady state"))
+      }
+      
       if (any(current_erepro > max_erepro, na.rm = TRUE)) {
         return(list(success = FALSE, error = "erepro constraint violated"))
       }
@@ -774,6 +887,106 @@ apply_biomass_rejection_criteria <- function(sim_results, param_combinations,
     n_total = length(sim_results),
     acceptance_rate = length(accepted_sims) / length(sim_results)
   ))
+}
+
+# Robust steady-state function for extreme parameter variations
+robust_steady_state <- function(params, tol = 0.005, t_max = 2000, preserve_erepro = TRUE, 
+                               max_erepro = 10, verbose = FALSE, sim_id = NULL) {
+  
+  # Try progressively relaxed tolerance levels if initial attempt fails
+  tolerance_levels <- c(tol, tol * 2, tol * 5, tol * 10)
+  time_limits <- c(t_max, min(t_max * 1.5, 3000), min(t_max * 2, 4000), min(t_max * 3, 5000))
+  
+  for (attempt in 1:length(tolerance_levels)) {
+    current_tol <- tolerance_levels[attempt]
+    current_t_max <- time_limits[attempt]
+    
+    if (verbose && !is.null(sim_id) && attempt > 1) {
+      cat("    Sim", sim_id, ": Steady state attempt", attempt, "with tolerance", current_tol, 
+          "and t_max", current_t_max, "\n")
+    }
+    
+    result <- tryCatch({
+      if (preserve_erepro) {
+        steady_params <- steady(params, tol = current_tol, 
+                               t_max = current_t_max, preserve = c("erepro"))
+      } else {
+        steady_params <- steady(params, tol = current_tol, 
+                               t_max = current_t_max)
+      }
+      
+      # Validate the result
+      test_sp_params <- species_params(steady_params)
+      
+      # Check for invalid values
+      if (any(is.na(test_sp_params$gamma)) || any(is.infinite(test_sp_params$gamma)) ||
+          any(test_sp_params$gamma <= 0) || any(test_sp_params$gamma > 1000)) {
+        return(list(success = FALSE, error = "Invalid gamma values after steady state"))
+      }
+      
+      # Additional validation for other critical parameters
+      if (any(is.na(test_sp_params$h)) || any(is.infinite(test_sp_params$h)) ||
+          any(test_sp_params$h <= 0)) {
+        return(list(success = FALSE, error = "Invalid h values after steady state"))
+      }
+      
+      # Check erepro constraints if not preserving
+      if (!preserve_erepro) {
+        current_erepro <- test_sp_params$erepro
+        if (any(is.na(current_erepro)) || any(is.infinite(current_erepro))) {
+          return(list(success = FALSE, error = "Invalid erepro values after steady state"))
+        }
+        if (any(current_erepro > max_erepro, na.rm = TRUE)) {
+          return(list(success = FALSE, error = "erepro constraint violated"))
+        }
+      }
+      
+      return(list(success = TRUE, params = steady_params, tolerance_used = current_tol, 
+                 time_used = current_t_max, attempts = attempt))
+      
+    }, warning = function(w) {
+      if (grepl("did not converge", w$message, ignore.case = TRUE)) {
+        return(list(success = FALSE, error = paste("Convergence failed at tolerance", current_tol, ":", w$message)))
+      } else {
+        # Continue with warning but try to validate result
+        if (preserve_erepro) {
+          steady_params <- steady(params, tol = current_tol, 
+                                 t_max = current_t_max, preserve = c("erepro"))
+        } else {
+          steady_params <- steady(params, tol = current_tol, 
+                                 t_max = current_t_max)
+        }
+        
+        # Quick validation
+        test_sp_params <- species_params(steady_params)
+        if (any(is.na(test_sp_params$gamma)) || any(is.infinite(test_sp_params$gamma))) {
+          return(list(success = FALSE, error = "Warning led to invalid parameters"))
+        }
+        
+        return(list(success = TRUE, params = steady_params, tolerance_used = current_tol, 
+                   time_used = current_t_max, attempts = attempt, warning = w$message))
+      }
+    }, error = function(e) {
+      return(list(success = FALSE, error = paste("Error at tolerance", current_tol, ":", e$message)))
+    })
+    
+    # If successful, return immediately
+    if (result$success) {
+      if (verbose && !is.null(sim_id)) {
+        cat("    Sim", sim_id, ": Steady state achieved after", result$attempts, 
+            "attempts (tolerance:", result$tolerance_used, ")\n")
+      }
+      return(result)
+    }
+    
+    # If this was the last attempt, log the failure
+    if (attempt == length(tolerance_levels) && verbose && !is.null(sim_id)) {
+      cat("    Sim", sim_id, ": All steady state attempts failed. Last error:", result$error, "\n")
+    }
+  }
+  
+  # Return the last failure result
+  return(result)
 }
 ```
 
