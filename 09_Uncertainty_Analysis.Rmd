@@ -5,22 +5,56 @@ output: html_notebook
 
 # Uncertainty Analysis for Prydz Bay Mizer Model
 
-This document implements a comprehensive uncertainty analysis for our Prydz Bay ecosystem model to assess how parameter uncertainty affects model projections. Understanding uncertainty in complex marine ecosystem models is essential for robust ecosystem-based management and provides context for interpreting historical and future projections.
+## The Historical Recovery Problem
 
-Our approach combines Monte Carlo simulations with biomass-based rejection criteria to:
+Our baseline Prydz Bay model calibrated to the contemporary period (2010-2020) reveals a critical challenge: when this contemporary-calibrated model is exposed to historical fishing pressures (particularly intensive whaling from 1841-1960), the resulting whale biomass in 2010-2020 falls far below observed levels. This suggests that the contemporary calibration, while accurately representing current ecosystem state, may not capture the full parameter space consistent with the historical trajectory of ecosystem recovery following intensive exploitation.
 
-1. Quantify uncertainty in key model parameters (catchability, search rates, initial abundance)
-2. Assess parameter distributions before and after applying observation-based constraints
-3. Generate uncertainty bounds for model projections of biomass and yield
-4. Evaluate model performance against historical observations
+The core issue is that **we don't know the exact parameter combinations that enabled whale populations to recover from historical depletion to observed contemporary levels**. The recovery involved complex, nonlinear ecological processes including:
 
-We systematically vary parameters with ecological significance, including fishing catchability coefficients (gear efficiency), search rates (foraging behavior), and initial abundances (population sizes). The Monte Carlo framework allows us to explore parameter space comprehensively while the rejection criteria ensure biological realism by filtering out parameter combinations that produce unrealistic ecosystem states relative to observed biomass data.
+- Compensatory population dynamics following release from fishing pressure
+- Shifting predator-prey relationships as whale populations recovered  
+- Potential changes in foraging efficiency and habitat use patterns
+- Food web reorganization during the recovery period (1960-2010)
 
-The resulting uncertainty bounds provide critical context for interpreting model projections and identifying which species groups have well-constrained versus highly uncertain dynamics in our Prydz Bay ecosystem model.
+## Parameter Exploration Strategy
 
-Do I need contant phytoplankton and temperature forcings for any spin-up, like if we need to use steady() in a loop testing parameter uncertaitny?
+This uncertainty analysis implements a **wide parameter exploration approach** designed to discover the range of initial conditions and ecological parameters that can explain the observed recovery trajectory. We systematically vary three key parameter groups that most likely influenced recovery dynamics:
 
-Also need to make sure initial effort is zero for the repreated forcing during a spin-up like above 
+### 1. **Initial Abundances (ALL Species)**
+- **Logic**: We don't know the true starting abundances in 1841, and small changes in initial conditions can lead to dramatically different recovery trajectories in nonlinear systems
+- **Approach**: Apply log-normal variation (±120% CV) to ALL 19 species, not just marine mammals
+- **Rationale**: Unknown historical food web interactions mean any species could have influenced whale recovery through cascading effects
+
+### 2. **Catchability Coefficients (Fishing Efficiency)**  
+- **Logic**: Historical fishing efficiency may have varied significantly from contemporary estimates due to technological, spatial, or behavioral factors
+- **Approach**: Vary fishing catchability with ±60% CV around baseline estimates
+- **Rationale**: Lower historical catchability could explain how some whale populations avoided complete depletion
+
+### 3. **Search Rates (Foraging Efficiency)**
+- **Logic**: Whale foraging efficiency may have been higher historically, or increased during recovery as populations accessed previously unexploited habitats
+- **Approach**: Vary gamma (search rate) parameters with ±70% CV for all species
+- **Rationale**: Enhanced foraging efficiency could enable faster population recovery post-exploitation
+
+## Methodology: Monte Carlo with Biomass Rejection
+
+Our approach combines **exploratory parameter variation** with **observation-based filtering**:
+
+**Phase 1: Wide Parameter Exploration**
+- Generate parameter combinations using Monte Carlo sampling from log-normal distributions
+- Run each parameter set through the full historical simulation (1841-2010) 
+- Include enhanced stability testing to ensure ecological realism
+
+**Phase 2: Biomass-Based Rejection Criteria**
+- Filter results using ±25% tolerance around observed 2010-2020 biomass for ALL species
+- Reject any parameter combination where ANY species falls outside observed bounds
+- This strict filtering identifies only those parameter combinations consistent with contemporary observations
+
+**Phase 3: Parameter Space Analysis**
+- Compare parameter distributions before and after rejection filtering
+- Identify which parameter ranges are consistent with observed recovery
+- Generate uncertainty bounds for projections using only "plausible" parameter combinations
+
+This approach acknowledges that **we cannot know a priori which parameter combinations explain whale recovery**, so we must explore widely and let the observational data guide us toward the plausible parameter space. The resulting uncertainty bounds represent the range of projections consistent with both historical recovery and contemporary observations. 
 
 # Core Functions for Uncertainty Analysis
 
@@ -648,9 +682,9 @@ set.seed(123)
 monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
   params = params_1841_2010_climate_only,
   n_sims = 10,  # Small number for testing - increase for production runs
-  catchability_sd = 0.4,  # 40% coefficient of variation for catchability
-  abundance_sd = 0.8,     # 80% coefficient of variation for abundance
-  gamma_sd = 0.5,         # 50% coefficient of variation for gamma (search rate)
+  catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
+  abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
+  gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
   marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
   effort_scen = combined_effort_array,
   enhanced_steady_tol = 0.002,
