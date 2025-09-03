@@ -692,35 +692,6 @@ monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
 )
 
 cat("Monte Carlo analysis completed!\n")
-cat("Successful simulations:", length(monte_carlo_results$simulations), "out of 10\n")
-```
-
-```{r run-monte-carlo-analysis}
-# Run enhanced uncertainty analysis
-cat("Running Monte Carlo uncertainty analysis...\n")
-
-# Set random seed for reproducibility
-set.seed(123)
-
-monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
-  params = params_1841_2010_climate_only,
-  n_sims = 50,  # Using 50 for testing - increase for production runs
-  catchability_sd = 0.4,  # 40% coefficient of variation for catchability
-  abundance_sd = 0.8,     # 80% coefficient of variation for abundance
-  gamma_sd = 0.5,         # 50% coefficient of variation for gamma (search rate)
-  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
-  effort_scen = combined_effort_array,
-  enhanced_steady_tol = 0.002,
-  enhanced_steady_t_max = 1000,
-  spinup_years = 118,
-  t_start = 1841,
-  sim_years = 170,
-  preserve_erepro = TRUE,
-  max_erepro = 10,
-  verbose = TRUE
-)
-
-cat("Monte Carlo analysis completed!\n")
 cat("Successful simulations:", monte_carlo_results$n_successful, "\n")
 cat("Success rate:", round(monte_carlo_results$n_successful/monte_carlo_results$n_attempts*100, 1), "%\n")
 ```
