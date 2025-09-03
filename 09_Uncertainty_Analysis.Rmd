@@ -22,18 +22,18 @@ This uncertainty analysis implements a **wide parameter exploration approach** d
 
 ### 1. **Initial Abundances (ALL Species)**
 - **Logic**: We don't know the true starting abundances in 1841, and small changes in initial conditions can lead to dramatically different recovery trajectories in nonlinear systems
-- **Approach**: Apply log-normal variation (±120% CV) to ALL 19 species, not just marine mammals
+- **Approach**: Apply log-normal variation (SD = 5) to ALL 19 species by default, with option to specify particular species
 - **Rationale**: Unknown historical food web interactions mean any species could have influenced whale recovery through cascading effects
 
 ### 2. **Catchability Coefficients (Fishing Efficiency)**  
 - **Logic**: Historical fishing efficiency may have varied significantly from contemporary estimates due to technological, spatial, or behavioral factors
-- **Approach**: Vary fishing catchability with ±60% CV around baseline estimates
-- **Rationale**: Lower historical catchability could explain how some whale populations avoided complete depletion
+- **Approach**: Vary fishing catchability with SD = 5 (exp(±5) = 0.007x to 148x original values)
+- **Rationale**: Extremely low historical catchability could explain how some whale populations avoided complete depletion
 
 ### 3. **Search Rates (Foraging Efficiency)**
 - **Logic**: Whale foraging efficiency may have been higher historically, or increased during recovery as populations accessed previously unexploited habitats
-- **Approach**: Vary gamma (search rate) parameters with ±70% CV for all species
-- **Rationale**: Enhanced foraging efficiency could enable faster population recovery post-exploitation
+- **Approach**: Vary gamma (search rate) parameters with SD = 5 for all species (exp(±5) = 0.007x to 148x original values)
+- **Rationale**: Dramatically enhanced foraging efficiency could enable rapid population recovery post-exploitation
 
 ## Methodology: Monte Carlo with Biomass Rejection
 
@@ -68,10 +68,11 @@ run_enhanced_combined_uncertainty_sims <- function(params,
                                                    catchability_sd = 1,
                                                    abundance_sd = 1,
                                                    gamma_sd = 1,
-                                                   marine_mammal_species = NULL,
+                                                   all_species_abundance = TRUE,      # NEW: Default to varying all species
+                                                   species_to_vary = NULL,            # NEW: Named vector of species to vary if all_species_abundance = FALSE
                                                    effort_scen,
                                                    enhanced_steady_tol = 0.002,
-                                                   enhanced_steady_t_max = 1000,
+                                                   enhanced_steady_t_max = 2000,     # INCREASED: More time for extreme parameter variations to converge
                                                    spinup_years = 118,
                                                    t_start = 1841,
                                                    sim_years = 170,
@@ -79,9 +80,13 @@ run_enhanced_combined_uncertainty_sims <- function(params,
                                                    max_erepro = 1,
                                                    verbose = FALSE) {
   
-  # Default marine mammal species if not specified
-  if (is.null(marine_mammal_species)) {
-    marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
+  # Default species to vary if all_species_abundance = FALSE and species_to_vary not specified
+  if (!all_species_abundance && is.null(species_to_vary)) {
+    species_to_vary <- c("minke whales", "orca", "sperm whales", "baleen whales")
+    if (verbose) {
+      cat("No species_to_vary specified, defaulting to marine mammals:", 
+          paste(species_to_vary, collapse = ", "), "\n")
+    }
   }
   
   # Progress message
@@ -91,6 +96,10 @@ run_enhanced_combined_uncertainty_sims <- function(params,
     cat("  - Catchability SD:", catchability_sd, "\n")
     cat("  - Abundance SD:", abundance_sd, "\n")
     cat("  - Gamma SD:", gamma_sd, "\n")
+    cat("  - All species abundance variation:", all_species_abundance, "\n")
+    if (!all_species_abundance) {
+      cat("  - Species to vary:", paste(species_to_vary, collapse = ", "), "\n")
+    }
     cat("  - Spinup years:", spinup_years, "(unfished)\n")
     cat("  - Biomass stability test: CV < 10% over final 40 years\n")
   }
@@ -137,12 +146,45 @@ run_enhanced_combined_uncertainty_sims <- function(params,
       }
       species_params(rand_params) <- sp_params
       
-      # Step 3: Randomize initial abundance for all species
+      # Step 3: Randomize initial abundance based on settings
       all_species <- sp_params$species
-      scaling_factors <- exp(rnorm(length(all_species), mean = 0, sd = abundance_sd))
       
-      for (k in seq_along(all_species)) {
-        rand_params@initial_n[k,] <- rand_params@initial_n[k,] * scaling_factors[k]
+      if (all_species_abundance) {
+        # Vary abundance for ALL species
+        scaling_factors <- exp(rnorm(length(all_species), mean = 0, sd = abundance_sd))
+        
+        for (k in seq_along(all_species)) {
+          rand_params@initial_n[k,] <- rand_params@initial_n[k,] * scaling_factors[k]
+        }
+        
+        if (verbose) {
+          cat("    Sim", i, ": Varied abundance for all", length(all_species), "species\n")
+        }
+        
+      } else {
+        # Vary abundance for only specified species
+        scaling_factors <- rep(1, length(all_species))  # Default scaling of 1 (no change)
+        names(scaling_factors) <- all_species
+        
+        # Apply variation only to specified species
+        species_indices <- which(all_species %in% species_to_vary)
+        if (length(species_indices) > 0) {
+          species_scaling <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
+          scaling_factors[species_indices] <- species_scaling
+          
+          for (k in species_indices) {
+            rand_params@initial_n[k,] <- rand_params@initial_n[k,] * species_scaling[k - min(species_indices) + 1]
+          }
+          
+          if (verbose) {
+            cat("    Sim", i, ": Varied abundance for", length(species_indices), "specified species:",
+                paste(species_to_vary, collapse = ", "), "\n")
+          }
+        } else {
+          if (verbose) {
+            cat("    Sim", i, ": No matching species found for abundance variation\n")
+          }
+        }
       }
       
       # Step 4: Run to steady state with randomized parameters
@@ -685,10 +727,11 @@ monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
   catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
   abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
   gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
-  marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+  all_species_abundance = TRUE,  # NEW: Vary all species by default for historical recovery problem
+  # species_to_vary = c("minke whales", "orca", "sperm whales", "baleen whales"),  # Alternative: specify particular species
   effort_scen = combined_effort_array,
   enhanced_steady_tol = 0.002,
-  enhanced_steady_t_max = 1000,
+  enhanced_steady_t_max = 2000,  # INCREASED: Allow more time for extreme parameter combinations to converge
   spinup_years = 118,
   t_start = 1841,
   sim_years = 170,
