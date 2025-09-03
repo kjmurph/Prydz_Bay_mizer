@@ -1576,7 +1576,6 @@ plot_parameter_correlations <- function(adaptive_results, top_percent = 0.1) {
   return(cor_matrix)
 }
 
-
 # Function to analyze enhanced parameter variations including gamma and all-species abundance
 analyze_enhanced_parameter_variations <- function(enhanced_results, top_percent = 0.1) {
   require(ggplot2)
@@ -1586,19 +1585,17 @@ analyze_enhanced_parameter_variations <- function(enhanced_results, top_percent 
   
   cat("=== ENHANCED PARAMETER VARIATION ANALYSIS ===\n")
   
-  # Extract parameter information from simulation results
-  performance_scores <- sapply(enhanced_results$performance, function(x) {
+  # Extract parameter information
+  param_info <- enhanced_results$parameters
+  performance_scores <- sapply(enhanced_results$simulations, function(x) {
     tryCatch({
-      # Try to get a composite score
-      if (!is.null(x$composite_score)) {
-        return(x$composite_score)
+      # Try to get a composite score or use a simple performance metric
+      if (!is.null(x$performance) && !is.null(x$performance$composite_score)) {
+        return(x$performance$composite_score)
       } else {
-        # Fallback: use total weighted RMSE as performance score (lower is better)
-        if (!is.null(x$total_weighted_rmse)) {
-          return(-x$total_weighted_rmse)  # Negative because lower RMSE is better
-        } else {
-          return(NA)
-        }
+        # Fallback: use negative of total RMSE as performance score
+        rmse_info <- calculate_yield_rmse(x, enhanced_results$yield_obs_data)
+        return(-rmse_info$total_rmse)
       }
     }, error = function(e) {
       return(NA)
@@ -1607,6 +1604,7 @@ analyze_enhanced_parameter_variations <- function(enhanced_results, top_percent 
   
   # Remove entries with NA performance scores
   valid_indices <- which(!is.na(performance_scores))
+  param_info <- param_info[valid_indices]
   performance_scores <- performance_scores[valid_indices]
   
   cat("Valid simulations for analysis:", length(valid_indices), "\n")
@@ -1617,22 +1615,144 @@ analyze_enhanced_parameter_variations <- function(enhanced_results, top_percent 
   
   cat("Analyzing top", top_percent * 100, "% (", n_top, "simulations)\n")
   
-  # Extract parameter data for analysis - get from the stored results structure
+  # Extract parameter data for analysis
   param_data <- data.frame(
-    sim_id = 1:length(enhanced_results$performance),
+    sim_id = sapply(param_info, function(x) x$sim_id),
     performance = performance_scores,
+    mean_catchability = sapply(param_info, function(x) mean(x$catchability, na.rm = TRUE)),
+    mean_gamma = sapply(param_info, function(x) mean(x$gamma_values, na.rm = TRUE)),
+    mean_gamma_change = sapply(param_info, function(x) mean(x$gamma_change, na.rm = TRUE)),
+    all_species_abundance = sapply(param_info, function(x) x$all_species_abundance),
     stringsAsFactors = FALSE
   )
+  
+  # Add abundance scaling metrics
+  if (any(param_data$all_species_abundance)) {
+    param_data$mean_abundance_scaling <- sapply(param_info, function(x) {
+      if (x$all_species_abundance && !is.null(x$all_species_scaling)) {
+        return(mean(x$all_species_scaling, na.rm = TRUE))
+      } else if (!is.null(x$marine_mammal_scaling)) {
+        return(mean(x$marine_mammal_scaling, na.rm = TRUE))
+      } else {
+        return(NA)
+      }
+    })
+  } else {
+    param_data$mean_abundance_scaling <- sapply(param_info, function(x) mean(x$marine_mammal_scaling, na.rm = TRUE))
+  }
   
   # Summary statistics
   cat("\n=== PARAMETER SUMMARY STATISTICS ===\n")
   cat("Overall performance range:", round(min(performance_scores), 3), "to", round(max(performance_scores), 3), "\n")
   cat("Top performers performance range:", round(min(performance_scores[top_indices]), 3), "to", round(max(performance_scores[top_indices]), 3), "\n\n")
   
+  cat("Catchability variation:\n")
+  cat("  Overall mean (SD):", round(mean(param_data$mean_catchability, na.rm = TRUE), 3), 
+      "(", round(sd(param_data$mean_catchability, na.rm = TRUE), 3), ")\n")
+  cat("  Top performers mean (SD):", round(mean(param_data$mean_catchability[top_indices], na.rm = TRUE), 3), 
+      "(", round(sd(param_data$mean_catchability[top_indices], na.rm = TRUE), 3), ")\n\n")
+  
+  cat("Gamma (search rate) variation:\n")
+  cat("  Overall mean change (SD):", round(mean(param_data$mean_gamma_change, na.rm = TRUE), 3), 
+      "(", round(sd(param_data$mean_gamma_change, na.rm = TRUE), 3), ")\n")
+  cat("  Top performers mean change (SD):", round(mean(param_data$mean_gamma_change[top_indices], na.rm = TRUE), 3), 
+      "(", round(sd(param_data$mean_gamma_change[top_indices], na.rm = TRUE), 3), ")\n\n")
+  
+  cat("Abundance scaling variation:\n")
+  cat("  Overall mean (SD):", round(mean(param_data$mean_abundance_scaling, na.rm = TRUE), 3), 
+      "(", round(sd(param_data$mean_abundance_scaling, na.rm = TRUE), 3), ")\n")
+  cat("  Top performers mean (SD):", round(mean(param_data$mean_abundance_scaling[top_indices], na.rm = TRUE), 3), 
+      "(", round(sd(param_data$mean_abundance_scaling[top_indices], na.rm = TRUE), 3), ")\n\n")
+  
+  # Create plots
+  plots <- list()
+  
+  # 1. Performance vs Catchability
+  plots$catchability <- ggplot(param_data, aes(x = mean_catchability, y = performance)) +
+    geom_point(alpha = 0.6, color = "steelblue") +
+    geom_point(data = param_data[top_indices,], aes(x = mean_catchability, y = performance), 
+               color = "red", size = 2) +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred") +
+    labs(title = "Performance vs Mean Catchability",
+         subtitle = paste("Red points = top", top_percent*100, "%"),
+         x = "Mean Catchability", y = "Performance Score") +
+    theme_bw()
+  
+  # 2. Performance vs Gamma Change
+  plots$gamma <- ggplot(param_data, aes(x = mean_gamma_change, y = performance)) +
+    geom_point(alpha = 0.6, color = "steelblue") +
+    geom_point(data = param_data[top_indices,], aes(x = mean_gamma_change, y = performance), 
+               color = "red", size = 2) +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred") +
+    geom_vline(xintercept = 1, linetype = "dashed", alpha = 0.5) +
+    labs(title = "Performance vs Mean Gamma Change",
+         subtitle = paste("Red points = top", top_percent*100, "%, dashed line = no change"),
+         x = "Mean Gamma Change Factor", y = "Performance Score") +
+    theme_bw()
+  
+  # 3. Performance vs Abundance Scaling
+  plots$abundance <- ggplot(param_data, aes(x = mean_abundance_scaling, y = performance)) +
+    geom_point(alpha = 0.6, color = "steelblue") +
+    geom_point(data = param_data[top_indices,], aes(x = mean_abundance_scaling, y = performance), 
+               color = "red", size = 2) +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred") +
+    geom_vline(xintercept = 1, linetype = "dashed", alpha = 0.5) +
+    labs(title = "Performance vs Mean Abundance Scaling",
+         subtitle = paste("Red points = top", top_percent*100, "%, dashed line = no change"),
+         x = "Mean Abundance Scaling Factor", y = "Performance Score") +
+    theme_bw()
+  
+  # 4. Parameter correlation plot
+  param_correlations <- param_data %>%
+    select(performance, mean_catchability, mean_gamma_change, mean_abundance_scaling) %>%
+    cor(use = "complete.obs")
+  
+  # 5. Distribution plots
+  param_long <- param_data %>%
+    select(sim_id, performance, mean_catchability, mean_gamma_change, mean_abundance_scaling) %>%
+    gather(parameter, value, -sim_id, -performance) %>%
+    mutate(
+      top_performer = sim_id %in% param_data$sim_id[top_indices],
+      parameter = case_when(
+        parameter == "mean_catchability" ~ "Catchability",
+        parameter == "mean_gamma_change" ~ "Gamma Change",
+        parameter == "mean_abundance_scaling" ~ "Abundance Scaling",
+        TRUE ~ parameter
+      )
+    )
+  
+  plots$distributions <- ggplot(param_long, aes(x = value, fill = top_performer)) +
+    geom_histogram(alpha = 0.7, bins = 30, position = "identity") +
+    scale_fill_manual(values = c("FALSE" = "steelblue", "TRUE" = "red"),
+                      labels = c("FALSE" = "All", "TRUE" = paste("Top", top_percent*100, "%")),
+                      name = "Performance") +
+    facet_wrap(~parameter, scales = "free") +
+    labs(title = "Parameter Distribution Comparison",
+         x = "Parameter Value", y = "Frequency") +
+    theme_bw()
+  
+  # Combine plots
+  combined_plot <- grid.arrange(plots$catchability, plots$gamma, plots$abundance, plots$distributions, 
+                               ncol = 2, heights = c(1, 1))
+  
+  # Save plots
+  ggsave("enhanced_parameter_analysis.png", combined_plot, width = 16, height = 12, dpi = 300)
+  
   # Return summary data
   return(list(
     param_data = param_data,
     top_indices = top_indices,
-    performance_scores = performance_scores
+    correlations = param_correlations,
+    plots = plots,
+    summary_stats = list(
+      overall_performance = summary(performance_scores),
+      top_performance = summary(performance_scores[top_indices]),
+      overall_catchability = summary(param_data$mean_catchability),
+      top_catchability = summary(param_data$mean_catchability[top_indices]),
+      overall_gamma_change = summary(param_data$mean_gamma_change),
+      top_gamma_change = summary(param_data$mean_gamma_change[top_indices]),
+      overall_abundance = summary(param_data$mean_abundance_scaling),
+      top_abundance = summary(param_data$mean_abundance_scaling[top_indices])
+    )
   ))
 }
