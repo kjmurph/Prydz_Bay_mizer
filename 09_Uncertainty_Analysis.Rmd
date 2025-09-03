@@ -521,54 +521,6 @@ sim_1841_2010_climate_and_fishing <- project(params_1841_2010_climate_only,
 ```
 
 
-params_1841_2010_fishing_only <- upgradeTherParams(params_new_v4, 
-                                                   ocean_temp_array = constant_array_temp_1841,
-                                                   n_pp_array = constant_array_n_pp_1841,
-                                                   # vertical_migration_array = vertical_migration_array,
-                                                   # exposure_array = ESS_exposure,
-                                                   aerobic_effect = FALSE, metabolism_effect = TRUE)
-
-
-```
-
-# Run simulations
-
-```{r}
-sim_1841_2010_climate_only_spinup <- project(params_1841_2010_climate_only, 
-                                             t_start = 1841, 
-                                             t_max = 118,  
-                                             effort = 0)
-```
-
-
-```{r}
-sim_1841_2010_climate_only <- project(params_1841_2010_climate_only,
-                                      initial_n=sim_1841_2010_climate_only_spinup@n[118,,], 
-                                      t_start = 1841, 
-                                      t_max = 170,  
-                                      effort = 0)
-```
-
-
-```{r}
-sim_1841_2010_fishing_only <- project(params_1841_2010_fishing_only,
-                                      initial_n=sim_1841_2010_climate_only_spinup@n[118,,],
-                                      t_start = 1841, 
-                                      t_max = 170,  
-                                      effort = combined_effort_array)
-```
-
-
-```{r}
-sim_1841_2010_climate_and_fishing <- project(params_1841_2010_climate_only,
-                                             initial_n=sim_1841_2010_climate_only_spinup@n[118,,],
-                                             t_start = 1841, 
-                                             t_max = 170,  
-                                             effort = combined_effort_array)
-```
-
-
-
 
 
 # Size spectrum
@@ -578,10 +530,10 @@ mizerExperimental::plotSpectra2(sim_1841_2010_climate_only, sim_1841_2010_fishin
 mizerExperimental::plotSpectra2(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1940:1950)
 mizerExperimental::plotSpectra2(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 2000:2010)
 
-plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1920:1930)
-plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1930:1940)
-plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1940:1950)
-plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 2000:2010)
+mizerExperimental::plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1920:1930)
+mizerExperimental::plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1930:1940)
+mizerExperimental::plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 1940:1950)
+mizerExperimental::plotSpectraRelative(sim_1841_2010_climate_only, sim_1841_2010_fishing_only, time_range = 2000:2010)
 ```
 
 
@@ -605,6 +557,17 @@ obs_biomass_data <- data.frame(
                  2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
 )
 
+# Define species order for consistent plotting
+species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
+                   "antarctic krill", "salps", "mesopelagic fishes", "bathypelagic fishes", 
+                   "shelf and coastal fishes", "flying birds", "small divers", "squids", 
+                   "toothfishes", "leopard seals", "medium divers", "large divers", 
+                   "minke whales", "orca", "sperm whales", "baleen whales")
+
+# Convert Species to factors with specified order
+obs_biomass_data$Species <- factor(obs_biomass_data$Species, levels = species_order)
+
+
 # Basic plotting function for biomass comparison
 plot_baseline_biomass <- function(sim_object, obs_data, obs_years = 2010:2020) {
   require(ggplot2)
@@ -617,7 +580,7 @@ plot_baseline_biomass <- function(sim_object, obs_data, obs_years = 2010:2020) {
   
   # Create time series version for observation years
   obs_biomass_ts <- obs_data %>%
-    mutate(Lower = ObsBiomass * 0.9, Upper = ObsBiomass * 1.1) %>%
+    mutate(Lower = ObsBiomass * 0.75, Upper = ObsBiomass * 1.25) %>%
     crossing(Year = obs_years)
   
   # Plot
@@ -650,8 +613,17 @@ plot_baseline_yield <- function(sim_object, obs_yield_data) {
 }
 
 # Assess baseline model
-plot_baseline_biomass(sim_1841_2010_fishing_only, obs_biomass_data)
-plot_baseline_yield(sim_1841_2010_fishing_only, yield_ts_tidy)
+p_biomass_climate_only_baseline <- plot_baseline_biomass(sim_1841_2010_climate_only, obs_biomass_data)
+p_biomass_climate_fishing_baseline <- plot_baseline_biomass(sim_1841_2010_climate_and_fishing, obs_biomass_data)
+p_yield_climate_fishing_baseline <- plot_baseline_yield(sim_1841_2010_climate_and_fishing, yield_ts_tidy)
+
+p_biomass_climate_only_baseline
+p_biomass_climate_fishing_baseline
+p_yield_climate_fishing_baseline
+
+ggsave("biomass_climate_only_timeseries_baseline.png", p_biomass_climate_only_baseline, width = 12, height = 8, dpi = 300)
+ggsave("biomass_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
+ggsave("yield_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
 ```
 
 
