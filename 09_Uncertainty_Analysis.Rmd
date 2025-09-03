@@ -294,6 +294,273 @@ run_enhanced_combined_uncertainty_sims <- function(params,
   ))
 }
 
+# Function to run a single simulation (helper for parallel processing)
+run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, gamma_sd,
+                                   all_species_abundance, species_to_vary,
+                                   effort_scen, enhanced_steady_tol, enhanced_steady_t_max,
+                                   spinup_years, t_start, sim_years, preserve_erepro, max_erepro) {
+  
+  result <- tryCatch({
+    # Create copy of params
+    rand_params <- params
+    
+    # Step 1: Randomize catchability for fished species
+    gear_df <- gear_params(rand_params)
+    original_catchability <- gear_df$catchability
+    
+    if(nrow(gear_df) > 0) {
+      for(j in 1:nrow(gear_df)) {
+        if(gear_df$catchability[j] > 0) {
+          noise <- rnorm(1, mean = 0, sd = catchability_sd)
+          gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise)
+          gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
+        }
+      }
+      gear_params(rand_params) <- gear_df
+    }
+    
+    # Step 2: Randomize gamma (search rate) for all species
+    sp_params <- species_params(rand_params)
+    original_gamma <- sp_params$gamma
+    
+    for(j in 1:nrow(sp_params)) {
+      gamma_noise <- rnorm(1, mean = 0, sd = gamma_sd)
+      sp_params$gamma[j] <- sp_params$gamma[j] * exp(gamma_noise)
+      sp_params$gamma[j] <- min(1000, max(0.01, sp_params$gamma[j]))
+    }
+    species_params(rand_params) <- sp_params
+    
+    # Step 3: Randomize initial abundance based on settings
+    all_species <- sp_params$species
+    
+    if (all_species_abundance) {
+      # Vary abundance for ALL species
+      scaling_factors <- exp(rnorm(length(all_species), mean = 0, sd = abundance_sd))
+      
+      for (k in seq_along(all_species)) {
+        rand_params@initial_n[k,] <- rand_params@initial_n[k,] * scaling_factors[k]
+      }
+      
+    } else {
+      # Vary abundance for only specified species
+      scaling_factors <- rep(1, length(all_species))  # Default scaling of 1 (no change)
+      names(scaling_factors) <- all_species
+      
+      # Apply variation only to specified species
+      species_indices <- which(all_species %in% species_to_vary)
+      if (length(species_indices) > 0) {
+        species_scaling <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
+        scaling_factors[species_indices] <- species_scaling
+        
+        for (k in species_indices) {
+          rand_params@initial_n[k,] <- rand_params@initial_n[k,] * species_scaling[k - min(species_indices) + 1]
+        }
+      }
+    }
+    
+    # Step 4: Run to steady state with randomized parameters
+    if (preserve_erepro) {
+      rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                           t_max = enhanced_steady_t_max, preserve = c("erepro"))
+    } else {
+      rand_params <- steady(rand_params, tol = enhanced_steady_tol, 
+                           t_max = enhanced_steady_t_max)
+      
+      # Check erepro constraint
+      current_erepro <- species_params(rand_params)$erepro
+      if (any(current_erepro > max_erepro, na.rm = TRUE)) {
+        return(list(success = FALSE, error = "erepro constraint violated"))
+      }
+    }
+    
+    # Step 5: Run unfished spinup to test biomass stability
+    sim_spinup <- project(rand_params, 
+                         t_start = t_start, 
+                         t_max = spinup_years,
+                         effort = 0)  # No fishing during spinup
+    
+    # Step 6: Test biomass stability over spinup period
+    biomass_matrix <- getBiomass(sim_spinup)
+    check_years <- min(40, spinup_years)  # Use final 40 years or all years if spinup < 40
+    
+    if (nrow(biomass_matrix) < check_years) {
+      return(list(success = FALSE, error = "insufficient data for stability check"))
+    }
+    
+    # Get final years for stability check
+    final_years_data <- tail(biomass_matrix, check_years)
+    
+    # Calculate CV for each species over the check period
+    cv_by_species <- apply(final_years_data, 2, function(x) {
+      if (mean(x) == 0) return(Inf)
+      sd(x) / mean(x)
+    })
+    
+    # Check if all species have CV < 10% (0.1)
+    stability_threshold <- 0.1
+    all_stable <- all(cv_by_species < stability_threshold, na.rm = TRUE)
+    
+    if (!all_stable) {
+      unstable_species <- names(cv_by_species)[cv_by_species >= stability_threshold]
+      return(list(success = FALSE, error = paste("stability test failed:", paste(unstable_species, collapse = ", "))))
+    }
+    
+    # Step 7: Run main simulation using final spinup state as initial condition
+    final_initial_n <- sim_spinup@n[spinup_years,,]
+    
+    sim <- project(rand_params,
+                  initial_n = final_initial_n,
+                  t_start = t_start,
+                  t_max = sim_years,
+                  effort = effort_scen)
+    
+    # Return successful result
+    return(list(
+      success = TRUE,
+      simulation = sim,
+      parameters = list(
+        sim_id = i,
+        catchability = gear_df$catchability,
+        catchability_change = gear_df$catchability / original_catchability,
+        gamma_values = sp_params$gamma,
+        gamma_change = sp_params$gamma / original_gamma,
+        abundance_scaling = scaling_factors,
+        species_names = all_species,
+        max_cv = max(cv_by_species, na.rm = TRUE),
+        stable = TRUE
+      )
+    ))
+    
+  }, error = function(e) {
+    return(list(success = FALSE, error = e$message))
+  })
+  
+  return(result)
+}
+
+# Parallel version of the uncertainty analysis function
+run_enhanced_combined_uncertainty_sims_parallel <- function(params,
+                                                          n_sims = 10,
+                                                          catchability_sd = 1,
+                                                          abundance_sd = 1,
+                                                          gamma_sd = 1,
+                                                          all_species_abundance = TRUE,
+                                                          species_to_vary = NULL,
+                                                          effort_scen,
+                                                          enhanced_steady_tol = 0.002,
+                                                          enhanced_steady_t_max = 2000,
+                                                          spinup_years = 118,
+                                                          t_start = 1841,
+                                                          sim_years = 170,
+                                                          preserve_erepro = TRUE,
+                                                          max_erepro = 1,
+                                                          n_cores = NULL,
+                                                          verbose = FALSE) {
+  
+  # Determine number of cores
+  if (is.null(n_cores)) {
+    n_cores <- max(1, detectCores() - 1)  # Use all but one core
+  }
+  
+  # Default species to vary if all_species_abundance = FALSE and species_to_vary not specified
+  if (!all_species_abundance && is.null(species_to_vary)) {
+    species_to_vary <- c("minke whales", "orca", "sperm whales", "baleen whales")
+    if (verbose) {
+      cat("No species_to_vary specified, defaulting to marine mammals:", 
+          paste(species_to_vary, collapse = ", "), "\n")
+    }
+  }
+  
+  # Progress message
+  if (verbose) {
+    cat("=== ENHANCED COMBINED UNCERTAINTY ANALYSIS (PARALLEL) ===\n")
+    cat("Running", n_sims, "simulations with enhanced protocols\n")
+    cat("Using", n_cores, "CPU cores for parallel processing\n")
+    cat("  - Catchability SD:", catchability_sd, "\n")
+    cat("  - Abundance SD:", abundance_sd, "\n")
+    cat("  - Gamma SD:", gamma_sd, "\n")
+    cat("  - All species abundance variation:", all_species_abundance, "\n")
+    if (!all_species_abundance) {
+      cat("  - Species to vary:", paste(species_to_vary, collapse = ", "), "\n")
+    }
+    cat("  - Spinup years:", spinup_years, "(unfished)\n")
+    cat("  - Biomass stability test: CV < 10% over final 40 years\n")
+  }
+  
+  # Set up parallel cluster
+  cl <- makeCluster(n_cores)
+  registerDoParallel(cl)
+  
+  # Export necessary objects to cluster
+  clusterEvalQ(cl, {
+    library(therMizer)
+    library(mizer)
+  })
+  
+  clusterExport(cl, c("params", "effort_scen", "run_single_enhanced_sim"),
+                envir = environment())
+  
+  tryCatch({
+    # Run simulations in parallel
+    if (verbose) cat("Starting parallel simulations...\n")
+    
+    results_list <- foreach(i = 1:n_sims, 
+                           .packages = c("therMizer", "mizer"),
+                           .errorhandling = "pass") %dopar% {
+      run_single_enhanced_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
+                             all_species_abundance, species_to_vary,
+                             effort_scen, enhanced_steady_tol, enhanced_steady_t_max,
+                             spinup_years, t_start, sim_years, preserve_erepro, max_erepro)
+    }
+    
+    if (verbose) cat("Parallel simulations completed. Processing results...\n")
+    
+    # Process results
+    sim_results <- list()
+    param_combinations <- list()
+    failed_sims <- list()
+    successful_count <- 0
+    
+    for (i in seq_along(results_list)) {
+      result <- results_list[[i]]
+      
+      if (is.list(result) && !is.null(result$success) && result$success) {
+        successful_count <- successful_count + 1
+        sim_results[[successful_count]] <- result$simulation
+        param_combinations[[successful_count]] <- result$parameters
+        
+        if (verbose && successful_count %% 5 == 0) {
+          cat("  Processed", successful_count, "successful simulations\n")
+        }
+      } else {
+        failed_sims[[length(failed_sims) + 1]] <- list(
+          sim_id = i,
+          error = if(is.list(result) && !is.null(result$error)) result$error else "unknown error"
+        )
+      }
+    }
+    
+  }, finally = {
+    # Always stop the cluster
+    stopCluster(cl)
+  })
+  
+  if (verbose) {
+    cat("Completed", successful_count, "successful simulations out of", n_sims, "attempts\n")
+    if (length(failed_sims) > 0) {
+      cat("Failed simulations:", length(failed_sims), "\n")
+    }
+  }
+  
+  return(list(
+    simulations = sim_results,
+    parameters = param_combinations,
+    failed = failed_sims,
+    n_successful = length(sim_results),
+    n_attempts = n_sims
+  ))
+}
+
 # Function to extract and standardize simulation outputs
 extract_simulation_data <- function(sim_list, metric_type = "yield") {
   
@@ -519,6 +786,9 @@ library(ggplot2)
 library(dplyr)
 library(reshape2)
 library(viridis)
+library(parallel)      # For parallel processing
+library(doParallel)    # For foreach parallel loops
+library(foreach)       # For parallel loops
 ```
 
 
@@ -697,9 +967,9 @@ p_biomass_climate_only_baseline
 p_biomass_climate_fishing_baseline
 p_yield_climate_fishing_baseline
 
-ggsave("biomass_climate_only_timeseries_baseline.png", p_biomass_climate_only_baseline, width = 12, height = 8, dpi = 300)
-ggsave("biomass_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
-ggsave("yield_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
+# ggsave("biomass_climate_only_timeseries_baseline.png", p_biomass_climate_only_baseline, width = 12, height = 8, dpi = 300)
+# ggsave("biomass_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
+# ggsave("yield_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
 ```
 
 
@@ -715,30 +985,68 @@ The analysis includes parameter distribution assessment and biomass-based reject
 ## Step 1: Run Monte Carlo Simulations
 
 ```{r run-monte-carlo-analysis}
-# Run enhanced uncertainty analysis
-cat("Running Monte Carlo uncertainty analysis...\n")
+# Run enhanced uncertainty analysis with parallel processing
+cat("Running Monte Carlo uncertainty analysis with parallel processing...\n")
 
 # Set random seed for reproducibility
 set.seed(123)
 
-monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
-  params = params_1841_2010_climate_only,
-  n_sims = 50,  # Small number for testing - increase for production runs
-  catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
-  abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
-  gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
-  all_species_abundance = TRUE,  # NEW: Vary all species by default for historical recovery problem
-  # species_to_vary = c("minke whales", "orca", "sperm whales", "baleen whales"),  # Alternative: specify particular species
-  effort_scen = combined_effort_array,
-  enhanced_steady_tol = 0.005,
-  enhanced_steady_t_max = 2000,  # INCREASED: Allow more time for extreme parameter combinations to converge
-  spinup_years = 118,
-  t_start = 1841,
-  sim_years = 170,
-  preserve_erepro = TRUE,
-  max_erepro = 10,
-  verbose = TRUE
-)
+# Check available cores
+available_cores <- detectCores()
+cat("Available CPU cores:", available_cores, "\n")
+
+# Determine cores to use (leave 1 core free for system)
+cores_to_use <- max(1, available_cores - 1)
+cat("Using", cores_to_use, "cores for parallel processing\n")
+
+# Choose parallel or sequential processing
+use_parallel <- TRUE  # Set to FALSE if you want to use sequential processing
+
+if (use_parallel && cores_to_use > 1) {
+  cat("Running in PARALLEL mode...\n")
+  
+  monte_carlo_results <- run_enhanced_combined_uncertainty_sims_parallel(
+    params = params_1841_2010_climate_only,
+    n_sims = 50,  # Small number for testing - increase for production runs
+    catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
+    abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
+    gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
+    all_species_abundance = TRUE,  # NEW: Vary all species by default for historical recovery problem
+    # species_to_vary = c("minke whales", "orca", "sperm whales", "baleen whales"),  # Alternative: specify particular species
+    effort_scen = combined_effort_array,
+    enhanced_steady_tol = 0.005,
+    enhanced_steady_t_max = 2000,  # INCREASED: Allow more time for extreme parameter combinations to converge
+    spinup_years = 118,
+    t_start = 1841,
+    sim_years = 170,
+    preserve_erepro = TRUE,
+    max_erepro = 1,
+    n_cores = cores_to_use,
+    verbose = TRUE
+  )
+  
+} else {
+  cat("Running in SEQUENTIAL mode...\n")
+  
+  monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
+    params = params_1841_2010_climate_only,
+    n_sims = 50,  # Small number for testing - increase for production runs
+    catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
+    abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
+    gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
+    all_species_abundance = TRUE,  # NEW: Vary all species by default for historical recovery problem
+    # species_to_vary = c("minke whales", "orca", "sperm whales", "baleen whales"),  # Alternative: specify particular species
+    effort_scen = combined_effort_array,
+    enhanced_steady_tol = 0.005,
+    enhanced_steady_t_max = 2000,  # INCREASED: Allow more time for extreme parameter combinations to converge
+    spinup_years = 118,
+    t_start = 1841,
+    sim_years = 170,
+    preserve_erepro = TRUE,
+    max_erepro = 1,
+    verbose = TRUE
+  )
+}
 
 cat("Monte Carlo analysis completed!\n")
 cat("Successful simulations:", monte_carlo_results$n_successful, "\n")
