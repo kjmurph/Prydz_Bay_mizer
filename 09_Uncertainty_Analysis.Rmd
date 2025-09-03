@@ -435,10 +435,14 @@ apply_biomass_rejection_criteria <- function(sim_results, param_combinations,
 ```
 
 
-```{r}
+```{r setup-libraries}
 library(therMizer)
 library(mizer)
 library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(viridis)
 ```
 
 
@@ -469,13 +473,52 @@ constant_array_n_pp_1841 <- readRDS("constant_array_n_pp_1841.RDS")
 
 # Setup params
 
-```{r}
+```{r setup-params}
 params_1841_2010_climate_only <- upgradeTherParams(params_new_v4, 
                                                    ocean_temp_array = extended_ocean_temp,
                                                    n_pp_array = extended_n_pp_array,
                                                    # vertical_migration_array = vertical_migration_array,
                                                    # exposure_array = ESS_exposure,
                                                    aerobic_effect = FALSE, metabolism_effect = TRUE)
+
+params_1841_2010_fishing_only <- upgradeTherParams(params_new_v4, 
+                                                   ocean_temp_array = constant_array_temp_1841,
+                                                   n_pp_array = constant_array_n_pp_1841,
+                                                   # vertical_migration_array = vertical_migration_array,
+                                                   # exposure_array = ESS_exposure,
+                                                   aerobic_effect = FALSE, metabolism_effect = TRUE)
+```
+
+# Run baseline simulations
+
+```{r run-baseline-simulations}
+# Spinup simulation (unfished)
+sim_1841_2010_climate_only_spinup <- project(params_1841_2010_climate_only, 
+                                             t_start = 1841, 
+                                             t_max = 118,  
+                                             effort = 0)
+
+# Climate only simulation
+sim_1841_2010_climate_only <- project(params_1841_2010_climate_only,
+                                      initial_n=sim_1841_2010_climate_only_spinup@n[118,,], 
+                                      t_start = 1841, 
+                                      t_max = 170,  
+                                      effort = 0)
+
+# Fishing only simulation  
+sim_1841_2010_fishing_only <- project(params_1841_2010_fishing_only,
+                                      initial_n=sim_1841_2010_climate_only_spinup@n[118,,],
+                                      t_start = 1841, 
+                                      t_max = 170,  
+                                      effort = combined_effort_array)
+
+# Climate and fishing simulation
+sim_1841_2010_climate_and_fishing <- project(params_1841_2010_climate_only,
+                                             initial_n=sim_1841_2010_climate_only_spinup@n[118,,],
+                                             t_start = 1841, 
+                                             t_max = 170,  
+                                             effort = combined_effort_array)
+```
 
 
 params_1841_2010_fishing_only <- upgradeTherParams(params_new_v4, 
