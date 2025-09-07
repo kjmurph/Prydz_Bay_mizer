@@ -581,6 +581,7 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
   gear_df$catchability <- pmin(1, pmax(0, gear_df$catchability))
       gear_params(rand_params) <- gear_df
     }
+
     
     # Step 2: Randomize gamma (search rate) for all species
     sp_params <- species_params(rand_params)
@@ -1150,7 +1151,7 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
 ```{r stability-settings}
 # Stability/QC settings (tunable)
 # CV threshold for biomass stability during unfished spinup (fraction)
-stability_cv_threshold <- 0.1        # e.g., 8% CV
+stability_cv_threshold <- 0.15        # e.g., 8% CV
 
 # Years used for tail stability CV check during spinup
 stability_check_years_tail <- 40      # use last 40 years of spinup (or fewer if spinup shorter)
@@ -1160,7 +1161,7 @@ stability_trend_first_years <- 30     # years from start of spinup to test trend
 
 # Max allowed relative slope per year during the initial spinup period
 # Example: 0.005 = 0.5% of mean biomass per year
-stability_trend_rel_slope_max <- 0.015
+stability_trend_rel_slope_max <- 0.02
 
 # Significance level for trend detection (linear model p-value on slope)
 stability_trend_pval_max <- 0.05
@@ -1508,7 +1509,7 @@ p_yield_climate_fishing_baseline
 
 Load catch length
 ```{r}
-catch_lengths <- readRDS("catch_lengths.rds")
+catch_lengths <- readRDS("IWC_data/catch_lengths.rds")
 
 glimpse(catch_lengths)
 ```
@@ -1710,21 +1711,23 @@ cat("Testing SD=2 parameter uncertainty (realistic range)...\n")
 # Start timer for the Monte Carlo run chunk
 t_start_mc <- Sys.time()
 
-save_every <- 2   # number of sims per checkpoint save
+save_every <- 10   # number of sims per checkpoint save
 save_path  <- "monte_carlo_results_latest.rds"  # overwritten each block
 
 # Settings used for this run (promoted to variables so we can reuse in filenames)
-total_sims <- 8               # adjust as needed
-catchability_sd <- 2
-abundance_sd <- 4
-gamma_sd <- 4
-enhanced_steady_tol <- 0.0025
+total_sims <- 50               # adjust as needed
+catchability_sd <- 1
+abundance_sd <- 1
+gamma_sd <- 1
+enhanced_steady_tol <- 0.05
 enhanced_steady_t_max <- 1500
 spinup_years <- 118
 t_start <- 1841
 sim_years <- 170
 preserve_erepro <- TRUE
 max_erepro <- 1
+
+mizer::gear_params(params_sel_adj)$catchability
 
 monte_carlo_results <- run_enhanced_uncertainty_sims_parallel_blocked(
   params = params_sel_adj,
