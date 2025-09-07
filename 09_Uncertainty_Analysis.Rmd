@@ -1753,10 +1753,10 @@ save_every <- 50   # number of sims per checkpoint save
 save_path  <- "monte_carlo_results_latest.rds"  # overwritten each block
 
 # Settings used for this run (promoted to variables so we can reuse in filenames)
-total_sims <- 1250               # adjust as needed
-catchability_sd <- 3
-abundance_sd <- 5
-gamma_sd <- 5
+total_sims <- 3000               # adjust as needed
+catchability_sd <- 2
+abundance_sd <- 4
+gamma_sd <- 3
 enhanced_steady_tol <- 0.0025
 enhanced_steady_t_max <- 1500
 spinup_years <- 118
@@ -2099,8 +2099,8 @@ plot_montecarlo_biomass <- function() {
 
 print(plot_montecarlo_biomass())
 print(plot_montecarlo_yield())
-#ggsave("montecarlo_yield.png", plot_montecarlo_yield(), width = 12, height = 8, dpi = 300)
-
+#ggsave("monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500_biomass.png", plot_montecarlo_biomass(), width = 12, height = 8, dpi = 300)
+#ggsave("monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500_yield.png", plot_montecarlo_yield(), width = 12, height = 8, dpi = 300)
 ```
 
 ## Step 1.5: Diagnose Current Results and Assess Model Fit
@@ -2433,6 +2433,7 @@ p_gamma_pre <- plot_gamma_distribution_fixed(
   title_suffix = "(Pre-Rejection)"
 )
 print(p_gamma_pre)
+#ggsave("gamma_distribution_pre_rejection_monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500.png", p_gamma_pre, width = 12, height = 8, dpi = 300)
 
 # Plot catchability parameter distributions  
 p_catch_pre <- plot_parameter_distributions(
@@ -2441,6 +2442,7 @@ p_catch_pre <- plot_parameter_distributions(
   title_suffix = "(Pre-Rejection)"
 )
 print(p_catch_pre)
+#ggsave("catchability_distribution_pre_rejection_monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500.png", p_catch_pre, width = 12, height = 8, dpi = 300)
 
 # Plot abundance scaling distributions
 p_abund_pre <- plot_parameter_distributions(
@@ -2449,6 +2451,7 @@ p_abund_pre <- plot_parameter_distributions(
   title_suffix = "(Pre-Rejection)"
 )
 print(p_abund_pre)
+#ggsave("abundance_distribution_pre_rejection_monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500.png", p_abund_pre, width = 12, height = 8, dpi = 300)
 
 # Print summary statistics
 cat("\n=== PARAMETER SUMMARY STATISTICS (PRE-REJECTION) ===\n")
@@ -2604,7 +2607,7 @@ allowed_biomass_failures <- 3
 ```
 
 ```{r}
-allowed_biomass_failures <- 6
+ allowed_biomass_failures <- 12
 
 rejection_results <- apply_biomass_rejection_criteria(
   monte_carlo_results$simulations,
@@ -2941,7 +2944,7 @@ if (rejection_results$n_accepted > 0) {
 
     print(p_yield_mc)
 
-     #ggsave("monte_carlo_yield_uncertainty_post_v009.png", p_yield_mc, width = 14, height = 10, dpi = 300) 
+     #ggsave("yield_uncertainty_post_monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500.png", p_yield_mc, width = 14, height = 10, dpi = 300) 
   }
   
   # Summary statistics for uncertainty assessment
