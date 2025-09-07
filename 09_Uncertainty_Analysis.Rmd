@@ -504,17 +504,53 @@ precheck_parameters <- function(p,
   spp <- try(species_params(p), silent = TRUE)
   if (inherits(spp, "try-error")) return(list(ok = FALSE, reason = "species_params_error"))
 
-  if (anyNA(gp)) return(list(ok = FALSE, reason = "NA_in_gear_params"))
-  if (anyNA(spp)) return(list(ok = FALSE, reason = "NA_in_species_params"))
+  # Only validate essential gear fields; allow benign NAs in unused columns
+  if (nrow(gp) > 0) {
+    # Catchability required for fished rows when present
+    if ("catchability" %in% names(gp)) {
+      cq <- gp$catchability
+      if (any(is.na(cq))) return(list(ok = FALSE, reason = "NA_in_catchability"))
+    }
+    # Selectivity-specific required params if sel_func provided
+    if ("sel_func" %in% names(gp)) {
+      sf <- as.character(gp$sel_func)
+      # Sigmoid by length requires l25 and l50 where used
+      if ("sigmoid_length" %in% sf) {
+        idx <- which(sf == "sigmoid_length")
+        # l25/l50 must exist to validate when used
+        if (!all(c("l25","l50") %in% names(gp))) {
+          return(list(ok = FALSE, reason = "missing_l25_l50_for_sigmoid_length"))
+        }
+        if (any(!is.finite(gp$l25[idx]) | !is.finite(gp$l50[idx]))) {
+          return(list(ok = FALSE, reason = "NA_in_sigmoid_params"))
+        }
+        if (any(gp$l25[idx] >= gp$l50[idx], na.rm = TRUE)) {
+          return(list(ok = FALSE, reason = "invalid_sigmoid_order_l25_ge_l50"))
+        }
+      }
+      # Knife-edge requires knife_edge_size where used
+      if ("knife_edge" %in% sf && "knife_edge_size" %in% names(gp)) {
+        idx <- which(sf == "knife_edge")
+        if (any(!is.finite(gp$knife_edge_size[idx]))) {
+          return(list(ok = FALSE, reason = "NA_in_knife_edge_size"))
+        }
+      }
+    }
+  }
+  # Species params: allow benign NAs in unused cols, but not in essential ones checked below
+  # (Gamma/erepro validity checked later)
   ini <- p@initial_n
   if (any(!is.finite(ini))) return(list(ok = FALSE, reason = "non_finite_initial_n"))
-  if (any(ini <= 0, na.rm = TRUE)) return(list(ok = FALSE, reason = "non_positive_initial_n"))
+  # Allow zeros in initial abundance; only reject if any negative values appear
+  if (any(ini < 0, na.rm = TRUE)) return(list(ok = FALSE, reason = "negative_initial_n"))
 
   # 2) Catchability & gamma sanity
   if ("catchability" %in% names(gp)) {
     cq <- gp$catchability
-    if (any(!is.finite(cq))) return(list(ok = FALSE, reason = "non_finite_catchability"))
-    if (any(cq < 0 | cq > 1, na.rm = TRUE)) return(list(ok = FALSE, reason = "catchability_out_of_[0,1]"))
+  # Allow NA for unused rows; only flag Inf/-Inf
+  if (any(is.infinite(cq))) return(list(ok = FALSE, reason = "infinite_catchability"))
+  # For finite entries, enforce [0,1]
+  if (any(cq[is.finite(cq)] < 0 | cq[is.finite(cq)] > 1, na.rm = TRUE)) return(list(ok = FALSE, reason = "catchability_out_of_[0,1]"))
   }
   if ("gamma" %in% names(spp)) {
     if (any(!is.finite(spp$gamma) | spp$gamma <= 0, na.rm = TRUE)) return(list(ok = FALSE, reason = "invalid_gamma"))
@@ -531,9 +567,11 @@ precheck_parameters <- function(p,
     if (inherits(w, "try-error") || is.null(w)) w <- try(getw(p), silent = TRUE)
     if (inherits(w, "try-error") || is.null(w)) w <- rep(1, ncol(ini))
     W <- matrix(w, nrow = nrow(ini), ncol = length(w), byrow = TRUE)
-    mature_biomass <- rowSums(ini * W * mat, na.rm = TRUE)
+  mature_biomass <- rowSums(ini * W * mat, na.rm = TRUE)
     if (any(!is.finite(mature_biomass))) return(list(ok = FALSE, reason = "non_finite_mature_biomass"))
-    if (any(mature_biomass <= min_mature_g, na.rm = TRUE)) return(list(ok = FALSE, reason = "insufficient_mature_biomass"))
+  # Only fail if mature biomass is effectively zero across all species;
+  # species-level zeros are allowed here and handled later by stability checks
+  if (all(mature_biomass <= min_mature_g, na.rm = TRUE)) return(list(ok = FALSE, reason = "insufficient_mature_biomass_all_species"))
   }
 
   # 4) Effort sanity
@@ -1157,11 +1195,11 @@ stability_cv_threshold <- 0.15        # e.g., 8% CV
 stability_check_years_tail <- 40      # use last 40 years of spinup (or fewer if spinup shorter)
 
 # Trend check on the initial spinup years to ensure no drift after steady()
-stability_trend_first_years <- 30     # years from start of spinup to test trend
+stability_trend_first_years <- 50     # years from start of spinup to test trend
 
 # Max allowed relative slope per year during the initial spinup period
 # Example: 0.005 = 0.5% of mean biomass per year
-stability_trend_rel_slope_max <- 0.02
+stability_trend_rel_slope_max <- 0.005
 
 # Significance level for trend detection (linear model p-value on slope)
 stability_trend_pval_max <- 0.05
@@ -1501,9 +1539,9 @@ p_biomass_climate_only_baseline
 p_biomass_climate_fishing_baseline
 p_yield_climate_fishing_baseline
 
- ggsave("biomass_climate_only_timeseries_baseline.png", p_biomass_climate_only_baseline, width = 12, height = 8, dpi = 300)
- ggsave("biomass_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
- ggsave("yield_climate_fishing_timeseries_baseline.png", p_yield_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
+# ggsave("biomass_climate_only_timeseries_baseline.png", p_biomass_climate_only_baseline, width = 12, height = 8, dpi = 300)
+# ggsave("biomass_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
+# ggsave("yield_climate_fishing_timeseries_baseline.png", p_yield_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
 ```
 
 
@@ -1696,7 +1734,7 @@ available_cores <- detectCores()
 cat("Available CPU cores:", available_cores, "\n")
 
 # Determine cores to use (leave 1 core free for system)
-cores_to_use <- max(1, available_cores - 1)
+cores_to_use <- max(1, available_cores - 2)
 cat("Using", cores_to_use, "cores for parallel processing\n")
 
 # Load observed yield data
@@ -1711,23 +1749,21 @@ cat("Testing SD=2 parameter uncertainty (realistic range)...\n")
 # Start timer for the Monte Carlo run chunk
 t_start_mc <- Sys.time()
 
-save_every <- 10   # number of sims per checkpoint save
+save_every <- 50   # number of sims per checkpoint save
 save_path  <- "monte_carlo_results_latest.rds"  # overwritten each block
 
 # Settings used for this run (promoted to variables so we can reuse in filenames)
-total_sims <- 50               # adjust as needed
-catchability_sd <- 1
-abundance_sd <- 1
-gamma_sd <- 1
-enhanced_steady_tol <- 0.05
+total_sims <- 1250               # adjust as needed
+catchability_sd <- 3
+abundance_sd <- 5
+gamma_sd <- 5
+enhanced_steady_tol <- 0.0025
 enhanced_steady_t_max <- 1500
 spinup_years <- 118
 t_start <- 1841
 sim_years <- 170
 preserve_erepro <- TRUE
 max_erepro <- 1
-
-mizer::gear_params(params_sel_adj)$catchability
 
 monte_carlo_results <- run_enhanced_uncertainty_sims_parallel_blocked(
   params = params_sel_adj,
@@ -1796,7 +1832,73 @@ cat(
   round(elapsed_mc_sec/60, 2), " minutes)\n", sep = ""
 )
 
+```
 
+
+## Inspect Monte Carlo results (catchability and failure reasons)
+
+```{r mc-inspect, echo=TRUE}
+# If results object is missing but the latest save exists, load it
+if (!exists("monte_carlo_results") && file.exists("monte_carlo_results_latest.rds")) {
+  monte_carlo_results <- readRDS("monte_carlo_results_latest.rds")
+}
+
+# List successful sim IDs (from parameters entries)
+success_ids <- if (length(monte_carlo_results$parameters)) sapply(monte_carlo_results$parameters, `[[`, "sim_id") else integer(0)
+cat("Successful sim IDs:", if (length(success_ids)) paste(success_ids, collapse=", ") else "<none>", "\n")
+
+# Inspect catchability for the first successful sim (if any)
+k <- if (length(monte_carlo_results$parameters)) 1L else NA_integer_
+if (!is.na(k)) {
+  cabs <- monte_carlo_results$parameters[[k]]$catchability
+  if (!is.null(cabs)) {
+    # Build labels from baseline gear_params if available
+    labs <- NULL
+    gp0 <- try(gear_params(params_sel_adj), silent = TRUE)
+    if (!inherits(gp0, "try-error") && !is.null(gp0)) {
+      if (all(c("species","gear") %in% names(gp0))) {
+        labs <- paste0(gp0$species, " / ", gp0$gear)
+      } else if (!is.null(rownames(gp0))) {
+        labs <- rownames(gp0)
+      }
+    }
+    if (is.null(labs) || length(labs) != length(cabs)) labs <- paste0("row_", seq_along(cabs))
+
+    cat("\nCatchability (absolute) for successful sim_id ", success_ids[k], ":\n", sep="")
+    print(setNames(as.numeric(cabs), labs))
+
+    # Also show relative change multiplier if available
+    cc <- monte_carlo_results$parameters[[k]]$catchability_change
+    if (!is.null(cc)) {
+      cat("\nCatchability change (multiplier) vs original:\n")
+      if (length(cc) != length(labs)) {
+        names(cc) <- paste0("row_", seq_along(cc))
+      } else {
+        names(cc) <- labs
+      }
+      print(as.numeric(cc))
+    }
+  } else {
+    cat("No catchability recorded for sim ", success_ids[k], "\n", sep="")
+  }
+} else {
+  cat("No successful simulations to inspect.\n")
+}
+
+# Summarize failure reasons (if any)
+if (length(monte_carlo_results$failed)) {
+  failed_df <- data.frame(
+    sim_id = sapply(monte_carlo_results$failed, `[[`, "sim_id"),
+    reason = sapply(monte_carlo_results$failed, `[[`, "error"),
+    stringsAsFactors = FALSE
+  )
+  cat("\nTop failure reasons (count):\n")
+  print(as.data.frame(sort(table(failed_df$reason), decreasing = TRUE)))
+  cat("\nFirst few failed entries:\n")
+  print(utils::head(failed_df, 10))
+} else {
+  cat("No failed simulations recorded.\n")
+}
 ```
 
 
