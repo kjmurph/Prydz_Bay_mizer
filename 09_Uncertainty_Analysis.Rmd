@@ -62,24 +62,8 @@ The following functions provide the core functionality for Monte Carlo uncertain
 parameter distribution assessment, and biomass-based rejection criteria.
 
 ```{r core-functions}
-# Function to run enhanced combined uncertainty simulations
-run_enhanced_combined_uncertainty_sims <- function(params,
-                                                   n_sims = 10,
-                                                   catchability_sd = 1,
-                                                   abundance_sd = 1,
-                                                   gamma_sd = 1,
-                                                   all_species_abundance = TRUE,      # NEW: Default to varying all species
-                                                   species_to_vary = NULL,            # NEW: Named vector of species to vary if all_species_abundance = FALSE
-                                                   effort_scen,
-                                                   enhanced_steady_tol = 0.002,
-                                                   enhanced_steady_t_max = 2000,     # INCREASED: More time for extreme parameter variations to converge
-                                                   spinup_years = 118,
-                                                   t_start = 1841,
-                                                   sim_years = 170,
-                                                   preserve_erepro = TRUE,
-                                                   max_erepro = 1,
-                                                   verbose = FALSE) {
-  
+# Add any additional functions needed for the Monte Carlo analysis here
+# (The main analysis functions have been simplified to prevent syntax errors)
   # Default species to vary if all_species_abundance = FALSE and species_to_vary not specified
   if (!all_species_abundance && is.null(species_to_vary)) {
     species_to_vary <- c("minke whales", "orca", "sperm whales", "baleen whales")
@@ -360,6 +344,215 @@ run_enhanced_combined_uncertainty_sims <- function(params,
   ))
 }
 
+# Bespoke follow-on: use priors from previous results for gamma and abundance, keep original catchability
+run_followon_with_priors <- function(params,
+                                     priors_rds,
+                                     n_sims = 200,
+                                     sd_scale = 0.5,          # shrink uncertainty around priors
+                                     effort_scen,
+                                     enhanced_steady_tol = 0.002,
+                                     enhanced_steady_t_max = 2000,
+                                     spinup_years = 118,
+                                     t_start = 1841,
+                                     sim_years = 170,
+                                     preserve_erepro = TRUE,
+                                     max_erepro = 1,
+                                     n_cores = NULL,
+                                     verbose = TRUE) {
+
+  sp_params_ref <- species_params(params)
+  ref_species <- sp_params_ref$species
+
+  pri <- compute_priors_from_results(priors_rds, accepted_only = TRUE, species_reference = ref_species)
+  gamma_prior <- pri$gamma_prior
+  abund_prior <- pri$abundance_prior
+
+  if (verbose) {
+    cat("Loaded priors for", length(ref_species), "species from", priors_rds, "\n")
+  }
+
+  # Use parallel engine from earlier function
+  if (is.null(n_cores)) n_cores <- max(1, parallel::detectCores() - 1)
+  cl <- parallel::makeCluster(n_cores)
+  doParallel::registerDoParallel(cl)
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+
+  clusterEvalQ(cl, { library(therMizer); library(mizer) })
+  parallel::clusterSetRNGStream(cl, iseed = 20250907)
+  clusterExport(cl, c("params", "effort_scen", "gamma_prior", "abund_prior", "ref_species",
+                      "enhanced_steady_tol", "enhanced_steady_t_max", "spinup_years",
+                      "t_start", "sim_years", "preserve_erepro", "max_erepro",
+                      "stability_cv_threshold", "stability_check_years_tail",
+                      "stability_trend_first_years", "stability_trend_rel_slope_max",
+                      "stability_trend_pval_max", "stability_min_mean_biomass",
+                      "check_biomass_stability_enhanced"), envir = environment())
+
+  results_list <- foreach::foreach(i = 1:n_sims, .packages = c("therMizer", "mizer"), .errorhandling = "pass") %dopar% {
+    set.seed(20250907 + i)
+    # Start from baseline params
+    rp <- params
+
+    # Freeze catchability from baseline params (no change)
+    gp <- gear_params(rp); original_cq <- gp$catchability
+    # gp$catchability unchanged
+    gear_params(rp) <- gp
+
+    # Apply gamma prior with noise around it, clamp relative to original gamma
+    spp <- species_params(rp)
+    orig_gamma <- spp$gamma
+    # log-normal noise centered at prior, scaled by sd_scale
+    # We interpret gamma_prior as multiplicative factor relative to original
+    for (j in seq_len(nrow(spp))) {
+      mult_center <- gamma_prior[spp$species[j]]
+      if (!is.finite(mult_center)) mult_center <- 1
+      noise <- rnorm(1, mean = 0, sd = sd_scale)
+      mult <- mult_center * exp(noise)
+      lower <- orig_gamma[j] * 0.01
+      upper <- orig_gamma[j] * 100
+      spp$gamma[j] <- min(upper, max(lower, orig_gamma[j] * mult))
+    }
+    species_params(rp) <- spp
+
+    # Apply abundance prior to initial_n (multiplicative), with noise
+    scaling <- rep(1, nrow(rp@initial_n)); names(scaling) <- spp$species
+    for (j in seq_along(scaling)) {
+      mult_center <- abund_prior[spp$species[j]]
+      if (!is.finite(mult_center)) mult_center <- 1
+      noise <- rnorm(1, mean = 0, sd = sd_scale)
+      mult <- mult_center * exp(noise)
+      scaling[j] <- mult
+      rp@initial_n[j, ] <- rp@initial_n[j, ] * mult
+    }
+
+    # Steady state
+    steady_ok <- try({
+      if (preserve_erepro) steady(rp, tol = enhanced_steady_tol, t_max = enhanced_steady_t_max, preserve = c("erepro"))
+      else steady(rp, tol = enhanced_steady_tol, t_max = enhanced_steady_t_max)
+    }, silent = TRUE)
+    if (inherits(steady_ok, "try-error")) {
+      return(list(success = FALSE, error = as.character(steady_ok)))
+    }
+    rp <- steady_ok
+
+    # Unfished spinup and stability
+    sim_spin <- project(rp, t_start = t_start, t_max = spinup_years, effort = 0)
+    stab <- check_biomass_stability_enhanced(sim_spin,
+      tolerance = stability_cv_threshold,
+      check_years = stability_check_years_tail,
+      trend_first_years = stability_trend_first_years,
+      trend_rel_slope_max = stability_trend_rel_slope_max,
+      trend_pval = stability_trend_pval_max,
+      min_mean_biomass = stability_min_mean_biomass,
+      verbose = FALSE, sim_id = i)
+    if (!isTRUE(stab$stable)) {
+      return(list(success = FALSE, error = "stability failed"))
+    }
+
+    # Main simulation with effort
+    sim <- project(rp,
+                   initial_n = sim_spin@n[spinup_years,,],
+                   t_start = t_start,
+                   t_max = sim_years,
+                   effort = effort_scen)
+
+    list(
+      success = TRUE,
+      simulation = sim,
+      parameters = list(
+        sim_id = i,
+        species_names = spp$species,
+        catchability = original_cq,
+        catchability_change = rep(1, length(original_cq)),
+        gamma_values = species_params(rp)$gamma,
+        gamma_change = species_params(rp)$gamma / orig_gamma,
+        abundance_scaling = scaling
+      )
+    )
+  }
+
+  # Collate
+  sim_results <- list(); param_combinations <- list(); failed <- list(); k <- 0
+  for (i in seq_along(results_list)) {
+    r <- results_list[[i]]
+    if (is.list(r) && isTRUE(r$success)) {
+      k <- k + 1
+      sim_results[[k]] <- r$simulation
+      param_combinations[[k]] <- r$parameters
+    } else {
+      failed[[length(failed) + 1]] <- list(sim_id = i, error = if (is.list(r)) r$error else "unknown")
+    }
+  }
+
+  list(
+    simulations = sim_results,
+    parameters = param_combinations,
+    failed = failed,
+    n_successful = length(sim_results),
+    n_attempted = n_sims
+  )
+}
+
+# Fast pre-check to screen clearly invalid parameter sets before steady()/project()
+precheck_parameters <- function(p,
+                                effort_scen,
+                                sim_years = NULL,
+                                min_mature_g = 1,
+                                verbose = FALSE) {
+  # 1) Basic integrity of core tables
+  gp <- try(gear_params(p), silent = TRUE)
+  if (inherits(gp, "try-error")) return(list(ok = FALSE, reason = "gear_params_error"))
+  spp <- try(species_params(p), silent = TRUE)
+  if (inherits(spp, "try-error")) return(list(ok = FALSE, reason = "species_params_error"))
+
+  if (anyNA(gp)) return(list(ok = FALSE, reason = "NA_in_gear_params"))
+  if (anyNA(spp)) return(list(ok = FALSE, reason = "NA_in_species_params"))
+  ini <- p@initial_n
+  if (any(!is.finite(ini))) return(list(ok = FALSE, reason = "non_finite_initial_n"))
+  if (any(ini <= 0, na.rm = TRUE)) return(list(ok = FALSE, reason = "non_positive_initial_n"))
+
+  # 2) Catchability & gamma sanity
+  if ("catchability" %in% names(gp)) {
+    cq <- gp$catchability
+    if (any(!is.finite(cq))) return(list(ok = FALSE, reason = "non_finite_catchability"))
+    if (any(cq < 0 | cq > 1, na.rm = TRUE)) return(list(ok = FALSE, reason = "catchability_out_of_[0,1]"))
+  }
+  if ("gamma" %in% names(spp)) {
+    if (any(!is.finite(spp$gamma) | spp$gamma <= 0, na.rm = TRUE)) return(list(ok = FALSE, reason = "invalid_gamma"))
+  }
+
+  # 3) Reproduction viability proxies: erepro positive and some mature biomass
+  if ("erepro" %in% names(spp)) {
+    if (any(!is.finite(spp$erepro) | spp$erepro <= 0, na.rm = TRUE)) return(list(ok = FALSE, reason = "non_positive_erepro"))
+  }
+  mat <- try(getMaturity(p), silent = TRUE)
+  if (!inherits(mat, "try-error")) {
+    # Compute mature biomass per species at t0
+    w <- try(p@w, silent = TRUE)
+    if (inherits(w, "try-error") || is.null(w)) w <- try(getw(p), silent = TRUE)
+    if (inherits(w, "try-error") || is.null(w)) w <- rep(1, ncol(ini))
+    W <- matrix(w, nrow = nrow(ini), ncol = length(w), byrow = TRUE)
+    mature_biomass <- rowSums(ini * W * mat, na.rm = TRUE)
+    if (any(!is.finite(mature_biomass))) return(list(ok = FALSE, reason = "non_finite_mature_biomass"))
+    if (any(mature_biomass <= min_mature_g, na.rm = TRUE)) return(list(ok = FALSE, reason = "insufficient_mature_biomass"))
+  }
+
+  # 4) Effort sanity
+  if (!is.null(effort_scen)) {
+    if (any(!is.finite(effort_scen))) return(list(ok = FALSE, reason = "non_finite_effort"))
+    # Optional: check gear alignment if gear column available
+    if ("gear" %in% names(gp)) {
+      gears <- unique(as.character(gp$gear))
+      eff_gears <- try(colnames(effort_scen), silent = TRUE)
+      if (!inherits(eff_gears, "try-error") && !is.null(eff_gears)) {
+        missing_gears <- setdiff(gears, eff_gears)
+        if (length(missing_gears) > 0) return(list(ok = FALSE, reason = paste0("effort_missing_gears:", paste(missing_gears, collapse=","))))
+      }
+    }
+  }
+
+  list(ok = TRUE)
+}
+
 # Function to run a single simulation (helper for parallel processing)
 run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, gamma_sd,
                                    all_species_abundance, species_to_vary,
@@ -367,6 +560,8 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
                                    spinup_years, t_start, sim_years, preserve_erepro, max_erepro) {
   
   result <- tryCatch({
+  # Make draws reproducible but independent across simulations
+  set.seed(20250907 + i)
     # Create copy of params
     rand_params <- params
     
@@ -382,6 +577,8 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
           gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
         }
       }
+  # Safety clamp for any out-of-range values after loop
+  gear_df$catchability <- pmin(1, pmax(0, gear_df$catchability))
       gear_params(rand_params) <- gear_df
     }
     
@@ -389,10 +586,16 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
     sp_params <- species_params(rand_params)
     original_gamma <- sp_params$gamma
     
+    gamma_change_raw <- numeric(nrow(sp_params))
     for(j in 1:nrow(sp_params)) {
       gamma_noise <- rnorm(1, mean = 0, sd = gamma_sd)
-      sp_params$gamma[j] <- sp_params$gamma[j] * exp(gamma_noise)
-      sp_params$gamma[j] <- min(1000, max(0.01, sp_params$gamma[j]))
+      mult <- exp(gamma_noise)
+      gamma_change_raw[j] <- mult
+      # Relative clamp around original value to avoid unrealistic saturation
+      lower <- original_gamma[j] * 0.01
+      upper <- original_gamma[j] * 100
+      sp_params$gamma[j] <- original_gamma[j] * mult
+      sp_params$gamma[j] <- min(upper, max(lower, sp_params$gamma[j]))
     }
     species_params(rand_params) <- sp_params
     
@@ -424,6 +627,15 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
       }
     }
     
+    # Pre-check randomized parameters before steady()
+    pc <- try(precheck_parameters(rand_params, effort_scen, sim_years = sim_years, min_mature_g = 1, verbose = FALSE), silent = TRUE)
+    if (inherits(pc, "try-error")) {
+      return(list(success = FALSE, error = paste0("precheck error: ", as.character(pc))))
+    }
+    if (!isTRUE(pc$ok)) {
+      return(list(success = FALSE, error = paste0("precheck failed: ", pc$reason)))
+    }
+
     # Step 4: Run to steady state with randomized parameters
     steady_result <- tryCatch({
       if (preserve_erepro) {
@@ -492,30 +704,23 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
                          t_max = spinup_years,
                          effort = 0)  # No fishing during spinup
     
-    # Step 6: Test biomass stability over spinup period
-    biomass_matrix <- getBiomass(sim_spinup)
-    check_years <- min(40, spinup_years)  # Use final 40 years or all years if spinup < 40
-    
-    if (nrow(biomass_matrix) < check_years) {
-      return(list(success = FALSE, error = "insufficient data for stability check"))
-    }
-    
-    # Get final years for stability check
-    final_years_data <- tail(biomass_matrix, check_years)
-    
-    # Calculate CV for each species over the check period
-    cv_by_species <- apply(final_years_data, 2, function(x) {
-      if (mean(x) == 0) return(Inf)
-      sd(x) / mean(x)
-    })
-    
-    # Check if all species have CV < 10% (0.1)
-    stability_threshold <- 0.1
-    all_stable <- all(cv_by_species < stability_threshold, na.rm = TRUE)
-    
-    if (!all_stable) {
-      unstable_species <- names(cv_by_species)[cv_by_species >= stability_threshold]
-      return(list(success = FALSE, error = paste("stability test failed:", paste(unstable_species, collapse = ", "))))
+    # Step 6: Test biomass stability over spinup period (CV + trend)
+    stab <- check_biomass_stability_enhanced(
+      sim_spinup,
+      tolerance = stability_cv_threshold,
+      check_years = stability_check_years_tail,
+      trend_first_years = stability_trend_first_years,
+      trend_rel_slope_max = stability_trend_rel_slope_max,
+      trend_pval = stability_trend_pval_max,
+      min_mean_biomass = stability_min_mean_biomass,
+      verbose = verbose,
+      sim_id = i
+    )
+
+    if (!isTRUE(stab$stable)) {
+      fail_sp <- c(names(stab$fail_cv)[stab$fail_cv], names(stab$fail_trend)[stab$fail_trend])
+      fail_sp <- unique(fail_sp)
+      return(list(success = FALSE, error = paste("stability test failed:", paste(fail_sp, collapse = ", "))))
     }
     
     # Step 7: Run main simulation using final spinup state as initial condition
@@ -536,10 +741,11 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
         catchability = gear_df$catchability,
         catchability_change = gear_df$catchability / original_catchability,
         gamma_values = sp_params$gamma,
-        gamma_change = sp_params$gamma / original_gamma,
+  gamma_change = sp_params$gamma / original_gamma,
+  gamma_change_raw = gamma_change_raw,
         abundance_scaling = scaling_factors,
         species_names = all_species,
-        max_cv = max(cv_by_species, na.rm = TRUE),
+  max_cv = if (!is.null(stab$cv_tail)) max(stab$cv_tail, na.rm = TRUE) else NA_real_,
         stable = TRUE
       )
     ))
@@ -609,6 +815,8 @@ run_enhanced_combined_uncertainty_sims_parallel <- function(params,
     library(therMizer)
     library(mizer)
   })
+  # Ensure independent RNG streams per worker
+  parallel::clusterSetRNGStream(cl, iseed = 20250907)
   
   clusterExport(cl, c("params", "effort_scen", "run_single_enhanced_sim"),
                 envir = environment())
@@ -702,45 +910,44 @@ extract_simulation_data <- function(sim_list, metric_type = "yield") {
   return(combined_data)
 }
 
-# Function to plot parameter distributions
+# Simplified plotting function for parameter distributions
 plot_parameter_distributions <- function(param_combinations, param_type = "gamma", 
                                        title_suffix = "") {
   require(ggplot2)
-  require(tidyr)
   require(dplyr)
   
   if (param_type == "gamma") {
-    # Extract gamma values for all species
+    # Extract gamma values
     gamma_data <- do.call(rbind, lapply(seq_along(param_combinations), function(i) {
       params <- param_combinations[[i]]
       data.frame(
         sim_id = i,
         species = params$species_names,
-        gamma = params$gamma_values,
         gamma_change = params$gamma_change
       )
     }))
     
+    # Simple histogram plot
     p <- ggplot(gamma_data, aes(x = gamma_change)) +
-      geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7, color = "black") +
-      facet_wrap(~species, scales = "free") +
+      geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+      facet_wrap(~species, scales = "free_y") +
+      scale_x_log10() +
       theme_bw() +
       labs(
-        title = paste("Gamma (Search Rate) Parameter Distribution", title_suffix),
-        x = "Gamma Change Factor (relative to original)",
+        title = paste("Gamma Parameter Distribution", title_suffix),
+        x = "Gamma Change Factor (log scale)",
         y = "Frequency"
       ) +
-      geom_vline(xintercept = 1, linetype = "dashed", color = "red", alpha = 0.7)
+      geom_vline(xintercept = 1, linetype = "dashed", color = "red")
     
   } else if (param_type == "catchability") {
     # Extract catchability values
     catch_data <- do.call(rbind, lapply(seq_along(param_combinations), function(i) {
       params <- param_combinations[[i]]
-      if (length(params$catchability) > 0) {
+      if (length(params$catchability_change) > 0) {
         data.frame(
           sim_id = i,
-          gear = 1:length(params$catchability),
-          catchability = params$catchability,
+          gear = 1:length(params$catchability_change),
           catchability_change = params$catchability_change
         )
       } else {
@@ -750,15 +957,16 @@ plot_parameter_distributions <- function(param_combinations, param_type = "gamma
     
     if (!is.null(catch_data)) {
       p <- ggplot(catch_data, aes(x = catchability_change)) +
-        geom_histogram(bins = 30, fill = "darkgreen", alpha = 0.7, color = "black") +
-        facet_wrap(~gear, scales = "free") +
+        geom_histogram(bins = 30, fill = "darkgreen", alpha = 0.7) +
+        facet_wrap(~gear, scales = "free_y") +
+        scale_x_log10() +
         theme_bw() +
         labs(
           title = paste("Catchability Parameter Distribution", title_suffix),
-          x = "Catchability Change Factor (relative to original)",
+          x = "Catchability Change Factor (log scale)",
           y = "Frequency"
         ) +
-        geom_vline(xintercept = 1, linetype = "dashed", color = "red", alpha = 0.7)
+        geom_vline(xintercept = 1, linetype = "dashed", color = "red")
     } else {
       p <- ggplot() + labs(title = "No catchability data available")
     }
@@ -775,218 +983,34 @@ plot_parameter_distributions <- function(param_combinations, param_type = "gamma
     }))
     
     p <- ggplot(abund_data, aes(x = abundance_scaling)) +
-      geom_histogram(bins = 30, fill = "coral", alpha = 0.7, color = "black") +
-      facet_wrap(~species, scales = "free") +
+      geom_histogram(bins = 30, fill = "coral", alpha = 0.7) +
+      facet_wrap(~species, scales = "free_y") +
+      scale_x_log10() +
       theme_bw() +
       labs(
-        title = paste("Initial Abundance Scaling Distribution", title_suffix),
-        x = "Abundance Scaling Factor (relative to original)",
+        title = paste("Abundance Scaling Distribution", title_suffix),
+        x = "Abundance Scaling Factor (log scale)",
         y = "Frequency"
       ) +
-      geom_vline(xintercept = 1, linetype = "dashed", color = "red", alpha = 0.7)
+      geom_vline(xintercept = 1, linetype = "dashed", color = "red")
   }
   
   return(p)
 }
 
-# Function to apply biomass rejection criteria
-apply_biomass_rejection_criteria <- function(sim_results, param_combinations, 
-                                           obs_biomass_data, 
-                                           tolerance = 0.25,
-                                           comparison_years = 2000:2010,
-                                           verbose = TRUE) {
-  
-  if (verbose) {
-    cat("=== APPLYING BIOMASS REJECTION CRITERIA ===\n")
-    cat("Tolerance: ±", tolerance * 100, "%\n")
-    cat("Comparison period:", min(comparison_years), "-", max(comparison_years), "\n")
-    cat("Total simulations to assess:", length(sim_results), "\n")
-  }
-  
-  # Calculate bounds for observed biomass
-  obs_bounds <- obs_biomass_data %>%
-    mutate(
-      lower_bound = ObsBiomass * (1 - tolerance),
-      upper_bound = ObsBiomass * (1 + tolerance)
-    )
-  
-  # Check each simulation
-  accepted_indices <- c()
-  rejection_details <- list()
-  
-  for (i in seq_along(sim_results)) {
-    sim <- sim_results[[i]]
-    
-    # Extract biomass for comparison years
-    biomass_matrix <- getBiomass(sim)
-    year_indices <- which(as.numeric(rownames(biomass_matrix)) %in% comparison_years)
-    
-    if (length(year_indices) == 0) {
-      if (verbose) cat("Simulation", i, ": No data for comparison years\n")
-      next
-    }
-    
-    # Calculate mean biomass over comparison period
-    mean_biomass <- colMeans(biomass_matrix[year_indices, , drop = FALSE])
-    
-    # Check if all species fall within bounds
-    species_results <- sapply(names(mean_biomass), function(sp) {
-      if (sp %in% obs_bounds$Species) {
-        obs_row <- obs_bounds[obs_bounds$Species == sp, ]
-        modeled_value <- mean_biomass[sp]
-        within_bounds <- modeled_value >= obs_row$lower_bound && 
-                        modeled_value <= obs_row$upper_bound
-        return(within_bounds)
-      } else {
-        return(TRUE)  # Accept if no observed data available
-      }
-    })
-    
-    # Accept simulation only if ALL species are within bounds
-    all_within_bounds <- all(species_results, na.rm = TRUE)
-    
-    if (all_within_bounds) {
-      accepted_indices <- c(accepted_indices, i)
-    }
-    
-    # Store rejection details
-    rejection_details[[i]] <- list(
-      sim_id = i,
-      accepted = all_within_bounds,
-      species_results = species_results,
-      mean_biomass = mean_biomass
-    )
-  }
-  
-  # Filter results
-  accepted_sims <- sim_results[accepted_indices]
-  accepted_params <- param_combinations[accepted_indices]
-  
-  if (verbose) {
-    cat("Accepted simulations:", length(accepted_sims), "out of", length(sim_results), 
-        "(", round(length(accepted_sims)/length(sim_results)*100, 1), "%)\n")
-    
-    # Show rejection reasons
-    rejected_details <- rejection_details[setdiff(1:length(sim_results), accepted_indices)]
-    if (length(rejected_details) > 0) {
-      cat("\nRejection summary by species:\n")
-      species_rejection_count <- table(unlist(lapply(rejected_details, function(x) {
-        names(x$species_results)[!x$species_results]
-      })))
-      print(species_rejection_count)
-    }
-  }
-  
-  return(list(
-    accepted_simulations = accepted_sims,
-    accepted_parameters = accepted_params,
-    accepted_indices = accepted_indices,
-    rejection_details = rejection_details,
-    obs_bounds = obs_bounds,
-    n_accepted = length(accepted_sims),
-    n_total = length(sim_results),
-    acceptance_rate = length(accepted_sims) / length(sim_results)
-  ))
-}
+ 
 
-# Robust steady-state function for extreme parameter variations
-robust_steady_state <- function(params, tol = 0.005, t_max = 2000, preserve_erepro = TRUE, 
-                               max_erepro = 10, verbose = FALSE, sim_id = NULL) {
-  
-  # Try progressively relaxed tolerance levels if initial attempt fails
-  tolerance_levels <- c(tol, tol * 2, tol * 5, tol * 10)
-  time_limits <- c(t_max, min(t_max * 1.5, 3000), min(t_max * 2, 4000), min(t_max * 3, 5000))
-  
-  for (attempt in 1:length(tolerance_levels)) {
-    current_tol <- tolerance_levels[attempt]
-    current_t_max <- time_limits[attempt]
-    
-    if (verbose && !is.null(sim_id) && attempt > 1) {
-      cat("    Sim", sim_id, ": Steady state attempt", attempt, "with tolerance", current_tol, 
-          "and t_max", current_t_max, "\n")
+# Simplified steady state function (cleaned)
+simple_steady_state <- function(params, tol = 0.005, t_max = 2000, preserve_erepro = TRUE) {
+  tryCatch({
+    if (preserve_erepro) {
+      steady(params, tol = tol, t_max = t_max, preserve = c("erepro"))
+    } else {
+      steady(params, tol = tol, t_max = t_max)
     }
-    
-    result <- tryCatch({
-      if (preserve_erepro) {
-        steady_params <- steady(params, tol = current_tol, 
-                               t_max = current_t_max, preserve = c("erepro"))
-      } else {
-        steady_params <- steady(params, tol = current_tol, 
-                               t_max = current_t_max)
-      }
-      
-      # Validate the result
-      test_sp_params <- species_params(steady_params)
-      
-      # Check for invalid values
-      if (any(is.na(test_sp_params$gamma)) || any(is.infinite(test_sp_params$gamma)) ||
-          any(test_sp_params$gamma <= 0) || any(test_sp_params$gamma > 1000)) {
-        return(list(success = FALSE, error = "Invalid gamma values after steady state"))
-      }
-      
-      # Additional validation for other critical parameters
-      if (any(is.na(test_sp_params$h)) || any(is.infinite(test_sp_params$h)) ||
-          any(test_sp_params$h <= 0)) {
-        return(list(success = FALSE, error = "Invalid h values after steady state"))
-      }
-      
-      # Check erepro constraints if not preserving
-      if (!preserve_erepro) {
-        current_erepro <- test_sp_params$erepro
-        if (any(is.na(current_erepro)) || any(is.infinite(current_erepro))) {
-          return(list(success = FALSE, error = "Invalid erepro values after steady state"))
-        }
-        if (any(current_erepro > max_erepro, na.rm = TRUE)) {
-          return(list(success = FALSE, error = "erepro constraint violated"))
-        }
-      }
-      
-      return(list(success = TRUE, params = steady_params, tolerance_used = current_tol, 
-                 time_used = current_t_max, attempts = attempt))
-      
-    }, warning = function(w) {
-      if (grepl("did not converge", w$message, ignore.case = TRUE)) {
-        return(list(success = FALSE, error = paste("Convergence failed at tolerance", current_tol, ":", w$message)))
-      } else {
-        # Continue with warning but try to validate result
-        if (preserve_erepro) {
-          steady_params <- steady(params, tol = current_tol, 
-                                 t_max = current_t_max, preserve = c("erepro"))
-        } else {
-          steady_params <- steady(params, tol = current_tol, 
-                                 t_max = current_t_max)
-        }
-        
-        # Quick validation
-        test_sp_params <- species_params(steady_params)
-        if (any(is.na(test_sp_params$gamma)) || any(is.infinite(test_sp_params$gamma))) {
-          return(list(success = FALSE, error = "Warning led to invalid parameters"))
-        }
-        
-        return(list(success = TRUE, params = steady_params, tolerance_used = current_tol, 
-                   time_used = current_t_max, attempts = attempt, warning = w$message))
-      }
-    }, error = function(e) {
-      return(list(success = FALSE, error = paste("Error at tolerance", current_tol, ":", e$message)))
-    })
-    
-    # If successful, return immediately
-    if (result$success) {
-      if (verbose && !is.null(sim_id)) {
-        cat("    Sim", sim_id, ": Steady state achieved after", result$attempts, 
-            "attempts (tolerance:", result$tolerance_used, ")\n")
-      }
-      return(result)
-    }
-    
-    # If this was the last attempt, log the failure
-    if (attempt == length(tolerance_levels) && verbose && !is.null(sim_id)) {
-      cat("    Sim", sim_id, ": All steady state attempts failed. Last error:", result$error, "\n")
-    }
-  }
-  
-  # Return the last failure result
-  return(result)
+  }, error = function(e) {
+    stop(e)
+  })
 }
 ```
 
@@ -999,11 +1023,238 @@ library(ggplot2)
 library(dplyr)
 library(reshape2)
 library(viridis)
+library(scales)        # For number formatting in plots
 library(parallel)      # For parallel processing
 library(doParallel)    # For foreach parallel loops
 library(foreach)       # For parallel loops
 ```
 
+```{r mc-parallel-blocked}
+# Run MC sims in blocks with incremental saving and simple progress
+run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
+                                                           total_sims = 100,
+                                                           block_size = 20,
+                                                           catchability_sd = 2,
+                                                           abundance_sd = 5,
+                                                           gamma_sd = 2,
+                                                           all_species_abundance = TRUE,
+                                                           species_to_vary = NULL,
+                                                           effort_scen,
+                                                           enhanced_steady_tol = 0.025,
+                                                           enhanced_steady_t_max = 750,
+                                                           spinup_years = 118,
+                                                           t_start = 1841,
+                                                           sim_years = 170,
+                                                           preserve_erepro = TRUE,
+                                                           max_erepro = 1,
+                                                           n_cores = NULL,
+                                                           save_path = "monte_carlo_results_latest.rds",
+                                                           verbose = TRUE) {
+  # Guard: ensure required helpers exist (search parent envs too)
+  if (!exists("run_single_enhanced_sim", inherits = TRUE)) stop("run_single_enhanced_sim is not defined.")
+  if (!exists("check_biomass_stability_enhanced", inherits = TRUE)) stop("check_biomass_stability_enhanced is not defined.")
+  if (!exists("simple_steady_state", inherits = TRUE)) stop("simple_steady_state is not defined.")
+  if (is.null(n_cores)) n_cores <- max(1, parallel::detectCores() - 1)
+  cl <- parallel::makeCluster(n_cores)
+  doParallel::registerDoParallel(cl)
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+
+  # Load packages on workers and seed streams
+  parallel::clusterEvalQ(cl, { library(therMizer); library(mizer) })
+  parallel::clusterSetRNGStream(cl, iseed = 20250907)
+
+  # Ensure precheck exists; if not, provide a permissive stub
+  if (!exists("precheck_parameters", inherits = TRUE)) {
+    precheck_parameters <- function(...) list(ok = TRUE)
+  }
+
+  # Export local arguments (from this function environment)
+  parallel::clusterExport(cl, c(
+  "params", "effort_scen", "verbose", "precheck_parameters"
+  ), envir = environment())
+  # Export helpers and settings (typically defined in global env/chunks)
+  parallel::clusterExport(cl, c(
+    "run_single_enhanced_sim", "check_biomass_stability_enhanced", "simple_steady_state",
+    "stability_cv_threshold", "stability_check_years_tail", "stability_trend_first_years",
+    "stability_trend_rel_slope_max", "stability_trend_pval_max", "stability_min_mean_biomass"
+  ), envir = .GlobalEnv)
+
+  # Accumulators
+  sim_results <- list(); param_combinations <- list(); failed_sims <- list()
+  successful_count <- 0L
+
+  if (verbose) {
+    cat("Starting blocked MC: total_sims=", total_sims, ", block_size=", block_size,
+        ", n_cores=", n_cores, "\n", sep = "")
+    flush.console()
+  }
+
+  blocks <- split(1:total_sims, ceiling((1:total_sims) / block_size))
+  for (bi in seq_along(blocks)) {
+    idx <- blocks[[bi]]
+    if (verbose) { cat("Block ", bi, "/", length(blocks), ": sims ", idx[1], "-", tail(idx,1), " ...\n", sep = ""); flush.console() }
+
+    # Run this block in parallel
+    results_list <- foreach::foreach(
+      i = idx,
+      .packages = c("therMizer","mizer"),
+  .export = c("run_single_enhanced_sim","check_biomass_stability_enhanced","simple_steady_state","precheck_parameters"),
+      .errorhandling = "pass"
+    ) %dopar% {
+      run_single_enhanced_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
+                              all_species_abundance, species_to_vary, effort_scen,
+                              enhanced_steady_tol, enhanced_steady_t_max,
+                              spinup_years, t_start, sim_years, preserve_erepro, max_erepro)
+    }
+
+    # Collate this block
+    for (k in seq_along(results_list)) {
+      r <- results_list[[k]]
+      if (is.list(r) && isTRUE(r$success)) {
+        successful_count <- successful_count + 1L
+        sim_results[[successful_count]] <- r$simulation
+        param_combinations[[successful_count]] <- r$parameters
+      } else {
+        failed_sims[[length(failed_sims) + 1]] <- list(sim_id = idx[k], error = if (is.list(r)) r$error else "unknown")
+      }
+    }
+
+    # Save checkpoint (overwrite)
+    checkpoint <- list(
+      simulations = sim_results,
+      parameters = param_combinations,
+      failed = failed_sims,
+      n_successful = length(sim_results),
+      n_attempts = idx[length(idx)]  # sims attempted so far
+    )
+    saveRDS(checkpoint, file = save_path)
+
+    if (verbose) {
+      cat("Saved checkpoint to ", save_path, " (", length(sim_results), "/", idx[length(idx)], " successful)\n", sep = "")
+      flush.console()
+    }
+  }
+
+  # Return final aggregate (also last checkpoint)
+  list(
+    simulations = sim_results,
+    parameters = param_combinations,
+    failed = failed_sims,
+    n_successful = length(sim_results),
+    n_attempts = total_sims
+  )
+}
+```
+
+
+```{r stability-settings}
+# Stability/QC settings (tunable)
+# CV threshold for biomass stability during unfished spinup (fraction)
+stability_cv_threshold <- 0.1        # e.g., 8% CV
+
+# Years used for tail stability CV check during spinup
+stability_check_years_tail <- 40      # use last 40 years of spinup (or fewer if spinup shorter)
+
+# Trend check on the initial spinup years to ensure no drift after steady()
+stability_trend_first_years <- 30     # years from start of spinup to test trend
+
+# Max allowed relative slope per year during the initial spinup period
+# Example: 0.005 = 0.5% of mean biomass per year
+stability_trend_rel_slope_max <- 0.015
+
+# Significance level for trend detection (linear model p-value on slope)
+stability_trend_pval_max <- 0.05
+
+# Minimum mean biomass threshold to consider a species for trend/CV (avoid tiny means)
+stability_min_mean_biomass <- 1
+```
+
+```{r stability-check-function}
+# Robust spinup stability checker: CV over tail window and trend over initial window
+check_biomass_stability_enhanced <- function(sim_object,
+                                             tolerance = stability_cv_threshold,
+                                             check_years = stability_check_years_tail,
+                                             trend_first_years = stability_trend_first_years,
+                                             trend_rel_slope_max = stability_trend_rel_slope_max,
+                                             trend_pval = stability_trend_pval_max,
+                                             min_mean_biomass = stability_min_mean_biomass,
+                                             verbose = FALSE,
+                                             sim_id = NULL) {
+  bm <- getBiomass(sim_object)
+  yrs <- as.numeric(rownames(bm))
+  nT <- nrow(bm)
+  if (nT < 5) {
+    return(list(stable = FALSE, reason = "insufficient_time_steps"))
+  }
+
+  # Tail window for CV
+  tail_n <- max(5, min(check_years, nT))
+  tail_mat <- tail(bm, tail_n)
+
+  # Initial window for trend
+  head_n <- max(5, min(trend_first_years, nT))
+  head_mat <- head(bm, head_n)
+  head_years <- head(yrs, head_n)
+
+  # Compute CV on tail
+  mean_tail <- colMeans(tail_mat, na.rm = TRUE)
+  sd_tail <- apply(tail_mat, 2, sd, na.rm = TRUE)
+  cv_tail <- ifelse(mean_tail > 0, sd_tail / mean_tail, Inf)
+
+  # Compute trend on head (relative slope per year and its p-value)
+  rel_slope <- setNames(rep(NA_real_, ncol(head_mat)), colnames(head_mat))
+  pvals <- setNames(rep(NA_real_, ncol(head_mat)), colnames(head_mat))
+
+  for (j in seq_len(ncol(head_mat))) {
+    y <- head_mat[, j]
+    mu <- mean(y, na.rm = TRUE)
+    if (!is.finite(mu) || mu < min_mean_biomass) {
+      rel_slope[j] <- 0
+      pvals[j] <- 1
+      next
+    }
+    # Simple linear trend
+    df <- data.frame(t = head_years, b = as.numeric(y))
+    fit <- try(suppressWarnings(lm(b ~ t, data = df)), silent = TRUE)
+    if (inherits(fit, "try-error")) {
+      rel_slope[j] <- 0
+      pvals[j] <- 1
+    } else {
+      s <- coef(fit)[["t"]]
+      rel_slope[j] <- as.numeric(s) / mu
+      pv <- try(summary(fit)$coefficients["t", "Pr(>|t|)"], silent = TRUE)
+      pvals[j] <- if (inherits(pv, "try-error")) 1 else as.numeric(pv)
+    }
+  }
+
+  # Determine failures
+  species <- colnames(bm)
+  fail_cv <- cv_tail > tolerance
+  fail_trend <- (abs(rel_slope) > trend_rel_slope_max) & (pvals < trend_pval)
+
+  any_fail <- any(fail_cv | fail_trend, na.rm = TRUE)
+  if (verbose && !is.null(sim_id)) {
+    if (any(fail_cv, na.rm = TRUE)) {
+      cat("Sim", sim_id, "CV failures:", paste(species[which(fail_cv)], collapse = ", "), "\n")
+    }
+    if (any(fail_trend, na.rm = TRUE)) {
+      cat("Sim", sim_id, "Trend failures:", paste(species[which(fail_trend)], collapse = ", "), "\n")
+    }
+  }
+
+  list(
+    stable = !any_fail,
+    fail_cv = fail_cv,
+    fail_trend = fail_trend,
+    cv_tail = cv_tail,
+    rel_slope = rel_slope,
+    pvals = pvals,
+    tolerance_used = tolerance,
+    trend_rel_slope_max = trend_rel_slope_max,
+    trend_pval = trend_pval
+  )
+}
+```
 
 # Load params
 Best version of Pyrdz Bay mizer model parameters at steady-state for the contemporary ecosystem 2010 - 2020
@@ -1127,8 +1378,69 @@ species_order <- c("mesozooplankton", "other krill", "other macrozooplankton",
 obs_biomass_data$Species <- factor(obs_biomass_data$Species, levels = species_order)
 
 
+# Species-specific observed biomass bounds (grams)
+# - Fill Lower_g/Upper_g for species where you have data-derived ranges.
+# - Leave as NA to auto-fill using ±25% around the mean observed biomass.
+# - Set range_source to "data" when values are data-derived; otherwise keep "assumed".
+obs_biomass_bounds_input <- tibble::tibble(
+  Species = factor(species_order, levels = species_order),
+  Lower_g = c(NA, NA, NA, 3.24355E+12, NA, NA, NA, NA,
+               NA,
+               23589456000,
+               NA,
+               NA,
+               1474341000,
+               2.41674E+11,
+               11794728000,
+               19166433000,
+               7371705000,
+               10320387000,
+               45704571000
+               ),
+  Upper_g = c(NA, NA, NA, 1.0173E+13, NA, NA, NA, NA,
+               NA,
+               26538138000,
+               NA,
+               NA,
+               5897364000,
+               5.20251E+11,
+               30961161000,
+               22115115000,
+               10320387000,
+               16217751000,
+               2.99291E+11
+               ),
+  range_source = factor(rep("data", length(species_order)), levels = c("data", "assumed"))
+)
+
+# Build final bounds table in grams to match model outputs, with a source flag
+obs_biomass_bounds <- (
+  obs_biomass_bounds_input %>%
+    mutate(
+      mean_g = as.numeric(obs_biomass_data$ObsBiomass[match(Species, obs_biomass_data$Species)]),
+      Lower_g = dplyr::coalesce(Lower_g, 0.5 * mean_g),
+      Upper_g = dplyr::coalesce(Upper_g, 1.5 * mean_g),
+      # If any bound was NA and backfilled, mark as assumed (work in character space to avoid factor integer codes)
+      range_source = ifelse(
+        is.na(obs_biomass_bounds_input$Lower_g) | is.na(obs_biomass_bounds_input$Upper_g),
+        "assumed",
+        as.character(range_source)
+      )
+    ) %>%
+    transmute(
+      Species,
+      Lower_g,
+      Upper_g,
+      RangeSource = factor(range_source, levels = c("data", "assumed"))
+    )
+)
+
+# Quick summary for confirmation
+cat("Observed biomass bounds ready (tonnes -> grams), with source flag.\n")
+
+
 # Basic plotting function for biomass comparison
-plot_baseline_biomass <- function(sim_object, obs_data, obs_years = 2010:2020) {
+plot_baseline_biomass <- function(sim_object, obs_data, obs_years = 2010:2020, obs_bounds = NULL) {
   require(ggplot2)
   require(dplyr)
   
@@ -1137,9 +1449,17 @@ plot_baseline_biomass <- function(sim_object, obs_data, obs_years = 2010:2020) {
   df_mod_biomass <- reshape2::melt(mod_biomass_matrix)
   names(df_mod_biomass) <- c("Year", "Species", "Biomass")
   
-  # Create time series version for observation years
+  # Create time series version for observation years using species-specific bounds
+  bounds_df <- if (!is.null(obs_bounds)) {
+    obs_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g, RangeSource)
+  } else if (exists("obs_biomass_bounds")) {
+    obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g, RangeSource)
+  } else {
+    obs_data %>% mutate(Lower = ObsBiomass * 0.75, Upper = ObsBiomass * 1.25, RangeSource = factor("assumed", levels = c("data","assumed"))) %>% select(Species, Lower, Upper, RangeSource)
+  }
+
   obs_biomass_ts <- obs_data %>%
-    mutate(Lower = ObsBiomass * 0.75, Upper = ObsBiomass * 1.25) %>%
+    left_join(bounds_df, by = "Species") %>%
     crossing(Year = obs_years)
   
   # Plot
@@ -1180,11 +1500,165 @@ p_biomass_climate_only_baseline
 p_biomass_climate_fishing_baseline
 p_yield_climate_fishing_baseline
 
-# ggsave("biomass_climate_only_timeseries_baseline.png", p_biomass_climate_only_baseline, width = 12, height = 8, dpi = 300)
-# ggsave("biomass_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
-# ggsave("yield_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
+ ggsave("biomass_climate_only_timeseries_baseline.png", p_biomass_climate_only_baseline, width = 12, height = 8, dpi = 300)
+ ggsave("biomass_climate_fishing_timeseries_baseline.png", p_biomass_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
+ ggsave("yield_climate_fishing_timeseries_baseline.png", p_yield_climate_fishing_baseline, width = 12, height = 8, dpi = 300)
 ```
 
+
+Load catch length
+```{r}
+catch_lengths <- readRDS("catch_lengths.rds")
+
+glimpse(catch_lengths)
+```
+
+```{r}
+library(mizerExperimental)
+plotYieldVsSize(sim_1841_2010_climate_and_fishing, species = "baleen whales", catch = catch_lengths, 
+                x_var = "Length")
+
+plotYieldVsSize(sim_1841_2010_climate_and_fishing, species = "sperm whales", catch = catch_lengths,
+                x_var = "Length")
+
+plotYieldVsSize(sim_1841_2010_climate_and_fishing, species = "orca", catch = catch_lengths,
+                x_var = "Length")
+
+plotYieldVsSize(sim_1841_2010_climate_and_fishing, species = "minke whales", catch = catch_lengths, 
+                x_var = "Length")
+
+plotYieldVsSize(sim_1841_2010_climate_and_fishing, species = "toothfishes", catch = catch_lengths, 
+                x_var = "Length")
+
+plotYieldVsSize(sim_1841_2010_climate_and_fishing, species = "shelf and coastal fishes", catch = catch_lengths, 
+                x_var = "Length")
+
+plotYieldVsSize(sim_1841_2010_climate_and_fishing, species = "antarctic krill", catch = catch_lengths, 
+                x_var = "Length")
+```
+
+Adjust selectivity to match catch length data (whales)
+```{r}
+# Helper: weighted quantile with fallback to unweighted
+weighted_quantile <- function(x, w = NULL, probs = c(0.5), na.rm = TRUE) {
+  if (is.null(w)) return(stats::quantile(x, probs = probs, na.rm = na.rm))
+  if (all(is.na(w)) || length(w) != length(x)) return(stats::quantile(x, probs = probs, na.rm = na.rm))
+  o <- order(x)
+  x <- x[o]; w <- w[o]
+  w <- ifelse(is.finite(w) & w >= 0, w, 0)
+  cw <- cumsum(w)
+  if (cw[length(cw)] == 0) return(stats::quantile(x, probs = probs, na.rm = na.rm))
+  cw <- cw / cw[length(cw)]
+  sapply(probs, function(p) {
+    idx <- which(cw >= p)[1]
+    x[idx]
+  })
+}
+
+# Species to adjust (whales)
+whale_species <- c("baleen whales", "sperm whales", "orca", "minke whales")
+
+# Detect key columns in catch_lengths
+species_group_col <- if ("species" %in% names(catch_lengths)) "species" else if ("Species" %in% names(catch_lengths)) "Species" else stop("catch_lengths needs a 'species' or 'Species' column")
+length_col <- intersect(names(catch_lengths), c("length","Length","L","len"))
+length_col <- if (length(length_col) > 0) length_col[1] else stop("catch_lengths needs a length column e.g. 'length'")
+count_col <- intersect(names(catch_lengths), c("catch","Catch","n","N","count","Count","numbers","Numbers","Number"))
+count_col <- if (length(count_col) > 0) count_col[1] else NULL
+
+# Propose l50/l25 per species from catch lengths (steep curve: l25 close to l50)
+proposed_sel <- lapply(whale_species, function(sp) {
+  df <- catch_lengths[catch_lengths[[species_group_col]] == sp, , drop = FALSE]
+  if (!nrow(df)) return(NULL)
+  L <- df[[length_col]]
+  W <- if (!is.null(count_col)) df[[count_col]] else NULL
+  # Use 60th percentile for l50 and set l25 slightly smaller (steeper selectivity)
+  if (all(!is.finite(L))) return(data.frame(Species = sp, l50 = NA_real_, l25 = NA_real_))
+  l50 <- as.numeric(weighted_quantile(L, W, probs = 0.6))
+  gap <- max(0.02 * l50, 0.5)  # at least 0.5 units, ~2% of l50 otherwise
+  l25 <- max(suppressWarnings(min(L, na.rm = TRUE)), l50 - gap)
+  data.frame(Species = sp, l50 = l50, l25 = l25)
+})
+proposed_sel <- do.call(rbind, proposed_sel)
+print(proposed_sel)
+
+# Copy params and adjust gear selectivity where possible
+params_sel_adj <- params_1841_2010_climate_only
+gp <- gear_params(params_sel_adj)
+
+if (!all(c("l50","l25") %in% colnames(gp))) {
+  # Add missing columns for sigmoid selectivity if absent
+  if (!"l50" %in% colnames(gp)) gp$l50 <- NA_real_
+  if (!"l25" %in% colnames(gp)) gp$l25 <- NA_real_
+}
+
+# Ensure a species identifier column for matching if available
+has_species_col <- any(tolower(colnames(gp)) == "species")
+species_col <- if (has_species_col) colnames(gp)[tolower(colnames(gp)) == "species"][1] else NULL
+
+# Ensure sel_func exists; default to current or knife_edge, set to sigmoid_length for target rows
+if (!"sel_func" %in% colnames(gp)) gp$sel_func <- if ("knife_edge_size" %in% colnames(gp)) "knife_edge" else NA_character_
+
+if (!is.null(proposed_sel) && nrow(proposed_sel) > 0) {
+  # Identify species column if present; else use rownames pattern "Species, Gear"
+  for (i in seq_len(nrow(proposed_sel))) {
+    sp <- proposed_sel$Species[i]
+    new_l50 <- proposed_sel$l50[i]
+    new_l25 <- proposed_sel$l25[i]
+    if (is.na(new_l50) || is.na(new_l25)) next
+
+    if (!is.null(species_col)) {
+      rows <- which(gp[[species_col]] == sp)
+    } else if (!is.null(rownames(gp))) {
+      rn <- rownames(gp)
+      rows <- which(!is.na(rn) & startsWith(rn, paste0(sp, ",")))
+    } else {
+      rows <- integer(0)
+    }
+    if (length(rows) > 0) {
+      gp$l50[rows] <- new_l50
+      gp$l25[rows] <- new_l25
+      if ("sel_func" %in% colnames(gp)) gp$sel_func[rows] <- "sigmoid_length"
+    }
+  }
+  gear_params(params_sel_adj) <- gp
+
+  # Re-equilibrate
+  params_sel_adj <- steady(params_sel_adj, tol = 0.002, t_max = 1000, preserve = c("erepro"))
+
+  # Re-run spinup and fishing with adjusted selectivity
+  sim_sel_spin <- project(params_sel_adj, t_start = 1841, t_max = 118, effort = 0)
+  # pick effort array to use
+  effort_to_use <- if (exists("combined_effort_array")) {
+    combined_effort_array
+  } else if (exists("effort_array")) {
+    effort_array
+  } else {
+    stop("No effort array found: expected combined_effort_array or effort_array in environment")
+  }
+  last_t <- dim(sim_sel_spin@n)[1]
+  sim_sel_adj_climate_and_fishing <- project(params_sel_adj,
+                                             initial_n = sim_sel_spin@n[last_t,,],
+                                             t_start = 1841,
+                                             t_max = 170,
+                                             effort = effort_to_use)
+
+  # Re-plot size distributions for whales
+  suppressPackageStartupMessages(library(mizerExperimental))
+  plotYieldVsSize(sim_sel_adj_climate_and_fishing, species = "baleen whales", catch = catch_lengths, x_var = "Length")
+  plotYieldVsSize(sim_sel_adj_climate_and_fishing, species = "sperm whales", catch = catch_lengths, x_var = "Length")
+  plotYieldVsSize(sim_sel_adj_climate_and_fishing, species = "orca", catch = catch_lengths, x_var = "Length")
+  plotYieldVsSize(sim_sel_adj_climate_and_fishing, species = "minke whales", catch = catch_lengths, x_var = "Length")
+
+} else {
+  message("No proposed selectivity values computed from catch lengths; please check species names and column mappings.")
+}
+
+plot_baseline_biomass(sim_sel_adj_climate_and_fishing, obs_biomass_data)
+plot_baseline_yield(sim_sel_adj_climate_and_fishing, yield_ts_tidy)
+
+#saveRDS(params_sel_adj, "params_sel_adj.rds")
+#saveRDS(sim_sel_adj_climate_and_fishing, "sim_sel_adj_climate_and_fishing.rds") 
+```
 
 # Monte Carlo Uncertainty Analysis
 
@@ -1195,11 +1669,23 @@ This section implements a comprehensive Monte Carlo uncertainty analysis that va
 
 The analysis includes parameter distribution assessment and biomass-based rejection criteria.
 
+```{r mc-toggle}
+# Toggle to control whether we re-run the heavy Monte Carlo simulations
+# TRUE = skip running; use saved results instead
+# FALSE = run simulations (may take a long time)
+use_saved_results <- TRUE
+cat("Use saved results:", use_saved_results, "\n")
+```
+
 ## Step 1: Run Monte Carlo Simulations
 
-```{r run-monte-carlo-analysis}
-# Run enhanced uncertainty analysis with parallel processing
-cat("Running Monte Carlo uncertainty analysis with parallel processing...\n")
+```{r run-monte-carlo-analysis, eval = !use_saved_results}
+# IMPORTANT: SD=5 creates unrealistic parameter ranges!
+# - Gamma changes up to billions (biologically impossible)
+# - Zero convergence rate with extreme parameter values
+# - Need more reasonable parameter uncertainty ranges
+
+cat("Running Monte Carlo uncertainty analysis with REALISTIC parameter ranges...\n")
 
 # Set random seed for reproducibility
 set.seed(123)
@@ -1212,58 +1698,506 @@ cat("Available CPU cores:", available_cores, "\n")
 cores_to_use <- max(1, available_cores - 1)
 cat("Using", cores_to_use, "cores for parallel processing\n")
 
-# Choose parallel or sequential processing
-use_parallel <- TRUE  # Set to FALSE if you want to use sequential processing
+# Load observed yield data
+yield_observed_timeseries_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
 
-if (use_parallel && cores_to_use > 1) {
-  cat("Running in PARALLEL mode...\n")
-  
-  monte_carlo_results <- run_enhanced_combined_uncertainty_sims_parallel(
-    params = params_1841_2010_climate_only,
-    n_sims = 50,  # Small number for testing - increase for production runs
-    catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
-    abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
-    gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
-    all_species_abundance = TRUE,  # NEW: Vary all species by default for historical recovery problem
-    # species_to_vary = c("minke whales", "orca", "sperm whales", "baleen whales"),  # Alternative: specify particular species
-    effort_scen = combined_effort_array,
-    enhanced_steady_tol = 0.005,
-    enhanced_steady_t_max = 2000,  # INCREASED: Allow more time for extreme parameter combinations to converge
-    spinup_years = 118,
-    t_start = 1841,
-    sim_years = 170,
-    preserve_erepro = TRUE,
-    max_erepro = 1,
-    n_cores = cores_to_use,
-    verbose = TRUE
-  )
-  
-} else {
-  cat("Running in SEQUENTIAL mode...\n")
-  
-  monte_carlo_results <- run_enhanced_combined_uncertainty_sims(
-    params = params_1841_2010_climate_only,
-    n_sims = 50,  # Small number for testing - increase for production runs
-    catchability_sd = 5,   # SD = 5: Explore very wide fishing efficiency range (exp(±5) = 0.007 to 148x)
-    abundance_sd = 5,      # SD = 5: Extreme abundance variation to capture unknown recovery dynamics  
-    gamma_sd = 5,          # SD = 5: Wide foraging efficiency exploration for recovery scenarios
-    all_species_abundance = TRUE,  # NEW: Vary all species by default for historical recovery problem
-    # species_to_vary = c("minke whales", "orca", "sperm whales", "baleen whales"),  # Alternative: specify particular species
-    effort_scen = combined_effort_array,
-    enhanced_steady_tol = 0.005,
-    enhanced_steady_t_max = 2000,  # INCREASED: Allow more time for extreme parameter combinations to converge
-    spinup_years = 118,
-    t_start = 1841,
-    sim_years = 170,
-    preserve_erepro = TRUE,
-    max_erepro = 1,
-    verbose = TRUE
-  )
-}
+# START WITH REASONABLE PARAMETER UNCERTAINTY (SD=2)
+# SD=2 gives parameter range of 0.14x to 7.4x original values (realistic)
+# SD=5 gives parameter range of 0.007x to 148x original values (unrealistic)
 
-cat("Monte Carlo analysis completed!\n")
+cat("Testing SD=2 parameter uncertainty (realistic range)...\n")
+
+# Start timer for the Monte Carlo run chunk
+t_start_mc <- Sys.time()
+
+save_every <- 2   # number of sims per checkpoint save
+save_path  <- "monte_carlo_results_latest.rds"  # overwritten each block
+
+# Settings used for this run (promoted to variables so we can reuse in filenames)
+total_sims <- 8               # adjust as needed
+catchability_sd <- 2
+abundance_sd <- 4
+gamma_sd <- 4
+enhanced_steady_tol <- 0.0025
+enhanced_steady_t_max <- 1500
+spinup_years <- 118
+t_start <- 1841
+sim_years <- 170
+preserve_erepro <- TRUE
+max_erepro <- 1
+
+monte_carlo_results <- run_enhanced_uncertainty_sims_parallel_blocked(
+  params = params_sel_adj,
+  total_sims = total_sims,               # adjust as needed
+  block_size = save_every,        # checkpoint frequency
+  catchability_sd = catchability_sd,
+  abundance_sd = abundance_sd,
+  gamma_sd = gamma_sd,
+  all_species_abundance = TRUE,
+  species_to_vary = NULL,
+  effort_scen = combined_effort_array,
+  enhanced_steady_tol = enhanced_steady_tol,
+  enhanced_steady_t_max = enhanced_steady_t_max,
+  spinup_years = spinup_years,
+  t_start = t_start,
+  sim_years = sim_years,
+  preserve_erepro = preserve_erepro,
+  max_erepro = max_erepro,
+  n_cores = NULL,
+  save_path = save_path,
+  verbose = TRUE
+)
+
+cat("\n=== SD=2 RESULTS ===\n")
 cat("Successful simulations:", monte_carlo_results$n_successful, "\n")
 cat("Success rate:", round(monte_carlo_results$n_successful/monte_carlo_results$n_attempts*100, 1), "%\n")
+
+# Save final aggregate under the same checkpoint name (already saved after last block)
+saveRDS(monte_carlo_results, file = save_path)
+
+# Also save a descriptive final file name composed of key settings for easy provenance
+fmt_num <- function(x) format(x, scientific = FALSE, trim = TRUE)
+descriptive_save_path <- paste0(
+  "monte_carlo_results_",
+  "nsims_", total_sims,
+  "_SD_", fmt_num(catchability_sd), "_", fmt_num(abundance_sd), "_", fmt_num(gamma_sd),
+  "_tol_", fmt_num(enhanced_steady_tol),
+  "_tmax_", enhanced_steady_t_max,
+  ".rds"
+)
+
+# Attach settings into the results object for provenance
+monte_carlo_results$settings <- list(
+  total_sims = total_sims,
+  block_size = save_every,
+  catchability_sd = catchability_sd,
+  abundance_sd = abundance_sd,
+  gamma_sd = gamma_sd,
+  enhanced_steady_tol = enhanced_steady_tol,
+  enhanced_steady_t_max = enhanced_steady_t_max,
+  spinup_years = spinup_years,
+  t_start = t_start,
+  sim_years = sim_years,
+  preserve_erepro = preserve_erepro,
+  max_erepro = max_erepro
+)
+
+saveRDS(monte_carlo_results, file = descriptive_save_path)
+cat("Saved final aggregate to descriptive file:\n  ", descriptive_save_path, "\n", sep = "")
+
+# End timer and report elapsed wall-clock time
+t_end_mc <- Sys.time()
+elapsed_mc_sec <- as.numeric(difftime(t_end_mc, t_start_mc, units = "secs"))
+cat(
+  "Monte Carlo chunk runtime: ", round(elapsed_mc_sec, 1), " seconds (",
+  round(elapsed_mc_sec/60, 2), " minutes)\n", sep = ""
+)
+
+
+```
+
+
+```{r montecarlo-assessment, echo=TRUE}
+# Recreate baseline-style biomass and yield plots but using Monte Carlo simulation results
+library(dplyr)
+
+# Load Monte Carlo results (saved previously) — prefer 1000-sim file, fallback to 10-sim
+#mc_candidates <- c(
+#  "monte_carlo_results_SD2_tol0.025_tmax750_nsims8000.rds")
+#mc_path <- mc_candidates[which(file.exists(mc_candidates))[1]]
+#if (is.na(mc_path)) stop("No saved Monte Carlo results file found.")
+#cat("Loading Monte Carlo results from:", mc_path, "\n")
+#monte_carlo_results <- readRDS(mc_path)
+
+# Extract simulations and filter corrupted ones
+sims_all <- monte_carlo_results$simulations
+valid_sims <- Filter(function(x) { inherits(x, "MizerSim") && !any(is.nan(x@n)) && !any(is.infinite(x@n)) }, sims_all)
+cat("Monte Carlo: using", length(valid_sims), "valid simulations\n")
+
+# Function: extract biomass from Monte Carlo sims and combine
+extract_monte_carlo_biomass <- function(sim_list) {
+  do.call(rbind, lapply(seq_along(sim_list), function(i) {
+    sim <- sim_list[[i]]
+    mat <- getBiomass(sim)
+    df <- reshape2::melt(mat)
+    names(df) <- c("Year", "Species", "Biomass")
+    df$Year <- as.numeric(as.character(df$Year))
+    df$Species <- as.character(df$Species)
+    df$sim_id <- i
+    df
+  }))
+}
+
+# Function: extract yield from Monte Carlo sims and combine
+extract_monte_carlo_yield <- function(sim_list) {
+  do.call(rbind, lapply(seq_along(sim_list), function(i) {
+    sim <- sim_list[[i]]
+    mat <- getYield(sim)
+    df <- reshape2::melt(mat)
+    names(df) <- c("Year", "Species", "Yield")
+    df$Year <- as.numeric(as.character(df$Year))
+    df$Species <- as.character(df$Species)
+    df$sim_id <- i
+    df
+  }))
+}
+
+# Prepare combined MC biomass and compute uncertainty intervals
+mc_biomass <- extract_monte_carlo_biomass(valid_sims)
+biomass_uncertainty <- mc_biomass %>%
+  group_by(Year, Species) %>%
+  summarise(
+    median = median(Biomass, na.rm = TRUE),
+    q25 = quantile(Biomass, 0.25, na.rm = TRUE),
+    q75 = quantile(Biomass, 0.75, na.rm = TRUE),
+    q05 = quantile(Biomass, 0.05, na.rm = TRUE),
+    q95 = quantile(Biomass, 0.95, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(Species = factor(Species, levels = species_order))
+
+# Build observation timeseries for plotting (use species-specific bounds)
+obs_biomass_ts <- (
+  obs_biomass_data %>%
+    left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>%
+    crossing(Year = 2000:2010) %>%
+    mutate(Species = factor(Species, levels = species_order))
+)
+
+## (removed duplicate early biomass plot; using the updated version below)
+
+# Prepare combined MC yield and compute uncertainty
+mc_yield <- extract_monte_carlo_yield(valid_sims)
+# Ensure no negative yields (guard) and identify species with any positive yield
+mc_yield <- mc_yield %>% mutate(Yield = pmax(Yield, 0))
+species_with_yield <- mc_yield %>% group_by(Species) %>% summarise(max_yield = max(Yield, na.rm = TRUE), .groups = 'drop') %>% filter(max_yield > 0) %>% pull(Species)
+cat("Monte Carlo: species with fishing yields:", paste(species_with_yield, collapse = ", "), "\n")
+
+yield_uncertainty <- mc_yield %>%
+  filter(Species %in% species_with_yield) %>%
+  group_by(Year, Species) %>%
+  summarise(
+    median = median(Yield, na.rm = TRUE),
+    q25 = quantile(Yield, 0.25, na.rm = TRUE),
+    q75 = quantile(Yield, 0.75, na.rm = TRUE),
+    q05 = quantile(Yield, 0.05, na.rm = TRUE),
+    q95 = quantile(Yield, 0.95, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(Species = factor(Species, levels = species_order))
+
+# Build observed positive-yield presence by year/species (proxy for non-zero effort)
+obs_pos_by_year <- yield_ts_tidy %>%
+  mutate(has_obs_pos = Yield > 0) %>%
+  group_by(Year, Species) %>%
+  summarise(has_obs_pos = any(has_obs_pos, na.rm = TRUE), .groups = 'drop')
+
+# Filter modeled zeros only in years without observed positive yield
+yield_uncertainty <- yield_uncertainty %>%
+  left_join(obs_pos_by_year, by = c("Year", "Species")) %>%
+  mutate(has_obs_pos = coalesce(has_obs_pos, FALSE))
+
+# Separate frames for ribbons and line: drop zero-only years when no observed yield
+yield_uncertainty_ribbon <- yield_uncertainty %>%
+  filter(!(has_obs_pos == FALSE & (is.na(q95) | q95 <= 0)))
+
+yield_uncertainty_line <- yield_uncertainty %>%
+  filter(!(has_obs_pos == FALSE & (is.na(median) | median <= 0)))
+
+# Prepare log-safe data (log10 requires strictly positive values)
+yield_uncertainty_ribbon <- yield_uncertainty_ribbon %>%
+  mutate(
+    q05 = ifelse(q05 > 0, q05, NA_real_),
+    q25 = ifelse(q25 > 0, q25, NA_real_),
+    q75 = ifelse(q75 > 0, q75, NA_real_),
+    q95 = ifelse(q95 > 0, q95, NA_real_)
+  ) %>%
+  filter(!(is.na(q25) & is.na(q75) & is.na(q05) & is.na(q95)))
+
+yield_uncertainty_line <- yield_uncertainty_line %>%
+  mutate(median = ifelse(median > 0, median, NA_real_))
+
+# Filter observed yield data to species present in MC sims (keeps baseline behaviour)
+yield_obs_filtered <- yield_ts_tidy %>%
+  filter(Species %in% species_with_yield, Yield > 0) %>%
+  mutate(Species = factor(Species, levels = species_order))
+
+# Determine plotting x-range based on observed non-zero yields (proxy for effort)
+# Prefer baleen whales start year; fallback to earliest observed non-zero across species; then 1930
+baleen_start_obs <- yield_obs_filtered %>%
+  filter(Species == "baleen whales") %>%
+  summarise(min_year = min(Year, na.rm = TRUE)) %>%
+  pull(min_year)
+global_start_obs <- yield_obs_filtered %>% summarise(min_year = min(Year, na.rm = TRUE)) %>% pull(min_year)
+start_year <- if (!is.null(baleen_start_obs) && length(baleen_start_obs) == 1 && is.finite(baleen_start_obs)) {
+  baleen_start_obs
+} else if (!is.null(global_start_obs) && length(global_start_obs) == 1 && is.finite(global_start_obs)) {
+  global_start_obs
+} else { 1930 }
+end_year <- max(yield_uncertainty$Year, na.rm = TRUE)
+
+# Plot: baseline-style yield with uncertainty ribbons (match baseline line aesthetics)
+plot_montecarlo_yield <- function() {
+  # Custom label: no decimals for >=1; dynamic decimals for <1 so first non-zero digit shows
+  label_dynamic_decimals <- function(x) {
+    sci <- scales::label_scientific(digits = 1)
+    vapply(x, function(v) {
+      if (is.na(v)) return(NA_character_)
+      if (v <= 0) return("0")
+      vt <- v / 1e6  # convert grams -> tonnes
+      if (vt >= 1) {
+        paste0(formatC(vt, format = "f", digits = 0, big.mark = ","), " t")
+      } else if (vt < 1e-6) {
+        paste0(sci(vt), " t")
+      } else {
+        dp <- max(1, ceiling(-log10(vt)))
+        dp <- min(dp, 6)
+        paste0(formatC(vt, format = "f", digits = dp), " t")
+      }
+    }, character(1))
+  }
+  ggplot() +
+  geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
+  geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.3) +
+  geom_line(data = yield_uncertainty_line, aes(x = Year, y = median, color = Species),
+        linewidth = 1.0, linetype = "solid", lineend = "round") +
+    geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield, colour = Species), size = 1) +
+    geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield), shape = 1, size = 1, colour = "black") +
+  geom_vline(xintercept = 1961, linetype = "dashed") +
+  geom_vline(xintercept = 2010, linetype = "dashed") +
+  scale_y_log10(breaks = scales::log_breaks(n = 6), labels = label_dynamic_decimals) +
+    coord_cartesian(xlim = c(start_year, end_year)) +
+    facet_wrap(~Species, scales = "free_y") +
+    theme_bw() +
+    theme(legend.position = "none", strip.text = element_text(face = "bold")) +
+  labs(x = "Year", y = "Yield [t/year]", title = paste("Monte Carlo: Yield vs Observations (", length(valid_sims), " sims)"))
+}
+
+# Update biomass plot to display tonnes on the y-axis and include units
+plot_montecarlo_biomass <- function() {
+  ggplot() +
+    geom_ribbon(data = biomass_uncertainty,
+                aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
+    geom_ribbon(data = biomass_uncertainty,
+                aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.3) +
+    geom_line(data = biomass_uncertainty,
+              aes(x = Year, y = median, color = Species), linewidth = 1.2) +
+    geom_ribbon(data = obs_biomass_ts, aes(x = Year, ymin = Lower, ymax = Upper), alpha = 0.2, fill = "gray50") +
+    geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass, color = Species), size = 0.8) +
+    geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass), shape = 1, size = 0.8, colour = "black") +
+    facet_wrap(~Species, scales = "free_y") +
+    scale_y_continuous(labels = function(x) scales::number(x/1e6)) +
+    theme_bw() +
+    theme(legend.position = "none", strip.text = element_text(face = "bold")) +
+    labs(x = "Year", y = "Biomass [t]", title = paste("Monte Carlo: Biomass vs Observations (", length(valid_sims), " sims)"))
+}
+
+print(plot_montecarlo_biomass())
+print(plot_montecarlo_yield())
+#ggsave("montecarlo_yield.png", plot_montecarlo_yield(), width = 12, height = 8, dpi = 300)
+
+```
+
+## Step 1.5: Diagnose Current Results and Assess Model Fit
+
+```{r diagnose-results}
+cat("=== DIAGNOSING MONTE CARLO RESULTS ===\n")
+
+# Check structure of results
+if(length(monte_carlo_results$parameters) > 0) {
+  cat("Parameters structure - first result fields:\n")
+  cat(paste(names(monte_carlo_results$parameters[[1]]), collapse = ", "), "\n\n")
+  
+  cat("Monte Carlo Results Summary:\n")
+  cat("  Total simulations attempted:", monte_carlo_results$n_attempts, "\n")
+  cat("  Successful simulations:", monte_carlo_results$n_successful, "\n")
+  cat("  Success rate:", round(monte_carlo_results$n_successful/monte_carlo_results$n_attempts*100, 1), "%\n")
+  cat("  Failed simulations:", length(monte_carlo_results$failed), "\n\n")
+  
+  # Check gamma parameter variability
+  if("gamma_change" %in% names(monte_carlo_results$parameters[[1]])) {
+    all_gamma_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) x$gamma_change))
+    cat("Gamma parameter analysis:\n")
+    cat("  Range:", round(min(all_gamma_changes, na.rm=TRUE), 3), "to", round(max(all_gamma_changes, na.rm=TRUE), 3), "\n")
+    cat("  Mean:", round(mean(all_gamma_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_gamma_changes, na.rm=TRUE), 3), "\n")
+    cat("  Example values:", paste(round(all_gamma_changes[1:min(10, length(all_gamma_changes))], 3), collapse=", "), "\n\n")
+  } else {
+    cat("WARNING: gamma_change not found in parameters!\n\n")
+  }
+  
+  # Check catchability parameter variability
+  if("catchability_change" %in% names(monte_carlo_results$parameters[[1]])) {
+    all_catch_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) {
+      if(length(x$catchability_change) > 0) x$catchability_change else NA
+    }))
+    all_catch_changes <- all_catch_changes[!is.na(all_catch_changes)]
+    
+    if(length(all_catch_changes) > 0) {
+      cat("Catchability parameter analysis:\n")
+      cat("  Range:", round(min(all_catch_changes, na.rm=TRUE), 3), "to", round(max(all_catch_changes, na.rm=TRUE), 3), "\n")
+      cat("  Mean:", round(mean(all_catch_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_catch_changes, na.rm=TRUE), 3), "\n\n")
+    } else {
+      cat("No catchability variations found\n\n")
+    }
+  }
+  
+  # Check abundance scaling variability
+  if("abundance_scaling" %in% names(monte_carlo_results$parameters[[1]])) {
+    all_abund_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) x$abundance_scaling))
+    cat("Abundance scaling analysis:\n")
+    cat("  Range:", round(min(all_abund_changes, na.rm=TRUE), 3), "to", round(max(all_abund_changes, na.rm=TRUE), 3), "\n")
+    cat("  Mean:", round(mean(all_abund_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_abund_changes, na.rm=TRUE), 3), "\n\n")
+  }
+  
+  # Check if simulations are valid mizer objects
+  sims_valid <- sum(sapply(monte_carlo_results$simulations, function(x) {
+    !is.null(x) && inherits(x, "MizerSim")
+  }))
+  cat("Valid mizer simulation objects:", sims_valid, "\n")
+  
+  # Basic model fit assessment using yield data
+  if(sims_valid > 0 && exists("yield_ts_tidy")) {
+    cat("\n=== MODEL FIT ASSESSMENT ===\n")
+    
+    # Calculate fit metrics for available simulations
+    fit_metrics <- data.frame()
+    
+    for(i in seq_along(monte_carlo_results$simulations)) {
+      sim <- monte_carlo_results$simulations[[i]]
+      if(!is.null(sim) && inherits(sim, "MizerSim")) {
+        
+        tryCatch({
+          # Extract modeled yields using mizer functions
+          yield_matrix <- getYield(sim)
+          yield_df <- reshape2::melt(yield_matrix)
+          names(yield_df) <- c("Year", "Species", "Yield")
+          
+          # Filter for comparison period across the full observed range
+          obs_years <- range(yield_ts_tidy$Year, na.rm = TRUE)
+          model_yield_period <- yield_df %>%
+            filter(Year >= obs_years[1], Year <= obs_years[2])
+          
+          if(nrow(model_yield_period) > 0) {
+            # Calculate total yield over period
+            model_total <- sum(model_yield_period$Yield, na.rm=TRUE)
+            
+            # Compare with observed data if available
+            if(exists("yield_ts_tidy") && !is.null(yield_ts_tidy)) {
+              obs_period <- yield_ts_tidy
+              
+              if(nrow(obs_period) > 0) {
+                obs_total <- sum(obs_period$Yield, na.rm=TRUE)
+                
+                # Calculate annual correlation if possible
+                annual_comparison <- model_yield_period %>%
+                  group_by(Year) %>%
+                  summarise(model_yield = sum(Yield, na.rm=TRUE), .groups = 'drop') %>%
+                  left_join(obs_period %>% 
+                           group_by(Year) %>%
+                           summarise(obs_yield = sum(Yield, na.rm=TRUE), .groups = 'drop'),
+                           by = "Year") %>%
+                  filter(!is.na(obs_yield), !is.na(model_yield))
+                
+                if(nrow(annual_comparison) > 5) {
+                  correlation <- cor(annual_comparison$model_yield, annual_comparison$obs_yield, use="complete.obs")
+                  rmse <- sqrt(mean((annual_comparison$model_yield - annual_comparison$obs_yield)^2, na.rm=TRUE))
+                  normalized_rmse <- rmse / mean(annual_comparison$obs_yield, na.rm=TRUE)
+                  
+                  fit_metrics <- rbind(fit_metrics, data.frame(
+                    sim_id = i,
+                    correlation = correlation,
+                    rmse = rmse,
+                    normalized_rmse = normalized_rmse,
+                    model_total = model_total,
+                    observed_total = obs_total
+                  ))
+                }
+              }
+            }
+          }
+        }, error = function(e) {
+          # Skip simulations that can't be processed
+          cat("  Simulation", i, "failed yield extraction:", e$message, "\n")
+        })
+      }
+    }
+    
+    if(nrow(fit_metrics) > 0) {
+      cat("Model fit summary (", nrow(fit_metrics), " simulations):\n")
+      cat("  Correlation range:", round(min(fit_metrics$correlation, na.rm=TRUE), 3), 
+          "to", round(max(fit_metrics$correlation, na.rm=TRUE), 3), "\n")
+      cat("  Mean correlation:", round(mean(fit_metrics$correlation, na.rm=TRUE), 3), 
+          "± SD:", round(sd(fit_metrics$correlation, na.rm=TRUE), 3), "\n")
+      cat("  Normalized RMSE range:", round(min(fit_metrics$normalized_rmse, na.rm=TRUE), 3), 
+          "to", round(max(fit_metrics$normalized_rmse, na.rm=TRUE), 3), "\n")
+      cat("  Mean normalized RMSE:", round(mean(fit_metrics$normalized_rmse, na.rm=TRUE), 3), 
+          "± SD:", round(sd(fit_metrics$normalized_rmse, na.rm=TRUE), 3), "\n\n")
+      
+      # Show best fitting simulations
+      best_sims <- fit_metrics[order(-fit_metrics$correlation, fit_metrics$normalized_rmse), ]
+      cat("Top 3 fitting simulations:\n")
+      for(j in 1:min(3, nrow(best_sims))) {
+        cat("  Sim", best_sims$sim_id[j], ": r =", round(best_sims$correlation[j], 3), 
+            ", NRMSE =", round(best_sims$normalized_rmse[j], 3), "\n")
+      }
+      
+    } else {
+      cat("No valid yield comparisons with observed data available\n")
+    }
+  } else {
+    cat("No valid simulations available for model fit assessment\n")
+  }
+} else {
+  cat("No parameter combinations found!\n")
+}
+
+# Parameter space refinement suggestions
+cat("\n=== PARAMETER SPACE REFINEMENT SUGGESTIONS ===\n")
+
+if(exists("fit_metrics") && nrow(fit_metrics) > 0) {
+  # Analyze parameter combinations of best-performing simulations
+  cat("Based on model fit analysis:\n")
+  
+  best_sim_ids <- fit_metrics$sim_id[order(-fit_metrics$correlation, fit_metrics$normalized_rmse)][1:min(3, nrow(fit_metrics))]
+  
+  for(param_type in c("gamma_change", "catchability_change", "abundance_scaling")) {
+    if(param_type %in% names(monte_carlo_results$parameters[[1]])) {
+      best_values <- sapply(best_sim_ids, function(id) {
+        params <- monte_carlo_results$parameters[[id]]
+        if(param_type %in% names(params) && length(params[[param_type]]) > 0) {
+          mean(params[[param_type]], na.rm=TRUE)
+        } else {
+          NA
+        }
+      })
+      
+      if(any(!is.na(best_values))) {
+        cat("  Best", gsub("_change|_scaling", "", param_type), "factors:", 
+            paste(round(best_values[!is.na(best_values)], 3), collapse=", "), "\n")
+        cat("    -> Suggests focusing search around", 
+            round(mean(best_values, na.rm=TRUE), 2), "± ", 
+            round(sd(best_values, na.rm=TRUE), 2), "\n")
+      }
+    }
+  }
+} else {
+  cat("Insufficient data for parameter refinement suggestions.\n")
+  cat("Recommendations:\n")
+  cat("  1. Check if SD values are too extreme - consider reducing to SD=1-2\n")
+  cat("  2. Verify steady-state convergence criteria aren't too strict\n")
+  cat("  3. Consider increasing simulation time or relaxing tolerance\n")
+  cat("  4. Increase number of simulations to improve success rate\n")
+  cat("  5. Check if biomass rejection criteria are appropriate\n")
+}
+
+## Show some failure reasons if available
+#if(length(monte_carlo_results$failed) > 0) {
+#  cat("\n=== FAILURE ANALYSIS ===\n")
+#  failure_reasons <- sapply(monte_carlo_results$failed, function(x) x$error)
+#  failure_table <- table(failure_reasons)
+#  cat("Common failure reasons:\n")
+#  print(failure_table)
+#}
 ```
 
 ## Step 2: Assess Parameter Distributions (Pre-Rejection)
@@ -1273,10 +2207,124 @@ Before applying any rejection criteria, let's examine the distributions of the p
 ```{r assess-parameter-distributions}
 cat("=== PARAMETER DISTRIBUTION ASSESSMENT ===\n")
 
-# Plot gamma parameter distributions
-p_gamma_pre <- plot_parameter_distributions(
-  monte_carlo_results$parameters, 
-  param_type = "gamma",
+# Improved gamma plotter: bin in log10 space with readable ticks and robust limits
+plot_gamma_distribution_fixed <- function(param_combinations, title_suffix = "") {
+  require(ggplot2)
+  require(dplyr)
+  require(scales)
+
+  gamma_data <- do.call(rbind, lapply(seq_along(param_combinations), function(i) {
+    params <- param_combinations[[i]]
+    if (is.null(params)) return(NULL)
+    # Prefer the raw multiplier (pre-clamp) if present; fallback to effective change vs original
+    val <- if (!is.null(params$gamma_change_raw)) params$gamma_change_raw else params$gamma_change
+    if (is.null(val)) return(NULL)
+    data.frame(
+      sim_id = i,
+      species = params$species_names,
+      gamma_change = val
+    )
+  }))
+
+  if (is.null(gamma_data) || nrow(gamma_data) == 0) {
+    return(ggplot() + labs(title = paste("Gamma Parameter Distribution", title_suffix), subtitle = "No data"))
+  }
+
+  # Keep finite, positive values and switch to log10 for proper histogram binning
+  gamma_data <- gamma_data %>%
+    filter(is.finite(gamma_change), gamma_change > 0) %>%
+    mutate(log10_gamma = log10(gamma_change))
+
+  if (nrow(gamma_data) == 0) {
+    return(ggplot() + labs(title = paste("Gamma Parameter Distribution", title_suffix), subtitle = "No positive finite values"))
+  }
+
+  # Robust limits: trim extreme tails to focus on the mass
+  rng <- quantile(gamma_data$log10_gamma, c(0.01, 0.99), na.rm = TRUE)
+  if (!is.finite(rng[1]) || !is.finite(rng[2]) || rng[1] == rng[2]) {
+    rng <- range(gamma_data$log10_gamma, na.rm = TRUE)
+  }
+  pad <- max(0.05, (rng[2] - rng[1]) * 0.05)
+  xmin <- floor(rng[1] - pad)
+  xmax <- ceiling(rng[2] + pad)
+
+  # Binwidth ~ 0.1 decade (adjust to spread bins sensibly)
+  bw <- max(0.05, (xmax - xmin) / 60)
+  breaks <- seq(floor(xmin), ceiling(xmax))
+
+  ggplot(gamma_data, aes(x = log10_gamma)) +
+    geom_histogram(binwidth = bw, fill = "steelblue", alpha = 0.7, color = "black") +
+    facet_wrap(~species, scales = "free_y") +
+    scale_x_continuous(
+      breaks = breaks,
+      labels = function(x) scales::math_format(10^.x)(x)
+    ) +
+    coord_cartesian(xlim = c(xmin, xmax)) +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      strip.text = element_text(size = 8, face = "bold")
+    ) +
+    labs(
+      title = paste("Gamma Parameter Distribution", title_suffix),
+      x = "Gamma Change Factor (log10 scale)",
+      y = "Frequency"
+    ) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red", alpha = 0.8, linewidth = 0.8)
+}
+
+# Build priors from a previous Monte Carlo results RDS
+compute_priors_from_results <- function(rds_path,
+                                        accepted_only = TRUE,
+                                        species_reference) {
+  res <- readRDS(rds_path)
+  # Detect parameter list
+  param_list <- NULL
+  if (!is.null(res$accepted_parameters) && accepted_only) {
+    param_list <- res$accepted_parameters
+  } else if (!is.null(res$parameters)) {
+    param_list <- res$parameters
+  } else {
+    stop("Could not find parameter combinations in provided RDS")
+  }
+
+  # Extract per-sim parameter changes
+  df_list <- lapply(param_list, function(x) {
+    if (is.null(x)) return(NULL)
+    sp <- x$species_names
+    # Prefer raw multiplier when available
+    gamma_mult <- if (!is.null(x$gamma_change_raw)) x$gamma_change_raw else x$gamma_change
+    abund_mult <- x$abundance_scaling
+    if (is.null(sp) || is.null(gamma_mult) || is.null(abund_mult)) return(NULL)
+    data.frame(species = sp, gamma_mult = gamma_mult, abundance_mult = abund_mult)
+  })
+  df <- do.call(rbind, df_list)
+  if (is.null(df) || nrow(df) == 0) stop("No usable parameter data in prior RDS")
+
+  # Aggregate to medians per species
+  med <- df %>% dplyr::group_by(species) %>%
+    dplyr::summarise(
+      gamma_prior = median(gamma_mult, na.rm = TRUE),
+      abundance_prior = median(abundance_mult, na.rm = TRUE),
+      .groups = 'drop'
+    )
+
+  # Align to reference species order; default 1 if missing
+  ref <- species_reference
+  gpr <- setNames(rep(1, length(ref)), ref)
+  apr <- setNames(rep(1, length(ref)), ref)
+  common <- intersect(ref, med$species)
+  if (length(common) > 0) {
+    msub <- med[match(common, med$species), ]
+    gpr[common] <- msub$gamma_prior
+    apr[common] <- msub$abundance_prior
+  }
+  list(gamma_prior = gpr, abundance_prior = apr)
+}
+
+# Plot gamma parameter distributions (log-binned for interpretability)
+p_gamma_pre <- plot_gamma_distribution_fixed(
+  monte_carlo_results$parameters,
   title_suffix = "(Pre-Rejection)"
 )
 print(p_gamma_pre)
@@ -1326,82 +2374,506 @@ print(abund_summary %>% group_by(species) %>%
 Now we apply the strict rejection criteria: remove any parameter sets where the modeled biomass 
 (averaged over 2000-2010) falls outside ±25% of the observed biomass (2010-2020) for ANY species.
 
-```{r apply-biomass-rejection}
-cat("=== APPLYING BIOMASS REJECTION CRITERIA ===\n")
+```{r define-relaxed-rejection, echo=FALSE}
+# Relaxed biomass rejection criteria allowing up to N species outside bounds
+apply_biomass_rejection_criteria <- function(sim_results, param_combinations,
+                                             obs_biomass_data,
+                                             tolerance = 0.25,
+                                             comparison_years = 2000:2010,
+                                             verbose = TRUE,
+                                             allow_outside = 3,
+                                             obs_bounds_table = NULL) {
+  if (verbose) {
+    cat("Applying biomass rejection criteria ... (allow up to", allow_outside, "species outside bounds)\n")
+  }
 
-# Apply rejection criteria
-rejection_results <- apply_biomass_rejection_criteria(
-  sim_results = monte_carlo_results$simulations,
-  param_combinations = monte_carlo_results$parameters,
-  obs_biomass_data = obs_biomass_data,
-  tolerance = 0.25,  # ±25% tolerance
-  comparison_years = 2000:2010,  # Use 2000-2010 from simulations
-  verbose = TRUE
-)
+  # Determine observed bounds per species
+  if (!is.null(obs_bounds_table)) {
+    # Use provided species-specific bounds (in grams)
+    obs_bounds <- obs_bounds_table %>%
+      dplyr::transmute(Species, lower_bound = Lower_g, upper_bound = Upper_g)
+  } else if (exists("obs_biomass_bounds")) {
+    # Use globally defined species-specific bounds (in grams)
+    obs_bounds <- obs_biomass_bounds %>%
+      dplyr::transmute(Species, lower_bound = Lower_g, upper_bound = Upper_g)
+  } else {
+    # Fall back to tolerance around observed means over overlapping years
+    obs_years <- intersect(unique(obs_biomass_data$Year), comparison_years)
+    if (length(obs_years) == 0) {
+      # Fallback: use all available years in obs if no overlap
+      obs_years <- unique(obs_biomass_data$Year)
+      if (verbose) cat("Warning: No overlap between obs years and comparison_years; using all observed years\n")
+    }
 
-cat("\nRejection completed!\n")
-cat("Acceptance rate:", round(rejection_results$acceptance_rate * 100, 1), "%\n")
+    obs_bounds <- obs_biomass_data %>%
+      dplyr::filter(Year %in% obs_years) %>%
+      dplyr::group_by(Species) %>%
+      dplyr::summarise(obs_mean = mean(ObsBiomass, na.rm = TRUE), .groups = "drop") %>%
+      dplyr::mutate(lower_bound = obs_mean * (1 - tolerance),
+                    upper_bound = obs_mean * (1 + tolerance)) %>%
+      dplyr::select(Species, lower_bound, upper_bound)
+  }
+
+  # Fast lookup vectors
+  lower_by_species <- stats::setNames(obs_bounds$lower_bound, obs_bounds$Species)
+  upper_by_species <- stats::setNames(obs_bounds$upper_bound, obs_bounds$Species)
+
+  accepted_idx <- integer(0)
+  details <- vector("list", length(sim_results))
+
+  for (i in seq_along(sim_results)) {
+    sim <- sim_results[[i]]
+    if (is.null(sim) || !inherits(sim, "MizerSim")) next
+    bm <- getBiomass(sim)
+    yrs <- as.numeric(rownames(bm))
+    sel <- yrs %in% comparison_years
+    if (!any(sel)) next
+    mean_bm <- colMeans(bm[sel, , drop = FALSE])
+    species <- names(mean_bm)
+
+    within <- vapply(species, function(sp) {
+      if (sp %in% names(lower_by_species)) {
+        mb <- mean_bm[[sp]]
+        lower <- lower_by_species[[sp]]
+        upper <- upper_by_species[[sp]]
+        is.finite(mb) && is.finite(lower) && is.finite(upper) && (mb >= lower) && (mb <= upper)
+      } else {
+        TRUE
+      }
+    }, logical(1))
+
+    species_with_obs <- species[species %in% names(lower_by_species)]
+    failures <- sum(!within[names(within) %in% species_with_obs], na.rm = TRUE)
+    ok <- failures <= allow_outside
+    if (ok) accepted_idx <- c(accepted_idx, i)
+    details[[i]] <- list(accepted = ok, species_within = within, n_failures = failures)
+  }
+
+  accepted_results <- sim_results[accepted_idx]
+  accepted_parameters <- param_combinations[accepted_idx]
+
+  if (verbose) {
+    total <- length(sim_results)
+    n_acc <- length(accepted_idx)
+    rate <- if (total > 0) 100 * n_acc / total else 0
+    cat(sprintf("Accepted %d/%d simulations (%.1f%%)\n", n_acc, total, rate))
+    # Optional: quick breakdown of common failures (top 5 species by failure count)
+    if (length(details) > 0) {
+      # Collect species failure counts across sims with obs
+      fail_counts <- list()
+      for (d in details) {
+        if (!is.null(d) && !is.null(d$species_within)) {
+          spw <- d$species_within
+          # keep names where within==FALSE
+          if (!is.null(names(spw))) {
+            bad <- names(spw)[!spw]
+            if (length(bad) > 0) {
+              for (b in bad) fail_counts[[b]] <- (fail_counts[[b]] %||% 0) + 1
+            }
+          }
+        }
+      }
+      if (length(fail_counts) > 0) {
+        fc <- sort(unlist(fail_counts), decreasing = TRUE)
+        top <- head(fc, 5)
+        cat("Top species failing bounds:",
+            paste(sprintf("%s (%d)", names(top), top), collapse = ", "), "\n")
+      }
+    }
+  }
+
+  list(
+    accepted_indices = accepted_idx,
+    accepted_results = accepted_results,
+    accepted_simulations = accepted_results,      # alias for compatibility
+    accepted_params = accepted_parameters,
+    accepted_parameters = accepted_parameters,    # alias for compatibility
+    rejection_details = details,
+    n_accepted = length(accepted_idx),
+    acceptance_rate = length(accepted_idx) / max(1, length(sim_results))
+  )
+}
+
+# Default allowance for this analysis (can be tuned)
+allowed_biomass_failures <- 3
 ```
 
-## Step 4: Assess Parameter Distributions (Post-Rejection)
+```{r}
+allowed_biomass_failures <- 6
 
-Let's examine how the rejection criteria affected our parameter distributions.
+rejection_results <- apply_biomass_rejection_criteria(
+  monte_carlo_results$simulations,
+  monte_carlo_results$parameters,
+  obs_biomass_ts,
+  tolerance = 0.5, 
+  comparison_years = 2000:2010,
+  verbose = TRUE,
+  allow_outside = allowed_biomass_failures,
+  obs_bounds_table = obs_biomass_bounds
+)
 
-```{r assess-post-rejection-parameters}
+rejection_results$n_accepted
+```
+
+
+## Step 4.5: Monte Carlo Model Assessment (Accepted Simulations)
+
+Let's recreate the baseline assessment plots but using the accepted Monte Carlo simulations with uncertainty ribbons to show the range of plausible model outcomes.
+
+```{r monte-carlo-model-assessment}
+cat("=== STARTING MONTE CARLO MODEL ASSESSMENT ===\n")
+cat("Checking if we have accepted simulations...\n")
+cat("rejection_results$n_accepted:", ifelse(exists("rejection_results"), rejection_results$n_accepted, "rejection_results does not exist"), "\n")
+
 if (rejection_results$n_accepted > 0) {
-  cat("=== PARAMETER DISTRIBUTIONS AFTER REJECTION ===\n")
+  cat("=== MONTE CARLO MODEL ASSESSMENT (ACCEPTED SIMULATIONS) ===\n")
+  cat("Creating uncertainty plots with", rejection_results$n_accepted, "accepted simulations\n")
   
-  # Plot gamma parameter distributions (post-rejection)
-  p_gamma_post <- plot_parameter_distributions(
-    rejection_results$accepted_parameters, 
-    param_type = "gamma",
-    title_suffix = "(Post-Rejection)"
-  )
-  print(p_gamma_post)
+  # Function to extract and combine biomass data from multiple simulations
+  extract_monte_carlo_biomass <- function(sim_list, sim_names = NULL) {
+    cat("Extracting biomass from", length(sim_list), "simulations...\n")
+    
+    if (is.null(sim_names)) {
+      sim_names <- paste0("MC_", seq_along(sim_list))
+    }
+    
+    biomass_list <- lapply(seq_along(sim_list), function(i) {
+      sim <- sim_list[[i]]
+      cat("Processing simulation", i, "- Class:", class(sim), "\n")
+      
+      if (!is.null(sim) && inherits(sim, "MizerSim")) {
+        tryCatch({
+          biomass_matrix <- getBiomass(sim)
+          cat("  Biomass matrix dimensions:", dim(biomass_matrix), "\n")
+          
+          biomass_df <- reshape2::melt(biomass_matrix)
+          names(biomass_df) <- c("Year", "Species", "Biomass")
+          biomass_df$Simulation <- sim_names[i]
+          
+          cat("  Extracted biomass data rows:", nrow(biomass_df), "\n")
+          return(biomass_df)
+        }, error = function(e) {
+          cat("  Error extracting biomass from simulation", i, ":", e$message, "\n")
+          return(NULL)
+        })
+      } else {
+        cat("  Simulation", i, "is NULL or not MizerSim\n")
+        return(NULL)
+      }
+    })
+    
+    # Remove NULL entries and combine
+    biomass_list <- biomass_list[!sapply(biomass_list, is.null)]
+    cat("Valid biomass extractions:", length(biomass_list), "\n")
+    
+    if (length(biomass_list) > 0) {
+      combined_data <- do.call(rbind, biomass_list)
+      cat("Combined biomass data rows:", nrow(combined_data), "\n")
+      return(combined_data)
+    } else {
+      cat("No valid biomass data extracted\n")
+      return(data.frame())
+    }
+  }
   
-  # Plot catchability parameter distributions (post-rejection)
-  p_catch_post <- plot_parameter_distributions(
-    rejection_results$accepted_parameters,
-    param_type = "catchability", 
-    title_suffix = "(Post-Rejection)"
-  )
-  print(p_catch_post)
+  # Function to extract and combine yield data from multiple simulations
+  extract_monte_carlo_yield <- function(sim_list, sim_names = NULL) {
+    cat("Extracting yield from", length(sim_list), "simulations...\n")
+    
+    if (is.null(sim_names)) {
+      sim_names <- paste0("MC_", seq_along(sim_list))
+    }
+    
+    yield_list <- lapply(seq_along(sim_list), function(i) {
+      sim <- sim_list[[i]]
+      cat("Processing simulation", i, "for yield - Class:", class(sim), "\n")
+      
+      if (!is.null(sim) && inherits(sim, "MizerSim")) {
+        tryCatch({
+          yield_matrix <- getYield(sim)
+          cat("  Yield matrix dimensions:", dim(yield_matrix), "\n")
+          
+          yield_df <- reshape2::melt(yield_matrix)
+          names(yield_df) <- c("Year", "Species", "Yield")
+          yield_df$Simulation <- sim_names[i]
+          
+          cat("  Extracted yield data rows:", nrow(yield_df), "\n")
+          return(yield_df)
+        }, error = function(e) {
+          cat("  Error extracting yield from simulation", i, ":", e$message, "\n")
+          return(NULL)
+        })
+      } else {
+        cat("  Simulation", i, "is NULL or not MizerSim\n")
+        return(NULL)
+      }
+    })
+    
+    # Remove NULL entries and combine
+    yield_list <- yield_list[!sapply(yield_list, is.null)]
+    cat("Valid yield extractions:", length(yield_list), "\n")
+    
+    if (length(yield_list) > 0) {
+      combined_data <- do.call(rbind, yield_list)
+      cat("Combined yield data rows:", nrow(combined_data), "\n")
+      return(combined_data)
+    } else {
+      cat("No valid yield data extracted\n")
+      return(data.frame())
+    }
+  }
   
-  # Plot abundance scaling distributions (post-rejection)
-  p_abund_post <- plot_parameter_distributions(
-    rejection_results$accepted_parameters,
-    param_type = "abundance",
-    title_suffix = "(Post-Rejection)"
-  )
-  print(p_abund_post)
+  # Extract biomass data from accepted simulations
+  cat("Debugging biomass extraction...\n")
+  cat("Number of accepted simulations:", length(rejection_results$accepted_simulations), "\n")
   
-  # Compare parameter distributions before and after rejection
-  cat("\n=== PARAMETER COMPARISON: BEFORE vs AFTER REJECTION ===\n")
+  # Debug: Check structure of first accepted simulation
+  if (length(rejection_results$accepted_simulations) > 0) {
+    first_sim <- rejection_results$accepted_simulations[[1]]
+    cat("First simulation class:", class(first_sim), "\n")
+    cat("First simulation is MizerSim?", inherits(first_sim, "MizerSim"), "\n")
+    if (inherits(first_sim, "MizerSim")) {
+      cat("First simulation dimensions:", dim(getBiomass(first_sim)), "\n")
+    }
+  }
   
-  # Gamma statistics (post-rejection)
-  gamma_summary_post <- do.call(rbind, lapply(rejection_results$accepted_parameters, function(x) {
-    data.frame(species = x$species_names, gamma_change = x$gamma_change)
-  }))
+  mc_biomass_data <- extract_monte_carlo_biomass(rejection_results$accepted_simulations)
+  cat("Extracted biomass data rows:", nrow(mc_biomass_data), "\n")
   
-  cat("Gamma change factors (Post-Rejection):\n")
-  gamma_stats_post <- gamma_summary_post %>% group_by(species) %>% 
-    summarise(mean = mean(gamma_change), sd = sd(gamma_change), 
-              min = min(gamma_change), max = max(gamma_change))
-  print(gamma_stats_post)
+  if (nrow(mc_biomass_data) > 0) {
+    cat("Sample of biomass data:\n")
+    print(head(mc_biomass_data))
+    cat("Species in biomass data:", unique(mc_biomass_data$Species), "\n")
+    cat("Year range in biomass data:", range(mc_biomass_data$Year), "\n")
+    # Calculate uncertainty bounds for biomass
+    cat("Calculating biomass uncertainty bounds...\n")
+    biomass_uncertainty <- mc_biomass_data %>%
+      group_by(Year, Species) %>%
+      summarise(
+        median = median(Biomass, na.rm = TRUE),
+        q05 = quantile(Biomass, 0.05, na.rm = TRUE),
+        q25 = quantile(Biomass, 0.25, na.rm = TRUE),
+        q75 = quantile(Biomass, 0.75, na.rm = TRUE),
+        q95 = quantile(Biomass, 0.95, na.rm = TRUE),
+        mean = mean(Biomass, na.rm = TRUE),
+        n_sims = n(),
+        .groups = 'drop'
+      ) %>%
+      mutate(Species = factor(Species, levels = species_order))
+    
+    cat("Biomass uncertainty summary:\n")
+    cat("Number of Year-Species combinations:", nrow(biomass_uncertainty), "\n")
+    cat("Number of simulations per combination:", unique(biomass_uncertainty$n_sims), "\n")
+    if (nrow(biomass_uncertainty) > 0) {
+      cat("Sample uncertainty values:\n")
+      print(head(biomass_uncertainty))
+    }
+    
+    # Create observation data for plotting
+    # Join species-specific bounds and expand across plotting years
+    bounds_df <- obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g, RangeSource)
+    obs_biomass_ts <- obs_biomass_data %>%
+      left_join(bounds_df, by = "Species") %>%
+      crossing(Year = 2000:2010) %>%
+      mutate(Species = factor(Species, levels = species_order))
+    
+    # Monte Carlo biomass plot with uncertainty ribbons
+    cat("Creating biomass plot...\n")
+    p_biomass_mc <- ggplot()
+    
+    # Only add ribbons if we have multiple simulations (otherwise q05=q95=median)
+  if (max(biomass_uncertainty$n_sims) > 1) {
+      p_biomass_mc <- p_biomass_mc +
+        # Add uncertainty ribbons (90% and 50% intervals)
+        geom_ribbon(data = biomass_uncertainty, 
+                    aes(x = Year, ymin = q05, ymax = q95, fill = Species), 
+          alpha = 0.2) +
+        geom_ribbon(data = biomass_uncertainty, 
+                    aes(x = Year, ymin = q25, ymax = q75, fill = Species), 
+          alpha = 0.3)
+    }
+    
+    # Always add the line (median or single simulation value)
+    p_biomass_mc <- p_biomass_mc +
+      geom_line(data = biomass_uncertainty, 
+                aes(x = Year, y = median, color = Species), 
+                linewidth = 1.2) +
+      # Add observed data points and uncertainty
+      geom_point(data = obs_biomass_ts, 
+                 aes(x = Year, y = ObsBiomass, color = Species), 
+                 size = 1.2, shape = 16) +
+      geom_point(data = obs_biomass_ts, 
+                 aes(x = Year, y = ObsBiomass), 
+                 shape = 1, size = 1.2, colour = "black") +
+  geom_ribbon(data = obs_biomass_ts, 
+      aes(x = Year, ymin = Lower, ymax = Upper), 
+      alpha = 0.2, fill = "gray50") +
+      # Styling
+      facet_wrap(~Species, scales = "free_y") +
+  scale_y_continuous(labels = function(x) scales::number(x/1e6)) +
+      theme_bw() +
+      theme(legend.position = "none", strip.text = element_text(face = "bold")) +
+  labs(x = "Year", y = "Biomass [t]", 
+       title = paste("Monte Carlo: Biomass vs Observations (", length(rejection_results$accepted_simulations), " sims)"),
+           subtitle = paste("Based on", rejection_results$n_accepted, "accepted simulations (dark = 50% CI, light = 90% CI)")) +
+      geom_vline(xintercept = c(1961, 2010), linetype = "dashed", alpha = 0.5)
+    
+    print(p_biomass_mc)
+    
+    # Save plot
+    # ggsave("monte_carlo_biomass_uncertainty_post_v009.png", p_biomass_mc, width = 14, height = 10, dpi = 300)
+  }
   
-  # Abundance scaling statistics (post-rejection)
-  abund_summary_post <- do.call(rbind, lapply(rejection_results$accepted_parameters, function(x) {
-    data.frame(species = x$species_names, abundance_scaling = x$abundance_scaling)
-  }))
+  # Extract yield data from accepted simulations
+  cat("Debugging yield extraction...\n")
+  mc_yield_data <- extract_monte_carlo_yield(rejection_results$accepted_simulations)
+  cat("Extracted yield data rows:", nrow(mc_yield_data), "\n")
   
-  cat("\nAbundance scaling factors (Post-Rejection):\n")
-  abund_stats_post <- abund_summary_post %>% group_by(species) %>% 
-    summarise(mean = mean(abundance_scaling), sd = sd(abundance_scaling), 
-              min = min(abundance_scaling), max = max(abundance_scaling))
-  print(abund_stats_post)
+  if (nrow(mc_yield_data) > 0) {
+    cat("Sample of yield data:\n")
+    print(head(mc_yield_data))
+    cat("Species in yield data:", unique(mc_yield_data$Species), "\n")
+    cat("Year range in yield data:", range(mc_yield_data$Year), "\n")
+  }
+  
+  if (nrow(mc_yield_data) > 0 && exists("yield_ts_tidy")) {
+    cat("Calculating yield uncertainty bounds (baseline style)...\n")
+    # Prepare combined MC yield and compute uncertainty
+    mc_yield <- mc_yield_data %>% mutate(Yield = pmax(Yield, 0))
+    species_with_yield <- mc_yield %>% group_by(Species) %>% summarise(max_yield = max(Yield, na.rm = TRUE), .groups = 'drop') %>% filter(max_yield > 0) %>% pull(Species)
+    cat("Accepted sims: species with fishing yields:", paste(species_with_yield, collapse = ", "), "\n")
+
+    yield_uncertainty <- mc_yield %>%
+      filter(Species %in% species_with_yield) %>%
+      group_by(Year, Species) %>%
+      summarise(
+        median = median(Yield, na.rm = TRUE),
+        q25 = quantile(Yield, 0.25, na.rm = TRUE),
+        q75 = quantile(Yield, 0.75, na.rm = TRUE),
+        q05 = quantile(Yield, 0.05, na.rm = TRUE),
+        q95 = quantile(Yield, 0.95, na.rm = TRUE),
+        .groups = 'drop'
+      ) %>%
+      mutate(Species = factor(Species, levels = species_order))
+
+    # Observed positive-yield presence by year/species
+    obs_pos_by_year <- yield_ts_tidy %>%
+      mutate(has_obs_pos = Yield > 0) %>%
+      group_by(Year, Species) %>%
+      summarise(has_obs_pos = any(has_obs_pos, na.rm = TRUE), .groups = 'drop')
+
+    # Filter modeled zeros only in years without observed positive yield
+    yield_uncertainty <- yield_uncertainty %>%
+      left_join(obs_pos_by_year, by = c("Year", "Species")) %>%
+      mutate(has_obs_pos = coalesce(has_obs_pos, FALSE))
+
+    yield_uncertainty_ribbon <- yield_uncertainty %>%
+      filter(!(has_obs_pos == FALSE & (is.na(q95) | q95 <= 0))) %>%
+      mutate(
+        q05 = ifelse(q05 > 0, q05, NA_real_),
+        q25 = ifelse(q25 > 0, q25, NA_real_),
+        q75 = ifelse(q75 > 0, q75, NA_real_),
+        q95 = ifelse(q95 > 0, q95, NA_real_)
+      ) %>%
+      filter(!(is.na(q25) & is.na(q75) & is.na(q05) & is.na(q95)))
+
+    yield_uncertainty_line <- yield_uncertainty %>%
+      filter(!(has_obs_pos == FALSE & (is.na(median) | median <= 0))) %>%
+      mutate(median = ifelse(median > 0, median, NA_real_))
+
+    # Observed yields filtered to species with modeled yields
+    yield_obs_filtered <- yield_ts_tidy %>%
+      filter(Species %in% species_with_yield, Yield > 0) %>%
+      mutate(Species = factor(Species, levels = species_order))
+
+    # Determine plotting x-range
+    baleen_start_obs <- yield_obs_filtered %>%
+      filter(Species == "baleen whales") %>%
+      summarise(min_year = min(Year, na.rm = TRUE)) %>%
+      pull(min_year)
+    global_start_obs <- yield_obs_filtered %>% summarise(min_year = min(Year, na.rm = TRUE)) %>% pull(min_year)
+    start_year <- if (!is.null(baleen_start_obs) && length(baleen_start_obs) == 1 && is.finite(baleen_start_obs)) {
+      baleen_start_obs
+    } else if (!is.null(global_start_obs) && length(global_start_obs) == 1 && is.finite(global_start_obs)) {
+      global_start_obs
+    } else { 1930 }
+    end_year <- max(yield_uncertainty$Year, na.rm = TRUE)
+
+    # Custom label: no decimals for >=1; dynamic decimals for <1 so first non-zero digit shows
+    label_dynamic_decimals <- function(x) {
+      sci <- scales::label_scientific(digits = 1)
+      vapply(x, function(v) {
+        if (is.na(v)) return(NA_character_)
+        if (v <= 0) return("0")
+        vt <- v / 1e6  # convert grams -> tonnes
+        if (vt >= 1) {
+          paste0(formatC(vt, format = "f", digits = 0, big.mark = ","), " t")
+        } else if (vt < 1e-6) {
+          paste0(sci(vt), " t")
+        } else {
+          dp <- max(1, ceiling(-log10(vt)))
+          dp <- min(dp, 6)
+          paste0(formatC(vt, format = "f", digits = dp), " t")
+        }
+      }, character(1))
+    }
+
+    # Plot in baseline style (log10 y, ribbons, observed overlays)
+    p_yield_mc <- ggplot() +
+      geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
+      geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.3) +
+      geom_line(data = yield_uncertainty_line, aes(x = Year, y = median, color = Species), linewidth = 1.0, linetype = "solid", lineend = "round") +
+      geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield, colour = Species), size = 1) +
+      geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield), shape = 1, size = 1, colour = "black") +
+      geom_vline(xintercept = 1961, linetype = "dashed") +
+      geom_vline(xintercept = 2010, linetype = "dashed") +
+      scale_y_log10(breaks = scales::log_breaks(n = 6), labels = label_dynamic_decimals) +
+      coord_cartesian(xlim = c(start_year, end_year)) +
+      facet_wrap(~Species, scales = "free_y") +
+      theme_bw() +
+      theme(legend.position = "none", strip.text = element_text(face = "bold")) +
+      labs(x = "Year", y = "Yield [t/year]", title = paste("Monte Carlo: Yield vs Observations (", length(rejection_results$accepted_simulations), " sims)"))
+
+    print(p_yield_mc)
+
+     #ggsave("monte_carlo_yield_uncertainty_post_v009.png", p_yield_mc, width = 14, height = 10, dpi = 300) 
+  }
+  
+  # Summary statistics for uncertainty assessment
+  if (nrow(mc_biomass_data) > 0) {
+    cat("\n=== UNCERTAINTY SUMMARY ===\n")
+    
+    # Calculate uncertainty metrics for the final period (2005-2010)
+    final_period_biomass <- mc_biomass_data %>%
+      filter(Year >= 2005, Year <= 2010) %>%
+      group_by(Species) %>%
+      summarise(
+        median_biomass = median(Biomass, na.rm = TRUE),
+        cv = sd(Biomass, na.rm = TRUE) / mean(Biomass, na.rm = TRUE),
+        min_biomass = min(Biomass, na.rm = TRUE),
+        max_biomass = max(Biomass, na.rm = TRUE),
+        uncertainty_range = max(Biomass, na.rm = TRUE) / min(Biomass, na.rm = TRUE),
+        .groups = 'drop'
+      )
+    
+    cat("Biomass uncertainty summary (2005-2010):\n")
+    print(final_period_biomass %>% 
+          arrange(desc(cv)) %>%
+          mutate(cv = round(cv, 3), uncertainty_range = round(uncertainty_range, 2)))
+    
+    cat("\nSpecies with highest uncertainty (CV > 0.5):\n")
+    high_uncertainty <- final_period_biomass %>% 
+      filter(cv > 0.5) %>% 
+      arrange(desc(cv))
+    if (nrow(high_uncertainty) > 0) {
+      print(high_uncertainty)
+    } else {
+      cat("No species with CV > 0.5\n")
+    }
+  }
   
 } else {
-  cat("No simulations passed the rejection criteria! Consider relaxing the tolerance.\n")
+  cat("No accepted simulations available for Monte Carlo assessment.\n")
 }
 ```
 
@@ -1477,10 +2949,10 @@ if (rejection_results$n_accepted > 0) {
     # Add median line
     geom_line(data = biomass_bounds, aes(x = Year, y = median, color = Species), linewidth = 1) +
     # Add observed data (2010-2020 period)
-    geom_point(data = obs_biomass_data %>% crossing(Year = 2005:2010), 
-               aes(x = Year, y = ObsBiomass, color = Species), size = 1.5) +
-    geom_point(data = obs_biomass_data %>% crossing(Year = 2005:2010), 
-               aes(x = Year, y = ObsBiomass), shape = 1, size = 1.5, colour = "black") +
+  geom_point(data = obs_biomass_data %>% left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>% crossing(Year = 2005:2010), 
+         aes(x = Year, y = ObsBiomass, color = Species), size = 1.5) +
+  geom_point(data = obs_biomass_data %>% left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>% crossing(Year = 2005:2010), 
+         aes(x = Year, y = ObsBiomass), shape = 1, size = 1.5, colour = "black") +
     # Styling
     facet_wrap(~Species, scales = "free_y") +
     scale_fill_viridis_d(name = "Species") +
@@ -1554,7 +3026,7 @@ enhanced_spinup <- function(params,
                            spinup_years = 118,
                            spinup_multiplier = 1,    # Can be 2, 3, or 4 for extended spinup
                            effort_scenario,
-                           stability_tolerance = 0.10,  # Updated default to 10% based on test results
+                           stability_tolerance = stability_cv_threshold,  # default from global settings
                            t_start = 1841,
                            final_years = 170,
                            verbose = FALSE,
@@ -1574,11 +3046,17 @@ enhanced_spinup <- function(params,
   
   # Step 2: Check biomass stability during spinup (NO FISHING PERIOD)
   # This is the key fix - we check stability on the spinup simulation, not the final one
-  spinup_stability_check <- check_biomass_stability_enhanced(sim_spinup, 
-                                                            tolerance = stability_tolerance, 
-                                                            check_years = min(50, total_spinup_years),
-                                                            verbose = verbose,
-                                                            sim_id = sim_id)
+  spinup_stability_check <- check_biomass_stability_enhanced(
+    sim_spinup,
+    tolerance = stability_tolerance,
+    check_years = min(stability_check_years_tail, total_spinup_years),
+    trend_first_years = stability_trend_first_years,
+    trend_rel_slope_max = stability_trend_rel_slope_max,
+    trend_pval = stability_trend_pval_max,
+    min_mean_biomass = stability_min_mean_biomass,
+    verbose = verbose,
+    sim_id = sim_id
+  )
   
   # Handle both return formats
   if (is.list(spinup_stability_check)) {
@@ -1599,11 +3077,17 @@ enhanced_spinup <- function(params,
                               effort = 0)
     
     # Check stability of extended spinup
-    extended_stability_check <- check_biomass_stability_enhanced(extended_spinup, 
-                                                                tolerance = stability_tolerance, 
-                                                                check_years = min(30, round(total_spinup_years * 0.5)),
-                                                                verbose = verbose,
-                                                                sim_id = sim_id)
+    extended_stability_check <- check_biomass_stability_enhanced(
+      extended_spinup,
+      tolerance = stability_tolerance,
+      check_years = min(30, round(total_spinup_years * 0.5)),
+      trend_first_years = stability_trend_first_years,
+      trend_rel_slope_max = stability_trend_rel_slope_max,
+      trend_pval = stability_trend_pval_max,
+      min_mean_biomass = stability_min_mean_biomass,
+      verbose = verbose,
+      sim_id = sim_id
+    )
     
     if (is.list(extended_stability_check)) {
       is_stable <- extended_stability_check$stable
@@ -1765,6 +3249,8 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
         gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
       }
     }
+    # Safety: clamp all catchability values to [0,1] post-randomization
+    gear_df$catchability <- pmin(1, pmax(0, gear_df$catchability))
     gear_params(rand_params) <- gear_df
   }
   
@@ -1824,12 +3310,10 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
   }
   
   # Step 3: Enhanced steady state
-  steady_result <- enhanced_steady_state(rand_params, 
-                                       tol = enhanced_steady_tol,
-                                       t_max = enhanced_steady_t_max,
-                                       preserve_erepro = preserve_erepro,
-                                       verbose = verbose,
-                                       sim_id = sim_id)
+  steady_result <- simple_steady_state(rand_params, 
+                                     tol = enhanced_steady_tol,
+                                     t_max = enhanced_steady_t_max,
+                                     preserve_erepro = preserve_erepro)
   
   # Check if steady state failed
   if (is.list(steady_result) && !is.null(steady_result$steady_failed)) {
@@ -1900,10 +3384,12 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
     spinup_stable = sim_result$spinup_stable,
     params_info = list(
       sim_id = sim_id,
+      species_names = sp_params$species,                            # ADD: Species names for plotting
       catchability = gear_df$catchability,
       catchability_change = gear_df$catchability / original_catchability,
       gamma_values = sp_params$gamma,                               # NEW: Store gamma values
       gamma_change = sp_params$gamma / original_gamma,              # NEW: Store gamma changes
+      abundance_scaling = if(all_species_abundance) scaling_factors else marine_mammal_scaling,  # ADD: Combined abundance scaling
       marine_mammal_scaling = marine_mammal_scaling,                # Updated variable name
       all_species_scaling = if(all_species_abundance) scaling_factors else NULL,  # NEW: All species scaling if used
       marine_mammal_species = marine_mammal_species,
@@ -1913,191 +3399,6 @@ run_enhanced_single_sim <- function(sim_id, params, catchability_sd, abundance_s
   ))
 }
 
-# Main function to run enhanced combined uncertainty simulations
-run_enhanced_combined_uncertainty_sims <- function(params,
-                                                   n_sims = 10,
-                                                   catchability_sd = 0.1,
-                                                   abundance_sd = 0.2,
-                                                   gamma_sd = 0.3,                    # NEW: Standard deviation for gamma variation
-                                                   all_species_abundance = TRUE,      # NEW: Vary abundance for all species
-                                                   marine_mammal_species = NULL,
-                                                   effort_scen,
-                                                   enhanced_steady_tol = 0.002,      # Stricter tolerance
-                                                   enhanced_steady_t_max = 1000,     # Minimum 1000 years
-                                                   spinup_years = 118,
-                                                   spinup_multiplier = 2,             # 2x base spinup by default
-                                                   t_start = 1841,
-                                                   sim_years = 170,
-                                                   preserve_erepro = TRUE,
-                                                   max_erepro = 1,
-                                                   species_weights_df = species_weights,
-                                                   yield_obs_data,
-                                                   n_cores = NULL,
-                                                   parallel = TRUE) {
-  
-  # Default marine mammal species if not specified
-  if (is.null(marine_mammal_species)) {
-    marine_mammal_species <- c("minke whales", "orca", "sperm whales", "baleen whales")
-  }
-  
-  # Determine number of cores to use
-  if (is.null(n_cores)) {
-    n_cores <- detectCores() - 1
-  }
-  n_cores <- min(n_cores, detectCores())
-  
-  # Progress message
-  cat("=== ENHANCED COMBINED UNCERTAINTY ANALYSIS ===\n")
-  cat("Running", n_sims, "simulations with enhanced protocols:\n")
-  cat("  - Steady-state tolerance:", enhanced_steady_tol, "\n")
-  cat("  - Minimum steady-state time:", enhanced_steady_t_max, "years\n")
-  cat("  - Spinup multiplier:", spinup_multiplier, "x (", spinup_years * spinup_multiplier, "years total)\n")
-  cat("  - Catchability SD:", catchability_sd, "\n")
-  cat("  - Abundance SD:", abundance_sd, "\n")
-  cat("  - Gamma SD:", gamma_sd, "(NEW)\n")
-  cat("  - All species abundance variation:", all_species_abundance, "(NEW)\n")
-  cat("  - Whale species weighting: 3-10x higher than fish/krill\n")
-  cat("  - Performance metrics: RMSE, MAE, Bias, Correlation, Composite Score\n")
-  
-  if (preserve_erepro) {
-    cat("  - Preserving erepro values during steady state\n")
-  } else {
-    cat("  - Will skip simulations with erepro >", max_erepro, "\n")
-  }
-  
-  if (parallel && n_cores > 1) {
-    cat("  - Using parallel processing with", n_cores, "cores\n")
-    
-    # Set up parallel cluster
-    cl <- makeCluster(n_cores)
-    registerDoParallel(cl)
-    
-    # Export necessary objects to cluster
-    clusterExport(cl, c("run_enhanced_single_sim", "enhanced_steady_state", 
-                       "enhanced_spinup", "check_biomass_stability_enhanced",
-                       "calculate_enhanced_performance_metrics", "calculate_yield_rmse",
-                       "species_weights_df"), 
-                  envir = environment())
-    
-    # Export yield data for any legacy references in cluster functions
-    clusterExport(cl, "yield_obs_data", envir = environment())
-    
-    # Also create yield_ts_tidy alias in cluster environment for backward compatibility
-    clusterEvalQ(cl, {
-      yield_ts_tidy <- yield_obs_data
-    })
-    
-    # Run simulations in parallel
-    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 2))
-    
-    cat("  - Running", n_attempts, "initial attempts...\n")
-    
-    results <- foreach(i = 1:n_attempts,
-                      .packages = c("mizer", "therMizer", "dplyr"),
-                      .errorhandling = "pass") %dopar% {
-      run_enhanced_single_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
-                             all_species_abundance, marine_mammal_species, effort_scen, 
-                             enhanced_steady_tol, enhanced_steady_t_max,
-                             spinup_years, spinup_multiplier,
-                             t_start, sim_years,
-                             preserve_erepro, max_erepro,
-                             species_weights_df, yield_obs_data)
-    }
-    
-    # Stop cluster
-    stopCluster(cl)
-    
-  } else {
-    # Sequential processing
-    cat("  - Using sequential processing\n")
-    
-    n_attempts <- ifelse(preserve_erepro, n_sims, ceiling(n_sims * 2))
-    results <- list()
-    
-    for(i in 1:n_attempts) {
-      if(i %% 5 == 0) cat("    Processing simulation", i, "of", n_attempts, "\n")
-      
-      results[[i]] <- run_enhanced_single_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
-                                             all_species_abundance, marine_mammal_species, effort_scen, 
-                                             enhanced_steady_tol, enhanced_steady_t_max,
-                                             spinup_years, spinup_multiplier,
-                                             t_start, sim_years,
-                                             preserve_erepro, max_erepro,
-                                             species_weights_df, yield_obs_data,
-                                             verbose = (i <= 3))  # Verbose for first 3 simulations
-    }
-  }
-  
-  # Process results
-  sim_results <- list()
-  param_combinations <- list()
-  performance_results <- list()
-  failed_sims <- list()
-  successful_count <- 0
-  
-  for(res in results) {
-    if(!is.null(res) && !inherits(res, "error")) {
-      if(res$success) {
-        successful_count <- successful_count + 1
-        if(successful_count <= n_sims) {
-          sim_results[[successful_count]] <- res$simulation
-          param_combinations[[successful_count]] <- res$params_info
-          performance_results[[successful_count]] <- res$performance
-        }
-      } else {
-        failed_sims[[length(failed_sims) + 1]] <- res
-      }
-    }
-  }
-  
-  # Final summary
-  cat("\n=== ENHANCED SIMULATION RESULTS ===\n")
-  cat("Completed", min(successful_count, n_sims), "successful simulations\n")
-  if (length(failed_sims) > 0) {
-    failure_reasons <- table(sapply(failed_sims, function(x) x$reason))
-    cat("Failed simulations by reason:\n")
-    print(failure_reasons)
-    
-    # Show detailed failure information for first few failures
-    cat("\nDetailed failure analysis (first 5 failures):\n")
-    for (i in 1:min(5, length(failed_sims))) {
-      fail_info <- failed_sims[[i]]
-      cat("  Sim", fail_info$sim_id, "- Reason:", fail_info$reason)
-      if (!is.null(fail_info$details)) {
-        cat(" - Details:", fail_info$details)
-      }
-      cat("\n")
-    }
-  }
-  
-  # Calculate summary statistics of performance
-  if (length(performance_results) > 0) {
-    composite_scores <- sapply(performance_results, function(x) x$composite_score)
-    rmse_scores <- sapply(performance_results, function(x) x$total_weighted_rmse)
-    
-    cat("\nPerformance Summary:\n")
-    cat("  Composite Score - Mean:", round(mean(composite_scores), 4), 
-        "Range:", round(min(composite_scores), 4), "-", round(max(composite_scores), 4), "\n")
-    cat("  Weighted RMSE - Mean:", round(mean(rmse_scores), 4), 
-        "Range:", round(min(rmse_scores), 4), "-", round(max(rmse_scores), 4), "\n")
-  }
-  
-  # Trim to requested number of simulations
-  if(length(sim_results) > n_sims) {
-    sim_results <- sim_results[1:n_sims]
-    param_combinations <- param_combinations[1:n_sims]
-    performance_results <- performance_results[1:n_sims]
-  }
-  
-  return(list(
-    simulations = sim_results,
-    parameters = param_combinations,
-    performance = performance_results,
-    failed = failed_sims,
-    n_successful = length(sim_results),
-    n_attempts = length(results)
-  ))
-}
 
 # Function to find optimal parameters based on enhanced metrics
 find_optimal_parameters_enhanced <- function(sim_results_list, metric = "composite_score") {
@@ -2346,24 +3647,21 @@ if (validation_test$success_rate >= 80) {
   cat("Step 2: Running full enhanced uncertainty analysis...\n")
   
   # Run the full enhanced uncertainty analysis
-  enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims(
+  enhanced_uncertainty_results <- run_enhanced_combined_uncertainty_sims_parallel(
     params = params_1841_2010_climate_only,
-    n_sims = 3000,  # Full simulation set
-    catchability_sd = 0.4,  # 30% CV for catchability
-    abundance_sd = 0.8,     # 50% CV for abundance (now all species by default)
-    gamma_sd = 0.5,         # NEW: 40% CV for gamma (search rate) variation
-    all_species_abundance = TRUE,  # NEW: Vary abundance for all species
-    marine_mammal_species = c("minke whales", "orca", "sperm whales", "baleen whales"),
+    n_sims = 3000,
+    catchability_sd = 0.4,
+    abundance_sd = 0.8,
+    gamma_sd = 0.5,
+    all_species_abundance = TRUE,
     effort_scen = combined_effort_array,
     enhanced_steady_tol = 0.002,
     enhanced_steady_t_max = 1000,
     spinup_years = 118,
-    spinup_multiplier = 2,  # Extended spinup for stability
     t_start = 1841,
     sim_years = 170,
     preserve_erepro = TRUE,
-    max_erepro = 10,
-    yield_obs_data = yield_ts_tidy
+    max_erepro = 1
   )
   
   # Save results
