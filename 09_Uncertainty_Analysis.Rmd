@@ -3088,6 +3088,114 @@ if (rejection_results$n_accepted > 0) {
   cat("3. Increasing number of simulations\n")
 }
 ```
+
+
+```{r}
+# Combine successful simulations and metadata across saved Monte Carlo result files
+combine_successful_sims <- function(
+  search_dirs = c("Output_large_files", "."),
+  pattern = "^monte_carlo_results.*\\.rds$",
+  out_rds = file.path("Output_large_files", paste0("combined_successful_sims_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")),
+  out_csv = file.path("Output_large_files", paste0("combined_successful_params_summary_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")),
+  verbose = TRUE
+) {
+  suppressPackageStartupMessages({
+    library(dplyr)
+    library(tibble)
+  })
+  # Helper for NULL-coalesce
+  `%||%` <- function(a, b) if (!is.null(a)) a else b
+
+  # Discover files
+  files <- unique(unlist(lapply(search_dirs, function(d) {
+    if (dir.exists(d)) list.files(d, pattern = pattern, full.names = TRUE) else character(0)
+  })))
+  if (length(files) == 0) stop("No Monte Carlo results files found.")
+  if (verbose) cat("Found", length(files), "result files\n")
+
+  # Containers
+  all_sims <- list()
+  all_params <- list()
+  sim_keys <- character()
+
+  make_run_id <- function(obj, fname) {
+    if (!is.null(obj$settings) && is.list(obj$settings)) {
+      s <- obj$settings
+      paste0(
+        "nsims=", s$total_sims %||% NA,
+        ";sd=", s$catchability_sd %||% NA, "_", s$abundance_sd %||% NA, "_", s$gamma_sd %||% NA,
+        ";tol=", s$enhanced_steady_tol %||% NA, ";tmax=", s$enhanced_steady_t_max %||% NA
+      )
+    } else {
+      basename(fname)
+    }
+  }
+
+  # Read and collect
+  for (f in files) {
+    obj <- try(readRDS(f), silent = TRUE)
+    if (inherits(obj, "try-error")) { if (verbose) cat("Skipping unreadable:", f, "\n"); next }
+    if (!is.list(obj) || is.null(obj$simulations) || is.null(obj$parameters)) {
+      if (verbose) cat("Skipping non-results object:", f, "\n")
+      next
+    }
+    sims <- obj$simulations
+    params <- obj$parameters
+    if (!length(sims) || !length(params)) next
+
+    run_id <- make_run_id(obj, f)
+
+    for (i in seq_along(sims)) {
+      s <- sims[[i]]; p <- params[[i]]
+      if (is.null(s) || is.null(p)) next
+      key <- paste0(run_id, "::", (p$sim_id %||% i))
+      all_sims[[length(all_sims)+1L]] <- s
+      all_params[[length(all_params)+1L]] <- c(p, list(run_id = run_id, source_file = f, sim_key = key))
+      sim_keys[length(sim_keys)+1L] <- key
+    }
+  }
+
+  # Build parameter tibble (list-columns for vectors)
+  param_tbl <- tibble(
+    sim_key = sim_keys,
+    run_id = sapply(all_params, `[[`, "run_id"),
+    source_file = sapply(all_params, `[[`, "source_file"),
+    sim_id_within_file = sapply(all_params, function(x) x$sim_id %||% NA_integer_),
+    stable = sapply(all_params, function(x) x$stable %||% NA),
+    max_cv = sapply(all_params, function(x) x$max_cv %||% NA_real_),
+    species_names = lapply(all_params, `[[`, "species_names"),
+    abundance_scaling = lapply(all_params, `[[`, "abundance_scaling"),
+    gamma_change = lapply(all_params, function(x) x$gamma_change %||% x$gamma_change_raw %||% NA),
+    catchability = lapply(all_params, `[[`, "catchability"),
+    catchability_change = lapply(all_params, `[[`, "catchability_change")
+  )
+
+  # Flat summary CSV (no heavy list columns)
+  flat_summary <- param_tbl %>%
+    transmute(
+      sim_key, run_id, source_file, sim_id_within_file, stable, max_cv,
+      n_species = vapply(species_names, length, integer(1)),
+      mean_gamma_mult = vapply(gamma_change, function(v) if (is.null(v)) NA_real_ else mean(as.numeric(v), na.rm = TRUE), numeric(1)),
+      mean_abund_mult = vapply(abundance_scaling, function(v) if (is.null(v)) NA_real_ else mean(as.numeric(v), na.rm = TRUE), numeric(1)),
+      mean_catchability = vapply(catchability, function(v) if (is.null(v)) NA_real_ else mean(as.numeric(v), na.rm = TRUE), numeric(1))
+    )
+
+  # Save combined artifact
+  combined <- list(
+    simulations = all_sims,
+    parameters = param_tbl,
+    created = Sys.time()
+  )
+  dir.create(dirname(out_rds), showWarnings = FALSE, recursive = TRUE)
+  saveRDS(combined, out_rds)
+  utils::write.csv(flat_summary, out_csv, row.names = FALSE)
+
+  if (verbose) cat("Saved combined successful sims:\n - RDS:", out_rds, "\n - CSV:", out_csv, "\nTotal successes:", length(all_sims), "\n")
+  invisible(combined)
+}
+
+# Run it
+combined_success <- combine_successful_sims()
 ```
 
 # Analysis Complete
