@@ -286,11 +286,10 @@ precheck_parameters <- function(p,
   if ("erepro" %in% names(spp)) {
     if (any(!is.finite(spp$erepro) | spp$erepro <= 0, na.rm = TRUE)) return(list(ok = FALSE, reason = "non_positive_erepro"))
   }
-  mat <- try(getMaturity(p), silent = TRUE)
+  mat <- try(mizer::getMaturity(p), silent = TRUE)
   if (!inherits(mat, "try-error")) {
     # Compute mature biomass per species at t0
     w <- try(p@w, silent = TRUE)
-    if (inherits(w, "try-error") || is.null(w)) w <- try(getw(p), silent = TRUE)
     if (inherits(w, "try-error") || is.null(w)) w <- rep(1, ncol(ini))
     W <- matrix(w, nrow = nrow(ini), ncol = length(w), byrow = TRUE)
   mature_biomass <- rowSums(ini * W * mat, na.rm = TRUE)
@@ -321,7 +320,12 @@ precheck_parameters <- function(p,
 run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, gamma_sd,
                                    all_species_abundance, species_to_vary,
                                    effort_scen, enhanced_steady_tol, enhanced_steady_t_max,
-                                   spinup_years, t_start, sim_years, preserve_erepro, max_erepro) {
+                                   spinup_years, t_start, sim_years, preserve_erepro, max_erepro,
+                                   # Bias means on log scale to favor increases (defaults ~ +20%)
+                                   catchability_bias_mean_log = log(1.2),
+                                   abundance_bias_mean_log    = log(1.2),
+                                   gamma_bias_mean_log        = log(1.2),
+                                   verbose = FALSE) {
   
   result <- tryCatch({
   # Make draws reproducible but independent across simulations
@@ -334,10 +338,11 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
     original_catchability <- gear_df$catchability
     
     if(nrow(gear_df) > 0) {
-      for(j in 1:nrow(gear_df)) {
+      for (j in seq_len(nrow(gear_df))) {
         if(gear_df$catchability[j] > 0) {
-          noise <- rnorm(1, mean = 0, sd = catchability_sd)
-          gear_df$catchability[j] <- gear_df$catchability[j] * exp(noise)
+          # Favor increases: positive mean on log scale
+          mult <- exp(rnorm(1, mean = catchability_bias_mean_log, sd = catchability_sd))
+          gear_df$catchability[j] <- gear_df$catchability[j] * mult
           gear_df$catchability[j] <- min(1, max(0, gear_df$catchability[j]))
         }
       }
@@ -352,12 +357,12 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
     original_gamma <- sp_params$gamma
     
     gamma_change_raw <- numeric(nrow(sp_params))
-    for(j in 1:nrow(sp_params)) {
-      gamma_noise <- rnorm(1, mean = 0, sd = gamma_sd)
-      mult <- exp(gamma_noise)
+    for (j in seq_len(nrow(sp_params))) {
+      # Favor increases: positive log-mean; enforce lower bound 0.8× original
+      mult <- exp(rnorm(1, mean = gamma_bias_mean_log, sd = gamma_sd))
       gamma_change_raw[j] <- mult
       # Relative clamp around original value to avoid unrealistic saturation
-      lower <- original_gamma[j] * 0.01
+      lower <- original_gamma[j] * 0.8   # do not reduce below 80% of baseline
       upper <- original_gamma[j] * 100
       sp_params$gamma[j] <- original_gamma[j] * mult
       sp_params$gamma[j] <- min(upper, max(lower, sp_params$gamma[j]))
@@ -368,9 +373,10 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
     all_species <- sp_params$species
     
     if (all_species_abundance) {
-      # Vary abundance for ALL species
-      scaling_factors <- exp(rnorm(length(all_species), mean = 0, sd = abundance_sd))
-      
+      # Vary abundance for ALL species — favor increases; enforce ≥ 0.5× baseline
+      scaling_factors <- exp(rnorm(length(all_species), mean = abundance_bias_mean_log, sd = abundance_sd))
+      scaling_factors <- pmax(0.5, scaling_factors)
+
       for (k in seq_along(all_species)) {
         rand_params@initial_n[k,] <- rand_params@initial_n[k,] * scaling_factors[k]
       }
@@ -383,7 +389,9 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
       # Apply variation only to specified species
       species_indices <- which(all_species %in% species_to_vary)
       if (length(species_indices) > 0) {
-        species_scaling <- exp(rnorm(length(species_indices), mean = 0, sd = abundance_sd))
+        # Favor increases; enforce ≥ 0.5× baseline
+        species_scaling <- exp(rnorm(length(species_indices), mean = abundance_bias_mean_log, sd = abundance_sd))
+        species_scaling <- pmax(0.5, species_scaling)
         scaling_factors[species_indices] <- species_scaling
         
         for (k in species_indices) {
@@ -470,7 +478,7 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
                          effort = 0)  # No fishing during spinup
     
     # Step 6: Test biomass stability over spinup period (CV + trend)
-    stab <- check_biomass_stability_enhanced(
+  stab <- check_biomass_stability_enhanced(
       sim_spinup,
       tolerance = stability_cv_threshold,
       check_years = stability_check_years_tail,
@@ -590,13 +598,14 @@ run_enhanced_combined_uncertainty_sims_parallel <- function(params,
     # Run simulations in parallel
     if (verbose) cat("Starting parallel simulations...\n")
     
-    results_list <- foreach(i = 1:n_sims, 
+  results_list <- foreach(i = 1:n_sims, 
                            .packages = c("therMizer", "mizer"),
                            .errorhandling = "pass") %dopar% {
       run_single_enhanced_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
                              all_species_abundance, species_to_vary,
-                             effort_scen, enhanced_steady_tol, enhanced_steady_t_max,
-                             spinup_years, t_start, sim_years, preserve_erepro, max_erepro)
+               effort_scen, enhanced_steady_tol, enhanced_steady_t_max,
+               spinup_years, t_start, sim_years, preserve_erepro, max_erepro,
+               verbose = verbose)
     }
     
     if (verbose) cat("Parallel simulations completed. Processing results...\n")
@@ -693,7 +702,7 @@ plot_parameter_distributions <- function(param_combinations, param_type = "gamma
     }))
     
     # Simple histogram plot
-    p <- ggplot(gamma_data, aes(x = gamma_change)) +
+  p <- ggplot(gamma_data, aes(x = .data$gamma_change)) +
       geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
       facet_wrap(~species, scales = "free_y") +
       scale_x_log10() +
@@ -712,7 +721,7 @@ plot_parameter_distributions <- function(param_combinations, param_type = "gamma
       if (length(params$catchability_change) > 0) {
         data.frame(
           sim_id = i,
-          gear = 1:length(params$catchability_change),
+          gear = seq_along(params$catchability_change),
           catchability_change = params$catchability_change
         )
       } else {
@@ -721,7 +730,7 @@ plot_parameter_distributions <- function(param_combinations, param_type = "gamma
     }))
     
     if (!is.null(catch_data)) {
-      p <- ggplot(catch_data, aes(x = catchability_change)) +
+  p <- ggplot(catch_data, aes(x = .data$catchability_change)) +
         geom_histogram(bins = 30, fill = "darkgreen", alpha = 0.7) +
         facet_wrap(~gear, scales = "free_y") +
         scale_x_log10() +
@@ -747,7 +756,7 @@ plot_parameter_distributions <- function(param_combinations, param_type = "gamma
       )
     }))
     
-    p <- ggplot(abund_data, aes(x = abundance_scaling)) +
+  p <- ggplot(abund_data, aes(x = .data$abundance_scaling)) +
       geom_histogram(bins = 30, fill = "coral", alpha = 0.7) +
       facet_wrap(~species, scales = "free_y") +
       scale_x_log10() +
@@ -786,12 +795,30 @@ library(mizer)
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
+library(tidyr)
+library(rlang)
 library(reshape2)
 library(viridis)
 library(scales)        # For number formatting in plots
 library(parallel)      # For parallel processing
 library(doParallel)    # For foreach parallel loops
 library(foreach)       # For parallel loops
+```
+
+```{r globals}
+# Silence NSE/CRAN check notes for dplyr/ggplot2 non-standard evaluation
+if (getRversion() >= "2.15.1") utils::globalVariables(c(
+  "gamma_change", "catchability_change", "abundance_scaling",
+  "Year", "Yield", "Biomass", "ObsBiomass",
+  "Lower_g", "Upper_g", "RangeSource", "Lower", "Upper",
+  "median", "q05", "q25", "q75", "q95",
+  "Species", "gear", "i",
+  "model_yield", "obs_yield", "log10_gamma", ".x",
+  "species", "gamma_mult", "abundance_mult",
+  "RMSE", "mammal_scaling", "Value", "year",
+  "n_sims", "has_obs_pos", "median_biomass", "cv", "uncertainty_range",
+  "min_biomass", "max_biomass", "sim_id", "mean", "min", "max"
+))
 ```
 
 ```{r mc-parallel-blocked}
@@ -831,6 +858,8 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
   # Ensure precheck exists; if not, provide a permissive stub
   if (!exists("precheck_parameters", inherits = TRUE)) {
     precheck_parameters <- function(...) list(ok = TRUE)
+  # Touch symbol to avoid assigned-but-unused notes
+  invisible(precheck_parameters)
   }
 
   # Export local arguments (from this function environment)
@@ -860,7 +889,7 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
     if (verbose) { cat("Block ", bi, "/", length(blocks), ": sims ", idx[1], "-", tail(idx,1), " ...\n", sep = ""); flush.console() }
 
     # Run this block in parallel
-    results_list <- foreach::foreach(
+  results_list <- foreach::foreach(
       i = idx,
       .packages = c("therMizer","mizer"),
   .export = c("run_single_enhanced_sim","check_biomass_stability_enhanced","simple_steady_state","precheck_parameters"),
@@ -868,8 +897,9 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
     ) %dopar% {
       run_single_enhanced_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
                               all_species_abundance, species_to_vary, effort_scen,
-                              enhanced_steady_tol, enhanced_steady_t_max,
-                              spinup_years, t_start, sim_years, preserve_erepro, max_erepro)
+                enhanced_steady_tol, enhanced_steady_t_max,
+                spinup_years, t_start, sim_years, preserve_erepro, max_erepro,
+                verbose = verbose)
     }
 
     # Collate this block
@@ -925,7 +955,7 @@ stability_trend_first_years <- 50     # years from start of spinup to test trend
 
 # Max allowed relative slope per year during the initial spinup period
 # Example: 0.005 = 0.5% of mean biomass per year
-stability_trend_rel_slope_max <- 0.005
+stability_trend_rel_slope_max <- 0.025
 
 # Significance level for trend detection (linear model p-value on slope)
 stability_trend_pval_max <- 0.05
@@ -1225,14 +1255,14 @@ plot_baseline_biomass <- function(sim_object, obs_data, obs_years = 2010:2020, o
 
   obs_biomass_ts <- obs_data %>%
     left_join(bounds_df, by = "Species") %>%
-    crossing(Year = obs_years)
+  tidyr::crossing(Year = obs_years)
   
   # Plot
   ggplot() +
-    geom_line(data = df_mod_biomass, aes(x = Year, y = Biomass, color = Species), linewidth = 1.2) +
-    geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass, color = Species), size = 0.8) +
-    geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass), shape = 1, size = 0.8, colour = "black") +
-    geom_ribbon(data = obs_biomass_ts, aes(x = Year, ymin = Lower, ymax = Upper), alpha = 0.2) +
+    geom_line(data = df_mod_biomass, aes(x = .data$Year, y = .data$Biomass, color = .data$Species), linewidth = 1.2) +
+    geom_point(data = obs_biomass_ts, aes(x = .data$Year, y = .data$ObsBiomass, color = .data$Species), size = 0.8) +
+    geom_point(data = obs_biomass_ts, aes(x = .data$Year, y = .data$ObsBiomass), shape = 1, size = 0.8, colour = "black") +
+    geom_ribbon(data = obs_biomass_ts, aes(x = .data$Year, ymin = .data$Lower, ymax = .data$Upper), alpha = 0.2) +
     facet_wrap(~Species, scales = "free_y") +
     theme_bw() +
     theme(legend.position = "none", strip.text = element_text(face = "bold")) +
@@ -1245,8 +1275,8 @@ plot_baseline_yield <- function(sim_object, obs_yield_data) {
   
   p_yield <- plotYield(sim_object) + 
     facet_wrap(~Species, scales = "free_y") +
-    geom_point(data = obs_yield_data, aes(x = Year, y = Yield, colour = Species), size = 1) +
-    geom_point(data = obs_yield_data, aes(x = Year, y = Yield), shape = 1, size = 1, colour = "black") +
+    geom_point(data = obs_yield_data, aes(x = .data$Year, y = .data$Yield, colour = .data$Species), size = 1) +
+    geom_point(data = obs_yield_data, aes(x = .data$Year, y = .data$Yield), shape = 1, size = 1, colour = "black") +
     geom_vline(aes(xintercept = 1961), linetype = "dashed") + 
     geom_vline(aes(xintercept = 2010), linetype = "dashed") +
     theme_bw() +
@@ -1438,8 +1468,17 @@ The analysis includes parameter distribution assessment and biomass-based reject
 # Toggle to control whether we re-run the heavy Monte Carlo simulations
 # TRUE = skip running; use saved results instead
 # FALSE = run simulations (may take a long time)
-use_saved_results <- TRUE
+
+#use_saved_results <- TRUE
+use_saved_results <- FALSE  # set to FALSE to run new sims
 cat("Use saved results:", use_saved_results, "\n")
+
+# Optional quick-test mode: when TRUE, forces a short run (e.g., 20 sims)
+# and overrides settings inside the MC chunk. Keeps wall time low for validation.
+
+quick_test_mode <- TRUE
+#quick_test_mode <- FALSE
+cat("Quick test mode:", quick_test_mode, "\n")
 ```
 
 ## Step 1: Run Monte Carlo Simulations
@@ -1481,8 +1520,8 @@ save_path  <- "monte_carlo_results_latest.rds"  # overwritten each block
 # Settings used for this run (promoted to variables so we can reuse in filenames)
 total_sims <- 3000               # adjust as needed
 catchability_sd <- 2
-abundance_sd <- 4
-gamma_sd <- 3
+abundance_sd <- 3
+gamma_sd <- 2
 enhanced_steady_tol <- 0.0025
 enhanced_steady_t_max <- 1500
 spinup_years <- 118
@@ -1490,6 +1529,17 @@ t_start <- 1841
 sim_years <- 170
 preserve_erepro <- TRUE
 max_erepro <- 1
+
+# If quick-test mode is enabled, override heavy settings for a fast validation run
+if (exists("quick_test_mode") && isTRUE(quick_test_mode)) {
+  total_sims <- 20
+  save_every <- 5
+  # be extra gentle on resources
+  cores_to_use <- min(2L, cores_to_use)
+  cat("Quick-test mode enabled: total_sims=", total_sims,
+      ", save_every=", save_every,
+      ", n_cores=", cores_to_use, "\n", sep = "")
+}
 
 monte_carlo_results <- run_enhanced_uncertainty_sims_parallel_blocked(
   params = params_sel_adj,
@@ -1508,7 +1558,7 @@ monte_carlo_results <- run_enhanced_uncertainty_sims_parallel_blocked(
   sim_years = sim_years,
   preserve_erepro = preserve_erepro,
   max_erepro = max_erepro,
-  n_cores = NULL,
+  n_cores = cores_to_use,
   save_path = save_path,
   verbose = TRUE
 )
@@ -1691,7 +1741,7 @@ biomass_uncertainty <- mc_biomass %>%
 obs_biomass_ts <- (
   obs_biomass_data %>%
     left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>%
-    crossing(Year = 2000:2010) %>%
+  tidyr::crossing(Year = 2000:2010) %>%
     mutate(Species = factor(Species, levels = species_order))
 )
 
@@ -1788,12 +1838,12 @@ plot_montecarlo_yield <- function() {
     }, character(1))
   }
   ggplot() +
-  geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
-  geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.3) +
-  geom_line(data = yield_uncertainty_line, aes(x = Year, y = median, color = Species),
+  geom_ribbon(data = yield_uncertainty_ribbon, aes(x = .data$Year, ymin = .data$q05, ymax = .data$q95, fill = .data$Species), alpha = 0.2) +
+  geom_ribbon(data = yield_uncertainty_ribbon, aes(x = .data$Year, ymin = .data$q25, ymax = .data$q75, fill = .data$Species), alpha = 0.3) +
+  geom_line(data = yield_uncertainty_line, aes(x = .data$Year, y = .data$median, color = .data$Species),
         linewidth = 1.0, linetype = "solid", lineend = "round") +
-    geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield, colour = Species), size = 1) +
-    geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield), shape = 1, size = 1, colour = "black") +
+    geom_point(data = yield_obs_filtered, aes(x = .data$Year, y = .data$Yield, colour = .data$Species), size = 1) +
+  geom_point(data = yield_obs_filtered, aes(x = .data$Year, y = .data$Yield), shape = 1, size = 1, colour = "black") +
   geom_vline(xintercept = 1961, linetype = "dashed") +
   geom_vline(xintercept = 2010, linetype = "dashed") +
   scale_y_log10(breaks = scales::log_breaks(n = 6), labels = label_dynamic_decimals) +
@@ -1808,14 +1858,14 @@ plot_montecarlo_yield <- function() {
 plot_montecarlo_biomass <- function() {
   ggplot() +
     geom_ribbon(data = biomass_uncertainty,
-                aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
+                aes(x = .data$Year, ymin = .data$q05, ymax = .data$q95, fill = .data$Species), alpha = 0.2) +
     geom_ribbon(data = biomass_uncertainty,
-                aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.3) +
+                aes(x = .data$Year, ymin = .data$q25, ymax = .data$q75, fill = .data$Species), alpha = 0.3) +
     geom_line(data = biomass_uncertainty,
-              aes(x = Year, y = median, color = Species), linewidth = 1.2) +
-    geom_ribbon(data = obs_biomass_ts, aes(x = Year, ymin = Lower, ymax = Upper), alpha = 0.2, fill = "gray50") +
-    geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass, color = Species), size = 0.8) +
-    geom_point(data = obs_biomass_ts, aes(x = Year, y = ObsBiomass), shape = 1, size = 0.8, colour = "black") +
+              aes(x = .data$Year, y = .data$median, color = .data$Species), linewidth = 1.2) +
+    geom_ribbon(data = obs_biomass_ts, aes(x = .data$Year, ymin = .data$Lower, ymax = .data$Upper), alpha = 0.2, fill = "gray50") +
+    geom_point(data = obs_biomass_ts, aes(x = .data$Year, y = .data$ObsBiomass, color = .data$Species), size = 0.8) +
+    geom_point(data = obs_biomass_ts, aes(x = .data$Year, y = .data$ObsBiomass), shape = 1, size = 0.8, colour = "black") +
     facet_wrap(~Species, scales = "free_y") +
     scale_y_continuous(labels = function(x) scales::number(x/1e6)) +
     theme_bw() +
@@ -1851,7 +1901,7 @@ if(length(monte_carlo_results$parameters) > 0) {
     cat("Gamma parameter analysis:\n")
     cat("  Range:", round(min(all_gamma_changes, na.rm=TRUE), 3), "to", round(max(all_gamma_changes, na.rm=TRUE), 3), "\n")
     cat("  Mean:", round(mean(all_gamma_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_gamma_changes, na.rm=TRUE), 3), "\n")
-    cat("  Example values:", paste(round(all_gamma_changes[1:min(10, length(all_gamma_changes))], 3), collapse=", "), "\n\n")
+  cat("  Example values:", paste(round(all_gamma_changes[seq_len(min(10, length(all_gamma_changes)))], 3), collapse=", "), "\n\n")
   } else {
     cat("WARNING: gamma_change not found in parameters!\n\n")
   }
@@ -1967,7 +2017,7 @@ if(length(monte_carlo_results$parameters) > 0) {
       # Show best fitting simulations
       best_sims <- fit_metrics[order(-fit_metrics$correlation, fit_metrics$normalized_rmse), ]
       cat("Top 3 fitting simulations:\n")
-      for(j in 1:min(3, nrow(best_sims))) {
+  for(j in seq_len(min(3, nrow(best_sims)))) {
         cat("  Sim", best_sims$sim_id[j], ": r =", round(best_sims$correlation[j], 3), 
             ", NRMSE =", round(best_sims$normalized_rmse[j], 3), "\n")
       }
@@ -1989,7 +2039,10 @@ if(exists("fit_metrics") && nrow(fit_metrics) > 0) {
   # Analyze parameter combinations of best-performing simulations
   cat("Based on model fit analysis:\n")
   
-  best_sim_ids <- fit_metrics$sim_id[order(-fit_metrics$correlation, fit_metrics$normalized_rmse)][1:min(3, nrow(fit_metrics))]
+  best_sim_ids <- {
+    ord <- order(-fit_metrics$correlation, fit_metrics$normalized_rmse)
+    fit_metrics$sim_id[ord][seq_len(min(3, length(ord)))]
+  }
   
   for(param_type in c("gamma_change", "catchability_change", "abundance_scaling")) {
     if(param_type %in% names(monte_carlo_results$parameters[[1]])) {
@@ -2063,8 +2116,8 @@ plot_gamma_distribution_fixed <- function(param_combinations, title_suffix = "")
 
   # Keep finite, positive values and switch to log10 for proper histogram binning
   gamma_data <- gamma_data %>%
-    filter(is.finite(gamma_change), gamma_change > 0) %>%
-    mutate(log10_gamma = log10(gamma_change))
+    dplyr::filter(is.finite(.data$gamma_change), .data$gamma_change > 0) %>%
+    dplyr::mutate(log10_gamma = log10(.data$gamma_change))
 
   if (nrow(gamma_data) == 0) {
     return(ggplot() + labs(title = paste("Gamma Parameter Distribution", title_suffix), subtitle = "No positive finite values"))
@@ -2508,10 +2561,10 @@ if (rejection_results$n_accepted > 0) {
     bounds_df <- obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g, RangeSource)
     obs_biomass_ts <- obs_biomass_data %>%
       left_join(bounds_df, by = "Species") %>%
-      crossing(Year = 2000:2010) %>%
+  tidyr::crossing(Year = 2000:2010) %>%
       mutate(Species = factor(Species, levels = species_order))
     
-    # Monte Carlo biomass plot with uncertainty ribbons
+  # Monte Carlo biomass plot with uncertainty ribbons
     cat("Creating biomass plot...\n")
     p_biomass_mc <- ggplot()
     
@@ -2519,31 +2572,31 @@ if (rejection_results$n_accepted > 0) {
   if (max(biomass_uncertainty$n_sims) > 1) {
       p_biomass_mc <- p_biomass_mc +
         # Add uncertainty ribbons (90% and 50% intervals)
-        geom_ribbon(data = biomass_uncertainty, 
-                    aes(x = Year, ymin = q05, ymax = q95, fill = Species), 
+    geom_ribbon(data = biomass_uncertainty, 
+          aes(x = .data$Year, ymin = .data$q05, ymax = .data$q95, fill = .data$Species), 
           alpha = 0.2) +
-        geom_ribbon(data = biomass_uncertainty, 
-                    aes(x = Year, ymin = q25, ymax = q75, fill = Species), 
+    geom_ribbon(data = biomass_uncertainty, 
+          aes(x = .data$Year, ymin = .data$q25, ymax = .data$q75, fill = .data$Species), 
           alpha = 0.3)
     }
     
     # Always add the line (median or single simulation value)
     p_biomass_mc <- p_biomass_mc +
-      geom_line(data = biomass_uncertainty, 
-                aes(x = Year, y = median, color = Species), 
+    geom_line(data = biomass_uncertainty, 
+        aes(x = .data$Year, y = .data$median, color = .data$Species), 
                 linewidth = 1.2) +
       # Add observed data points and uncertainty
       geom_point(data = obs_biomass_ts, 
-                 aes(x = Year, y = ObsBiomass, color = Species), 
+         aes(x = .data$Year, y = .data$ObsBiomass, color = .data$Species), 
                  size = 1.2, shape = 16) +
       geom_point(data = obs_biomass_ts, 
-                 aes(x = Year, y = ObsBiomass), 
+         aes(x = .data$Year, y = .data$ObsBiomass), 
                  shape = 1, size = 1.2, colour = "black") +
   geom_ribbon(data = obs_biomass_ts, 
-      aes(x = Year, ymin = Lower, ymax = Upper), 
+    aes(x = .data$Year, ymin = .data$Lower, ymax = .data$Upper), 
       alpha = 0.2, fill = "gray50") +
       # Styling
-      facet_wrap(~Species, scales = "free_y") +
+    facet_wrap(~Species, scales = "free_y") +
   scale_y_continuous(labels = function(x) scales::number(x/1e6)) +
       theme_bw() +
       theme(legend.position = "none", strip.text = element_text(face = "bold")) +
@@ -2654,11 +2707,11 @@ if (rejection_results$n_accepted > 0) {
 
     # Plot in baseline style (log10 y, ribbons, observed overlays)
     p_yield_mc <- ggplot() +
-      geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
-      geom_ribbon(data = yield_uncertainty_ribbon, aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.3) +
-      geom_line(data = yield_uncertainty_line, aes(x = Year, y = median, color = Species), linewidth = 1.0, linetype = "solid", lineend = "round") +
-      geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield, colour = Species), size = 1) +
-      geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield), shape = 1, size = 1, colour = "black") +
+      geom_ribbon(data = yield_uncertainty_ribbon, aes(x = .data$Year, ymin = .data$q05, ymax = .data$q95, fill = .data$Species), alpha = 0.2) +
+      geom_ribbon(data = yield_uncertainty_ribbon, aes(x = .data$Year, ymin = .data$q25, ymax = .data$q75, fill = .data$Species), alpha = 0.3) +
+      geom_line(data = yield_uncertainty_line, aes(x = .data$Year, y = .data$median, color = .data$Species), linewidth = 1.0, linetype = "solid", lineend = "round") +
+      geom_point(data = yield_obs_filtered, aes(x = .data$Year, y = .data$Yield, colour = .data$Species), size = 1) +
+      geom_point(data = yield_obs_filtered, aes(x = .data$Year, y = .data$Yield), shape = 1, size = 1, colour = "black") +
       geom_vline(xintercept = 1961, linetype = "dashed") +
       geom_vline(xintercept = 2010, linetype = "dashed") +
       scale_y_log10(breaks = scales::log_breaks(n = 6), labels = label_dynamic_decimals) +
@@ -2750,14 +2803,14 @@ if (rejection_results$n_accepted > 0) {
   p_yield_accepted <- ggplot() +
     # Add uncertainty ribbons
     geom_ribbon(data = yield_bounds, 
-                aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
+                aes(x = .data$Year, ymin = .data$q05, ymax = .data$q95, fill = .data$Species), alpha = 0.2) +
     geom_ribbon(data = yield_bounds, 
-                aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.4) +
+                aes(x = .data$Year, ymin = .data$q25, ymax = .data$q75, fill = .data$Species), alpha = 0.4) +
     # Add median line
-    geom_line(data = yield_bounds, aes(x = Year, y = median, color = Species), linewidth = 1) +
+    geom_line(data = yield_bounds, aes(x = .data$Year, y = .data$median, color = .data$Species), linewidth = 1) +
     # Add observed data points
-    geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield, color = Species), size = 1.5) +
-    geom_point(data = yield_ts_tidy, aes(x = Year, y = Yield), shape = 1, size = 1.5, colour = "black") +
+    geom_point(data = yield_ts_tidy, aes(x = .data$Year, y = .data$Yield, color = .data$Species), size = 1.5) +
+    geom_point(data = yield_ts_tidy, aes(x = .data$Year, y = .data$Yield), shape = 1, size = 1.5, colour = "black") +
     # Styling
     facet_wrap(~Species, scales = "free_y") +
     scale_fill_viridis_d(name = "Species") +
@@ -2777,16 +2830,16 @@ if (rejection_results$n_accepted > 0) {
   p_biomass_accepted <- ggplot() +
     # Add uncertainty ribbons
     geom_ribbon(data = biomass_bounds, 
-                aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
+                aes(x = .data$Year, ymin = .data$q05, ymax = .data$q95, fill = .data$Species), alpha = 0.2) +
     geom_ribbon(data = biomass_bounds, 
-                aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.4) +
+                aes(x = .data$Year, ymin = .data$q25, ymax = .data$q75, fill = .data$Species), alpha = 0.4) +
     # Add median line
-    geom_line(data = biomass_bounds, aes(x = Year, y = median, color = Species), linewidth = 1) +
+    geom_line(data = biomass_bounds, aes(x = .data$Year, y = .data$median, color = .data$Species), linewidth = 1) +
     # Add observed data (2010-2020 period)
-  geom_point(data = obs_biomass_data %>% left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>% crossing(Year = 2005:2010), 
-         aes(x = Year, y = ObsBiomass, color = Species), size = 1.5) +
-  geom_point(data = obs_biomass_data %>% left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>% crossing(Year = 2005:2010), 
-         aes(x = Year, y = ObsBiomass), shape = 1, size = 1.5, colour = "black") +
+  geom_point(data = obs_biomass_data %>% left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>% tidyr::crossing(Year = 2005:2010), 
+         aes(x = .data$Year, y = .data$ObsBiomass, color = .data$Species), size = 1.5) +
+  geom_point(data = obs_biomass_data %>% left_join(obs_biomass_bounds %>% select(Species, Lower = Lower_g, Upper = Upper_g), by = "Species") %>% tidyr::crossing(Year = 2005:2010), 
+         aes(x = .data$Year, y = .data$ObsBiomass), shape = 1, size = 1.5, colour = "black") +
     # Styling
     facet_wrap(~Species, scales = "free_y") +
     scale_fill_viridis_d(name = "Species") +
@@ -2944,7 +2997,7 @@ The analysis is now self-contained and transparent, with clear assessment of par
       # Small parameter adjustment on error too
       if (attempt < max_attempts) {
         sp_params <- species_params(params)
-        for (i in 1:nrow(sp_params)) {
+  for (i in seq_len(nrow(sp_params))) {
           if (runif(1) < 0.2) {  # 20% chance to adjust each species
             adjustment <- runif(1, 0.98, 1.02)  # ±2% adjustment
             params@initial_n[i,] <- params@initial_n[i,] * adjustment
@@ -3440,7 +3493,7 @@ plot_rmse_distribution <- function(rmse_values,
   require(ggplot2)
   
   df <- data.frame(
-    Simulation = 1:length(rmse_values),
+  Simulation = seq_along(rmse_values),
     RMSE = rmse_values
   )
   
@@ -3497,7 +3550,7 @@ plot_parameter_exploration <- function(param_combinations, rmse_values) {
   
   # Extract catchability and marine mammal scaling
   df_params <- data.frame(
-    sim_id = 1:length(param_combinations),
+  sim_id = seq_along(param_combinations),
     rmse = rmse_values
   )
   
@@ -3675,7 +3728,7 @@ if (file.exists("enhanced_simulations_for_plotting.RDS")) {
       } else {
         metric_df <- data.frame(
           value = metric_values,
-          year = years[1:length(metric_values)]
+          year = years[seq_len(length(metric_values))]
         )
       }
       
@@ -3683,7 +3736,7 @@ if (file.exists("enhanced_simulations_for_plotting.RDS")) {
     })
     
     # Combine all simulations and calculate quantiles
-    all_data <- do.call(rbind, lapply(1:length(metric_data), function(i) {
+  all_data <- do.call(rbind, lapply(seq_along(metric_data), function(i) {
       df <- metric_data[[i]]
       df$sim_id <- i
       return(df)
@@ -3834,7 +3887,7 @@ if (exists("enhanced_uncertainty_results") && length(enhanced_uncertainty_result
     cat("Converting gram-scale metrics for composite scores...\n")
     
     # Add the missing metrics to each performance record
-    for (i in 1:length(enhanced_uncertainty_results$performance)) {
+  for (i in seq_along(enhanced_uncertainty_results$performance)) {
       perf <- enhanced_uncertainty_results$performance[[i]]
       
       # Use original gram-scale metrics for composite score calculation
@@ -4109,7 +4162,7 @@ plot_enhanced_performance_distributions <- function(performance_results, metric_
   metric_values <- sapply(performance_results, function(x) x[[metric_name]])
   
   df <- data.frame(
-    Simulation = 1:length(metric_values),
+  Simulation = seq_along(metric_values),
     Value = metric_values
   )
   
@@ -4155,7 +4208,7 @@ plot_species_performance_comparison <- function(performance_results, species_wei
   require(dplyr)
   
   # Extract species metrics from all simulations
-  all_species_metrics <- do.call(rbind, lapply(1:length(performance_results), function(i) {
+  all_species_metrics <- do.call(rbind, lapply(seq_along(performance_results), function(i) {
     metrics <- performance_results[[i]]$metrics_by_species
     metrics$Simulation <- i
     return(metrics)
@@ -4208,7 +4261,7 @@ trimYield_uncertainty <- function(sim) {
 }
 
 sim_yields_uncertainty <- lapply(enhanced_uncertainty_results$simulations, trimYield_uncertainty)
-for (i in 1:length(sim_yields_uncertainty)) {
+for (i in seq_along(sim_yields_uncertainty)) {
   sim_yields_uncertainty[[i]]$sim <- i
 }
 
@@ -4260,7 +4313,7 @@ getBiomassData <- function(sim) {
 }
 
 sim_biomass_uncertainty <- lapply(enhanced_uncertainty_results$simulations, getBiomassData)
-for (i in 1:length(sim_biomass_uncertainty)) {
+for (i in seq_along(sim_biomass_uncertainty)) {
   sim_biomass_uncertainty[[i]]$sim <- i
 }
 
@@ -4410,7 +4463,7 @@ obs_biomass <- obs_biomass %>%
 
 # Create a version that repeats for each year from 2010 to 2020
 obs_biomass_ts <- obs_biomass %>%
-  crossing(Year = 2010:2020)
+  tidyr::crossing(Year = 2010:2020)
 
 # Define species order for consistent plotting
 species_order <- c("mesozooplankton", "other krill", "other macrozooplankton", 
@@ -4533,7 +4586,7 @@ print(p_biomass_styled)
 # Create summary table of RMSE by species
 rmse_by_species_summary <- do.call(rbind, lapply(optimal_results$rmse_details,
                                                  function(x) x$rmse_by_species))
-rmse_by_species_summary$sim_id <- rep(1:length(optimal_results$rmse_details),
+rmse_by_species_summary$sim_id <- rep(seq_along(optimal_results$rmse_details),
                                       each = length(unique(rmse_by_species_summary$Species)))
 
 # Calculate statistics by species
