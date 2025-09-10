@@ -4099,15 +4099,24 @@ apply_param_vector <- function(p_obj, par_vec){
 }
 
 # Objective: mean squared error of log10(1 + yield_tonnes) across species & years
-steady_screen_enable <- TRUE          # run steady() before projection
-steady_tmax_opt <- 250                # steady() t_max
-spinup_screen_enable <- TRUE          # run spin-up stability test
-spinup_years_opt <- 120               # years of spin-up prior to evaluation
-stability_window <- 5                 # last N years for stability check
-stability_rel_change_max <- 0.6       # max allowed relative change between preceding and last window
-extinction_threshold <- 1e-6          # absolute biomass (grams) threshold flagging extinction risk
-protect_non_fished <- TRUE            # penalize if non-fished species crash
+steady_screen_enable <- TRUE            # run steady() pre screen
+steady_tmax_opt <- 250                  # steady() t_max
+spinup_screen_enable <- TRUE            # perform unfished spin-up
+spinup_years_opt <- 118                 # unfished spin-up years (historical warm-up)
+stability_window <- 5                   # years for stability calc (same as MC style short window)
+stability_rel_change_max <- 0.3         # stricter stability (e.g., 30% change) can adjust
+stability_cv_max <- 0.35                # coefficient of variation threshold over window
+extinction_threshold <- 1e-6            # biomass extinction threshold (grams)
+protect_non_fished <- TRUE              # penalize non-fished crashes
 non_fished_species <- setdiff(species_params(base_params_opt)$species, species_target)
+
+# Optional: load constant climate forcing arrays (not directly injected here without full interface context)
+if (!exists("const_n_pp") && file.exists("constant_array_n_pp_1841.RDS")) {
+  const_n_pp <- try(readRDS("constant_array_n_pp_1841.RDS"), silent=TRUE)
+}
+if (!exists("const_temp") && file.exists("constant_array_temp_1841.RDS")) {
+  const_temp <- try(readRDS("constant_array_temp_1841.RDS"), silent=TRUE)
+}
 
 objective_yield <- function(par_vec){
   p_mod <- try(apply_param_vector(base_params_opt, par_vec), silent=TRUE)
@@ -4119,9 +4128,10 @@ objective_yield <- function(par_vec){
     if (inherits(p_mod, "try-error") || is.null(p_mod)) return(5e11)
   }
 
-  # 2. Spin-up stability screen
+  # 2. Unfished spin-up stability screen (effort=0) using climate forcing only
+  spin_final_n <- NULL
   if (spinup_screen_enable) {
-    spin_sim <- try(project(p_mod, effort = combined_effort_array, t_start = 1841, t_max = spinup_years_opt), silent=TRUE)
+    spin_sim <- try(project(p_mod, effort = 0, t_start = 1841, t_max = spinup_years_opt), silent=TRUE)
     if (inherits(spin_sim, "try-error") || is.null(spin_sim)) return(4e11)
     bm_spin <- try(getBiomass(spin_sim), silent=TRUE)
     if (inherits(bm_spin, "try-error") || is.null(bm_spin)) return(4e11)
@@ -4129,26 +4139,33 @@ objective_yield <- function(par_vec){
     if (length(yrs_spin) < (2*stability_window+1)) return(3e11)
     last_idx <- tail(seq_along(yrs_spin), stability_window)
     prev_idx <- (last_idx[1]-stability_window):(last_idx[1]-1)
-    bm_last <- colMeans(bm_spin[last_idx,,drop=FALSE])
-    bm_prev <- colMeans(bm_spin[prev_idx,,drop=FALSE])
-    rel_change <- abs(bm_last - bm_prev) / pmax(bm_prev, 1e-12)
+    bm_last_mat <- bm_spin[last_idx,,drop=FALSE]
+    bm_prev_mat <- bm_spin[prev_idx,,drop=FALSE]
+    bm_last_mean <- colMeans(bm_last_mat)
+    bm_prev_mean <- colMeans(bm_prev_mat)
+    rel_change <- abs(bm_last_mean - bm_prev_mean) / pmax(bm_prev_mean, 1e-12)
+    # CV over last window
+    bm_last_sd <- apply(bm_last_mat, 2, sd, na.rm=TRUE)
+    bm_last_cv <- bm_last_sd / pmax(bm_last_mean, 1e-12)
     if (any(is.nan(rel_change))) return(3e11)
     if (max(rel_change, na.rm=TRUE) > stability_rel_change_max) return(2e11)
+    if (max(bm_last_cv, na.rm=TRUE) > stability_cv_max) return(1.9e11)
     # Extinction / crash check
-    if (any(bm_last < extinction_threshold, na.rm=TRUE)) {
-      # If only fished species (target) drop very low maybe acceptable; penalize if protected or non-fished species crash
-      if (!protect_non_fished) return(1e11) else {
-        nf_mask <- names(bm_last) %in% non_fished_species
-        if (any(bm_last[nf_mask] < extinction_threshold, na.rm=TRUE)) return(2.5e11)
-      }
+    if (any(bm_last_mean < extinction_threshold, na.rm=TRUE)) {
+      nf_mask <- names(bm_last_mean) %in% non_fished_species
+      if (!protect_non_fished || any(bm_last_mean[nf_mask] < extinction_threshold, na.rm=TRUE)) return(2.5e11)
     }
-  } else {
-    spinup_years_opt <- 0
+    # capture terminal state for main evaluation
+    spin_final_n <- spin_sim@n[spinup_years_opt,,]
   }
 
-  # 3. Main projection for evaluation (continue from 1841; already spin-up may overlap, but acceptable for consistency)
+  # 3. Main projection for evaluation starting from spin-up terminal state (with fishing effort)
   sim_years <- max(match_years) - 1841 + 1
-  sim <- try(project(p_mod, effort = combined_effort_array, t_start = 1841, t_max = sim_years), silent=TRUE)
+  if (!is.null(spin_final_n)) {
+    sim <- try(project(p_mod, effort = combined_effort_array, initial_n = spin_final_n, t_start = 1841, t_max = sim_years), silent=TRUE)
+  } else {
+    sim <- try(project(p_mod, effort = combined_effort_array, t_start = 1841, t_max = sim_years), silent=TRUE)
+  }
   if (inherits(sim, "try-error") || is.null(sim)) return(1e11)
   ymat <- try(getYield(sim), silent=TRUE)
   if (inherits(ymat, "try-error")) return(1e10)
