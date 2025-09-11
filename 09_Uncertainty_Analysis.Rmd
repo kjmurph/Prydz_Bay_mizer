@@ -320,7 +320,8 @@ precheck_parameters <- function(p,
 run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, gamma_sd,
                                    all_species_abundance, species_to_vary,
                                    effort_scen, enhanced_steady_tol, enhanced_steady_t_max,
-                                   spinup_years, t_start, sim_years, preserve_erepro, max_erepro,
+                                   spinup_years, spinup_cycles, spinup_early_exit, spinup_min_cycles,
+                                   t_start, sim_years, preserve_erepro, max_erepro,
                                    # Bias means on log scale to favor increases (defaults ~ +20%)
                                    catchability_bias_mean_log = log(1.2),
                                    abundance_bias_mean_log    = log(1.2),
@@ -471,33 +472,44 @@ run_single_enhanced_sim <- function(i, params, catchability_sd, abundance_sd, ga
       }
     }
     
-    # Step 5: Run unfished spinup to test biomass stability
-    sim_spinup <- project(rand_params, 
-                         t_start = t_start, 
-                         t_max = spinup_years,
-                         effort = 0)  # No fishing during spinup
-    
-    # Step 6: Test biomass stability over spinup period (CV + trend)
-  stab <- check_biomass_stability_enhanced(
-      sim_spinup,
-      tolerance = stability_cv_threshold,
-      check_years = stability_check_years_tail,
-      trend_first_years = stability_trend_first_years,
-      trend_rel_slope_max = stability_trend_rel_slope_max,
-      trend_pval = stability_trend_pval_max,
-      min_mean_biomass = stability_min_mean_biomass,
-      verbose = verbose,
-      sim_id = i
-    )
-
-    if (!isTRUE(stab$stable)) {
-      fail_sp <- c(names(stab$fail_cv)[stab$fail_cv], names(stab$fail_trend)[stab$fail_trend])
-      fail_sp <- unique(fail_sp)
-      return(list(success = FALSE, error = paste("stability test failed:", paste(fail_sp, collapse = ", "))))
+    # Step 5: Run unfished spinup cycles to improve stability
+    sim_spinup <- NULL
+    final_initial_n <- NULL
+    stab <- NULL
+    for (cyc in seq_len(spinup_cycles)) {
+      sim_spinup <- project(rand_params,
+                            t_start = t_start,
+                            t_max = spinup_years,
+                            effort = 0,
+                            initial_n = if (!is.null(final_initial_n)) final_initial_n else NULL)
+      final_initial_n <- sim_spinup@n[spinup_years,,]
+      assess_now <- (cyc == spinup_cycles) || (spinup_early_exit && cyc >= spinup_min_cycles)
+      if (assess_now) {
+        stab <- check_biomass_stability_enhanced(
+          sim_spinup,
+          tolerance = stability_cv_threshold,
+          check_years = stability_check_years_tail,
+          trend_first_years = stability_trend_first_years,
+          trend_rel_slope_max = stability_trend_rel_slope_max,
+          trend_pval = stability_trend_pval_max,
+          min_mean_biomass = stability_min_mean_biomass,
+          verbose = verbose,
+          sim_id = i
+        )
+        if (!isTRUE(stab$stable)) {
+          # If final cycle, hard fail; else continue to allow further stabilisation attempts
+          if (cyc == spinup_cycles || !spinup_early_exit) {
+            fail_sp <- c(names(stab$fail_cv)[stab$fail_cv], names(stab$fail_trend)[stab$fail_trend])
+            fail_sp <- unique(fail_sp)
+            return(list(success = FALSE, error = paste("stability test failed (cycle", cyc, "):", paste(fail_sp, collapse = ", "))))
+          }
+        } else if (spinup_early_exit && cyc < spinup_cycles) {
+          if (verbose) cat("Sim", i, "early spin-up exit at cycle", cyc, "of", spinup_cycles, "\n")
+          break
+        }
+      }
     }
-    
-    # Step 7: Run main simulation using final spinup state as initial condition
-    final_initial_n <- sim_spinup@n[spinup_years,,]
+    # Step 6: Run main simulation using final spinup state as initial condition
     
     sim <- project(rand_params,
                   initial_n = final_initial_n,
@@ -842,6 +854,9 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
                                                            enhanced_steady_tol = 0.025,
                                                            enhanced_steady_t_max = 750,
                                                            spinup_years = 118,
+                                                           spinup_cycles = 1,
+                                                           spinup_early_exit = TRUE,
+                                                           spinup_min_cycles = 1,
                                                            t_start = 1841,
                                                            sim_years = 170,
                                                            preserve_erepro = TRUE,
@@ -871,7 +886,7 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
 
   # Export local arguments (from this function environment)
   parallel::clusterExport(cl, c(
-  "params", "effort_scen", "verbose", "precheck_parameters"
+  "params", "effort_scen", "verbose", "precheck_parameters", "spinup_cycles", "spinup_early_exit", "spinup_min_cycles"
   ), envir = environment())
   # Export helpers and settings (typically defined in global env/chunks)
   parallel::clusterExport(cl, c(
@@ -902,10 +917,11 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
   .export = c("run_single_enhanced_sim","check_biomass_stability_enhanced","simple_steady_state","precheck_parameters"),
       .errorhandling = "pass"
     ) %dopar% {
-      run_single_enhanced_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
-                              all_species_abundance, species_to_vary, effort_scen,
-                enhanced_steady_tol, enhanced_steady_t_max,
-                spinup_years, t_start, sim_years, preserve_erepro, max_erepro,
+  run_single_enhanced_sim(i, params, catchability_sd, abundance_sd, gamma_sd,
+          all_species_abundance, species_to_vary, effort_scen,
+        enhanced_steady_tol, enhanced_steady_t_max,
+        spinup_years, spinup_cycles, spinup_early_exit, spinup_min_cycles,
+        t_start, sim_years, preserve_erepro, max_erepro,
                 verbose = verbose)
     }
 
@@ -952,7 +968,7 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
 ```{r stability-settings}
 # Stability/QC settings (tunable)
 # CV threshold for biomass stability during unfished spinup (fraction)
-stability_cv_threshold <- 0.15        # e.g., 8% CV
+stability_cv_threshold <- 0.1        # tightened CV threshold (8%)
 
 # Years used for tail stability CV check during spinup
 stability_check_years_tail <- 40      # use last 40 years of spinup (or fewer if spinup shorter)
@@ -962,7 +978,7 @@ stability_trend_first_years <- 50     # years from start of spinup to test trend
 
 # Max allowed relative slope per year during the initial spinup period
 # Example: 0.005 = 0.5% of mean biomass per year
-stability_trend_rel_slope_max <- 0.025
+stability_trend_rel_slope_max <- 0.01   # tighter allowed relative slope (1% per year)
 
 # Significance level for trend detection (linear model p-value on slope)
 stability_trend_pval_max <- 0.05
@@ -3462,9 +3478,9 @@ if (rejection_results$n_accepted>0){
 cat("=== FULL COMBINED MC SECTION COMPLETE ===\n")
 ```
 
-## Rerun Monte Carlo From Selected Seed Parameters
+## Follow-up Monte Carlo Refinement From Seed Parameters
 
-This chunk loads the latest chosen seed parameter set (mean / median / random), applies it to the baseline parameter object, and launches a new (smaller) enhanced uncertainty run to refine around accepted region.
+This follow-up analysis uses the selected seed parameter set (mean / median / random) after the full combined Monte Carlo assessment to refine around an accepted region with stricter stability criteria and optional multi-cycle unfished spin-up to further damp residual transients before the historical fishing period.
 
 ```{r combined-mc-rerun-from-seed, echo=TRUE, message=FALSE, warning=FALSE}
 seed_choice <- "mean"   # options: "mean", "median", "random"
@@ -3507,9 +3523,10 @@ block_size_seed <- 5           # save every 20 sims
 catchability_sd_seed <- 1     # narrower than broad exploratory pass
 abundance_sd_seed <- 4        # moderate spread
 gamma_sd_seed <- 2            # moderate spread
-enhanced_steady_tol_seed <- 0.002
-enhanced_steady_tmax_seed <- 1000
-spinup_years_seed <- 118
+enhanced_steady_tol_seed <- 0.002         # can tighten further if needed
+enhanced_steady_tmax_seed <- 1200         # allow more iterations for difficult cases
+spinup_years_seed <- 118                  # single cycle length (unfished)
+spinup_cycles_seed <- 3                   # NEW: number of sequential spin-up cycles
 sim_years_seed <- 170
 preserve_erepro_seed <- TRUE
 max_erepro_seed <- 1
@@ -3527,6 +3544,9 @@ dir.create(out_seed_dir, showWarnings=FALSE, recursive=TRUE)
 checkpoint_path <- file.path(out_seed_dir, "seed_rerun_latest.rds")
 t_start_seed <- Sys.time()
 
+spinup_early_exit_seed <- TRUE          # allow early termination if stable before final cycle
+spinup_min_cycles_seed <- 2             # require at least this many cycles before early exit
+
 rerun_results <- run_enhanced_uncertainty_sims_parallel_blocked(
   params = params_seed,
   total_sims = total_sims_seed,
@@ -3540,6 +3560,9 @@ rerun_results <- run_enhanced_uncertainty_sims_parallel_blocked(
   enhanced_steady_tol = enhanced_steady_tol_seed,
   enhanced_steady_t_max = enhanced_steady_tmax_seed,
   spinup_years = spinup_years_seed,
+  spinup_cycles = spinup_cycles_seed,
+  spinup_early_exit = spinup_early_exit_seed,
+  spinup_min_cycles = spinup_min_cycles_seed,
   t_start = 1841,
   sim_years = sim_years_seed,
   preserve_erepro = preserve_erepro_seed,
@@ -3560,6 +3583,9 @@ rerun_results$settings <- list(
   enhanced_steady_tol = enhanced_steady_tol_seed,
   enhanced_steady_t_max = enhanced_steady_tmax_seed,
   spinup_years = spinup_years_seed,
+  spinup_cycles = spinup_cycles_seed,
+  spinup_early_exit = spinup_early_exit_seed,
+  spinup_min_cycles = spinup_min_cycles_seed,
   sim_years = sim_years_seed,
   preserve_erepro = preserve_erepro_seed,
   max_erepro = max_erepro_seed
@@ -4362,14 +4388,139 @@ ggsave(
   } else {
     cat("No accepted parameters to export in this rerun.\n")
   }
-  }
 }
+
 cat("=== FULL COMBINED MC SECTION COMPLETE ===\n")
 ```
 
 
+```{r rerun-combined-mc-rerun-from-seed, echo=TRUE, message=FALSE, warning=FALSE}
+seed_choice <- "mean"   # options: "mean", "median", "random"
+seed_prefix_map <- c(mean="seed_params_mean_", median="seed_params_median_", random="seed_params_random_draw_")
+seed_prefix <- seed_prefix_map[[seed_choice]]
+seed_dir <- file.path("Output_large_files","monte_carlo_results","combined_simulation_results")
+seed_files <- list.files(seed_dir, pattern=paste0("^", seed_prefix, ".*\\.csv$"), full.names=TRUE)
+if (!length(seed_files)) stop("No seed files found for prefix ", seed_prefix)
+seed_file <- seed_files[order(file.info(seed_files)$mtime, decreasing=TRUE)][1]
+cat("Using seed file:", basename(seed_file), "\n")
+seed_params_df <- read.csv(seed_file, stringsAsFactors=FALSE)
 
+if (!exists("params_sel_adj")) {
+  if (file.exists("params_sel_adj.rds")) {
+    params_sel_adj <- readRDS("params_sel_adj.rds")
+  } else stop("Baseline params object 'params_sel_adj' not found.")
+}
 
+params_seed <- params_sel_adj
+sp_params <- species_params(params_seed)
+gp <- gear_params(params_seed)
+for (i in seq_len(nrow(seed_params_df))){
+  sp <- seed_params_df$species[i]
+  idx <- which(sp_params$species==sp)
+  if (length(idx)==1){
+    gmult <- as.numeric(seed_params_df$gamma_change[i]); if (is.finite(gmult)) sp_params$gamma[idx] <- sp_params$gamma[idx]*gmult
+    abund <- as.numeric(seed_params_df$abundance_scaling[i]); if (is.finite(abund)) params_seed@initial_n[idx,] <- params_seed@initial_n[idx,]*abund
+  }
+  gp_idx <- which(gp$species==sp)
+  if (length(gp_idx)==1){ cmult <- as.numeric(seed_params_df$catchability_change[i]); if (is.finite(cmult)) gp$catchability[gp_idx] <- pmin(1, pmax(0, gp$catchability[gp_idx]*cmult)) }
+}
+species_params(params_seed) <- sp_params; gear_params(params_seed) <- gp
+
+cat("Launching seed-based enhanced MC rerun with checkpointing...\n")
+
+# --- Rerun settings (tuned for focused refinement) ---
+set.seed(456)  # reproducibility for this rerun phase
+total_sims_seed <- 1000          # total simulations for seed-focused exploration
+block_size_seed <- 5           # save every 20 sims
+catchability_sd_seed <- 1     # narrower than broad exploratory pass
+abundance_sd_seed <- 4        # moderate spread
+gamma_sd_seed <- 2            # moderate spread
+enhanced_steady_tol_seed <- 0.002         # can tighten further if needed
+enhanced_steady_tmax_seed <- 1200         # allow more iterations for difficult cases
+spinup_years_seed <- 118                  # single cycle length (unfished)
+spinup_cycles_seed <- 3                   # NEW: number of sequential spin-up cycles
+sim_years_seed <- 170
+preserve_erepro_seed <- TRUE
+max_erepro_seed <- 1
+
+# Allow quick-test override
+if (exists("quick_test_mode") && isTRUE(quick_test_mode)) {
+  total_sims_seed <- 40
+  block_size_seed <- 10
+  cat("Quick-test mode: total_sims_seed=", total_sims_seed, ", block_size_seed=", block_size_seed, "\n", sep="")
+}
+
+out_seed_dir <- file.path(seed_dir, paste0("rerun_seed_", seed_choice))
+dir.create(out_seed_dir, showWarnings=FALSE, recursive=TRUE)
+
+checkpoint_path <- file.path(out_seed_dir, "seed_rerun_latest.rds")
+t_start_seed <- Sys.time()
+
+spinup_early_exit_seed <- TRUE          # allow early termination if stable before final cycle
+spinup_min_cycles_seed <- 2             # require at least this many cycles before early exit
+
+rerun_results <- run_enhanced_uncertainty_sims_parallel_blocked(
+  params = params_seed,
+  total_sims = total_sims_seed,
+  block_size = block_size_seed,
+  catchability_sd = catchability_sd_seed,
+  abundance_sd = abundance_sd_seed,
+  gamma_sd = gamma_sd_seed,
+  all_species_abundance = TRUE,
+  species_to_vary = NULL,
+  effort_scen = combined_effort_array,
+  enhanced_steady_tol = enhanced_steady_tol_seed,
+  enhanced_steady_t_max = enhanced_steady_tmax_seed,
+  spinup_years = spinup_years_seed,
+  spinup_cycles = spinup_cycles_seed,
+  spinup_early_exit = spinup_early_exit_seed,
+  spinup_min_cycles = spinup_min_cycles_seed,
+  t_start = 1841,
+  sim_years = sim_years_seed,
+  preserve_erepro = preserve_erepro_seed,
+  max_erepro = max_erepro_seed,
+  n_cores = max(1, parallel::detectCores() - 1),
+  save_path = checkpoint_path,
+  verbose = TRUE
+)
+
+# Attach settings provenance
+rerun_results$settings <- list(
+  seed_choice = seed_choice,
+  total_sims = total_sims_seed,
+  block_size = block_size_seed,
+  catchability_sd = catchability_sd_seed,
+  abundance_sd = abundance_sd_seed,
+  gamma_sd = gamma_sd_seed,
+  enhanced_steady_tol = enhanced_steady_tol_seed,
+  enhanced_steady_t_max = enhanced_steady_tmax_seed,
+  spinup_years = spinup_years_seed,
+  spinup_cycles = spinup_cycles_seed,
+  spinup_early_exit = spinup_early_exit_seed,
+  spinup_min_cycles = spinup_min_cycles_seed,
+  sim_years = sim_years_seed,
+  preserve_erepro = preserve_erepro_seed,
+  max_erepro = max_erepro_seed
+)
+
+ts_stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+descriptive_path <- file.path(out_seed_dir, paste0(
+  "seed_rerun_results_", seed_choice,
+  "_nsims_", total_sims_seed,
+  "_SD_", catchability_sd_seed, "_", abundance_sd_seed, "_", gamma_sd_seed,
+  "_tol_", enhanced_steady_tol_seed,
+  "_tmax_", enhanced_steady_tmax_seed,
+  "_", ts_stamp, ".rds"))
+saveRDS(rerun_results, descriptive_path)
+saveRDS(rerun_results, checkpoint_path)  # final checkpoint overwrite
+
+cat("Seed rerun success: ", rerun_results$n_successful, "/", rerun_results$n_attempts,
+    " (", round(100*rerun_results$n_successful/ rerun_results$n_attempts,1), "%)\n", sep="")
+cat("Saved checkpoint: ", checkpoint_path, "\n", sep="")
+cat("Saved descriptive file: ", descriptive_path, "\n", sep="")
+t_end_seed <- Sys.time(); elapsed_seed <- as.numeric(difftime(t_end_seed, t_start_seed, units="secs"))
+cat("Seed rerun runtime: ", round(elapsed_seed,1), " s (", round(elapsed_seed/60,2), " min)\n", sep="")
+```
 
 
 
@@ -4423,13 +4574,25 @@ if (!exists("combined_effort_array")) {
 }
 
 base_params_opt <- params_sel_adj
+baseline_species_params <- species_params(base_params_opt)
+baseline_gamma_all <- setNames(baseline_species_params$gamma, baseline_species_params$species)
 
-# Target species: those with any positive observed yield
-species_target <- yield_ts_tidy %>% dplyr::filter(Yield > 0) %>% dplyr::pull(Species) %>% unique()
-species_target <- species_target[species_target %in% species_params(base_params_opt)$species]
-stopifnot(length(species_target) > 0)
-ns <- length(species_target)
-cat("Optimizing catchability + gamma for", ns, "species (2 *", ns, " parameters) with optional abundance scaling.\n")
+# Species sets
+all_species_full <- species_params(base_params_opt)$species              # all 19 species for gamma & abundance
+fished_species <- {
+  gp0 <- gear_params(base_params_opt); fs <- gp0$species[gp0$catchability > 0]
+  unique(fs[fs %in% all_species_full])
+}
+obs_yield_species <- yield_ts_tidy %>% dplyr::filter(Yield > 0) %>% dplyr::pull(Species) %>% unique()
+obs_yield_species <- obs_yield_species[obs_yield_species %in% all_species_full]
+
+stopifnot(length(all_species_full) > 0)
+stopifnot(length(fished_species) > 0)  # expect 9
+
+nf <- length(fished_species)  # catchability dimension
+na_full <- length(all_species_full)    # gamma & abundance dimension
+
+cat("Optimizing: catchability for", nf, "fished species; gamma + (optional) abundance for all", na_full, "species.\n")
 
 # Years to match (intersection of modeled period and observed yield years)
 years_obs <- sort(unique(yield_ts_tidy$Year))
@@ -4448,7 +4611,7 @@ if (include_abundance_scaling && !is.null(rerun_results) && length(rerun_results
   })
   abundance_df <- do.call(rbind, abundance_list)
   if (!is.null(abundance_df) && nrow(abundance_df)) {
-    abundance_info <- abundance_df %>% dplyr::filter(species %in% species_target) %>%
+  abundance_info <- abundance_df %>% dplyr::filter(species %in% all_species_full) %>%
       dplyr::group_by(species) %>%
       dplyr::summarise(q10 = quantile(abundance_scaling, 0.10, na.rm=TRUE),
                        q90 = quantile(abundance_scaling, 0.90, na.rm=TRUE),
@@ -4470,7 +4633,7 @@ if (include_abundance_scaling && is.null(abundance_info) && use_summary_seed && 
   } else {
     expand_frac <- if (exists("abundance_mean_expand")) abundance_mean_expand else 0.30
     abundance_info <- seed_mean_df %>%
-      dplyr::filter(species %in% species_target) %>%
+  dplyr::filter(species %in% all_species_full) %>%
       dplyr::transmute(species,
                        med = abundance_scaling,
                        q10 = pmax(abundance_scaling * (1 - expand_frac), 0.05),
@@ -4480,61 +4643,49 @@ if (include_abundance_scaling && is.null(abundance_info) && use_summary_seed && 
 }
 if (include_abundance_scaling && is.null(abundance_info)) {
   # Fallback neutral distribution
-  abundance_info <- data.frame(species = species_target, q10 = 0.5, q90 = 2, med = 1)
+  abundance_info <- data.frame(species = all_species_full, q10 = 0.5, q90 = 2, med = 1)
 }
 
 # Helper to apply parameter vector to a copy of params
 apply_param_vector <- function(p_obj, par_vec){
-  # Structure: catch (ns) + gamma (ns or 1) + [abundance (ns)]
-  base_len <- if (species_gamma) 2*ns else (ns + 1)
-  if (include_abundance_scaling) {
-    expected <- base_len + ns
-  } else expected <- base_len
+  # Structure: catch (nf) + gamma (all species) + [abundance (all species)]
+  base_len <- if (species_gamma) nf + na_full else nf + 1
+  expected <- if (include_abundance_scaling) base_len + na_full else base_len
   stopifnot(length(par_vec) == expected)
-  gp <- gear_params(p_obj)
-  sp <- species_params(p_obj)
-  # Extract segments
-  catch_logs <- par_vec[1:ns]
+  gp <- gear_params(p_obj); sp <- species_params(p_obj)
+  # Segments
+  catch_logs <- par_vec[1:nf]
   if (species_gamma) {
-    gamma_logs <- par_vec[(ns+1):(2*ns)]
-    offset <- 2*ns
+    gamma_logs <- par_vec[(nf+1):(nf+na_full)]
+    offset <- nf + na_full
   } else {
-    gamma_logs <- rep(par_vec[ns+1], ns)
-    offset <- ns + 1
+    gamma_logs <- rep(par_vec[nf+1], na_full)
+    offset <- nf + 1
   }
-  if (include_abundance_scaling) abundance_logs <- par_vec[(offset+1):(offset+ns)] else abundance_logs <- rep(0, ns)
-  catch_mult <- exp(catch_logs)
-  gamma_mult <- exp(gamma_logs)
-  abundance_mult <- exp(abundance_logs)
-  # Apply catchability & gamma
-  for (i in seq_len(ns)){
-    s <- species_target[i]
+  if (include_abundance_scaling) abundance_logs <- par_vec[(offset+1):(offset+na_full)] else abundance_logs <- rep(0, na_full)
+  catch_mult <- exp(catch_logs); gamma_mult <- exp(gamma_logs); abundance_mult <- exp(abundance_logs)
+  # Apply catchability to fished species only
+  for (i in seq_len(nf)) {
+    s <- fished_species[i]
     idx_g <- which(gp$species == s)
     if (length(idx_g)==1) gp$catchability[idx_g] <- pmin(1, pmax(1e-6, gp$catchability[idx_g] * catch_mult[i]))
-    idx_sp <- which(sp$species == s)
+  }
+  # Apply gamma to all species
+  for (i in seq_len(na_full)) {
+    s <- all_species_full[i]; idx_sp <- which(sp$species == s)
     if (length(idx_sp)==1 && "gamma" %in% colnames(sp)) sp$gamma[idx_sp] <- pmax(1e-6, sp$gamma[idx_sp] * gamma_mult[i])
   }
-  species_params(p_obj) <- sp
-  gear_params(p_obj) <- gp
-  # Apply abundance scaling (initial abundances) if available
+  species_params(p_obj) <- sp; gear_params(p_obj) <- gp
+  # Abundance scaling
   if (include_abundance_scaling) {
-    # Attempt to access initial numbers slot (robust to naming). Use try to avoid hard failure.
-    init_n <- NULL
-    init_ok <- FALSE
-    for (slot_name in c("initial_n", "initialN", "n0")) {
-      if (!init_ok) {
-        val <- try(slot(p_obj, slot_name), silent=TRUE)
-        if (!inherits(val, "try-error") && !is.null(val)) { init_n <- val; init_ok <- TRUE }
-      }
+    init_n <- NULL; init_ok <- FALSE
+    for (slot_name in c("initial_n","initialN","n0")) {
+      if (!init_ok) { val <- try(slot(p_obj, slot_name), silent=TRUE); if (!inherits(val,"try-error") && !is.null(val)) { init_n <- val; init_ok <- TRUE } }
     }
     if (init_ok && !is.null(init_n)) {
-      for (i in seq_len(ns)){
-        s <- species_target[i]
-        if (s %in% rownames(init_n)) {
-          init_n[s, ] <- init_n[s, ] * abundance_mult[i]
-        }
+      for (i in seq_len(na_full)) {
+        s <- all_species_full[i]; if (s %in% rownames(init_n)) init_n[s,] <- init_n[s,] * abundance_mult[i]
       }
-      # Try to assign back
       try({slot(p_obj, "initial_n") <- init_n}, silent=TRUE)
     }
   }
@@ -4551,7 +4702,7 @@ stability_rel_change_max <- 0.3         # stricter stability (e.g., 30% change) 
 stability_cv_max <- 0.35                # coefficient of variation threshold over window
 extinction_threshold <- 1e-6            # biomass extinction threshold (grams)
 protect_non_fished <- TRUE              # penalize non-fished crashes
-non_fished_species <- setdiff(species_params(base_params_opt)$species, species_target)
+non_fished_species <- setdiff(all_species_full, fished_species)
 
 # Optional: load constant climate forcing arrays (not directly injected here without full interface context)
 if (!exists("const_n_pp") && file.exists("constant_array_n_pp_1841.RDS")) {
@@ -4560,6 +4711,10 @@ if (!exists("const_n_pp") && file.exists("constant_array_n_pp_1841.RDS")) {
 if (!exists("const_temp") && file.exists("constant_array_temp_1841.RDS")) {
   const_temp <- try(readRDS("constant_array_temp_1841.RDS"), silent=TRUE)
 }
+
+gamma_unfished_max_dev <- 3.0    # allow up to 3x increase (or 1/3x decrease) before stronger penalty
+gamma_unfished_soft_dev <- 1.5   # soft threshold start (1.5x)
+gamma_unfished_penalty_scale <- 5  # scale multiplier for squared log deviation beyond soft band
 
 objective_yield <- function(par_vec){
   p_mod <- try(apply_param_vector(base_params_opt, par_vec), silent=TRUE)
@@ -4619,9 +4774,9 @@ objective_yield <- function(par_vec){
   pred_df <- reshape2::melt(ysub)
   colnames(pred_df) <- c("Year","Species","Yield")
   pred_df$Species <- as.character(pred_df$Species)
-  pred_df <- pred_df[pred_df$Species %in% species_target,]
+  pred_df <- pred_df[pred_df$Species %in% obs_yield_species,]
   if (!nrow(pred_df)) return(1e9)
-  obs_sub <- yield_ts_tidy %>% dplyr::filter(Year %in% match_years, Species %in% species_target)
+  obs_sub <- yield_ts_tidy %>% dplyr::filter(Year %in% match_years, Species %in% obs_yield_species)
   if (!nrow(obs_sub)) return(1e9)
   df_join <- dplyr::inner_join(obs_sub, pred_df, by=c("Year","Species"), suffix=c("_obs","_pred"))
   if (!nrow(df_join)) return(1e8)
@@ -4631,44 +4786,64 @@ objective_yield <- function(par_vec){
   mse <- mean(err)
   penalty_zero <- mean(obs_t > 0 & pred_t <= 1e-9) * 0.5
   penalty_high <- mean(pred_t > (50 * (obs_t + 1e-9))) * 0.2
+  # Extract gamma log segment based on layout: catch (nf) + gamma (na_full) + [abundance (na_full)]
   if (species_gamma){
-    gamma_logs <- if (include_abundance_scaling) par_vec[(ns+1):(2*ns)] else par_vec[(ns+1):(2*ns)]
+    gamma_logs <- par_vec[(nf+1):(nf+na_full)]
   } else {
-    gamma_logs <- if (include_abundance_scaling) par_vec[ns+1] else par_vec[ns+1]
+    gamma_logs <- par_vec[nf+1]  # single shared gamma log
   }
   penalty_gamma <- mean(gamma_logs^2) * 0.01
+  # Additional penalty: unfished species gamma drifting far from baseline
+  sp_mod <- species_params(p_mod)
+  current_gamma <- setNames(sp_mod$gamma, sp_mod$species)
+  unfished <- intersect(non_fished_species, names(current_gamma))
+  if (length(unfished)) {
+    base_g <- baseline_gamma_all[unfished]
+    cur_g <- current_gamma[unfished]
+    # log deviation
+    log_dev <- log(cur_g / base_g)
+    abs_dev <- abs(log_dev)
+    soft <- log(gamma_unfished_soft_dev)
+    hard <- log(gamma_unfished_max_dev)
+    # Portion beyond soft threshold (if any)
+    excess <- pmax(0, abs_dev - soft)
+    # Normalize by (hard - soft) to keep within scale, cap at 1
+    norm_excess <- pmin(1, excess / pmax(1e-9, (hard - soft)))
+    # Squared penalty emphasizing large drifts
+    penalty_unfished_gamma <- mean((norm_excess)^2) * gamma_unfished_penalty_scale
+    penalty_gamma <- penalty_gamma + penalty_unfished_gamma
+  }
   penalty_abund <- 0
   if (include_abundance_scaling) {
-    base_len <- if (species_gamma) 2*ns else (ns+1)
-    abund_logs <- par_vec[(base_len+1):(base_len+ns)]
+    # Recompute base lengths with new structure: catch (nf) + gamma (na_full)
+    base_len <- if (species_gamma) nf + na_full else (nf + 1)
+    abund_logs <- par_vec[(base_len+1):(base_len+na_full)]
     penalty_abund <- mean(abund_logs^2) * 0.005
   }
   mse + penalty_zero + penalty_high + penalty_gamma + penalty_abund
 }
 
 # Bounds
+  # Bounds: catchability (fished), gamma (all), abundance (all)
 if (species_gamma){
-  lower <- c(rep(log(0.05), ns), rep(log(0.2), ns))
-  upper <- c(rep(log(20),  ns), rep(log(5),  ns))
+  lower <- c(rep(log(0.05), nf), rep(log(0.2), na_full))
+  upper <- c(rep(log(20),  nf), rep(log(5),  na_full))
 } else {
-  lower <- c(rep(log(0.05), ns), log(0.2))
-  upper <- c(rep(log(20),  ns), log(5))
+  lower <- c(rep(log(0.05), nf), log(0.2))
+  upper <- c(rep(log(20),  nf), log(5))
 }
 if (include_abundance_scaling) {
-  # Add abundance bounds (log space) informed by rerun distributions
-  abund_lower <- numeric(ns); abund_upper <- numeric(ns)
-  for (i in seq_len(ns)){
-    s <- species_target[i]
+  abund_lower <- numeric(na_full); abund_upper <- numeric(na_full)
+  for (i in seq_len(na_full)){
+    s <- all_species_full[i]
     rowi <- abundance_info[abundance_info$species==s,]
     if (nrow(rowi)==1){
-      # expand slightly (+/-10%) to allow exploration
       lo <- rowi$q10 * 0.9; hi <- rowi$q90 * 1.1
       lo <- max(lo, 0.05); hi <- max(hi, lo*1.05)
     } else { lo <- 0.5; hi <- 2 }
     abund_lower[i] <- log(lo); abund_upper[i] <- log(hi)
   }
-  lower <- c(lower, abund_lower)
-  upper <- c(upper, abund_upper)
+  lower <- c(lower, abund_lower); upper <- c(upper, abund_upper)
 }
 
 cat("Parameter vector length:", length(lower), if (species_gamma) " (catch + gamma per species" else " (catch + 1 gamma", if (include_abundance_scaling) "+ abundance per species)" else ")", "\n", sep="")
@@ -4686,11 +4861,27 @@ de_ctrl <- DEoptim.control(parallelType = 0, strategy=2, reltol= if (quick_opt_t
                            itermax=iter_full, NP=NP_full, CR=0.9, F=0.8, trace=10)
 cat("DEoptim setup: itermax=", de_ctrl$itermax, ", NP=", de_ctrl$NP, ", reltol=", de_ctrl$reltol, "\n", sep="")
 
-# Serial run first (more stable). Enable parallel after proving objective stability if needed.
-cat("Launching DEoptim (serial)...\n")
-opt_res <- tryCatch({
-  DEoptim(fn = objective_yield, lower = lower, upper = upper, control = de_ctrl)
-}, error = function(e){ cat("Serial DEoptim failed: ", conditionMessage(e), "\n", sep=""); NULL })
+use_parallel_opt <- exists("use_parallel_opt") && isTRUE(use_parallel_opt)
+if (!exists("use_parallel_opt")) use_parallel_opt <- TRUE  # default on
+n_cores_opt <- if (exists("n_cores_opt")) n_cores_opt else max(1, parallel::detectCores()-1)
+cl <- NULL
+if (use_parallel_opt && n_cores_opt > 1){
+  cat("Initializing parallel cluster with", n_cores_opt, "workers...\n")
+  cl <- parallel::makeCluster(n_cores_opt)
+  on.exit(try(parallel::stopCluster(cl), silent=TRUE), add=TRUE)
+  parallel::clusterEvalQ(cl, { library(therMizer); library(mizer); library(dplyr); library(reshape2); library(tidyr) })
+  # Export needed symbols (objective_yield will re-use these from cluster environment)
+  export_syms <- c("objective_yield","base_params_opt","apply_param_vector","steady_screen_enable","steady_tmax_opt","spinup_screen_enable","spinup_years_opt","stability_window","stability_rel_change_max","stability_cv_max","extinction_threshold","protect_non_fished","non_fished_species","match_years","combined_effort_array","yield_ts_tidy","obs_yield_species","species_gamma","include_abundance_scaling","nf","na_full","baseline_gamma_all","gamma_unfished_max_dev","gamma_unfished_soft_dev","gamma_unfished_penalty_scale")
+  parallel::clusterExport(cl, export_syms, envir=environment())
+  de_ctrl$parallelType <- 2
+  de_ctrl$cluster <- cl
+  cat("Launching DEoptim (parallel mode)...\n")
+} else {
+  cat("Launching DEoptim (serial mode)...\n")
+}
+
+opt_res <- tryCatch({ DEoptim(fn = objective_yield, lower = lower, upper = upper, control = de_ctrl) },
+                    error = function(e){ cat("DEoptim failed: ", conditionMessage(e), "\n", sep=""); NULL })
 
 if (is.null(opt_res)) {
   cat("Optimization failed – aborting extraction.\n")
@@ -4702,20 +4893,19 @@ if (is.null(opt_res)) {
 # Split parameter vector
 if (exists("best_par")) {
   if (species_gamma){
-    best_catch_logs <- best_par[1:ns]
-    best_gamma_logs <- best_par[(ns+1):(2*ns)]
-    offset <- 2*ns
+    best_catch_logs <- best_par[1:nf]
+    best_gamma_logs <- best_par[(nf+1):(nf+na_full)]
+    offset <- nf + na_full
   } else {
-    best_catch_logs <- best_par[1:ns]
-    best_gamma_logs <- rep(best_par[ns+1], ns)
-    offset <- ns + 1
+    best_catch_logs <- best_par[1:nf]
+    best_gamma_logs <- rep(best_par[nf+1], na_full)
+    offset <- nf + 1
   }
   if (include_abundance_scaling){
-    best_abundance_logs <- best_par[(offset+1):(offset+ns)]
+    best_abundance_logs <- best_par[(offset+1):(offset+na_full)]
     best_abundance_mult <- exp(best_abundance_logs)
-  } else { best_abundance_logs <- rep(0, ns); best_abundance_mult <- rep(1, ns) }
-  best_catch_mult <- exp(best_catch_logs)
-  best_gamma_mult <- exp(best_gamma_logs)
+  } else { best_abundance_logs <- rep(0, na_full); best_abundance_mult <- rep(1, na_full) }
+  best_catch_mult <- exp(best_catch_logs); best_gamma_mult <- exp(best_gamma_logs)
 }
 
 # Construct and save calibrated params
@@ -4728,13 +4918,14 @@ if (exists("best_par")) {
   saveRDS(list(
     best_vector = best_par,
     best_objective = opt_res$optim$bestval,
-    species = species_target,
-    catchability_log = best_catch_logs,
-    gamma_log = best_gamma_logs,
-    abundance_log = if (include_abundance_scaling) best_abundance_logs else NULL,
-    catchability_mult = best_catch_mult,
-    gamma_mult = best_gamma_mult,
-    abundance_mult = if (include_abundance_scaling) best_abundance_mult else NULL,
+  fished_species = fished_species,
+  all_species = all_species_full,
+  catchability_log = best_catch_logs,
+  gamma_log = best_gamma_logs,
+  abundance_log = if (include_abundance_scaling) best_abundance_logs else NULL,
+  catchability_mult = best_catch_mult,
+  gamma_mult = best_gamma_mult,
+  abundance_mult = if (include_abundance_scaling) best_abundance_mult else NULL,
     abundance_bounds_source = if (include_abundance_scaling) abundance_info else NULL,
     params = calibrated_params,
     control = de_ctrl,
