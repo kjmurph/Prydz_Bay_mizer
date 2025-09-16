@@ -962,7 +962,7 @@ stability_trend_first_years <- 50     # years from start of spinup to test trend
 
 # Max allowed relative slope per year during the initial spinup period
 # Example: 0.005 = 0.5% of mean biomass per year
-stability_trend_rel_slope_max <- 0.025
+stability_trend_rel_slope_max <- 0.02
 
 # Significance level for trend detection (linear model p-value on slope)
 stability_trend_pval_max <- 0.05
@@ -3467,7 +3467,7 @@ cat("=== FULL COMBINED MC SECTION COMPLETE ===\n")
 This chunk loads the latest chosen seed parameter set (mean / median / random), applies it to the baseline parameter object, and launches a new (smaller) enhanced uncertainty run to refine around accepted region.
 
 ```{r combined-mc-rerun-from-seed, echo=TRUE, message=FALSE, warning=FALSE}
-seed_choice <- "mean"   # options: "mean", "median", "random"
+seed_choice <- "median"   # options: "mean", "median", "random"
 seed_prefix_map <- c(mean="seed_params_mean_", median="seed_params_median_", random="seed_params_random_draw_")
 seed_prefix <- seed_prefix_map[[seed_choice]]
 seed_dir <- file.path("Output_large_files","monte_carlo_results","combined_simulation_results")
@@ -3502,7 +3502,7 @@ cat("Launching seed-based enhanced MC rerun with checkpointing...\n")
 
 # --- Rerun settings (tuned for focused refinement) ---
 set.seed(456)  # reproducibility for this rerun phase
-total_sims_seed <- 1000          # total simulations for seed-focused exploration
+total_sims_seed <- 50          # total simulations for seed-focused exploration
 block_size_seed <- 5           # save every 20 sims
 catchability_sd_seed <- 1     # narrower than broad exploratory pass
 abundance_sd_seed <- 4        # moderate spread
@@ -3978,6 +3978,19 @@ rerun_combined_success <- combine_rerun_successful_sims()
 # Provide alias for optimization chunk expecting rerun_results
 if (!exists("rerun_results")) rerun_results <- rerun_combined_success
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r optimize-params-yield, eval=FALSE, message=TRUE, warning=FALSE}
 # Prototype optimization of parameters to improve fit of modeled yields to observed yields.
