@@ -952,7 +952,7 @@ run_enhanced_uncertainty_sims_parallel_blocked <- function(params,
 ```{r stability-settings}
 # Stability/QC settings (tunable)
 # CV threshold for biomass stability during unfished spinup (fraction)
-stability_cv_threshold <- 0.15        # e.g., 8% CV
+stability_cv_threshold <- 0.1       # e.g., 8% CV
 
 # Years used for tail stability CV check during spinup
 stability_check_years_tail <- 40      # use last 40 years of spinup (or fewer if spinup shorter)
@@ -962,7 +962,7 @@ stability_trend_first_years <- 50     # years from start of spinup to test trend
 
 # Max allowed relative slope per year during the initial spinup period
 # Example: 0.005 = 0.5% of mean biomass per year
-stability_trend_rel_slope_max <- 0.02
+stability_trend_rel_slope_max <- 0.01
 
 # Significance level for trend detection (linear model p-value on slope)
 stability_trend_pval_max <- 0.05
@@ -1727,6 +1727,8 @@ if (length(monte_carlo_results$failed)) {
 # Recreate baseline-style biomass and yield plots but using Monte Carlo simulation results
 library(dplyr)
 
+# monte_carlo_results <- rerun_combined_success
+
 # Load Monte Carlo results (saved previously) — prefer 1000-sim file, fallback to 10-sim
 #mc_candidates <- c(
 #  "monte_carlo_results_SD2_tol0.025_tmax750_nsims8000.rds")
@@ -1920,204 +1922,204 @@ plot_montecarlo_biomass <- function() {
 
 print(plot_montecarlo_biomass())
 print(plot_montecarlo_yield())
-#ggsave("monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500_biomass.png", plot_montecarlo_biomass(), width = 12, height = 8, dpi = 300)
-#ggsave("monte_carlo_results_nsims_3000_SD_2_4_3_tol_0.0025_tmax_1500_yield.png", plot_montecarlo_yield(), width = 12, height = 8, dpi = 300)
+ggsave("monte_carlo_results_nsims_2111_tol_0.0025_tmax_1500_biomass.png", plot_montecarlo_biomass(), width = 12, height = 8, dpi = 300)
+ggsave("monte_carlo_results_nsims_2111_tol_0.0025_tmax_1500_yield.png", plot_montecarlo_yield(), width = 12, height = 8, dpi = 300)
 ```
 
 ## Step 1.5: Diagnose Current Results and Assess Model Fit
 
 ```{r diagnose-results}
-cat("=== DIAGNOSING MONTE CARLO RESULTS ===\n")
-
-# Check structure of results
-if(length(monte_carlo_results$parameters) > 0) {
-  cat("Parameters structure - first result fields:\n")
-  cat(paste(names(monte_carlo_results$parameters[[1]]), collapse = ", "), "\n\n")
-  
-  cat("Monte Carlo Results Summary:\n")
-  cat("  Total simulations attempted:", monte_carlo_results$n_attempts, "\n")
-  cat("  Successful simulations:", monte_carlo_results$n_successful, "\n")
-  cat("  Success rate:", round(monte_carlo_results$n_successful/monte_carlo_results$n_attempts*100, 1), "%\n")
-  cat("  Failed simulations:", length(monte_carlo_results$failed), "\n\n")
-  
-  # Check gamma parameter variability
-  if("gamma_change" %in% names(monte_carlo_results$parameters[[1]])) {
-    all_gamma_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) x$gamma_change))
-    cat("Gamma parameter analysis:\n")
-    cat("  Range:", round(min(all_gamma_changes, na.rm=TRUE), 3), "to", round(max(all_gamma_changes, na.rm=TRUE), 3), "\n")
-    cat("  Mean:", round(mean(all_gamma_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_gamma_changes, na.rm=TRUE), 3), "\n")
-  cat("  Example values:", paste(round(all_gamma_changes[seq_len(min(10, length(all_gamma_changes)))], 3), collapse=", "), "\n\n")
-  } else {
-    cat("WARNING: gamma_change not found in parameters!\n\n")
-  }
-  
-  # Check catchability parameter variability
-  if("catchability_change" %in% names(monte_carlo_results$parameters[[1]])) {
-    all_catch_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) {
-      if(length(x$catchability_change) > 0) x$catchability_change else NA
-    }))
-    all_catch_changes <- all_catch_changes[!is.na(all_catch_changes)]
-    
-    if(length(all_catch_changes) > 0) {
-      cat("Catchability parameter analysis:\n")
-      cat("  Range:", round(min(all_catch_changes, na.rm=TRUE), 3), "to", round(max(all_catch_changes, na.rm=TRUE), 3), "\n")
-      cat("  Mean:", round(mean(all_catch_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_catch_changes, na.rm=TRUE), 3), "\n\n")
-    } else {
-      cat("No catchability variations found\n\n")
-    }
-  }
-  
-  # Check abundance scaling variability
-  if("abundance_scaling" %in% names(monte_carlo_results$parameters[[1]])) {
-    all_abund_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) x$abundance_scaling))
-    cat("Abundance scaling analysis:\n")
-    cat("  Range:", round(min(all_abund_changes, na.rm=TRUE), 3), "to", round(max(all_abund_changes, na.rm=TRUE), 3), "\n")
-    cat("  Mean:", round(mean(all_abund_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_abund_changes, na.rm=TRUE), 3), "\n\n")
-  }
-  
-  # Check if simulations are valid mizer objects
-  sims_valid <- sum(sapply(monte_carlo_results$simulations, function(x) {
-    !is.null(x) && inherits(x, "MizerSim")
-  }))
-  cat("Valid mizer simulation objects:", sims_valid, "\n")
-  
-  # Basic model fit assessment using yield data
-  if(sims_valid > 0 && exists("yield_ts_tidy")) {
-    cat("\n=== MODEL FIT ASSESSMENT ===\n")
-    
-    # Calculate fit metrics for available simulations
-    fit_metrics <- data.frame()
-    
-    for(i in seq_along(monte_carlo_results$simulations)) {
-      sim <- monte_carlo_results$simulations[[i]]
-      if(!is.null(sim) && inherits(sim, "MizerSim")) {
-        
-        tryCatch({
-          # Extract modeled yields using mizer functions
-          yield_matrix <- getYield(sim)
-          yield_df <- reshape2::melt(yield_matrix)
-          names(yield_df) <- c("Year", "Species", "Yield")
-          
-          # Filter for comparison period across the full observed range
-          obs_years <- range(yield_ts_tidy$Year, na.rm = TRUE)
-          model_yield_period <- yield_df %>%
-            filter(Year >= obs_years[1], Year <= obs_years[2])
-          
-          if(nrow(model_yield_period) > 0) {
-            # Calculate total yield over period
-            model_total <- sum(model_yield_period$Yield, na.rm=TRUE)
-            
-            # Compare with observed data if available
-            if(exists("yield_ts_tidy") && !is.null(yield_ts_tidy)) {
-              obs_period <- yield_ts_tidy
-              
-              if(nrow(obs_period) > 0) {
-                obs_total <- sum(obs_period$Yield, na.rm=TRUE)
-                
-                # Calculate annual correlation if possible
-                annual_comparison <- model_yield_period %>%
-                  group_by(Year) %>%
-                  summarise(model_yield = sum(Yield, na.rm=TRUE), .groups = 'drop') %>%
-                  left_join(obs_period %>% 
-                           group_by(Year) %>%
-                           summarise(obs_yield = sum(Yield, na.rm=TRUE), .groups = 'drop'),
-                           by = "Year") %>%
-                  filter(!is.na(obs_yield), !is.na(model_yield))
-                
-                if(nrow(annual_comparison) > 5) {
-                  correlation <- cor(annual_comparison$model_yield, annual_comparison$obs_yield, use="complete.obs")
-                  rmse <- sqrt(mean((annual_comparison$model_yield - annual_comparison$obs_yield)^2, na.rm=TRUE))
-                  normalized_rmse <- rmse / mean(annual_comparison$obs_yield, na.rm=TRUE)
-                  
-                  fit_metrics <- rbind(fit_metrics, data.frame(
-                    sim_id = i,
-                    correlation = correlation,
-                    rmse = rmse,
-                    normalized_rmse = normalized_rmse,
-                    model_total = model_total,
-                    observed_total = obs_total
-                  ))
-                }
-              }
-            }
-          }
-        }, error = function(e) {
-          # Skip simulations that can't be processed
-          cat("  Simulation", i, "failed yield extraction:", e$message, "\n")
-        })
-      }
-    }
-    
-    if(nrow(fit_metrics) > 0) {
-      cat("Model fit summary (", nrow(fit_metrics), " simulations):\n")
-      cat("  Correlation range:", round(min(fit_metrics$correlation, na.rm=TRUE), 3), 
-          "to", round(max(fit_metrics$correlation, na.rm=TRUE), 3), "\n")
-      cat("  Mean correlation:", round(mean(fit_metrics$correlation, na.rm=TRUE), 3), 
-          "± SD:", round(sd(fit_metrics$correlation, na.rm=TRUE), 3), "\n")
-      cat("  Normalized RMSE range:", round(min(fit_metrics$normalized_rmse, na.rm=TRUE), 3), 
-          "to", round(max(fit_metrics$normalized_rmse, na.rm=TRUE), 3), "\n")
-      cat("  Mean normalized RMSE:", round(mean(fit_metrics$normalized_rmse, na.rm=TRUE), 3), 
-          "± SD:", round(sd(fit_metrics$normalized_rmse, na.rm=TRUE), 3), "\n\n")
-      
-      # Show best fitting simulations
-      best_sims <- fit_metrics[order(-fit_metrics$correlation, fit_metrics$normalized_rmse), ]
-      cat("Top 3 fitting simulations:\n")
-  for(j in seq_len(min(3, nrow(best_sims)))) {
-        cat("  Sim", best_sims$sim_id[j], ": r =", round(best_sims$correlation[j], 3), 
-            ", NRMSE =", round(best_sims$normalized_rmse[j], 3), "\n")
-      }
-      
-    } else {
-      cat("No valid yield comparisons with observed data available\n")
-    }
-  } else {
-    cat("No valid simulations available for model fit assessment\n")
-  }
-} else {
-  cat("No parameter combinations found!\n")
-}
-
-# Parameter space refinement suggestions
-cat("\n=== PARAMETER SPACE REFINEMENT SUGGESTIONS ===\n")
-
-if(exists("fit_metrics") && nrow(fit_metrics) > 0) {
-  # Analyze parameter combinations of best-performing simulations
-  cat("Based on model fit analysis:\n")
-  
-  best_sim_ids <- {
-    ord <- order(-fit_metrics$correlation, fit_metrics$normalized_rmse)
-    fit_metrics$sim_id[ord][seq_len(min(3, length(ord)))]
-  }
-  
-  for(param_type in c("gamma_change", "catchability_change", "abundance_scaling")) {
-    if(param_type %in% names(monte_carlo_results$parameters[[1]])) {
-      best_values <- sapply(best_sim_ids, function(id) {
-        params <- monte_carlo_results$parameters[[id]]
-        if(param_type %in% names(params) && length(params[[param_type]]) > 0) {
-          mean(params[[param_type]], na.rm=TRUE)
-        } else {
-          NA
-        }
-      })
-      
-      if(any(!is.na(best_values))) {
-        cat("  Best", gsub("_change|_scaling", "", param_type), "factors:", 
-            paste(round(best_values[!is.na(best_values)], 3), collapse=", "), "\n")
-        cat("    -> Suggests focusing search around", 
-            round(mean(best_values, na.rm=TRUE), 2), "± ", 
-            round(sd(best_values, na.rm=TRUE), 2), "\n")
-      }
-    }
-  }
-} else {
-  cat("Insufficient data for parameter refinement suggestions.\n")
-  cat("Recommendations:\n")
-  cat("  1. Check if SD values are too extreme - consider reducing to SD=1-2\n")
-  cat("  2. Verify steady-state convergence criteria aren't too strict\n")
-  cat("  3. Consider increasing simulation time or relaxing tolerance\n")
-  cat("  4. Increase number of simulations to improve success rate\n")
-  cat("  5. Check if biomass rejection criteria are appropriate\n")
-}
+# cat("=== DIAGNOSING MONTE CARLO RESULTS ===\n")
+# 
+# # Check structure of results
+# if(length(monte_carlo_results$parameters) > 0) {
+#   cat("Parameters structure - first result fields:\n")
+#   cat(paste(names(monte_carlo_results$parameters[[1]]), collapse = ", "), "\n\n")
+#   
+#   cat("Monte Carlo Results Summary:\n")
+#   cat("  Total simulations attempted:", monte_carlo_results$n_attempts, "\n")
+#   cat("  Successful simulations:", monte_carlo_results$n_successful, "\n")
+#   cat("  Success rate:", round(monte_carlo_results$n_successful/monte_carlo_results$n_attempts*100, 1), "%\n")
+#   cat("  Failed simulations:", length(monte_carlo_results$failed), "\n\n")
+#   
+#   # Check gamma parameter variability
+#   if("gamma_change" %in% names(monte_carlo_results$parameters[[1]])) {
+#     all_gamma_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) x$gamma_change))
+#     cat("Gamma parameter analysis:\n")
+#     cat("  Range:", round(min(all_gamma_changes, na.rm=TRUE), 3), "to", round(max(all_gamma_changes, na.rm=TRUE), 3), "\n")
+#     cat("  Mean:", round(mean(all_gamma_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_gamma_changes, na.rm=TRUE), 3), "\n")
+#   cat("  Example values:", paste(round(all_gamma_changes[seq_len(min(10, length(all_gamma_changes)))], 3), collapse=", "), "\n\n")
+#   } else {
+#     cat("WARNING: gamma_change not found in parameters!\n\n")
+#   }
+#   
+#   # Check catchability parameter variability
+#   if("catchability_change" %in% names(monte_carlo_results$parameters[[1]])) {
+#     all_catch_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) {
+#       if(length(x$catchability_change) > 0) x$catchability_change else NA
+#     }))
+#     all_catch_changes <- all_catch_changes[!is.na(all_catch_changes)]
+#     
+#     if(length(all_catch_changes) > 0) {
+#       cat("Catchability parameter analysis:\n")
+#       cat("  Range:", round(min(all_catch_changes, na.rm=TRUE), 3), "to", round(max(all_catch_changes, na.rm=TRUE), 3), "\n")
+#       cat("  Mean:", round(mean(all_catch_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_catch_changes, na.rm=TRUE), 3), "\n\n")
+#     } else {
+#       cat("No catchability variations found\n\n")
+#     }
+#   }
+#   
+#   # Check abundance scaling variability
+#   if("abundance_scaling" %in% names(monte_carlo_results$parameters[[1]])) {
+#     all_abund_changes <- unlist(lapply(monte_carlo_results$parameters, function(x) x$abundance_scaling))
+#     cat("Abundance scaling analysis:\n")
+#     cat("  Range:", round(min(all_abund_changes, na.rm=TRUE), 3), "to", round(max(all_abund_changes, na.rm=TRUE), 3), "\n")
+#     cat("  Mean:", round(mean(all_abund_changes, na.rm=TRUE), 3), "± SD:", round(sd(all_abund_changes, na.rm=TRUE), 3), "\n\n")
+#   }
+#   
+#   # Check if simulations are valid mizer objects
+#   sims_valid <- sum(sapply(monte_carlo_results$simulations, function(x) {
+#     !is.null(x) && inherits(x, "MizerSim")
+#   }))
+#   cat("Valid mizer simulation objects:", sims_valid, "\n")
+#   
+#   # Basic model fit assessment using yield data
+#   if(sims_valid > 0 && exists("yield_ts_tidy")) {
+#     cat("\n=== MODEL FIT ASSESSMENT ===\n")
+#     
+#     # Calculate fit metrics for available simulations
+#     fit_metrics <- data.frame()
+#     
+#     for(i in seq_along(monte_carlo_results$simulations)) {
+#       sim <- monte_carlo_results$simulations[[i]]
+#       if(!is.null(sim) && inherits(sim, "MizerSim")) {
+#         
+#         tryCatch({
+#           # Extract modeled yields using mizer functions
+#           yield_matrix <- getYield(sim)
+#           yield_df <- reshape2::melt(yield_matrix)
+#           names(yield_df) <- c("Year", "Species", "Yield")
+#           
+#           # Filter for comparison period across the full observed range
+#           obs_years <- range(yield_ts_tidy$Year, na.rm = TRUE)
+#           model_yield_period <- yield_df %>%
+#             filter(Year >= obs_years[1], Year <= obs_years[2])
+#           
+#           if(nrow(model_yield_period) > 0) {
+#             # Calculate total yield over period
+#             model_total <- sum(model_yield_period$Yield, na.rm=TRUE)
+#             
+#             # Compare with observed data if available
+#             if(exists("yield_ts_tidy") && !is.null(yield_ts_tidy)) {
+#               obs_period <- yield_ts_tidy
+#               
+#               if(nrow(obs_period) > 0) {
+#                 obs_total <- sum(obs_period$Yield, na.rm=TRUE)
+#                 
+#                 # Calculate annual correlation if possible
+#                 annual_comparison <- model_yield_period %>%
+#                   group_by(Year) %>%
+#                   summarise(model_yield = sum(Yield, na.rm=TRUE), .groups = 'drop') %>%
+#                   left_join(obs_period %>% 
+#                            group_by(Year) %>%
+#                            summarise(obs_yield = sum(Yield, na.rm=TRUE), .groups = 'drop'),
+#                            by = "Year") %>%
+#                   filter(!is.na(obs_yield), !is.na(model_yield))
+#                 
+#                 if(nrow(annual_comparison) > 5) {
+#                   correlation <- cor(annual_comparison$model_yield, annual_comparison$obs_yield, use="complete.obs")
+#                   rmse <- sqrt(mean((annual_comparison$model_yield - annual_comparison$obs_yield)^2, na.rm=TRUE))
+#                   normalized_rmse <- rmse / mean(annual_comparison$obs_yield, na.rm=TRUE)
+#                   
+#                   fit_metrics <- rbind(fit_metrics, data.frame(
+#                     sim_id = i,
+#                     correlation = correlation,
+#                     rmse = rmse,
+#                     normalized_rmse = normalized_rmse,
+#                     model_total = model_total,
+#                     observed_total = obs_total
+#                   ))
+#                 }
+#               }
+#             }
+#           }
+#         }, error = function(e) {
+#           # Skip simulations that can't be processed
+#           cat("  Simulation", i, "failed yield extraction:", e$message, "\n")
+#         })
+#       }
+#     }
+#     
+#     if(nrow(fit_metrics) > 0) {
+#       cat("Model fit summary (", nrow(fit_metrics), " simulations):\n")
+#       cat("  Correlation range:", round(min(fit_metrics$correlation, na.rm=TRUE), 3), 
+#           "to", round(max(fit_metrics$correlation, na.rm=TRUE), 3), "\n")
+#       cat("  Mean correlation:", round(mean(fit_metrics$correlation, na.rm=TRUE), 3), 
+#           "± SD:", round(sd(fit_metrics$correlation, na.rm=TRUE), 3), "\n")
+#       cat("  Normalized RMSE range:", round(min(fit_metrics$normalized_rmse, na.rm=TRUE), 3), 
+#           "to", round(max(fit_metrics$normalized_rmse, na.rm=TRUE), 3), "\n")
+#       cat("  Mean normalized RMSE:", round(mean(fit_metrics$normalized_rmse, na.rm=TRUE), 3), 
+#           "± SD:", round(sd(fit_metrics$normalized_rmse, na.rm=TRUE), 3), "\n\n")
+#       
+#       # Show best fitting simulations
+#       best_sims <- fit_metrics[order(-fit_metrics$correlation, fit_metrics$normalized_rmse), ]
+#       cat("Top 3 fitting simulations:\n")
+#   for(j in seq_len(min(3, nrow(best_sims)))) {
+#         cat("  Sim", best_sims$sim_id[j], ": r =", round(best_sims$correlation[j], 3), 
+#             ", NRMSE =", round(best_sims$normalized_rmse[j], 3), "\n")
+#       }
+#       
+#     } else {
+#       cat("No valid yield comparisons with observed data available\n")
+#     }
+#   } else {
+#     cat("No valid simulations available for model fit assessment\n")
+#   }
+# } else {
+#   cat("No parameter combinations found!\n")
+# }
+# 
+# # Parameter space refinement suggestions
+# cat("\n=== PARAMETER SPACE REFINEMENT SUGGESTIONS ===\n")
+# 
+# if(exists("fit_metrics") && nrow(fit_metrics) > 0) {
+#   # Analyze parameter combinations of best-performing simulations
+#   cat("Based on model fit analysis:\n")
+#   
+#   best_sim_ids <- {
+#     ord <- order(-fit_metrics$correlation, fit_metrics$normalized_rmse)
+#     fit_metrics$sim_id[ord][seq_len(min(3, length(ord)))]
+#   }
+#   
+#   for(param_type in c("gamma_change", "catchability_change", "abundance_scaling")) {
+#     if(param_type %in% names(monte_carlo_results$parameters[[1]])) {
+#       best_values <- sapply(best_sim_ids, function(id) {
+#         params <- monte_carlo_results$parameters[[id]]
+#         if(param_type %in% names(params) && length(params[[param_type]]) > 0) {
+#           mean(params[[param_type]], na.rm=TRUE)
+#         } else {
+#           NA
+#         }
+#       })
+#       
+#       if(any(!is.na(best_values))) {
+#         cat("  Best", gsub("_change|_scaling", "", param_type), "factors:", 
+#             paste(round(best_values[!is.na(best_values)], 3), collapse=", "), "\n")
+#         cat("    -> Suggests focusing search around", 
+#             round(mean(best_values, na.rm=TRUE), 2), "± ", 
+#             round(sd(best_values, na.rm=TRUE), 2), "\n")
+#       }
+#     }
+#   }
+# } else {
+#   cat("Insufficient data for parameter refinement suggestions.\n")
+#   cat("Recommendations:\n")
+#   cat("  1. Check if SD values are too extreme - consider reducing to SD=1-2\n")
+#   cat("  2. Verify steady-state convergence criteria aren't too strict\n")
+#   cat("  3. Consider increasing simulation time or relaxing tolerance\n")
+#   cat("  4. Increase number of simulations to improve success rate\n")
+#   cat("  5. Check if biomass rejection criteria are appropriate\n")
+# }
 ```
 
 ## Step 2: Assess Parameter Distributions (Pre-Rejection)
@@ -2422,7 +2424,7 @@ allowed_biomass_failures <- 3
 ```
 
 ```{r}
- allowed_biomass_failures <- 3
+ allowed_biomass_failures <- 5
 
 rejection_results <- apply_biomass_rejection_criteria(
   monte_carlo_results$simulations,
@@ -3658,6 +3660,8 @@ if (length(monte_carlo_results$failed)) {
 # Recreate baseline-style biomass and yield plots but using Monte Carlo simulation results
 library(dplyr)
 
+monte_carlo_results <- readRDS("~/GitHub/Prydz_Bay_mizer/Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/combined_rerun_successful_sims_20250917_103731.rds")
+
 # Load Monte Carlo results (saved previously) — prefer 1000-sim file, fallback to 10-sim
 #mc_candidates <- c(
 #  "monte_carlo_results_SD2_tol0.025_tmax750_nsims8000.rds")
@@ -3858,10 +3862,619 @@ print(plot_montecarlo_yield())
 
 
 
+```{r rerun-combined-montecarlo-assessment-full, echo=TRUE, message=FALSE, warning=FALSE}
+suppressPackageStartupMessages({
+  library(dplyr); library(ggplot2); library(reshape2); library(tidyr)
+})
+
+`%||%` <- function(a,b) if (!is.null(a)) a else b
 
 
+# monte_carlo_results <- rerun_results
+
+if (!exists("yield_ts_tidy")) yield_ts_tidy <- readRDS("yield_observed_timeseries_tidy.RDS")
+if (!exists("obs_biomass_data") || !exists("obs_biomass_bounds")) stop("Observed biomass data/bounds missing.")
+species_order <- levels(obs_biomass_bounds$Species)
+
+cat("=== FULL COMBINED MONTE CARLO ASSESSMENT (RELOCATED) ===\n")
+sims_all <- monte_carlo_results$simulations
+valid_sims <- Filter(function(x){ inherits(x, "MizerSim") && !any(is.nan(x@n)) && !any(is.infinite(x@n)) }, sims_all)
+cat("Using", length(valid_sims), "valid simulations of", length(sims_all), "total\n")
+if (!length(valid_sims)) stop("No valid simulations")
+
+extract_monte_carlo_biomass <- function(sim_list){
+  do.call(rbind, lapply(seq_along(sim_list), function(i){
+    m <- getBiomass(sim_list[[i]]); df <- melt(m); names(df) <- c("Year","Species","Biomass")
+    df$Year <- as.numeric(as.character(df$Year)); df$Species <- as.character(df$Species); df$sim_id <- i; df
+  }))
+}
+extract_monte_carlo_yield <- function(sim_list){
+  do.call(rbind, lapply(seq_along(sim_list), function(i){
+    m <- getYield(sim_list[[i]]); df <- melt(m); names(df) <- c("Year","Species","Yield")
+    df$Year <- as.numeric(as.character(df$Year)); df$Species <- as.character(df$Species); df$sim_id <- i; df
+  }))
+}
+
+mc_biomass <- extract_monte_carlo_biomass(valid_sims)
+biomass_uncertainty <- mc_biomass %>% 
+  group_by(Year, Species) %>% 
+  summarise(median=median(Biomass,na.rm=TRUE),
+            mean = mean(Biomass, na.rm=TRUE),
+            q25=quantile(Biomass,0.25,na.rm=TRUE), 
+            q75=quantile(Biomass,0.75,na.rm=TRUE), 
+            q05=quantile(Biomass,0.05,na.rm=TRUE), 
+            q95=quantile(Biomass,0.95,na.rm=TRUE), .groups='drop') %>% 
+  mutate(Species=factor(Species, levels=species_order))
+
+obs_biomass_ts <- obs_biomass_data %>% 
+  left_join(obs_biomass_bounds %>% 
+              select(Species, Lower = Lower_g, Upper = Upper_g), by="Species") %>% 
+  tidyr::crossing(Year = 2000:2010) %>% 
+  mutate(Species=factor(Species, levels=species_order))
+
+mc_yield <- extract_monte_carlo_yield(valid_sims) %>% 
+  mutate(Yield = pmax(Yield,0))
+
+species_with_yield <- mc_yield %>% 
+  group_by(Species) %>% 
+  summarise(mx = max(Yield, na.rm=TRUE), .groups='drop') %>% 
+  filter(mx>0) %>% pull(Species)
+
+cat("Species with fishing yields:", paste(species_with_yield, collapse=", "), "\n")
+
+yield_uncertainty <- mc_yield %>% 
+  filter(Species %in% species_with_yield) %>% 
+  group_by(Year, Species) %>% 
+  summarise(median=median(Yield,na.rm=TRUE), 
+            mean=mean(Yield,na.rm=TRUE),
+            q25=quantile(Yield,0.25,na.rm=TRUE), 
+            q75=quantile(Yield,0.75,na.rm=TRUE), 
+            q05=quantile(Yield,0.05,na.rm=TRUE), 
+            q95=quantile(Yield,0.95,na.rm=TRUE), .groups='drop') %>% 
+  mutate(Species=factor(Species, levels=species_order))
+
+obs_pos_by_year <- yield_ts_tidy %>% 
+  mutate(has_obs_pos = Yield>0) %>% 
+  group_by(Year, Species) %>% 
+  summarise(has_obs_pos=any(has_obs_pos,na.rm=TRUE), .groups='drop')
+
+yield_uncertainty <- yield_uncertainty %>% 
+  left_join(obs_pos_by_year, by=c("Year","Species")) %>% 
+  mutate(has_obs_pos=coalesce(has_obs_pos,FALSE))
+
+yield_uncertainty_ribbon <- yield_uncertainty %>% 
+  filter(!(has_obs_pos==FALSE & (is.na(q95) | q95<=0))) %>% 
+  mutate(q05=ifelse(q05>0,q05,NA_real_), 
+         q25=ifelse(q25>0,q25,NA_real_), 
+         q75=ifelse(q75>0,q75,NA_real_), 
+         q95=ifelse(q95>0,q95,NA_real_)) %>% 
+  filter(!(is.na(q25)&is.na(q75)&is.na(q05)&is.na(q95)))
+
+yield_uncertainty_line_median <- yield_uncertainty %>% 
+  filter(!(has_obs_pos==FALSE & (is.na(median) | median<=0))) %>% 
+  mutate(median=ifelse(median>0,median,NA_real_))
+
+yield_uncertainty_line_mean <- yield_uncertainty %>% 
+  filter(!(has_obs_pos==FALSE & (is.na(mean) | mean<=0))) %>% 
+  mutate(mean=ifelse(mean>0,mean,NA_real_))
+
+yield_obs_filtered <- yield_ts_tidy %>% 
+  filter(Species %in% species_with_yield, Yield>0) %>% 
+  mutate(Species=factor(Species, levels=species_order))
+
+baleen_start_obs <- yield_obs_filtered %>% filter(Species=="baleen whales") %>% summarise(min_year=min(Year,na.rm=TRUE)) %>% pull(min_year)
+global_start_obs <- yield_obs_filtered %>% summarise(min_year=min(Year,na.rm=TRUE)) %>% pull(min_year)
+start_year <- if (is.finite(baleen_start_obs)) baleen_start_obs else if (is.finite(global_start_obs)) global_start_obs else 1930
+end_year <- max(yield_uncertainty$Year, na.rm=TRUE)
+
+label_dynamic_decimals <- function(x){
+  sci <- scales::label_scientific(digits=1)
+  vapply(x, function(v){ if (is.na(v)) return(NA_character_); if (v<=0) return("0"); vt<-v/1e6; if (vt>=1) paste0(formatC(vt, format="f", digits=0, big.mark=",")," t") else if (vt<1e-6) paste0(sci(vt)," t") else {dp<-max(1, ceiling(-log10(vt))); dp<-min(dp,6); paste0(formatC(vt, format="f", digits=dp)," t")} }, character(1))
+}
+
+plot_combined_yield <- function(){ ggplot() +
+  geom_ribbon(data=yield_uncertainty_ribbon, aes(x=Year, ymin=q05, ymax=q95, fill=Species), alpha=0.2) +
+  geom_ribbon(data=yield_uncertainty_ribbon, aes(x=Year, ymin=q25, ymax=q75, fill=Species), alpha=0.3) +
+  # geom_line(data=yield_uncertainty_line_median, aes(x=Year, y=median, colour=Species), linewidth=1.0, lineend="round") +
+  geom_line(data=yield_uncertainty_line_mean, aes(x=Year, y=mean, colour=Species), linewidth=1.0, lineend="round") +  
+  geom_point(data=yield_obs_filtered, aes(x=Year, y=Yield, colour=Species), size=1) +
+  geom_point(data=yield_obs_filtered, aes(x=Year, y=Yield), shape=1, size=1, colour="black") +
+  geom_vline(xintercept=1961, linetype="dashed") + geom_vline(xintercept=2010, linetype="dashed") +
+  scale_y_log10(breaks=scales::log_breaks(n=6), labels=label_dynamic_decimals) + coord_cartesian(xlim=c(start_year,end_year)) + facet_wrap(~Species, scales="free_y") + theme_bw() + theme(legend.position="none", strip.text=element_text(face="bold")) + labs(x="Year", y="Yield [t/year]", title=paste("Combined MC: Yield (", length(valid_sims), " sims)")) }
+
+plot_combined_biomass <- function(){ ggplot() +
+  geom_ribbon(data=biomass_uncertainty, aes(x=Year, ymin=q05, ymax=q95, fill=Species), alpha=0.2) +
+  geom_ribbon(data=biomass_uncertainty, aes(x=Year, ymin=q25, ymax=q75, fill=Species), alpha=0.3) +
+  # geom_line(data=biomass_uncertainty, aes(x=Year, y=median, colour=Species), linewidth=1.1) +
+  geom_line(data=biomass_uncertainty, aes(x=Year, y=mean, colour=Species), linewidth=1.1) +
+  geom_ribbon(data=obs_biomass_ts, aes(x=Year, ymin=Lower, ymax=Upper), alpha=0.2, fill="gray50") +
+  geom_point(data=obs_biomass_ts, aes(x=Year, y=ObsBiomass, colour=Species), size=0.8) +
+  geom_point(data=obs_biomass_ts, aes(x=Year, y=ObsBiomass), shape=1, size=0.8, colour="black") +
+  facet_wrap(~Species, scales="free_y") + scale_y_continuous(labels=function(x) scales::number(x/1e6)) + theme_bw() + theme(legend.position="none", strip.text=element_text(face="bold")) + labs(x="Year", y="Biomass [t]", title=paste("Combined MC: Biomass (", length(valid_sims), " sims)")) }
+
+print(plot_combined_biomass()); print(plot_combined_yield())
+
+plot_parameter_distributions <- function(param_list, param_type = c("catchability","abundance"), title_suffix=""){
+  param_type <- match.arg(param_type); extractor <- if (param_type=="catchability") "catchability_change" else "abundance_scaling"
+  df <- do.call(rbind, lapply(seq_along(param_list), function(i){ p<-param_list[[i]]; v<-p[[extractor]]; sp<-p$species_names; if (is.null(v)||is.null(sp)) return(NULL); data.frame(sim_id=i, species=sp, value=as.numeric(v)) }))
+  if (is.null(df)||!nrow(df)) return(ggplot()+labs(title=paste(param_type,"distribution",title_suffix), subtitle="No data"))
+  ggplot(df, aes(x=value)) + geom_histogram(bins=40, fill="steelblue", colour="black", alpha=0.7) + facet_wrap(~species, scales="free_y") + theme_bw() + theme(strip.text=element_text(size=7, face="bold")) + labs(title=paste(param_type, "distribution", title_suffix), x=param_type, y="Frequency")
+}
+
+plot_gamma_distribution_fixed <- function(param_combinations, title_suffix = "") {
+  gamma_data <- do.call(rbind, lapply(seq_along(param_combinations), function(i){ p<-param_combinations[[i]]; if (is.null(p)) return(NULL); val <- if (!is.null(p$gamma_change_raw)) p$gamma_change_raw else p$gamma_change; if (is.null(val)) return(NULL); data.frame(sim_id=i, species=p$species_names, gamma_change=val) }))
+  if (is.null(gamma_data)||!nrow(gamma_data)) return(ggplot()+labs(title=paste("Gamma Parameter Distribution", title_suffix), subtitle="No data"))
+  gamma_data <- gamma_data %>% filter(is.finite(gamma_change), gamma_change>0) %>% mutate(log10_gamma=log10(gamma_change))
+  if (!nrow(gamma_data)) return(ggplot()+labs(title=paste("Gamma Parameter Distribution", title_suffix), subtitle="No positive values"))
+  rng <- quantile(gamma_data$log10_gamma, c(0.01,0.99), na.rm=TRUE); if (!all(is.finite(rng))||diff(rng)==0) rng <- range(gamma_data$log10_gamma)
+  pad <- max(0.05, diff(rng)*0.05); xmin <- floor(rng[1]-pad); xmax <- ceiling(rng[2]+pad); bw <- max(0.05,(xmax-xmin)/60); breaks <- seq(floor(xmin), ceiling(xmax))
+  ggplot(gamma_data, aes(x=log10_gamma)) + geom_histogram(binwidth=bw, fill="steelblue", alpha=0.7, colour="black") + facet_wrap(~species, scales="free_y") + scale_x_continuous(breaks=breaks, labels=function(x) scales::math_format(10^.x)(x)) + coord_cartesian(xlim=c(xmin,xmax)) + theme_bw() + theme(axis.text.x=element_text(angle=45,hjust=1,size=7), strip.text=element_text(size=7,face="bold")) + labs(title=paste("Gamma Parameter Distribution", title_suffix), x="Gamma Change Factor (log10)", y="Frequency") + geom_vline(xintercept=0, linetype="dashed", colour="red", alpha=0.8, linewidth=0.6)
+}
+
+cat("\n=== PARAMETER DISTRIBUTIONS (PRE-REJECTION) ===\n")
+print(plot_gamma_distribution_fixed(monte_carlo_results$parameters, title_suffix="(Pre-Rejection)"))
+print(plot_parameter_distributions(monte_carlo_results$parameters, param_type="catchability", title_suffix="(Pre-Rejection)"))
+print(plot_parameter_distributions(monte_carlo_results$parameters, param_type="abundance", title_suffix="(Pre-Rejection)"))
+
+apply_biomass_rejection_criteria <- function(sim_results, param_combinations, obs_biomass_data, tolerance=0.5, comparison_years=2000:2010, verbose=TRUE, allow_outside=3, obs_bounds_table=NULL){
+  if (!is.null(obs_bounds_table)) { obs_bounds <- obs_bounds_table %>% transmute(Species, lower_bound=Lower_g, upper_bound=Upper_g) } else { obs_bounds <- obs_biomass_bounds %>% transmute(Species, lower_bound=Lower_g, upper_bound=Upper_g) }
+  lower_by <- setNames(obs_bounds$lower_bound, obs_bounds$Species); upper_by <- setNames(obs_bounds$upper_bound, obs_bounds$Species)
+  accepted_idx <- integer(0); details <- vector("list", length(sim_results))
+  for (i in seq_along(sim_results)) { sim <- sim_results[[i]]; if (is.null(sim)||!inherits(sim,"MizerSim")) next; bm <- getBiomass(sim); yrs <- as.numeric(rownames(bm)); sel <- yrs %in% comparison_years; if (!any(sel)) next; mean_bm <- colMeans(bm[sel,,drop=FALSE]); sp <- names(mean_bm); within <- vapply(sp, function(spp){ if (spp %in% names(lower_by)) { mb<-mean_bm[[spp]]; lo<-lower_by[[spp]]; hi<-upper_by[[spp]]; is.finite(mb)&&mb>=lo&&mb<=hi } else TRUE }, logical(1)); failures <- sum(!within[sp %in% names(lower_by)], na.rm=TRUE); ok <- failures <= allow_outside; if (ok) accepted_idx <- c(accepted_idx,i); details[[i]] <- list(accepted=ok, n_failures=failures) }
+  list(accepted_indices=accepted_idx, accepted_simulations=sim_results[accepted_idx], accepted_parameters=param_combinations[accepted_idx], n_accepted=length(accepted_idx), acceptance_rate=length(accepted_idx)/max(1,length(sim_results)), rejection_details=details)
+}
+
+rejection_results <- apply_biomass_rejection_criteria(monte_carlo_results$simulations, monte_carlo_results$parameters, obs_biomass_ts, tolerance=0.5, comparison_years=2000:2010, allow_outside=3, obs_bounds_table=obs_biomass_bounds)
+cat("Accepted sims:", rejection_results$n_accepted, "(", round(100*rejection_results$acceptance_rate,1), "%)\n", sep="")
+
+if (rejection_results$n_accepted>0){
+  acc_biomass <- extract_monte_carlo_biomass(rejection_results$accepted_simulations)
+  acc_yield <- extract_monte_carlo_yield(rejection_results$accepted_simulations) %>% mutate(Yield=pmax(Yield,0))
+  acc_bu <- acc_biomass %>% group_by(Year, Species) %>% summarise(median=median(Biomass,na.rm=TRUE), q05=quantile(Biomass,0.05,na.rm=TRUE), q25=quantile(Biomass,0.25,na.rm=TRUE), q75=quantile(Biomass,0.75,na.rm=TRUE), q95=quantile(Biomass,0.95,na.rm=TRUE), .groups='drop') %>% mutate(Species=factor(Species, levels=species_order))
+  species_with_yield_acc <- acc_yield %>% group_by(Species) %>% summarise(mx=max(Yield,na.rm=TRUE), .groups='drop') %>% filter(mx>0) %>% pull(Species)
+  acc_yu <- acc_yield %>% filter(Species %in% species_with_yield_acc) %>% group_by(Year, Species) %>% summarise(median=median(Yield,na.rm=TRUE), q05=quantile(Yield,0.05,na.rm=TRUE), q25=quantile(Yield,0.25,na.rm=TRUE), q75=quantile(Yield,0.75,na.rm=TRUE), q95=quantile(Yield,0.95,na.rm=TRUE), .groups='drop') %>% mutate(Species=factor(Species, levels=species_order))
+  acc_yu <- acc_yu %>% left_join(obs_pos_by_year, by=c("Year","Species")) %>% mutate(has_obs_pos=coalesce(has_obs_pos,FALSE))
+  acc_yu_ribbon <- acc_yu %>% filter(!(has_obs_pos==FALSE & (is.na(q95)|q95<=0))) %>% mutate(q05=ifelse(q05>0,q05,NA_real_), q25=ifelse(q25>0,q25,NA_real_), q75=ifelse(q75>0,q75,NA_real_), q95=ifelse(q95>0,q95,NA_real_)) %>% filter(!(is.na(q25)&is.na(q75)&is.na(q05)&is.na(q95)))
+  acc_yu_line <- acc_yu %>% filter(!(has_obs_pos==FALSE & (is.na(median)|median<=0))) %>% mutate(median=ifelse(median>0,median,NA_real_))
+  yield_obs_filtered_acc <- yield_obs_filtered %>% filter(Species %in% species_with_yield_acc)
+
+  p_acc_biomass <- ggplot() + geom_ribbon(data=acc_bu, aes(x=Year, ymin=q05, ymax=q95, fill=Species), alpha=0.2) + geom_ribbon(data=acc_bu, aes(x=Year, ymin=q25, ymax=q75, fill=Species), alpha=0.3) + geom_line(data=acc_bu, aes(x=Year, y=median, colour=Species), linewidth=1.0) + geom_ribbon(data=obs_biomass_ts, aes(x=Year, ymin=Lower, ymax=Upper), alpha=0.2, fill="grey50") + geom_point(data=obs_biomass_ts, aes(x=Year, y=ObsBiomass, colour=Species), size=0.8) + geom_point(data=obs_biomass_ts, aes(x=Year, y=ObsBiomass), shape=1, size=0.8, colour="black") + facet_wrap(~Species, scales="free_y") + scale_y_continuous(labels=function(x) scales::number(x/1e6)) + theme_bw() + theme(legend.position="none", strip.text=element_text(face="bold")) + labs(x="Year", y="Biomass [t]", title=paste("Accepted Biomass (", rejection_results$n_accepted, ")", sep=""))
+  p_acc_yield <- ggplot() + geom_ribbon(data=acc_yu_ribbon, aes(x=Year, ymin=q05, ymax=q95, fill=Species), alpha=0.2) + geom_ribbon(data=acc_yu_ribbon, aes(x=Year, ymin=q25, ymax=q75, fill=Species), alpha=0.3) + geom_line(data=acc_yu_line, aes(x=Year, y=median, colour=Species), linewidth=1.0, lineend="round") + geom_point(data=yield_obs_filtered_acc, aes(x=Year, y=Yield, colour=Species), size=1) + geom_point(data=yield_obs_filtered_acc, aes(x=Year, y=Yield), shape=1, size=1, colour="black") + geom_vline(xintercept=1961, linetype="dashed") + geom_vline(xintercept=2010, linetype="dashed") + scale_y_log10(breaks=scales::log_breaks(n=6), labels=label_dynamic_decimals) + coord_cartesian(xlim=c(start_year,end_year)) + facet_wrap(~Species, scales="free_y") + theme_bw() + theme(legend.position="none", strip.text=element_text(face="bold")) + labs(x="Year", y="Yield [t/year]", title=paste("Accepted Yield (", rejection_results$n_accepted, ")", sep=""))
+  print(p_acc_biomass); print(p_acc_yield)
+
+ggsave(
+  filename = "rerun_v3_nsims_valid_2111_accepted_solid_line_mean_biomass.png",
+  plot = p_acc_biomass,
+  width = 12,
+  height = 8,
+  dpi = 300
+)
+
+ggsave(
+  filename = "rerun_v3_nsims_valid_2111_accepted_solid_line_mean_yield.png",
+  plot = p_acc_yield,
+  width = 12,
+  height = 8,
+  dpi = 300
+)
+
+#  Post-rejection parameter exports (activated for second combined rerun)
+  accepted_param_list <- rejection_results$accepted_parameters; accepted_indices <- rejection_results$accepted_indices
+  accepted_params_long <- do.call(rbind, lapply(seq_along(accepted_param_list), function(i){ p<-accepted_param_list[[i]]; if (is.null(p)) return(NULL); data.frame(sim_global_id=accepted_indices[i], sim_accept_rank=i, species=p$species_names, gamma_change=as.numeric(p$gamma_change %||% p$gamma_change_raw), catchability_change=as.numeric(p$catchability_change), abundance_scaling=as.numeric(p$abundance_scaling), stringsAsFactors=FALSE) }))
+  if (!is.null(accepted_params_long) && nrow(accepted_params_long)) {
+    accepted_param_summary <- accepted_params_long %>% group_by(species) %>% summarise(gamma_mean=mean(gamma_change,na.rm=TRUE), gamma_sd=sd(gamma_change,na.rm=TRUE), gamma_min=min(gamma_change,na.rm=TRUE), gamma_max=max(gamma_change,na.rm=TRUE), catch_mean=mean(catchability_change,na.rm=TRUE), catch_sd=sd(catchability_change,na.rm=TRUE), catch_min=min(catchability_change,na.rm=TRUE), catch_max=max(catchability_change,na.rm=TRUE), abund_mean=mean(abundance_scaling,na.rm=TRUE), abund_sd=sd(abundance_scaling,na.rm=TRUE), abund_min=min(abundance_scaling,na.rm=TRUE), abund_max=max(abundance_scaling,na.rm=TRUE), .groups='drop')
+    out_dir <- file.path("Output_large_files","monte_carlo_results","combined_simulation_results"); if (!dir.exists(out_dir)) dir.create(out_dir, recursive=TRUE)
+    ts_stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    # Provide a run label to distinguish this second rerun from prior exports
+    run_label <- "combined_rerun3"
+    # Derive an incremental index (counts existing accepted_params_long files containing run_label)
+    existing <- list.files(out_dir, pattern=paste0("accepted_params_long_", run_label), full.names=FALSE)
+    run_index <- if (length(existing)) sprintf("%02d", length(existing)+1) else "01"
+    base_tag <- paste0(run_label, "_", run_index, "_", ts_stamp)
+    # Helper to avoid accidental collision (unlikely unless run multiple times in <1s)
+    uniquify <- function(path){ if (!file.exists(path)) return(path); paste0(tools::file_path_sans_ext(path), "_dup", sample(1000:9999,1), ".", tools::file_ext(path)) }
+    saveRDS(accepted_params_long, uniquify(file.path(out_dir, paste0("accepted_params_long_", base_tag, ".rds"))))
+    saveRDS(accepted_param_list, uniquify(file.path(out_dir, paste0("accepted_param_list_", base_tag, ".rds"))))
+    write.csv(accepted_param_summary, uniquify(file.path(out_dir, paste0("accepted_params_summary_", base_tag, ".csv"))), row.names=FALSE)
+    seed_mean <- accepted_param_summary %>% select(species, gamma_change=gamma_mean, catchability_change=catch_mean, abundance_scaling=abund_mean)
+    write.csv(seed_mean, uniquify(file.path(out_dir, paste0("seed_params_mean_", base_tag, ".csv"))), row.names=FALSE)
+    seed_median <- accepted_params_long %>% group_by(species) %>% summarise(gamma_change=median(gamma_change,na.rm=TRUE), catchability_change=median(catchability_change,na.rm=TRUE), abundance_scaling=median(abundance_scaling,na.rm=TRUE), .groups='drop')
+    write.csv(seed_median, uniquify(file.path(out_dir, paste0("seed_params_median_", base_tag, ".csv"))), row.names=FALSE)
+    set.seed(as.integer(substr(ts_stamp,10,15)))
+    rand_row <- accepted_params_long %>% group_by(species) %>% slice_sample(n=1)
+    seed_rand <- rand_row %>% select(species, gamma_change, catchability_change, abundance_scaling)
+    write.csv(seed_rand, uniquify(file.path(out_dir, paste0("seed_params_random_draw_", base_tag, ".csv"))), row.names=FALSE)
+    cat("Seed parameter sets exported (mean, median, random) with run label '", run_label, "' and index ", run_index, "\n", sep="")
+  } else {
+    cat("No accepted parameters to export in this rerun.\n")
+    }
+}
+
+cat("=== FULL COMBINED MC SECTION COMPLETE ===\n")
+```
 
 
+## Select Best Model Based on Yield Fit Metrics
+
+```{r select-best-model, echo=TRUE, message=FALSE, warning=FALSE}
+# Select the best simulation from accepted results based on correlation and normalized RMSE
+# between modeled and observed yields
+
+  # Extract accepted simulations and parameters
+  accepted_sims <- rejection_results$accepted_simulations
+  accepted_params <- rejection_results$accepted_parameters
+  
+  # Function to calculate yield fit metrics for a single simulation
+  calculate_yield_metrics <- function(sim, obs_data = yield_ts_tidy) {
+    # Extract yield from simulation
+    yield_mat <- getYield(sim)
+    yield_df <- reshape2::melt(yield_mat)
+    names(yield_df) <- c("Year", "Species", "Yield")
+    yield_df$Year <- as.numeric(as.character(yield_df$Year))
+    yield_df$Species <- as.character(yield_df$Species)
+    
+    # Join with observed data
+    obs_sub <- obs_data %>% 
+      dplyr::filter(Yield > 0) %>%  # Only compare years with observed positive yield
+      dplyr::select(Year, Species, Obs_Yield = Yield)
+    
+    combined <- yield_df %>%
+      dplyr::inner_join(obs_sub, by = c("Year", "Species")) %>%
+      dplyr::filter(is.finite(Yield), is.finite(Obs_Yield), 
+                   Yield > 0, Obs_Yield > 0)  # Ensure positive values for log transform
+    
+    if (nrow(combined) == 0) {
+      return(list(correlation = NA, nrmse = NA, n_points = 0))
+    }
+    
+    # Log-transform yields for better comparison (as used in optimization)
+    log_modeled <- log10(combined$Yield + 1)
+    log_observed <- log10(combined$Obs_Yield + 1)
+    
+    # Calculate correlation
+    correlation <- cor(log_modeled, log_observed, use = "complete.obs")
+    
+    # Calculate normalized RMSE
+    rmse <- sqrt(mean((log_modeled - log_observed)^2, na.rm = TRUE))
+    mean_obs <- mean(log_observed, na.rm = TRUE)
+    nrmse <- rmse / mean_obs  # Normalized by mean of observed
+    
+    return(list(
+      correlation = correlation,
+      nrmse = nrmse,
+      n_points = nrow(combined),
+      rmse = rmse
+    ))
+  }
+  
+  cat("Calculating yield fit metrics for", length(accepted_sims), "accepted simulations...\n")
+  
+  # Calculate metrics for all accepted simulations
+  metrics_list <- lapply(seq_along(accepted_sims), function(i) {
+    metrics <- calculate_yield_metrics(accepted_sims[[i]])
+    metrics$sim_index <- i
+    metrics$global_index <- rejection_results$accepted_indices[i]
+    return(metrics)
+  })
+  
+  # Convert to data frame
+  metrics_df <- do.call(rbind, lapply(metrics_list, function(x) {
+    data.frame(
+      sim_index = x$sim_index,
+      global_index = x$global_index,
+      correlation = x$correlation,
+      nrmse = x$nrmse,
+      rmse = x$rmse,
+      n_points = x$n_points,
+      stringsAsFactors = FALSE
+    )
+  }))
+  
+  # Remove simulations with insufficient data or invalid metrics
+  valid_metrics <- metrics_df[is.finite(metrics_df$correlation) & 
+                             is.finite(metrics_df$nrmse) & 
+                             metrics_df$n_points >= 10, ]  # Require at least 10 comparison points
+  
+  if (nrow(valid_metrics) > 0) {
+    
+    # Create composite score: high correlation (good) + low NRMSE (good)
+    # Normalize metrics to 0-1 scale for combining
+    valid_metrics$corr_norm <- (valid_metrics$correlation - min(valid_metrics$correlation, na.rm = TRUE)) / 
+                              (max(valid_metrics$correlation, na.rm = TRUE) - min(valid_metrics$correlation, na.rm = TRUE))
+    valid_metrics$nrmse_norm <- 1 - ((valid_metrics$nrmse - min(valid_metrics$nrmse, na.rm = TRUE)) / 
+                                    (max(valid_metrics$nrmse, na.rm = TRUE) - min(valid_metrics$nrmse, na.rm = TRUE)))
+    
+    # Composite score (equal weighting of correlation and inverse NRMSE)
+    valid_metrics$composite_score <- 0.5 * valid_metrics$corr_norm + 0.5 * valid_metrics$nrmse_norm
+    
+    # Sort by composite score (descending - higher is better)
+    valid_metrics <- valid_metrics[order(valid_metrics$composite_score, decreasing = TRUE), ]
+    
+    # Select best simulation
+    best_idx <- valid_metrics$sim_index[1]
+    best_sim <- accepted_sims[[best_idx]]
+    best_params <- accepted_params[[best_idx]]
+    
+    cat("\n=== BEST MODEL SELECTION RESULTS ===\n")
+    cat("Total accepted simulations:", nrow(metrics_df), "\n")
+    cat("Simulations with valid metrics:", nrow(valid_metrics), "\n")
+    cat("Best simulation index (within accepted):", best_idx, "\n")
+    cat("Best simulation global index:", valid_metrics$global_index[1], "\n")
+    cat("Best correlation:", round(valid_metrics$correlation[1], 4), "\n")
+    cat("Best normalized RMSE:", round(valid_metrics$nrmse[1], 4), "\n")
+    cat("Best composite score:", round(valid_metrics$composite_score[1], 4), "\n")
+    cat("Comparison points:", valid_metrics$n_points[1], "\n")
+    
+    # Show top 5 candidates
+    cat("\nTop 5 candidates:\n")
+    top5 <- head(valid_metrics, 5)
+    for (i in 1:nrow(top5)) {
+      cat("Rank", i, ": Sim", top5$sim_index[i], 
+          "| Corr:", round(top5$correlation[i], 3),
+          "| NRMSE:", round(top5$nrmse[i], 3),
+          "| Score:", round(top5$composite_score[i], 3), "\n")
+    }
+    
+    # Save best model and metrics
+    best_model_results <- list(
+      simulation = best_sim,
+      parameters = best_params,
+      metrics = valid_metrics[1, ],
+      all_metrics = valid_metrics,
+      selection_criteria = "composite_score_corr_nrmse"
+    )
+    
+    # Save to file
+    saveRDS(best_model_results, "best_model_yield_fit.rds")
+    cat("\nBest model saved to: best_model_yield_fit.rds\n")
+    
+    # ---- Create tunable parameter object from best simulation ----
+    cat("\n=== CREATING TUNABLE PARAMETER OBJECT ===\n")
+    
+    # Start with baseline parameters
+    if (!exists("params_sel_adj")) {
+      if (file.exists("params_sel_adj.rds")) {
+        params_sel_adj <- readRDS("params_sel_adj.rds")
+      } else {
+        stop("Baseline params object 'params_sel_adj' not found.")
+      }
+    }
+    
+    # Create a copy for modification
+    params_best <- params_sel_adj
+    
+    # Apply the best parameter changes
+    if (!is.null(best_params) && length(best_params) > 0) {
+      
+      # Get species and gear parameter tables
+      sp_params <- species_params(params_best)
+      gp_params <- gear_params(params_best)
+      
+      # Extract parameter changes from best_params
+      species_names <- best_params$species_names
+      gamma_changes <- as.numeric(best_params$gamma_change)
+      catchability_changes <- as.numeric(best_params$catchability_change)
+      abundance_changes <- as.numeric(best_params$abundance_scaling)
+      
+      # Apply gamma changes
+      if (!is.null(gamma_changes) && length(gamma_changes) == length(species_names)) {
+        for (i in seq_along(species_names)) {
+          sp <- species_names[i]
+          idx <- which(sp_params$species == sp)
+          if (length(idx) == 1 && is.finite(gamma_changes[i])) {
+            original_gamma <- sp_params$gamma[idx]
+            new_gamma <- original_gamma * gamma_changes[i]
+            sp_params$gamma[idx] <- new_gamma
+            cat("Species:", sp, "| Gamma:", round(original_gamma, 6), "->", round(new_gamma, 6), 
+                "(x", round(gamma_changes[i], 3), ")\n")
+          }
+        }
+      }
+      
+      # Apply catchability changes
+      if (!is.null(catchability_changes) && length(catchability_changes) == length(species_names)) {
+        for (i in seq_along(species_names)) {
+          sp <- species_names[i]
+          gp_idx <- which(gp_params$species == sp)
+          if (length(gp_idx) == 1 && is.finite(catchability_changes[i])) {
+            original_catch <- gp_params$catchability[gp_idx]
+            new_catch <- pmin(1, pmax(0, original_catch * catchability_changes[i]))
+            gp_params$catchability[gp_idx] <- new_catch
+            cat("Species:", sp, "| Catchability:", round(original_catch, 6), "->", round(new_catch, 6), 
+                "(x", round(catchability_changes[i], 3), ")\n")
+          }
+        }
+      }
+      
+      # Apply abundance scaling changes
+      if (!is.null(abundance_changes) && length(abundance_changes) == length(species_names)) {
+        for (i in seq_along(species_names)) {
+          sp <- species_names[i]
+          idx <- which(sp_params$species == sp)
+          if (length(idx) == 1 && is.finite(abundance_changes[i])) {
+            # Scale the initial abundance matrix for this species
+            params_best@initial_n[idx, ] <- params_best@initial_n[idx, ] * abundance_changes[i]
+            cat("Species:", sp, "| Abundance scaling:", round(abundance_changes[i], 3), "\n")
+          }
+        }
+      }
+      
+      # Update the parameter object with modified tables
+      species_params(params_best) <- sp_params
+      gear_params(params_best) <- gp_params
+      
+      cat("\nParameter object 'params_best' created with best simulation parameters.\n")
+      cat("Use this object for manual parameter tuning and single simulations.\n")
+      
+      # Save the tunable parameter object
+      saveRDS(params_best, "params_best_tunable.rds")
+      cat("Tunable parameters saved to: params_best_tunable.rds\n")
+      
+      # Create a summary of the applied changes
+      param_summary <- data.frame(
+        Species = species_names,
+        Gamma_Multiplier = if(!is.null(gamma_changes)) gamma_changes else NA,
+        Catchability_Multiplier = if(!is.null(catchability_changes)) catchability_changes else NA,
+        Abundance_Multiplier = if(!is.null(abundance_changes)) abundance_changes else NA,
+        stringsAsFactors = FALSE
+      )
+      
+      # Save parameter summary
+      write.csv(param_summary, "best_model_parameter_changes.csv", row.names = FALSE)
+      cat("Parameter changes summary saved to: best_model_parameter_changes.csv\n")
+      
+      # Print quick usage example
+      cat("\n=== USAGE EXAMPLE ===\n")
+      cat("# Load the tunable parameters:\n")
+      cat("params_best <- readRDS('params_best_tunable.rds')\n\n")
+      cat("# Run a single simulation:\n")
+      cat("sim <- project(params_best, effort = combined_effort_array, t_start = 1841, t_max = 170)\n\n")
+      cat("# Or with steady state first:\n")
+      cat("params_steady <- steady(params_best, t_max = 200)\n")
+      cat("sim <- project(params_steady, effort = combined_effort_array, t_start = 1841, t_max = 170)\n\n")
+      cat("# Manual parameter tuning examples:\n")
+      cat("# Adjust gamma for a specific species:\n")
+      cat("sp_params <- species_params(params_best)\n")
+      cat("sp_params$gamma[sp_params$species == 'baleen whales'] <- 0.5  # Example value\n")
+      cat("species_params(params_best) <- sp_params\n\n")
+      cat("# Adjust catchability:\n")
+      cat("gp_params <- gear_params(params_best)\n")
+      cat("gp_params$catchability[gp_params$species == 'baleen whales'] <- 0.3  # Example value\n")
+      cat("gear_params(params_best) <- gp_params\n")
+      
+    } else {
+      cat("Warning: No parameter data found in best simulation results.\n")
+      params_best <- params_sel_adj  # Fallback to baseline
+    }
+    
+    # Optional: create a simple plot showing the distribution of metrics
+    if (require(ggplot2, quietly = TRUE)) {
+      p_metrics <- ggplot(valid_metrics, aes(x = correlation, y = nrmse)) +
+        geom_point(aes(color = composite_score), size = 2, alpha = 0.7) +
+        geom_point(data = valid_metrics[1, ], color = "red", size = 4, shape = 1, stroke = 2) +
+        scale_color_viridis_c(name = "Composite\nScore") +
+        labs(title = "Yield Fit Metrics for Accepted Simulations",
+             subtitle = "Red circle = selected best model",
+             x = "Correlation (log10 yields)",
+             y = "Normalized RMSE") +
+        theme_bw()
+      
+      print(p_metrics)
+      ggsave("best_model_selection_metrics.png", p_metrics, width = 8, height = 6, dpi = 300)
+      cat("Metrics plot saved to: best_model_selection_metrics.png\n")
+    }
+    
+  }
+
+best_sim <- best_model_results$simulation
+
+
+mc_biomass <- extract_monte_carlo_biomass(best_sim)
+# biomass_uncertainty <- mc_biomass %>% 
+#   group_by(Year, Species) %>% 
+#   summarise(median=median(Biomass,na.rm=TRUE),
+#             mean = mean(Biomass, na.rm=TRUE),
+#             q25=quantile(Biomass,0.25,na.rm=TRUE), 
+#             q75=quantile(Biomass,0.75,na.rm=TRUE), 
+#             q05=quantile(Biomass,0.05,na.rm=TRUE), 
+#             q95=quantile(Biomass,0.95,na.rm=TRUE), .groups='drop') %>% 
+#   mutate(Species=factor(Species, levels=species_order))
+
+obs_biomass_ts <- obs_biomass_data %>% 
+  left_join(obs_biomass_bounds %>% 
+              select(Species, Lower = Lower_g, Upper = Upper_g), by="Species") %>% 
+  tidyr::crossing(Year = 2000:2010) %>% 
+  mutate(Species=factor(Species, levels=species_order))
+
+mc_yield <- extract_monte_carlo_yield(best_sim) %>% 
+  mutate(Yield = pmax(Yield,0))
+
+species_with_yield <- mc_yield %>% 
+  group_by(Species) %>% 
+  summarise(mx = max(Yield, na.rm=TRUE), .groups='drop') %>% 
+  filter(mx>0) %>% pull(Species)
+
+cat("Species with fishing yields:", paste(species_with_yield, collapse=", "), "\n")
+
+# yield_uncertainty <- mc_yield %>% 
+#   filter(Species %in% species_with_yield) %>% 
+#   group_by(Year, Species) %>% 
+#   summarise(median=median(Yield,na.rm=TRUE), 
+#             mean=mean(Yield,na.rm=TRUE),
+#             q25=quantile(Yield,0.25,na.rm=TRUE), 
+#             q75=quantile(Yield,0.75,na.rm=TRUE), 
+#             q05=quantile(Yield,0.05,na.rm=TRUE), 
+#             q95=quantile(Yield,0.95,na.rm=TRUE), .groups='drop') %>% 
+#   mutate(Species=factor(Species, levels=species_order))
+
+obs_pos_by_year <- yield_ts_tidy %>% 
+  mutate(has_obs_pos = Yield>0) %>% 
+  group_by(Year, Species) %>% 
+  summarise(has_obs_pos=any(has_obs_pos,na.rm=TRUE), .groups='drop')
+
+yield_uncertainty <- yield_uncertainty %>% 
+  left_join(obs_pos_by_year, by=c("Year","Species")) %>% 
+  mutate(has_obs_pos=coalesce(has_obs_pos,FALSE))
+
+# yield_uncertainty_ribbon <- yield_uncertainty %>% 
+#   filter(!(has_obs_pos==FALSE & (is.na(q95) | q95<=0))) %>% 
+#   mutate(q05=ifelse(q05>0,q05,NA_real_), 
+#          q25=ifelse(q25>0,q25,NA_real_), 
+#          q75=ifelse(q75>0,q75,NA_real_), 
+#          q95=ifelse(q95>0,q95,NA_real_)) %>% 
+#   filter(!(is.na(q25)&is.na(q75)&is.na(q05)&is.na(q95)))
+
+# yield_uncertainty_line_median <- yield_uncertainty %>% 
+#   filter(!(has_obs_pos==FALSE & (is.na(median) | median<=0))) %>% 
+#   mutate(median=ifelse(median>0,median,NA_real_))
+
+# yield_uncertainty_line_mean <- yield_uncertainty %>% 
+#   filter(!(has_obs_pos==FALSE & (is.na(mean) | mean<=0))) %>% 
+#   mutate(mean=ifelse(mean>0,mean,NA_real_))
+
+yield_obs_filtered <- yield_ts_tidy %>% 
+  filter(Species %in% species_with_yield, Yield>0) %>% 
+  mutate(Species=factor(Species, levels=species_order))
+
+baleen_start_obs <- yield_obs_filtered %>% filter(Species=="baleen whales") %>% summarise(min_year=min(Year,na.rm=TRUE)) %>% pull(min_year)
+global_start_obs <- yield_obs_filtered %>% summarise(min_year=min(Year,na.rm=TRUE)) %>% pull(min_year)
+start_year <- if (is.finite(baleen_start_obs)) baleen_start_obs else if (is.finite(global_start_obs)) global_start_obs else 1930
+end_year <- max(yield_uncertainty$Year, na.rm=TRUE)
+
+label_dynamic_decimals <- function(x){
+  sci <- scales::label_scientific(digits=1)
+  vapply(x, function(v){ if (is.na(v)) return(NA_character_); if (v<=0) return("0"); vt<-v/1e6; if (vt>=1) paste0(formatC(vt, format="f", digits=0, big.mark=",")," t") else if (vt<1e-6) paste0(sci(vt)," t") else {dp<-max(1, ceiling(-log10(vt))); dp<-min(dp,6); paste0(formatC(vt, format="f", digits=dp)," t")} }, character(1))
+}
+
+plot_combined_yield <- function(){ ggplot() +
+  # geom_ribbon(data=yield_uncertainty_ribbon, aes(x=Year, ymin=q05, ymax=q95, fill=Species), alpha=0.2) +
+  # geom_ribbon(data=yield_uncertainty_ribbon, aes(x=Year, ymin=q25, ymax=q75, fill=Species), alpha=0.3) +
+  # geom_line(data=yield_uncertainty_line_median, aes(x=Year, y=median, colour=Species), linewidth=1.0, lineend="round") +
+  geom_line(data=mc_yield, aes(x=Year, y=Yield, colour=Species), linewidth=1.0, lineend="round") +  
+  geom_point(data=yield_obs_filtered, aes(x=Year, y=Yield, colour=Species), size=1) +
+  geom_point(data=yield_obs_filtered, aes(x=Year, y=Yield), shape=1, size=1, colour="black") +
+  geom_vline(xintercept=1961, linetype="dashed") + geom_vline(xintercept=2010, linetype="dashed") +
+  scale_y_log10(breaks=scales::log_breaks(n=6), labels=label_dynamic_decimals) + coord_cartesian(xlim=c(start_year,end_year)) + facet_wrap(~Species, scales="free_y") + theme_bw() + theme(legend.position="none", strip.text=element_text(face="bold")) + labs(x="Year", y="Yield [t/year]", title=paste("Combined MC: Yield (", length(valid_sims), " sims)")) }
+
+plot_combined_biomass <- function(){ ggplot() +
+  # geom_ribbon(data=biomass_uncertainty, aes(x=Year, ymin=q05, ymax=q95, fill=Species), alpha=0.2) +
+  # geom_ribbon(data=biomass_uncertainty, aes(x=Year, ymin=q25, ymax=q75, fill=Species), alpha=0.3) +
+  # geom_line(data=biomass_uncertainty, aes(x=Year, y=median, colour=Species), linewidth=1.1) +
+  geom_line(data=mc_biomass, aes(x=Year, y=Biomass, colour=Species), linewidth=1.1) +
+  geom_ribbon(data=obs_biomass_ts, aes(x=Year, ymin=Lower, ymax=Upper), alpha=0.2, fill="gray50") +
+  geom_point(data=obs_biomass_ts, aes(x=Year, y=ObsBiomass, colour=Species), size=0.8) +
+  geom_point(data=obs_biomass_ts, aes(x=Year, y=ObsBiomass), shape=1, size=0.8, colour="black") +
+  facet_wrap(~Species, scales="free_y") + scale_y_continuous(labels=function(x) scales::number(x/1e6)) + theme_bw() + theme(legend.position="none", strip.text=element_text(face="bold")) + labs(x="Year", y="Biomass [t]", title=paste("Combined MC: Biomass (", length(valid_sims), " sims)")) }
+
+print(plot_combined_biomass()); print(plot_combined_yield())
+```
+
+
+```{r}
+species_params(params_best) %>% select(gamma)
+gear_params(params_best) %>%  select(catchability)
+# head(params_best@initial_n)
+```
 
 
 

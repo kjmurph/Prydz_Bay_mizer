@@ -1,0 +1,1531 @@
+"Year","Species","min_yield_t","median_yield_t","max_yield_t","q05_yield_t","q95_yield_t","ObsYield_t"
+1841,"antarctic krill",0,0,0,0,0,NA
+1841,"baleen whales",0,0,0,0,0,NA
+1841,"bathypelagic fishes",0,0,0,0,0,NA
+1841,"minke whales",0,0,0,0,0,NA
+1841,"orca",0,0,0,0,0,NA
+1841,"shelf and coastal fishes",0,0,0,0,0,NA
+1841,"sperm whales",0,0,0,0,0,NA
+1841,"squids",0,0,0,0,0,NA
+1841,"toothfishes",0,0,0,0,0,NA
+1842,"antarctic krill",0,0,0,0,0,NA
+1842,"baleen whales",0,0,0,0,0,NA
+1842,"bathypelagic fishes",0,0,0,0,0,NA
+1842,"minke whales",0,0,0,0,0,NA
+1842,"orca",0,0,0,0,0,NA
+1842,"shelf and coastal fishes",0,0,0,0,0,NA
+1842,"sperm whales",0,0,0,0,0,NA
+1842,"squids",0,0,0,0,0,NA
+1842,"toothfishes",0,0,0,0,0,NA
+1843,"antarctic krill",0,0,0,0,0,NA
+1843,"baleen whales",0,0,0,0,0,NA
+1843,"bathypelagic fishes",0,0,0,0,0,NA
+1843,"minke whales",0,0,0,0,0,NA
+1843,"orca",0,0,0,0,0,NA
+1843,"shelf and coastal fishes",0,0,0,0,0,NA
+1843,"sperm whales",0,0,0,0,0,NA
+1843,"squids",0,0,0,0,0,NA
+1843,"toothfishes",0,0,0,0,0,NA
+1844,"antarctic krill",0,0,0,0,0,NA
+1844,"baleen whales",0,0,0,0,0,NA
+1844,"bathypelagic fishes",0,0,0,0,0,NA
+1844,"minke whales",0,0,0,0,0,NA
+1844,"orca",0,0,0,0,0,NA
+1844,"shelf and coastal fishes",0,0,0,0,0,NA
+1844,"sperm whales",0,0,0,0,0,NA
+1844,"squids",0,0,0,0,0,NA
+1844,"toothfishes",0,0,0,0,0,NA
+1845,"antarctic krill",0,0,0,0,0,NA
+1845,"baleen whales",0,0,0,0,0,NA
+1845,"bathypelagic fishes",0,0,0,0,0,NA
+1845,"minke whales",0,0,0,0,0,NA
+1845,"orca",0,0,0,0,0,NA
+1845,"shelf and coastal fishes",0,0,0,0,0,NA
+1845,"sperm whales",0,0,0,0,0,NA
+1845,"squids",0,0,0,0,0,NA
+1845,"toothfishes",0,0,0,0,0,NA
+1846,"antarctic krill",0,0,0,0,0,NA
+1846,"baleen whales",0,0,0,0,0,NA
+1846,"bathypelagic fishes",0,0,0,0,0,NA
+1846,"minke whales",0,0,0,0,0,NA
+1846,"orca",0,0,0,0,0,NA
+1846,"shelf and coastal fishes",0,0,0,0,0,NA
+1846,"sperm whales",0,0,0,0,0,NA
+1846,"squids",0,0,0,0,0,NA
+1846,"toothfishes",0,0,0,0,0,NA
+1847,"antarctic krill",0,0,0,0,0,NA
+1847,"baleen whales",0,0,0,0,0,NA
+1847,"bathypelagic fishes",0,0,0,0,0,NA
+1847,"minke whales",0,0,0,0,0,NA
+1847,"orca",0,0,0,0,0,NA
+1847,"shelf and coastal fishes",0,0,0,0,0,NA
+1847,"sperm whales",0,0,0,0,0,NA
+1847,"squids",0,0,0,0,0,NA
+1847,"toothfishes",0,0,0,0,0,NA
+1848,"antarctic krill",0,0,0,0,0,NA
+1848,"baleen whales",0,0,0,0,0,NA
+1848,"bathypelagic fishes",0,0,0,0,0,NA
+1848,"minke whales",0,0,0,0,0,NA
+1848,"orca",0,0,0,0,0,NA
+1848,"shelf and coastal fishes",0,0,0,0,0,NA
+1848,"sperm whales",0,0,0,0,0,NA
+1848,"squids",0,0,0,0,0,NA
+1848,"toothfishes",0,0,0,0,0,NA
+1849,"antarctic krill",0,0,0,0,0,NA
+1849,"baleen whales",0,0,0,0,0,NA
+1849,"bathypelagic fishes",0,0,0,0,0,NA
+1849,"minke whales",0,0,0,0,0,NA
+1849,"orca",0,0,0,0,0,NA
+1849,"shelf and coastal fishes",0,0,0,0,0,NA
+1849,"sperm whales",0,0,0,0,0,NA
+1849,"squids",0,0,0,0,0,NA
+1849,"toothfishes",0,0,0,0,0,NA
+1850,"antarctic krill",0,0,0,0,0,NA
+1850,"baleen whales",0,0,0,0,0,NA
+1850,"bathypelagic fishes",0,0,0,0,0,NA
+1850,"minke whales",0,0,0,0,0,NA
+1850,"orca",0,0,0,0,0,NA
+1850,"shelf and coastal fishes",0,0,0,0,0,NA
+1850,"sperm whales",0,0,0,0,0,NA
+1850,"squids",0,0,0,0,0,NA
+1850,"toothfishes",0,0,0,0,0,NA
+1851,"antarctic krill",0,0,0,0,0,NA
+1851,"baleen whales",0,0,0,0,0,NA
+1851,"bathypelagic fishes",0,0,0,0,0,NA
+1851,"minke whales",0,0,0,0,0,NA
+1851,"orca",0,0,0,0,0,NA
+1851,"shelf and coastal fishes",0,0,0,0,0,NA
+1851,"sperm whales",0,0,0,0,0,NA
+1851,"squids",0,0,0,0,0,NA
+1851,"toothfishes",0,0,0,0,0,NA
+1852,"antarctic krill",0,0,0,0,0,NA
+1852,"baleen whales",0,0,0,0,0,NA
+1852,"bathypelagic fishes",0,0,0,0,0,NA
+1852,"minke whales",0,0,0,0,0,NA
+1852,"orca",0,0,0,0,0,NA
+1852,"shelf and coastal fishes",0,0,0,0,0,NA
+1852,"sperm whales",0,0,0,0,0,NA
+1852,"squids",0,0,0,0,0,NA
+1852,"toothfishes",0,0,0,0,0,NA
+1853,"antarctic krill",0,0,0,0,0,NA
+1853,"baleen whales",0,0,0,0,0,NA
+1853,"bathypelagic fishes",0,0,0,0,0,NA
+1853,"minke whales",0,0,0,0,0,NA
+1853,"orca",0,0,0,0,0,NA
+1853,"shelf and coastal fishes",0,0,0,0,0,NA
+1853,"sperm whales",0,0,0,0,0,NA
+1853,"squids",0,0,0,0,0,NA
+1853,"toothfishes",0,0,0,0,0,NA
+1854,"antarctic krill",0,0,0,0,0,NA
+1854,"baleen whales",0,0,0,0,0,NA
+1854,"bathypelagic fishes",0,0,0,0,0,NA
+1854,"minke whales",0,0,0,0,0,NA
+1854,"orca",0,0,0,0,0,NA
+1854,"shelf and coastal fishes",0,0,0,0,0,NA
+1854,"sperm whales",0,0,0,0,0,NA
+1854,"squids",0,0,0,0,0,NA
+1854,"toothfishes",0,0,0,0,0,NA
+1855,"antarctic krill",0,0,0,0,0,NA
+1855,"baleen whales",0,0,0,0,0,NA
+1855,"bathypelagic fishes",0,0,0,0,0,NA
+1855,"minke whales",0,0,0,0,0,NA
+1855,"orca",0,0,0,0,0,NA
+1855,"shelf and coastal fishes",0,0,0,0,0,NA
+1855,"sperm whales",0,0,0,0,0,NA
+1855,"squids",0,0,0,0,0,NA
+1855,"toothfishes",0,0,0,0,0,NA
+1856,"antarctic krill",0,0,0,0,0,NA
+1856,"baleen whales",0,0,0,0,0,NA
+1856,"bathypelagic fishes",0,0,0,0,0,NA
+1856,"minke whales",0,0,0,0,0,NA
+1856,"orca",0,0,0,0,0,NA
+1856,"shelf and coastal fishes",0,0,0,0,0,NA
+1856,"sperm whales",0,0,0,0,0,NA
+1856,"squids",0,0,0,0,0,NA
+1856,"toothfishes",0,0,0,0,0,NA
+1857,"antarctic krill",0,0,0,0,0,NA
+1857,"baleen whales",0,0,0,0,0,NA
+1857,"bathypelagic fishes",0,0,0,0,0,NA
+1857,"minke whales",0,0,0,0,0,NA
+1857,"orca",0,0,0,0,0,NA
+1857,"shelf and coastal fishes",0,0,0,0,0,NA
+1857,"sperm whales",0,0,0,0,0,NA
+1857,"squids",0,0,0,0,0,NA
+1857,"toothfishes",0,0,0,0,0,NA
+1858,"antarctic krill",0,0,0,0,0,NA
+1858,"baleen whales",0,0,0,0,0,NA
+1858,"bathypelagic fishes",0,0,0,0,0,NA
+1858,"minke whales",0,0,0,0,0,NA
+1858,"orca",0,0,0,0,0,NA
+1858,"shelf and coastal fishes",0,0,0,0,0,NA
+1858,"sperm whales",0,0,0,0,0,NA
+1858,"squids",0,0,0,0,0,NA
+1858,"toothfishes",0,0,0,0,0,NA
+1859,"antarctic krill",0,0,0,0,0,NA
+1859,"baleen whales",0,0,0,0,0,NA
+1859,"bathypelagic fishes",0,0,0,0,0,NA
+1859,"minke whales",0,0,0,0,0,NA
+1859,"orca",0,0,0,0,0,NA
+1859,"shelf and coastal fishes",0,0,0,0,0,NA
+1859,"sperm whales",0,0,0,0,0,NA
+1859,"squids",0,0,0,0,0,NA
+1859,"toothfishes",0,0,0,0,0,NA
+1860,"antarctic krill",0,0,0,0,0,NA
+1860,"baleen whales",0,0,0,0,0,NA
+1860,"bathypelagic fishes",0,0,0,0,0,NA
+1860,"minke whales",0,0,0,0,0,NA
+1860,"orca",0,0,0,0,0,NA
+1860,"shelf and coastal fishes",0,0,0,0,0,NA
+1860,"sperm whales",0,0,0,0,0,NA
+1860,"squids",0,0,0,0,0,NA
+1860,"toothfishes",0,0,0,0,0,NA
+1861,"antarctic krill",0,0,0,0,0,NA
+1861,"baleen whales",0,0,0,0,0,NA
+1861,"bathypelagic fishes",0,0,0,0,0,NA
+1861,"minke whales",0,0,0,0,0,NA
+1861,"orca",0,0,0,0,0,NA
+1861,"shelf and coastal fishes",0,0,0,0,0,NA
+1861,"sperm whales",0,0,0,0,0,NA
+1861,"squids",0,0,0,0,0,NA
+1861,"toothfishes",0,0,0,0,0,NA
+1862,"antarctic krill",0,0,0,0,0,NA
+1862,"baleen whales",0,0,0,0,0,NA
+1862,"bathypelagic fishes",0,0,0,0,0,NA
+1862,"minke whales",0,0,0,0,0,NA
+1862,"orca",0,0,0,0,0,NA
+1862,"shelf and coastal fishes",0,0,0,0,0,NA
+1862,"sperm whales",0,0,0,0,0,NA
+1862,"squids",0,0,0,0,0,NA
+1862,"toothfishes",0,0,0,0,0,NA
+1863,"antarctic krill",0,0,0,0,0,NA
+1863,"baleen whales",0,0,0,0,0,NA
+1863,"bathypelagic fishes",0,0,0,0,0,NA
+1863,"minke whales",0,0,0,0,0,NA
+1863,"orca",0,0,0,0,0,NA
+1863,"shelf and coastal fishes",0,0,0,0,0,NA
+1863,"sperm whales",0,0,0,0,0,NA
+1863,"squids",0,0,0,0,0,NA
+1863,"toothfishes",0,0,0,0,0,NA
+1864,"antarctic krill",0,0,0,0,0,NA
+1864,"baleen whales",0,0,0,0,0,NA
+1864,"bathypelagic fishes",0,0,0,0,0,NA
+1864,"minke whales",0,0,0,0,0,NA
+1864,"orca",0,0,0,0,0,NA
+1864,"shelf and coastal fishes",0,0,0,0,0,NA
+1864,"sperm whales",0,0,0,0,0,NA
+1864,"squids",0,0,0,0,0,NA
+1864,"toothfishes",0,0,0,0,0,NA
+1865,"antarctic krill",0,0,0,0,0,NA
+1865,"baleen whales",0,0,0,0,0,NA
+1865,"bathypelagic fishes",0,0,0,0,0,NA
+1865,"minke whales",0,0,0,0,0,NA
+1865,"orca",0,0,0,0,0,NA
+1865,"shelf and coastal fishes",0,0,0,0,0,NA
+1865,"sperm whales",0,0,0,0,0,NA
+1865,"squids",0,0,0,0,0,NA
+1865,"toothfishes",0,0,0,0,0,NA
+1866,"antarctic krill",0,0,0,0,0,NA
+1866,"baleen whales",0,0,0,0,0,NA
+1866,"bathypelagic fishes",0,0,0,0,0,NA
+1866,"minke whales",0,0,0,0,0,NA
+1866,"orca",0,0,0,0,0,NA
+1866,"shelf and coastal fishes",0,0,0,0,0,NA
+1866,"sperm whales",0,0,0,0,0,NA
+1866,"squids",0,0,0,0,0,NA
+1866,"toothfishes",0,0,0,0,0,NA
+1867,"antarctic krill",0,0,0,0,0,NA
+1867,"baleen whales",0,0,0,0,0,NA
+1867,"bathypelagic fishes",0,0,0,0,0,NA
+1867,"minke whales",0,0,0,0,0,NA
+1867,"orca",0,0,0,0,0,NA
+1867,"shelf and coastal fishes",0,0,0,0,0,NA
+1867,"sperm whales",0,0,0,0,0,NA
+1867,"squids",0,0,0,0,0,NA
+1867,"toothfishes",0,0,0,0,0,NA
+1868,"antarctic krill",0,0,0,0,0,NA
+1868,"baleen whales",0,0,0,0,0,NA
+1868,"bathypelagic fishes",0,0,0,0,0,NA
+1868,"minke whales",0,0,0,0,0,NA
+1868,"orca",0,0,0,0,0,NA
+1868,"shelf and coastal fishes",0,0,0,0,0,NA
+1868,"sperm whales",0,0,0,0,0,NA
+1868,"squids",0,0,0,0,0,NA
+1868,"toothfishes",0,0,0,0,0,NA
+1869,"antarctic krill",0,0,0,0,0,NA
+1869,"baleen whales",0,0,0,0,0,NA
+1869,"bathypelagic fishes",0,0,0,0,0,NA
+1869,"minke whales",0,0,0,0,0,NA
+1869,"orca",0,0,0,0,0,NA
+1869,"shelf and coastal fishes",0,0,0,0,0,NA
+1869,"sperm whales",0,0,0,0,0,NA
+1869,"squids",0,0,0,0,0,NA
+1869,"toothfishes",0,0,0,0,0,NA
+1870,"antarctic krill",0,0,0,0,0,NA
+1870,"baleen whales",0,0,0,0,0,NA
+1870,"bathypelagic fishes",0,0,0,0,0,NA
+1870,"minke whales",0,0,0,0,0,NA
+1870,"orca",0,0,0,0,0,NA
+1870,"shelf and coastal fishes",0,0,0,0,0,NA
+1870,"sperm whales",0,0,0,0,0,NA
+1870,"squids",0,0,0,0,0,NA
+1870,"toothfishes",0,0,0,0,0,NA
+1871,"antarctic krill",0,0,0,0,0,NA
+1871,"baleen whales",0,0,0,0,0,NA
+1871,"bathypelagic fishes",0,0,0,0,0,NA
+1871,"minke whales",0,0,0,0,0,NA
+1871,"orca",0,0,0,0,0,NA
+1871,"shelf and coastal fishes",0,0,0,0,0,NA
+1871,"sperm whales",0,0,0,0,0,NA
+1871,"squids",0,0,0,0,0,NA
+1871,"toothfishes",0,0,0,0,0,NA
+1872,"antarctic krill",0,0,0,0,0,NA
+1872,"baleen whales",0,0,0,0,0,NA
+1872,"bathypelagic fishes",0,0,0,0,0,NA
+1872,"minke whales",0,0,0,0,0,NA
+1872,"orca",0,0,0,0,0,NA
+1872,"shelf and coastal fishes",0,0,0,0,0,NA
+1872,"sperm whales",0,0,0,0,0,NA
+1872,"squids",0,0,0,0,0,NA
+1872,"toothfishes",0,0,0,0,0,NA
+1873,"antarctic krill",0,0,0,0,0,NA
+1873,"baleen whales",0,0,0,0,0,NA
+1873,"bathypelagic fishes",0,0,0,0,0,NA
+1873,"minke whales",0,0,0,0,0,NA
+1873,"orca",0,0,0,0,0,NA
+1873,"shelf and coastal fishes",0,0,0,0,0,NA
+1873,"sperm whales",0,0,0,0,0,NA
+1873,"squids",0,0,0,0,0,NA
+1873,"toothfishes",0,0,0,0,0,NA
+1874,"antarctic krill",0,0,0,0,0,NA
+1874,"baleen whales",0,0,0,0,0,NA
+1874,"bathypelagic fishes",0,0,0,0,0,NA
+1874,"minke whales",0,0,0,0,0,NA
+1874,"orca",0,0,0,0,0,NA
+1874,"shelf and coastal fishes",0,0,0,0,0,NA
+1874,"sperm whales",0,0,0,0,0,NA
+1874,"squids",0,0,0,0,0,NA
+1874,"toothfishes",0,0,0,0,0,NA
+1875,"antarctic krill",0,0,0,0,0,NA
+1875,"baleen whales",0,0,0,0,0,NA
+1875,"bathypelagic fishes",0,0,0,0,0,NA
+1875,"minke whales",0,0,0,0,0,NA
+1875,"orca",0,0,0,0,0,NA
+1875,"shelf and coastal fishes",0,0,0,0,0,NA
+1875,"sperm whales",0,0,0,0,0,NA
+1875,"squids",0,0,0,0,0,NA
+1875,"toothfishes",0,0,0,0,0,NA
+1876,"antarctic krill",0,0,0,0,0,NA
+1876,"baleen whales",0,0,0,0,0,NA
+1876,"bathypelagic fishes",0,0,0,0,0,NA
+1876,"minke whales",0,0,0,0,0,NA
+1876,"orca",0,0,0,0,0,NA
+1876,"shelf and coastal fishes",0,0,0,0,0,NA
+1876,"sperm whales",0,0,0,0,0,NA
+1876,"squids",0,0,0,0,0,NA
+1876,"toothfishes",0,0,0,0,0,NA
+1877,"antarctic krill",0,0,0,0,0,NA
+1877,"baleen whales",0,0,0,0,0,NA
+1877,"bathypelagic fishes",0,0,0,0,0,NA
+1877,"minke whales",0,0,0,0,0,NA
+1877,"orca",0,0,0,0,0,NA
+1877,"shelf and coastal fishes",0,0,0,0,0,NA
+1877,"sperm whales",0,0,0,0,0,NA
+1877,"squids",0,0,0,0,0,NA
+1877,"toothfishes",0,0,0,0,0,NA
+1878,"antarctic krill",0,0,0,0,0,NA
+1878,"baleen whales",0,0,0,0,0,NA
+1878,"bathypelagic fishes",0,0,0,0,0,NA
+1878,"minke whales",0,0,0,0,0,NA
+1878,"orca",0,0,0,0,0,NA
+1878,"shelf and coastal fishes",0,0,0,0,0,NA
+1878,"sperm whales",0,0,0,0,0,NA
+1878,"squids",0,0,0,0,0,NA
+1878,"toothfishes",0,0,0,0,0,NA
+1879,"antarctic krill",0,0,0,0,0,NA
+1879,"baleen whales",0,0,0,0,0,NA
+1879,"bathypelagic fishes",0,0,0,0,0,NA
+1879,"minke whales",0,0,0,0,0,NA
+1879,"orca",0,0,0,0,0,NA
+1879,"shelf and coastal fishes",0,0,0,0,0,NA
+1879,"sperm whales",0,0,0,0,0,NA
+1879,"squids",0,0,0,0,0,NA
+1879,"toothfishes",0,0,0,0,0,NA
+1880,"antarctic krill",0,0,0,0,0,NA
+1880,"baleen whales",0,0,0,0,0,NA
+1880,"bathypelagic fishes",0,0,0,0,0,NA
+1880,"minke whales",0,0,0,0,0,NA
+1880,"orca",0,0,0,0,0,NA
+1880,"shelf and coastal fishes",0,0,0,0,0,NA
+1880,"sperm whales",0,0,0,0,0,NA
+1880,"squids",0,0,0,0,0,NA
+1880,"toothfishes",0,0,0,0,0,NA
+1881,"antarctic krill",0,0,0,0,0,NA
+1881,"baleen whales",0,0,0,0,0,NA
+1881,"bathypelagic fishes",0,0,0,0,0,NA
+1881,"minke whales",0,0,0,0,0,NA
+1881,"orca",0,0,0,0,0,NA
+1881,"shelf and coastal fishes",0,0,0,0,0,NA
+1881,"sperm whales",0,0,0,0,0,NA
+1881,"squids",0,0,0,0,0,NA
+1881,"toothfishes",0,0,0,0,0,NA
+1882,"antarctic krill",0,0,0,0,0,NA
+1882,"baleen whales",0,0,0,0,0,NA
+1882,"bathypelagic fishes",0,0,0,0,0,NA
+1882,"minke whales",0,0,0,0,0,NA
+1882,"orca",0,0,0,0,0,NA
+1882,"shelf and coastal fishes",0,0,0,0,0,NA
+1882,"sperm whales",0,0,0,0,0,NA
+1882,"squids",0,0,0,0,0,NA
+1882,"toothfishes",0,0,0,0,0,NA
+1883,"antarctic krill",0,0,0,0,0,NA
+1883,"baleen whales",0,0,0,0,0,NA
+1883,"bathypelagic fishes",0,0,0,0,0,NA
+1883,"minke whales",0,0,0,0,0,NA
+1883,"orca",0,0,0,0,0,NA
+1883,"shelf and coastal fishes",0,0,0,0,0,NA
+1883,"sperm whales",0,0,0,0,0,NA
+1883,"squids",0,0,0,0,0,NA
+1883,"toothfishes",0,0,0,0,0,NA
+1884,"antarctic krill",0,0,0,0,0,NA
+1884,"baleen whales",0,0,0,0,0,NA
+1884,"bathypelagic fishes",0,0,0,0,0,NA
+1884,"minke whales",0,0,0,0,0,NA
+1884,"orca",0,0,0,0,0,NA
+1884,"shelf and coastal fishes",0,0,0,0,0,NA
+1884,"sperm whales",0,0,0,0,0,NA
+1884,"squids",0,0,0,0,0,NA
+1884,"toothfishes",0,0,0,0,0,NA
+1885,"antarctic krill",0,0,0,0,0,NA
+1885,"baleen whales",0,0,0,0,0,NA
+1885,"bathypelagic fishes",0,0,0,0,0,NA
+1885,"minke whales",0,0,0,0,0,NA
+1885,"orca",0,0,0,0,0,NA
+1885,"shelf and coastal fishes",0,0,0,0,0,NA
+1885,"sperm whales",0,0,0,0,0,NA
+1885,"squids",0,0,0,0,0,NA
+1885,"toothfishes",0,0,0,0,0,NA
+1886,"antarctic krill",0,0,0,0,0,NA
+1886,"baleen whales",0,0,0,0,0,NA
+1886,"bathypelagic fishes",0,0,0,0,0,NA
+1886,"minke whales",0,0,0,0,0,NA
+1886,"orca",0,0,0,0,0,NA
+1886,"shelf and coastal fishes",0,0,0,0,0,NA
+1886,"sperm whales",0,0,0,0,0,NA
+1886,"squids",0,0,0,0,0,NA
+1886,"toothfishes",0,0,0,0,0,NA
+1887,"antarctic krill",0,0,0,0,0,NA
+1887,"baleen whales",0,0,0,0,0,NA
+1887,"bathypelagic fishes",0,0,0,0,0,NA
+1887,"minke whales",0,0,0,0,0,NA
+1887,"orca",0,0,0,0,0,NA
+1887,"shelf and coastal fishes",0,0,0,0,0,NA
+1887,"sperm whales",0,0,0,0,0,NA
+1887,"squids",0,0,0,0,0,NA
+1887,"toothfishes",0,0,0,0,0,NA
+1888,"antarctic krill",0,0,0,0,0,NA
+1888,"baleen whales",0,0,0,0,0,NA
+1888,"bathypelagic fishes",0,0,0,0,0,NA
+1888,"minke whales",0,0,0,0,0,NA
+1888,"orca",0,0,0,0,0,NA
+1888,"shelf and coastal fishes",0,0,0,0,0,NA
+1888,"sperm whales",0,0,0,0,0,NA
+1888,"squids",0,0,0,0,0,NA
+1888,"toothfishes",0,0,0,0,0,NA
+1889,"antarctic krill",0,0,0,0,0,NA
+1889,"baleen whales",0,0,0,0,0,NA
+1889,"bathypelagic fishes",0,0,0,0,0,NA
+1889,"minke whales",0,0,0,0,0,NA
+1889,"orca",0,0,0,0,0,NA
+1889,"shelf and coastal fishes",0,0,0,0,0,NA
+1889,"sperm whales",0,0,0,0,0,NA
+1889,"squids",0,0,0,0,0,NA
+1889,"toothfishes",0,0,0,0,0,NA
+1890,"antarctic krill",0,0,0,0,0,NA
+1890,"baleen whales",0,0,0,0,0,NA
+1890,"bathypelagic fishes",0,0,0,0,0,NA
+1890,"minke whales",0,0,0,0,0,NA
+1890,"orca",0,0,0,0,0,NA
+1890,"shelf and coastal fishes",0,0,0,0,0,NA
+1890,"sperm whales",0,0,0,0,0,NA
+1890,"squids",0,0,0,0,0,NA
+1890,"toothfishes",0,0,0,0,0,NA
+1891,"antarctic krill",0,0,0,0,0,NA
+1891,"baleen whales",0,0,0,0,0,NA
+1891,"bathypelagic fishes",0,0,0,0,0,NA
+1891,"minke whales",0,0,0,0,0,NA
+1891,"orca",0,0,0,0,0,NA
+1891,"shelf and coastal fishes",0,0,0,0,0,NA
+1891,"sperm whales",0,0,0,0,0,NA
+1891,"squids",0,0,0,0,0,NA
+1891,"toothfishes",0,0,0,0,0,NA
+1892,"antarctic krill",0,0,0,0,0,NA
+1892,"baleen whales",0,0,0,0,0,NA
+1892,"bathypelagic fishes",0,0,0,0,0,NA
+1892,"minke whales",0,0,0,0,0,NA
+1892,"orca",0,0,0,0,0,NA
+1892,"shelf and coastal fishes",0,0,0,0,0,NA
+1892,"sperm whales",0,0,0,0,0,NA
+1892,"squids",0,0,0,0,0,NA
+1892,"toothfishes",0,0,0,0,0,NA
+1893,"antarctic krill",0,0,0,0,0,NA
+1893,"baleen whales",0,0,0,0,0,NA
+1893,"bathypelagic fishes",0,0,0,0,0,NA
+1893,"minke whales",0,0,0,0,0,NA
+1893,"orca",0,0,0,0,0,NA
+1893,"shelf and coastal fishes",0,0,0,0,0,NA
+1893,"sperm whales",0,0,0,0,0,NA
+1893,"squids",0,0,0,0,0,NA
+1893,"toothfishes",0,0,0,0,0,NA
+1894,"antarctic krill",0,0,0,0,0,NA
+1894,"baleen whales",0,0,0,0,0,NA
+1894,"bathypelagic fishes",0,0,0,0,0,NA
+1894,"minke whales",0,0,0,0,0,NA
+1894,"orca",0,0,0,0,0,NA
+1894,"shelf and coastal fishes",0,0,0,0,0,NA
+1894,"sperm whales",0,0,0,0,0,NA
+1894,"squids",0,0,0,0,0,NA
+1894,"toothfishes",0,0,0,0,0,NA
+1895,"antarctic krill",0,0,0,0,0,NA
+1895,"baleen whales",0,0,0,0,0,NA
+1895,"bathypelagic fishes",0,0,0,0,0,NA
+1895,"minke whales",0,0,0,0,0,NA
+1895,"orca",0,0,0,0,0,NA
+1895,"shelf and coastal fishes",0,0,0,0,0,NA
+1895,"sperm whales",0,0,0,0,0,NA
+1895,"squids",0,0,0,0,0,NA
+1895,"toothfishes",0,0,0,0,0,NA
+1896,"antarctic krill",0,0,0,0,0,NA
+1896,"baleen whales",0,0,0,0,0,NA
+1896,"bathypelagic fishes",0,0,0,0,0,NA
+1896,"minke whales",0,0,0,0,0,NA
+1896,"orca",0,0,0,0,0,NA
+1896,"shelf and coastal fishes",0,0,0,0,0,NA
+1896,"sperm whales",0,0,0,0,0,NA
+1896,"squids",0,0,0,0,0,NA
+1896,"toothfishes",0,0,0,0,0,NA
+1897,"antarctic krill",0,0,0,0,0,NA
+1897,"baleen whales",0,0,0,0,0,NA
+1897,"bathypelagic fishes",0,0,0,0,0,NA
+1897,"minke whales",0,0,0,0,0,NA
+1897,"orca",0,0,0,0,0,NA
+1897,"shelf and coastal fishes",0,0,0,0,0,NA
+1897,"sperm whales",0,0,0,0,0,NA
+1897,"squids",0,0,0,0,0,NA
+1897,"toothfishes",0,0,0,0,0,NA
+1898,"antarctic krill",0,0,0,0,0,NA
+1898,"baleen whales",0,0,0,0,0,NA
+1898,"bathypelagic fishes",0,0,0,0,0,NA
+1898,"minke whales",0,0,0,0,0,NA
+1898,"orca",0,0,0,0,0,NA
+1898,"shelf and coastal fishes",0,0,0,0,0,NA
+1898,"sperm whales",0,0,0,0,0,NA
+1898,"squids",0,0,0,0,0,NA
+1898,"toothfishes",0,0,0,0,0,NA
+1899,"antarctic krill",0,0,0,0,0,NA
+1899,"baleen whales",0,0,0,0,0,NA
+1899,"bathypelagic fishes",0,0,0,0,0,NA
+1899,"minke whales",0,0,0,0,0,NA
+1899,"orca",0,0,0,0,0,NA
+1899,"shelf and coastal fishes",0,0,0,0,0,NA
+1899,"sperm whales",0,0,0,0,0,NA
+1899,"squids",0,0,0,0,0,NA
+1899,"toothfishes",0,0,0,0,0,NA
+1900,"antarctic krill",0,0,0,0,0,NA
+1900,"baleen whales",0,0,0,0,0,NA
+1900,"bathypelagic fishes",0,0,0,0,0,NA
+1900,"minke whales",0,0,0,0,0,NA
+1900,"orca",0,0,0,0,0,NA
+1900,"shelf and coastal fishes",0,0,0,0,0,NA
+1900,"sperm whales",0,0,0,0,0,NA
+1900,"squids",0,0,0,0,0,NA
+1900,"toothfishes",0,0,0,0,0,NA
+1901,"antarctic krill",0,0,0,0,0,NA
+1901,"baleen whales",0,0,0,0,0,NA
+1901,"bathypelagic fishes",0,0,0,0,0,NA
+1901,"minke whales",0,0,0,0,0,NA
+1901,"orca",0,0,0,0,0,NA
+1901,"shelf and coastal fishes",0,0,0,0,0,NA
+1901,"sperm whales",0,0,0,0,0,NA
+1901,"squids",0,0,0,0,0,NA
+1901,"toothfishes",0,0,0,0,0,NA
+1902,"antarctic krill",0,0,0,0,0,NA
+1902,"baleen whales",0,0,0,0,0,NA
+1902,"bathypelagic fishes",0,0,0,0,0,NA
+1902,"minke whales",0,0,0,0,0,NA
+1902,"orca",0,0,0,0,0,NA
+1902,"shelf and coastal fishes",0,0,0,0,0,NA
+1902,"sperm whales",0,0,0,0,0,NA
+1902,"squids",0,0,0,0,0,NA
+1902,"toothfishes",0,0,0,0,0,NA
+1903,"antarctic krill",0,0,0,0,0,NA
+1903,"baleen whales",0,0,0,0,0,NA
+1903,"bathypelagic fishes",0,0,0,0,0,NA
+1903,"minke whales",0,0,0,0,0,NA
+1903,"orca",0,0,0,0,0,NA
+1903,"shelf and coastal fishes",0,0,0,0,0,NA
+1903,"sperm whales",0,0,0,0,0,NA
+1903,"squids",0,0,0,0,0,NA
+1903,"toothfishes",0,0,0,0,0,NA
+1904,"antarctic krill",0,0,0,0,0,NA
+1904,"baleen whales",0,0,0,0,0,NA
+1904,"bathypelagic fishes",0,0,0,0,0,NA
+1904,"minke whales",0,0,0,0,0,NA
+1904,"orca",0,0,0,0,0,NA
+1904,"shelf and coastal fishes",0,0,0,0,0,NA
+1904,"sperm whales",0,0,0,0,0,NA
+1904,"squids",0,0,0,0,0,NA
+1904,"toothfishes",0,0,0,0,0,NA
+1905,"antarctic krill",0,0,0,0,0,NA
+1905,"baleen whales",0,0,0,0,0,NA
+1905,"bathypelagic fishes",0,0,0,0,0,NA
+1905,"minke whales",0,0,0,0,0,NA
+1905,"orca",0,0,0,0,0,NA
+1905,"shelf and coastal fishes",0,0,0,0,0,NA
+1905,"sperm whales",0,0,0,0,0,NA
+1905,"squids",0,0,0,0,0,NA
+1905,"toothfishes",0,0,0,0,0,NA
+1906,"antarctic krill",0,0,0,0,0,NA
+1906,"baleen whales",0,0,0,0,0,NA
+1906,"bathypelagic fishes",0,0,0,0,0,NA
+1906,"minke whales",0,0,0,0,0,NA
+1906,"orca",0,0,0,0,0,NA
+1906,"shelf and coastal fishes",0,0,0,0,0,NA
+1906,"sperm whales",0,0,0,0,0,NA
+1906,"squids",0,0,0,0,0,NA
+1906,"toothfishes",0,0,0,0,0,NA
+1907,"antarctic krill",0,0,0,0,0,NA
+1907,"baleen whales",0,0,0,0,0,NA
+1907,"bathypelagic fishes",0,0,0,0,0,NA
+1907,"minke whales",0,0,0,0,0,NA
+1907,"orca",0,0,0,0,0,NA
+1907,"shelf and coastal fishes",0,0,0,0,0,NA
+1907,"sperm whales",0,0,0,0,0,NA
+1907,"squids",0,0,0,0,0,NA
+1907,"toothfishes",0,0,0,0,0,NA
+1908,"antarctic krill",0,0,0,0,0,NA
+1908,"baleen whales",0,0,0,0,0,NA
+1908,"bathypelagic fishes",0,0,0,0,0,NA
+1908,"minke whales",0,0,0,0,0,NA
+1908,"orca",0,0,0,0,0,NA
+1908,"shelf and coastal fishes",0,0,0,0,0,NA
+1908,"sperm whales",0,0,0,0,0,NA
+1908,"squids",0,0,0,0,0,NA
+1908,"toothfishes",0,0,0,0,0,NA
+1909,"antarctic krill",0,0,0,0,0,NA
+1909,"baleen whales",0,0,0,0,0,NA
+1909,"bathypelagic fishes",0,0,0,0,0,NA
+1909,"minke whales",0,0,0,0,0,NA
+1909,"orca",0,0,0,0,0,NA
+1909,"shelf and coastal fishes",0,0,0,0,0,NA
+1909,"sperm whales",0,0,0,0,0,NA
+1909,"squids",0,0,0,0,0,NA
+1909,"toothfishes",0,0,0,0,0,NA
+1910,"antarctic krill",0,0,0,0,0,NA
+1910,"baleen whales",0,0,0,0,0,NA
+1910,"bathypelagic fishes",0,0,0,0,0,NA
+1910,"minke whales",0,0,0,0,0,NA
+1910,"orca",0,0,0,0,0,NA
+1910,"shelf and coastal fishes",0,0,0,0,0,NA
+1910,"sperm whales",0,0,0,0,0,NA
+1910,"squids",0,0,0,0,0,NA
+1910,"toothfishes",0,0,0,0,0,NA
+1911,"antarctic krill",0,0,0,0,0,NA
+1911,"baleen whales",0,0,0,0,0,NA
+1911,"bathypelagic fishes",0,0,0,0,0,NA
+1911,"minke whales",0,0,0,0,0,NA
+1911,"orca",0,0,0,0,0,NA
+1911,"shelf and coastal fishes",0,0,0,0,0,NA
+1911,"sperm whales",0,0,0,0,0,NA
+1911,"squids",0,0,0,0,0,NA
+1911,"toothfishes",0,0,0,0,0,NA
+1912,"antarctic krill",0,0,0,0,0,NA
+1912,"baleen whales",0,0,0,0,0,NA
+1912,"bathypelagic fishes",0,0,0,0,0,NA
+1912,"minke whales",0,0,0,0,0,NA
+1912,"orca",0,0,0,0,0,NA
+1912,"shelf and coastal fishes",0,0,0,0,0,NA
+1912,"sperm whales",0,0,0,0,0,NA
+1912,"squids",0,0,0,0,0,NA
+1912,"toothfishes",0,0,0,0,0,NA
+1913,"antarctic krill",0,0,0,0,0,NA
+1913,"baleen whales",0,0,0,0,0,NA
+1913,"bathypelagic fishes",0,0,0,0,0,NA
+1913,"minke whales",0,0,0,0,0,NA
+1913,"orca",0,0,0,0,0,NA
+1913,"shelf and coastal fishes",0,0,0,0,0,NA
+1913,"sperm whales",0,0,0,0,0,NA
+1913,"squids",0,0,0,0,0,NA
+1913,"toothfishes",0,0,0,0,0,NA
+1914,"antarctic krill",0,0,0,0,0,NA
+1914,"baleen whales",0,0,0,0,0,NA
+1914,"bathypelagic fishes",0,0,0,0,0,NA
+1914,"minke whales",0,0,0,0,0,NA
+1914,"orca",0,0,0,0,0,NA
+1914,"shelf and coastal fishes",0,0,0,0,0,NA
+1914,"sperm whales",0,0,0,0,0,NA
+1914,"squids",0,0,0,0,0,NA
+1914,"toothfishes",0,0,0,0,0,NA
+1915,"antarctic krill",0,0,0,0,0,NA
+1915,"baleen whales",0,0,0,0,0,NA
+1915,"bathypelagic fishes",0,0,0,0,0,NA
+1915,"minke whales",0,0,0,0,0,NA
+1915,"orca",0,0,0,0,0,NA
+1915,"shelf and coastal fishes",0,0,0,0,0,NA
+1915,"sperm whales",0,0,0,0,0,NA
+1915,"squids",0,0,0,0,0,NA
+1915,"toothfishes",0,0,0,0,0,NA
+1916,"antarctic krill",0,0,0,0,0,NA
+1916,"baleen whales",0,0,0,0,0,NA
+1916,"bathypelagic fishes",0,0,0,0,0,NA
+1916,"minke whales",0,0,0,0,0,NA
+1916,"orca",0,0,0,0,0,NA
+1916,"shelf and coastal fishes",0,0,0,0,0,NA
+1916,"sperm whales",0,0,0,0,0,NA
+1916,"squids",0,0,0,0,0,NA
+1916,"toothfishes",0,0,0,0,0,NA
+1917,"antarctic krill",0,0,0,0,0,NA
+1917,"baleen whales",0,0,0,0,0,NA
+1917,"bathypelagic fishes",0,0,0,0,0,NA
+1917,"minke whales",0,0,0,0,0,NA
+1917,"orca",0,0,0,0,0,NA
+1917,"shelf and coastal fishes",0,0,0,0,0,NA
+1917,"sperm whales",0,0,0,0,0,NA
+1917,"squids",0,0,0,0,0,NA
+1917,"toothfishes",0,0,0,0,0,NA
+1918,"antarctic krill",0,0,0,0,0,NA
+1918,"baleen whales",0,0,0,0,0,NA
+1918,"bathypelagic fishes",0,0,0,0,0,NA
+1918,"minke whales",0,0,0,0,0,NA
+1918,"orca",0,0,0,0,0,NA
+1918,"shelf and coastal fishes",0,0,0,0,0,NA
+1918,"sperm whales",0,0,0,0,0,NA
+1918,"squids",0,0,0,0,0,NA
+1918,"toothfishes",0,0,0,0,0,NA
+1919,"antarctic krill",0,0,0,0,0,NA
+1919,"baleen whales",0,0,0,0,0,NA
+1919,"bathypelagic fishes",0,0,0,0,0,NA
+1919,"minke whales",0,0,0,0,0,NA
+1919,"orca",0,0,0,0,0,NA
+1919,"shelf and coastal fishes",0,0,0,0,0,NA
+1919,"sperm whales",0,0,0,0,0,NA
+1919,"squids",0,0,0,0,0,NA
+1919,"toothfishes",0,0,0,0,0,NA
+1920,"antarctic krill",0,0,0,0,0,NA
+1920,"baleen whales",0,0,0,0,0,NA
+1920,"bathypelagic fishes",0,0,0,0,0,NA
+1920,"minke whales",0,0,0,0,0,NA
+1920,"orca",0,0,0,0,0,NA
+1920,"shelf and coastal fishes",0,0,0,0,0,NA
+1920,"sperm whales",0,0,0,0,0,NA
+1920,"squids",0,0,0,0,0,NA
+1920,"toothfishes",0,0,0,0,0,NA
+1921,"antarctic krill",0,0,0,0,0,NA
+1921,"baleen whales",0,0,0,0,0,NA
+1921,"bathypelagic fishes",0,0,0,0,0,NA
+1921,"minke whales",0,0,0,0,0,NA
+1921,"orca",0,0,0,0,0,NA
+1921,"shelf and coastal fishes",0,0,0,0,0,NA
+1921,"sperm whales",0,0,0,0,0,NA
+1921,"squids",0,0,0,0,0,NA
+1921,"toothfishes",0,0,0,0,0,NA
+1922,"antarctic krill",0,0,0,0,0,NA
+1922,"baleen whales",0,0,0,0,0,NA
+1922,"bathypelagic fishes",0,0,0,0,0,NA
+1922,"minke whales",0,0,0,0,0,NA
+1922,"orca",0,0,0,0,0,NA
+1922,"shelf and coastal fishes",0,0,0,0,0,NA
+1922,"sperm whales",0,0,0,0,0,NA
+1922,"squids",0,0,0,0,0,NA
+1922,"toothfishes",0,0,0,0,0,NA
+1923,"antarctic krill",0,0,0,0,0,NA
+1923,"baleen whales",0,0,0,0,0,NA
+1923,"bathypelagic fishes",0,0,0,0,0,NA
+1923,"minke whales",0,0,0,0,0,NA
+1923,"orca",0,0,0,0,0,NA
+1923,"shelf and coastal fishes",0,0,0,0,0,NA
+1923,"sperm whales",0,0,0,0,0,NA
+1923,"squids",0,0,0,0,0,NA
+1923,"toothfishes",0,0,0,0,0,NA
+1924,"antarctic krill",0,0,0,0,0,NA
+1924,"baleen whales",0,0,0,0,0,NA
+1924,"bathypelagic fishes",0,0,0,0,0,NA
+1924,"minke whales",0,0,0,0,0,NA
+1924,"orca",0,0,0,0,0,NA
+1924,"shelf and coastal fishes",0,0,0,0,0,NA
+1924,"sperm whales",0,0,0,0,0,NA
+1924,"squids",0,0,0,0,0,NA
+1924,"toothfishes",0,0,0,0,0,NA
+1925,"antarctic krill",0,0,0,0,0,NA
+1925,"baleen whales",0,0,0,0,0,NA
+1925,"bathypelagic fishes",0,0,0,0,0,NA
+1925,"minke whales",0,0,0,0,0,NA
+1925,"orca",0,0,0,0,0,NA
+1925,"shelf and coastal fishes",0,0,0,0,0,NA
+1925,"sperm whales",0,0,0,0,0,NA
+1925,"squids",0,0,0,0,0,NA
+1925,"toothfishes",0,0,0,0,0,NA
+1926,"antarctic krill",0,0,0,0,0,NA
+1926,"baleen whales",0,0,0,0,0,NA
+1926,"bathypelagic fishes",0,0,0,0,0,NA
+1926,"minke whales",0,0,0,0,0,NA
+1926,"orca",0,0,0,0,0,NA
+1926,"shelf and coastal fishes",0,0,0,0,0,NA
+1926,"sperm whales",0,0,0,0,0,NA
+1926,"squids",0,0,0,0,0,NA
+1926,"toothfishes",0,0,0,0,0,NA
+1927,"antarctic krill",0,0,0,0,0,NA
+1927,"baleen whales",0,0,0,0,0,NA
+1927,"bathypelagic fishes",0,0,0,0,0,NA
+1927,"minke whales",0,0,0,0,0,NA
+1927,"orca",0,0,0,0,0,NA
+1927,"shelf and coastal fishes",0,0,0,0,0,NA
+1927,"sperm whales",0,0,0,0,0,NA
+1927,"squids",0,0,0,0,0,NA
+1927,"toothfishes",0,0,0,0,0,NA
+1928,"antarctic krill",0,0,0,0,0,NA
+1928,"baleen whales",0,0,0,0,0,NA
+1928,"bathypelagic fishes",0,0,0,0,0,NA
+1928,"minke whales",0,0,0,0,0,NA
+1928,"orca",0,0,0,0,0,NA
+1928,"shelf and coastal fishes",0,0,0,0,0,NA
+1928,"sperm whales",0,0,0,0,0,NA
+1928,"squids",0,0,0,0,0,NA
+1928,"toothfishes",0,0,0,0,0,NA
+1929,"antarctic krill",0,0,0,0,0,NA
+1929,"baleen whales",0,0,0,0,0,NA
+1929,"bathypelagic fishes",0,0,0,0,0,NA
+1929,"minke whales",0,0,0,0,0,NA
+1929,"orca",0,0,0,0,0,NA
+1929,"shelf and coastal fishes",0,0,0,0,0,NA
+1929,"sperm whales",0,0,0,0,0,NA
+1929,"squids",0,0,0,0,0,NA
+1929,"toothfishes",0,0,0,0,0,NA
+1930,"antarctic krill",0,0,0,0,0,NA
+1930,"baleen whales",0.0142704667390844,14136.0605291253,7864779.43805821,177.924223472293,405207.720645284,50155.68813
+1930,"bathypelagic fishes",0,0,0,0,0,NA
+1930,"minke whales",0,0,0,0,0,NA
+1930,"orca",0,0,0,0,0,NA
+1930,"shelf and coastal fishes",0,0,0,0,0,NA
+1930,"sperm whales",0,0,0,0,0,NA
+1930,"squids",0,0,0,0,0,NA
+1930,"toothfishes",0,0,0,0,0,NA
+1931,"antarctic krill",0,0,0,0,0,NA
+1931,"baleen whales",0.0670326283638166,65268.3725090171,31218599.4172191,834.869652412119,1774878.64871573,335374
+1931,"bathypelagic fishes",0,0,0,0,0,NA
+1931,"minke whales",0,0,0,0,0,NA
+1931,"orca",0,0,0,0,0,NA
+1931,"shelf and coastal fishes",0,0,0,0,0,NA
+1931,"sperm whales",0,0,0,0,0,NA
+1931,"squids",0,0,0,0,0,NA
+1931,"toothfishes",0,0,0,0,0,NA
+1932,"antarctic krill",0,0,0,0,0,NA
+1932,"baleen whales",0.0468372642277452,41603.0448856343,10182670.2686182,580.492659325019,891493.305736802,306612
+1932,"bathypelagic fishes",0,0,0,0,0,NA
+1932,"minke whales",0,0,0,0,0,NA
+1932,"orca",0,0,0,0,0,NA
+1932,"shelf and coastal fishes",0,0,0,0,0,NA
+1932,"sperm whales",0.0210127768186219,141.253115361553,88384.138020178,5.846127572281,7830.21765816744,142.0751168
+1932,"squids",0,0,0,0,0,NA
+1932,"toothfishes",0,0,0,0,0,NA
+1933,"antarctic krill",0,0,0,0,0,NA
+1933,"baleen whales",0.0847428415315073,71140.6576885074,11759516.5672369,1046.70259033859,1362053.23585868,496515
+1933,"bathypelagic fishes",0,0,0,0,0,NA
+1933,"minke whales",0,0,0,0,0,NA
+1933,"orca",0,0,0,0,0,NA
+1933,"shelf and coastal fishes",0,0,0,0,0,NA
+1933,"sperm whales",0.435076212339808,2904.697305078,1814584.72375211,120.970148953672,160974.806826984,3108.915827
+1933,"squids",0,0,0,0,0,NA
+1933,"toothfishes",0,0,0,0,0,NA
+1934,"antarctic krill",0,0,0,0,0,NA
+1934,"baleen whales",0.0556773542550998,42120.9949054687,6109268.68652708,683.450343667083,675575.978056121,279493
+1934,"bathypelagic fishes",0,0,0,0,0,NA
+1934,"minke whales",0,0,0,0,0,NA
+1934,"orca",0,0,0,0,0,NA
+1934,"shelf and coastal fishes",0,0,0,0,0,NA
+1934,"sperm whales",0.711042218377673,4119.20106617296,2561345.88333007,196.864245632961,235533.461233111,5993.267003
+1934,"squids",0,0,0,0,0,NA
+1934,"toothfishes",0,0,0,0,0,NA
+1935,"antarctic krill",0,0,0,0,0,NA
+1935,"baleen whales",0.0434663571300672,27693.9134778792,4083065.71910094,531.374882654228,450893.623162347,220991
+1935,"bathypelagic fishes",0,0,0,0,0,NA
+1935,"minke whales",0,0,0,0,0,NA
+1935,"orca",0,0,0,0,0,NA
+1935,"shelf and coastal fishes",0,0,0,0,0,NA
+1935,"sperm whales",0.488715028225639,2247.53012225292,1388142.11105878,134.414264128953,141343.400793391,3701.390973
+1935,"squids",0,0,0,0,0,NA
+1935,"toothfishes",0,0,0,0,0,NA
+1936,"antarctic krill",0,0,0,0,0,NA
+1936,"baleen whales",0.0380922792318802,22415.6803981686,3167896.52922047,464.20555304409,358584.840751849,184531
+1936,"bathypelagic fishes",0,0,0,0,0,NA
+1936,"minke whales",0,0,0,0,0,NA
+1936,"orca",0,0,0,0,0,NA
+1936,"shelf and coastal fishes",0,0,0,0,0,NA
+1936,"sperm whales",0.484263391196276,1899.56790450654,1166892.03083569,132.565172158138,127507.953139965,4019.223651
+1936,"squids",0,0,0,0,0,NA
+1936,"toothfishes",0,0,0,0,0,NA
+1937,"antarctic krill",0,0,0,0,0,NA
+1937,"baleen whales",0.039264683297119,21397.1434687144,2934090.86110206,477.1373909933,338795.512298227,198882
+1937,"bathypelagic fishes",0,0,0,0,0,NA
+1937,"minke whales",0,0,0,0,0,NA
+1937,"orca",0,0,0,0,0,NA
+1937,"shelf and coastal fishes",0,0,0,0,0,NA
+1937,"sperm whales",0.47177821756438,1579.28534463261,965822.640346334,128.489270364323,114639.397096615,3685.440062
+1937,"squids",0,0,0,0,0,NA
+1937,"toothfishes",0,0,0,0,0,NA
+1938,"antarctic krill",0,0,0,0,0,NA
+1938,"baleen whales",0.0188908985564918,9437.5163479247,1264368.47772806,228.891157224445,151427.024545148,100816
+1938,"bathypelagic fishes",0,0,0,0,0,NA
+1938,"minke whales",0,0,0,0,0,NA
+1938,"orca",0,0,0,0,0,NA
+1938,"shelf and coastal fishes",0,0,0,0,0,NA
+1938,"sperm whales",0.281543969929783,810.84251573493,491657.815099826,76.0809204738224,61794.6238847798,1668.498793
+1938,"squids",0,0,0,0,0,NA
+1938,"toothfishes",0,0,0,0,0,NA
+1939,"antarctic krill",0,0,0,0,0,NA
+1939,"baleen whales",0.0377714037411994,18151.9537073782,2395281.40433088,456.995897504512,293749.435165622,175933
+1939,"bathypelagic fishes",0,0,0,0,0,NA
+1939,"minke whales",0,0,0,0,0,NA
+1939,"orca",0,0,0,0,0,NA
+1939,"shelf and coastal fishes",0,0,0,0,0,NA
+1939,"sperm whales",1.70501627281546,4483.30764879966,2705605.48089786,458.696297913939,348966.888268434,12378.212374
+1939,"squids",0,0,0,0,0,NA
+1939,"toothfishes",0,0,0,0,0,NA
+1940,"antarctic krill",0,0,0,0,0,NA
+1940,"baleen whales",0.0189952624298198,8487.37650031258,1083424.49649501,229.188396723461,138563.063132168,91089.607711
+1940,"bathypelagic fishes",0,0,0,0,0,NA
+1940,"minke whales",0,0,0,0,0,NA
+1940,"orca",0,0,0,0,0,NA
+1940,"shelf and coastal fishes",0,0,0,0,0,NA
+1940,"sperm whales",1.26214600725991,2084.54714595,1143931.43859937,329.629787397152,190022.932486465,10394.602302
+1940,"squids",0,0,0,0,0,NA
+1940,"toothfishes",0,0,0,0,0,NA
+1941,"antarctic krill",0,0,0,0,0,NA
+1941,"baleen whales",0,0,0,0,0,NA
+1941,"bathypelagic fishes",0,0,0,0,0,NA
+1941,"minke whales",0,0,0,0,0,NA
+1941,"orca",0,0,0,0,0,NA
+1941,"shelf and coastal fishes",0,0,0,0,0,NA
+1941,"sperm whales",0,0,0,0,0,NA
+1941,"squids",0,0,0,0,0,NA
+1941,"toothfishes",0,0,0,0,0,NA
+1942,"antarctic krill",0,0,0,0,0,NA
+1942,"baleen whales",0,0,0,0,0,NA
+1942,"bathypelagic fishes",0,0,0,0,0,NA
+1942,"minke whales",0,0,0,0,0,NA
+1942,"orca",0,0,0,0,0,NA
+1942,"shelf and coastal fishes",0,0,0,0,0,NA
+1942,"sperm whales",0,0,0,0,0,NA
+1942,"squids",0,0,0,0,0,NA
+1942,"toothfishes",0,0,0,0,0,NA
+1943,"antarctic krill",0,0,0,0,0,NA
+1943,"baleen whales",0,0,0,0,0,NA
+1943,"bathypelagic fishes",0,0,0,0,0,NA
+1943,"minke whales",0,0,0,0,0,NA
+1943,"orca",0,0,0,0,0,NA
+1943,"shelf and coastal fishes",0,0,0,0,0,NA
+1943,"sperm whales",0,0,0,0,0,NA
+1943,"squids",0,0,0,0,0,NA
+1943,"toothfishes",0,0,0,0,0,NA
+1944,"antarctic krill",0,0,0,0,0,NA
+1944,"baleen whales",0,0,0,0,0,NA
+1944,"bathypelagic fishes",0,0,0,0,0,NA
+1944,"minke whales",0,0,0,0,0,NA
+1944,"orca",0,0,0,0,0,NA
+1944,"shelf and coastal fishes",0,0,0,0,0,NA
+1944,"sperm whales",0,0,0,0,0,NA
+1944,"squids",0,0,0,0,0,NA
+1944,"toothfishes",0,0,0,0,0,NA
+1945,"antarctic krill",0,0,0,0,0,NA
+1945,"baleen whales",0,0,0,0,0,NA
+1945,"bathypelagic fishes",0,0,0,0,0,NA
+1945,"minke whales",0,0,0,0,0,NA
+1945,"orca",0,0,0,0,0,NA
+1945,"shelf and coastal fishes",0,0,0,0,0,NA
+1945,"sperm whales",0,0,0,0,0,NA
+1945,"squids",0,0,0,0,0,NA
+1945,"toothfishes",0,0,0,0,0,NA
+1946,"antarctic krill",0,0,0,0,0,NA
+1946,"baleen whales",0.00207334370392318,896.882198044232,111156.558414233,24.9798405184898,14520.3176944098,15053.021635
+1946,"bathypelagic fishes",0,0,0,0,0,NA
+1946,"minke whales",0,0,0,0,0,NA
+1946,"orca",0,0,0,0,0,NA
+1946,"shelf and coastal fishes",0,0,0,0,0,NA
+1946,"sperm whales",0.0436178706645595,56.3290331363998,26671.5859106288,11.1819034021366,4697.15722731951,482.1626474
+1946,"squids",0,0,0,0,0,NA
+1946,"toothfishes",0,0,0,0,0,NA
+1947,"antarctic krill",0,0,0,0,0,NA
+1947,"baleen whales",0.0290271948823867,12478.5611720291,1544904.38998231,349.654170530351,202362.134342844,206013
+1947,"bathypelagic fishes",0,0,0,0,0,NA
+1947,"minke whales",0,0,0,0,0,NA
+1947,"orca",0,0,0,0,0,NA
+1947,"shelf and coastal fishes",0,0,0,0,0,NA
+1947,"sperm whales",1.66495735265057,2135.9039291685,1011004.38240228,426.776618542655,176461.183556141,16878.522088
+1947,"squids",0,0,0,0,0,NA
+1947,"toothfishes",0,0,0,0,0,NA
+1948,"antarctic krill",0,0,0,0,0,NA
+1948,"baleen whales",0.0491254771568617,19430.5317301629,2409368.84813815,590.52248662802,326870.393758028,318264
+1948,"bathypelagic fishes",0,0,0,0,0,NA
+1948,"minke whales",0,0,0,0,0,NA
+1948,"orca",0,0,0,0,0,NA
+1948,"shelf and coastal fishes",0,0,0,0,0,NA
+1948,"sperm whales",2.95292994046886,2851.96492189418,1446136.89254371,735.336356423368,227220.324336945,25569.17179
+1948,"squids",0,0,0,0,0,NA
+1948,"toothfishes",0,0,0,0,0,NA
+1949,"antarctic krill",0,0,0,0,0,NA
+1949,"baleen whales",0.00268406295211048,965.949663655726,114802.575484477,32.1511110853247,16349.0276358543,17742.070725
+1949,"bathypelagic fishes",0,0,0,0,0,NA
+1949,"minke whales",0,0,0,0,0,NA
+1949,"orca",0,0,0,0,0,NA
+1949,"shelf and coastal fishes",0,0,0,0,0,NA
+1949,"sperm whales",0.719606571091672,413.699252013093,253142.907399237,123.733894407485,29831.2130498268,8682.212655
+1949,"squids",0,0,0,0,0,NA
+1949,"toothfishes",0,0,0,0,0,NA
+1950,"antarctic krill",0,0,0,0,0,NA
+1950,"baleen whales",0.0154573766339702,5523.94663783022,655234.665880287,185.127629445635,93509.8060580819,87701.53158
+1950,"bathypelagic fishes",0,0,0,0,0,NA
+1950,"minke whales",0,0,0,0,0,NA
+1950,"orca",0,0,0,0,0,NA
+1950,"shelf and coastal fishes",6.27059057470952e-05,3.60816777522723,13808.6356697125,0.0826305326558137,91.8872588608401,4.036099966
+1950,"sperm whales",0.898202916581383,455.091625815267,294615.151689826,133.791060661595,33102.1829834973,7771.174865
+1950,"squids",0,0,0,0,0,NA
+1950,"toothfishes",0,0,0,0,0,NA
+1951,"antarctic krill",0,0,0,0,0,NA
+1951,"baleen whales",0.0186831563607178,6498.74283860688,757664.262127563,223.517613345761,109759.525274167,128915
+1951,"bathypelagic fishes",0,0,0,0,0,NA
+1951,"minke whales",0,0,0,0,0,NA
+1951,"orca",0,0,0,0,0,NA
+1951,"shelf and coastal fishes",9.37243445356654e-05,5.40127356791052,20675.4207247064,0.12407309324932,137.804888755152,4.305559992
+1951,"sperm whales",2.30904882813171,1011.10755217602,694462.963132314,273.540253422118,75434.8218602661,28387.881599
+1951,"squids",0,0,0,0,0,NA
+1951,"toothfishes",0,0,0,0,0,NA
+1952,"antarctic krill",0,0,0,0,0,NA
+1952,"baleen whales",0.0329287600202733,11216.81722353,1266220.17658599,393.427275687149,188925.403138492,198748
+1952,"bathypelagic fishes",0,0,0,0,0,NA
+1952,"minke whales",0,0,0,0,0,NA
+1952,"orca",0,0,0,0,0,NA
+1952,"shelf and coastal fishes",0.00074267769715173,43.059663902705,163973.876704469,0.988158206895194,1095.82213262313,1028.560304
+1952,"sperm whales",0.636201828440993,198.077406489996,153652.044305567,43.8100172961976,14864.9443202132,6699.980412
+1952,"squids",0,0,0,0,0,NA
+1952,"toothfishes",0,0,0,0,0,NA
+1953,"antarctic krill",0,0,0,0,0,NA
+1953,"baleen whales",0.0280791906023181,8976.19877485604,984498.158983569,334.701295253016,157046.750118939,156104
+1953,"bathypelagic fishes",0,0,0,0,0,NA
+1953,"minke whales",0,0,0,0,0,NA
+1953,"orca",0,0,0,0,0,NA
+1953,"shelf and coastal fishes",0.000106153049887299,6.17763024378938,22927.8205099368,0.141937567432882,157.164460322123,17.06770019
+1953,"sperm whales",0.546128994788648,157.931880196895,123970.817138075,34.1214249483822,11343.8408868058,5013.270129
+1953,"squids",0,0,0,0,0,NA
+1953,"toothfishes",0,0,0,0,0,NA
+1954,"antarctic krill",0,0,0,0,0,NA
+1954,"baleen whales",0.0218458132998043,6843.64366480659,707767.15234298,242.27560378928,118149.989429,144307
+1954,"bathypelagic fishes",0,0,0,0,0,NA
+1954,"minke whales",0,0,0,0,0,NA
+1954,"orca",0,0,0,0,0,NA
+1954,"shelf and coastal fishes",7.92134177752631e-05,4.63766780750576,17125.3659290452,0.106379088589621,119.026682021177,13.50466005
+1954,"sperm whales",1.30839055261726,348.521078333395,281557.267387517,76.4136758859677,25641.185959026,20808.238347
+1954,"squids",0,0,0,0,0,NA
+1954,"toothfishes",0,0,0,0,0,NA
+1955,"antarctic krill",0,0,0,0,0,NA
+1955,"baleen whales",0.0143817649866786,4362.47676990791,438005.920323255,152.636417245866,75685.8149263904,97295.574128
+1955,"bathypelagic fishes",0,0,0,0,0,NA
+1955,"minke whales",0,0,0,0,0,NA
+1955,"orca",0,0,0,0,0,NA
+1955,"shelf and coastal fishes",0.000284193787564784,16.8079176264432,61537.8912923124,0.382629227518178,437.153317961944,16.55664005
+1955,"sperm whales",0.921721878002813,205.722843973154,174935.714534127,40.7959238971821,13024.939846085,13679.438042
+1955,"squids",0,0,0,0,0,NA
+1955,"toothfishes",0,0,0,0,0,NA
+1956,"antarctic krill",0,0,0,0,0,NA
+1956,"baleen whales",0.0249053521278712,7362.39579952539,727850.561343129,268.132090181379,127098.175498891,166682
+1956,"bathypelagic fishes",0,0,0,0,0,NA
+1956,"minke whales",0,0,0,0,0,NA
+1956,"orca",0,0,0,0,0,NA
+1956,"shelf and coastal fishes",0.000407024238774787,24.1945199003896,87639.8689752778,0.54906573522734,627.525863515678,179.1310525
+1956,"sperm whales",1.27134807575202,251.102384576456,220712.563315773,49.1444872056065,15633.5914250196,20109.307023
+1956,"squids",0,0,0,0,0,NA
+1956,"toothfishes",0,0,0,0,0,NA
+1957,"antarctic krill",0,0,0,0,0,NA
+1957,"baleen whales",0.00385025438601649,1104.79682788362,104893.004069814,38.7803405045762,19026.1337466174,26705.144668
+1957,"bathypelagic fishes",0,0,0,0,0,NA
+1957,"minke whales",0,0,0,0,0,NA
+1957,"orca",0,0,0,0,0,NA
+1957,"shelf and coastal fishes",0.000240581302968122,14.3394297163152,51267.3096125158,0.324837466537235,371.335780271041,55.2719095
+1957,"sperm whales",0.811714330155535,135.253487675051,124707.194950548,25.2637554095638,8888.55066528941,12429.81494
+1957,"squids",0,0,0,0,0,NA
+1957,"toothfishes",0,0,0,0,0,NA
+1958,"antarctic krill",0,0,0,0,0,NA
+1958,"baleen whales",0.019211272346334,5498.81283007699,517043.854400387,209.337997458507,94343.3238545263,122735
+1958,"bathypelagic fishes",0,0,0,0,0,NA
+1958,"minke whales",0,0,0,0,0,NA
+1958,"orca",0,0,0,0,0,NA
+1958,"shelf and coastal fishes",0.000138011453147496,8.22628358278677,29288.7290655932,0.186326582681898,212.899714685544,22.6134497
+1958,"sperm whales",1.40546148516709,211.465696702547,199574.15921449,41.0191878599318,13297.1224529507,18632.872271
+1958,"squids",0,0,0,0,0,NA
+1958,"toothfishes",0,0,0,0,0,NA
+1959,"antarctic krill",0,0,0,0,0,NA
+1959,"baleen whales",0.0255506548977381,7128.79229644083,651172.655014862,267.372340882123,120618.811895447,160885
+1959,"bathypelagic fishes",0,0,0,0,0,NA
+1959,"minke whales",0,0,0,0,0,NA
+1959,"orca",0,0,0,0,0,NA
+1959,"shelf and coastal fishes",0.00141456818976737,84.1576222010827,300186.414813506,1.90791813598171,2178.00015244776,290.1297697
+1959,"sperm whales",0.927996922503766,117.792149770271,115132.344768178,21.9896173093309,7502.06296645826,12506.243442
+1959,"squids",0,0,0,0,0,NA
+1959,"toothfishes",0,0,0,0,0,NA
+1960,"antarctic krill",0,0,0,0,0,NA
+1960,"baleen whales",0.0175646563479886,4703.62284215611,416579.185380413,174.372911575895,81598.378999324,109491
+1960,"bathypelagic fishes",0,0,0,0,0,NA
+1960,"minke whales",0,0,0,0,0,NA
+1960,"orca",0,0,0,0,0,NA
+1960,"shelf and coastal fishes",0.000545375693026329,32.3870571691895,110657.711661074,0.733819133723733,837.671672717143,97.99004698
+1960,"sperm whales",0.325902455811364,36.3802712864178,36957.8355165034,7.31834928626786,2408.15297287648,4321.950203
+1960,"squids",0,0,0,0,0,NA
+1960,"toothfishes",0,0,0,0,0,NA
+1961,"antarctic krill",0,0,0,0,0,NA
+1961,"baleen whales",0.00252236755385888,654.900353242918,56907.5263625254,25.0046162958707,11618.3667641709,11301.651637
+1961,"bathypelagic fishes",0,0,0,0,0,NA
+1961,"minke whales",0,0,0,0,0,NA
+1961,"orca",0,0,0,0,0,NA
+1961,"shelf and coastal fishes",8.50412401818544e-05,5.04563078569857,17061.1254348816,0.114111240539384,130.326684575431,8.979049869
+1961,"sperm whales",0.132336102900718,14.5381290432904,14526.6619206649,3.27760310418045,934.373636632365,1744.977606
+1961,"squids",0,0,0,0,0,NA
+1961,"toothfishes",0,0,0,0,0,NA
+1962,"antarctic krill",0,0,0,0,0,NA
+1962,"baleen whales",0.0057235170092021,1482.71699679429,128037.874230665,61.2000189932581,26298.1575787329,23373.902453
+1962,"bathypelagic fishes",0,0,0,0,0,NA
+1962,"minke whales",0,0,0,0,0,NA
+1962,"orca",0,0,0,0,0,NA
+1962,"shelf and coastal fishes",0.000190464633117973,11.2961534560653,38508.4991962439,0.255392107524767,291.54851607065,179.5776608
+1962,"sperm whales",0.306624242344447,34.0937180408992,33187.3603001544,8.65036572316723,2127.05251132529,6934.246047
+1962,"squids",0,0,0,0,0,NA
+1962,"toothfishes",0,0,0,0,0,NA
+1963,"antarctic krill",0,0,0,0,0,NA
+1963,"baleen whales",0.00434755533705887,1122.11051912088,95587.082537335,48.7668782890766,19902.6983994098,7063.996749
+1963,"bathypelagic fishes",0,0,0,0,0,NA
+1963,"minke whales",0.00051126046508474,6.57965965535931,98251.1065063069,0.314026691253041,4091.23642979988,15.5908375
+1963,"orca",0,0,0,0,0,NA
+1963,"shelf and coastal fishes",0.000486991520239516,28.9651984131936,99058.3564998103,0.653777896325768,745.452716096853,109.2777581
+1963,"sperm whales",0.411825698966323,44.9919384071955,43223.4386340667,12.3422986266509,2757.71344278812,8364.836976
+1963,"squids",0,0,0,0,0,NA
+1963,"toothfishes",0,0,0,0,0,NA
+1964,"antarctic krill",0,0,0,0,0,NA
+1964,"baleen whales",0.00376290269882157,967.106551851672,81621.7594846174,43.4216729466952,17171.9258701978,4256.375955
+1964,"bathypelagic fishes",0,0,0,0,0,NA
+1964,"minke whales",0.0169306317962824,217.766034962256,3240496.28031556,10.4228705819684,134910.071780635,19.3487845
+1964,"orca",0,0,0,0,0,NA
+1964,"shelf and coastal fishes",9.23369753566759e-05,5.52551494182494,18717.9819698305,0.124337682941514,141.530644237838,7.007080064
+1964,"sperm whales",0.561142098712397,59.3112836470143,56540.6796074775,16.9936655429985,3646.51598434767,10862.857479
+1964,"squids",0,0,0,0,0,NA
+1964,"toothfishes",0,0,0,0,0,NA
+1965,"antarctic krill",0,0,0,0,0,NA
+1965,"baleen whales",0.000637131248251331,163.227194464213,13656.612716246,7.35034314696947,2899.01298637313,787.6691429
+1965,"bathypelagic fishes",0,0,0,0,0,NA
+1965,"minke whales",0.012595939828543,160.677934085987,2353779.09522703,7.76365459576474,98551.8045501083,14.393814
+1965,"orca",0,0,0,0,0,NA
+1965,"shelf and coastal fishes",0.000196835621317229,11.8505366964816,40353.717028964,0.265415863903308,302.103954804252,5.90212001
+1965,"sperm whales",0.077802168042847,7.82023316436927,7419.30831859348,2.25489291220731,467.932679812751,2004.639852
+1965,"squids",0,0,0,0,0,NA
+1965,"toothfishes",0,0,0,0,0,NA
+1966,"antarctic krill",0,0,0,0,0,NA
+1966,"baleen whales",0.00120259735639905,307.670013881916,25692.8702655442,13.8735500478646,5462.29847605975,1159.9493
+1966,"bathypelagic fishes",0,0,0,0,0,NA
+1966,"minke whales",0,0,0,0,0,NA
+1966,"orca",0,0,0,0,0,NA
+1966,"shelf and coastal fishes",0.000423856167848389,25.6093273339503,87549.9618344931,0.572887585033605,651.49814359382,24.23924051
+1966,"sperm whales",0.166134443415315,17.0244210051157,15703.0242800764,5.26477193742194,989.143717342426,1829.87468
+1966,"squids",0,0,0,0,0,NA
+1966,"toothfishes",0,0,0,0,0,NA
+1967,"antarctic krill",0,0,0,0,0,NA
+1967,"baleen whales",0.0116606200367124,2978.34081895386,247921.788778776,134.511727107614,52859.029486729,29542.100256
+1967,"bathypelagic fishes",0,0,0,0,0,NA
+1967,"minke whales",0.0139181299515154,176.696036686164,2543817.60886206,8.61285278735345,106877.108951976,185.632928
+1967,"orca",0,0,0,0,0,NA
+1967,"shelf and coastal fishes",5.13539382857353e-05,3.10508909093484,10592.568960745,0.0694411744648953,79.0065946055702,211.0274416
+1967,"sperm whales",0.416994652148775,43.1193527812141,38739.1411087769,13.8838428936016,2448.62594609849,10753.348097
+1967,"squids",0,0,0,0,0,NA
+1967,"toothfishes",0,0,0,0,0,NA
+1968,"antarctic krill",0,0,0,0,0,NA
+1968,"baleen whales",0.00157058994121423,395.294250183061,32288.55025335,18.1035823465076,7008.62301011653,2698.18751
+1968,"bathypelagic fishes",0,0,0,0,0,NA
+1968,"minke whales",0,0,0,0,0,NA
+1968,"orca",0,0,0,0,0,NA
+1968,"shelf and coastal fishes",0.000138986507892345,8.40099164654554,29009.4735376088,0.187963216446087,213.959773608272,93.44936009
+1968,"sperm whales",0.381795164508141,38.2282839501839,34030.1924711962,12.2721331655366,2198.52706427776,8579.760851
+1968,"squids",0,0,0,0,0,NA
+1968,"toothfishes",0,0,0,0,0,NA
+1969,"antarctic krill",0,0,0,0,0,NA
+1969,"baleen whales",0.000893661826787476,224.35081624285,18265.0839831323,10.2999945685627,3975.1374829203,1429.331992
+1969,"bathypelagic fishes",0,0,0,0,0,NA
+1969,"minke whales",0,0,0,0,0,NA
+1969,"orca",0,0,0,0,0,NA
+1969,"shelf and coastal fishes",5.0959914298136e-05,3.08347989056645,10727.4642897281,0.0689279894479362,78.5007204341542,19.17019947
+1969,"sperm whales",0.185294513782442,18.0265535956412,15898.7626739698,5.7894872418809,1042.32006633033,4781.9172
+1969,"squids",0,0,0,0,0,NA
+1969,"toothfishes",0,0,0,0,0,NA
+1970,"antarctic krill",0,0,0,0,0,NA
+1970,"baleen whales",0.000739312805117133,185.330855336125,15050.5002846755,8.52067689699763,3280.49606877011,912.786554
+1970,"bathypelagic fishes",0,0,0,0,0,NA
+1970,"minke whales",0.0119667789363805,151.319303847003,2131159.93309534,7.42393113345806,89392.0172197113,13.684356
+1970,"orca",0,0,0,0,0,NA
+1970,"shelf and coastal fishes",5.85591089340877e-05,3.54535054234823,12465.8693893778,0.0792271150888404,90.2486829068831,1.517550003
+1970,"sperm whales",0.421245784769116,41.3188512456836,35455.2948323987,13.5449239979021,2299.94162473212,10874.967878
+1970,"squids",0,0,0,0,0,NA
+1970,"toothfishes",0,0,0,0,0,NA
+1971,"antarctic krill",0,0,0,0,0,NA
+1971,"baleen whales",0,0,0,0,0,NA
+1971,"bathypelagic fishes",0,0,0,0,0,NA
+1971,"minke whales",0,0,0,0,0,NA
+1971,"orca",0,0,0,0,0,NA
+1971,"shelf and coastal fishes",0.000300759338764693,18.2246586705951,64677.8641644697,0.407086582826005,463.732716165444,49.50315993
+1971,"sperm whales",0,0,0,0,0,NA
+1971,"squids",0,0,0,0,0,NA
+1971,"toothfishes",0.00134627965785686,62.4039033475599,209378.733080044,1.3984837885582,1095.23468554582,11.25989999
+1972,"antarctic krill",0,0,0,0,0,NA
+1972,"baleen whales",8.41521841533008e-05,21.0688507646716,1704.48185085686,0.989938498093107,371.998426348421,43.1751168
+1972,"bathypelagic fishes",0,0,0,0,0,NA
+1972,"minke whales",0.431792509117176,5411.47355733233,75320362.5429053,268.420043386049,3155783.80373893,19356.62752
+1972,"orca",8.70798148385121e-06,7.03151622479955,1132.8314792531,0.257249304200065,42.6099573145819,7.41048671
+1972,"shelf and coastal fishes",0.00126462586659295,76.8100497789985,272136.580249777,1.71274786967912,1951.29181845786,363.0021847
+1972,"sperm whales",0.205253282360491,20.0852655205046,16544.1879444971,6.8137671211173,1063.67531755953,5494.689847
+1972,"squids",0,0,0,0,0,NA
+1972,"toothfishes",0.000555884138274878,25.4583758562704,78783.6758291106,0.570302074078836,449.247979009981,9.733960078
+1973,"antarctic krill",0,0,0,0,0,NA
+1973,"baleen whales",0.000454172345313137,113.689883046699,9183.16395637863,5.34306884619104,2004.54102502446,491.2573146
+1973,"bathypelagic fishes",0,0,0,0,0,NA
+1973,"minke whales",0.680164010765118,6001.76306659977,70902487.1692919,411.977906394828,3693166.44506845,23036.145053
+1973,"orca",0.00020795399167823,167.759276212685,26850.7519749008,6.14126564614376,1012.60980095026,21.21769168
+1973,"shelf and coastal fishes",0.000113444180638631,6.90318923024972,23586.9934962644,0.153778265979119,175.210612915864,10.85778995
+1973,"sperm whales",0.368083698012459,35.95230398027,29047.618390407,12.3152623607866,1862.33174408574,6628.966716
+1973,"squids",0,0,0,0,0,NA
+1973,"toothfishes",0.000202319303940504,9.15918628212372,27401.0101558448,0.204840871205036,162.927225938088,2.806100007
+1974,"antarctic krill",0.0128414257399148,1595.52341806757,1019324.12786245,20.1530623551822,35240.6147201792,190.4045609
+1974,"baleen whales",0,0,0,0,0,NA
+1974,"bathypelagic fishes",0,0,0,0,0,NA
+1974,"minke whales",0.323421785777303,2148.47424672968,18407830.8232038,227.732393766355,1163921.62298185,13471.457125
+1974,"orca",0,0,0,0,0,NA
+1974,"shelf and coastal fishes",0.000383561970376475,23.3857734381985,80350.1624337263,0.52044033305223,593.450254551811,378.6250077
+1974,"sperm whales",0.0903328344842638,8.5702175639687,6871.34543246804,2.89770243296858,446.801124726717,2492.237977
+1974,"squids",0,0,0,0,0,NA
+1974,"toothfishes",0.00101153890549429,45.1843268851852,133918.001960515,1.01090781383823,809.143500517562,2.300480022
+1975,"antarctic krill",0.201813621899474,26345.527700293,16866208.4700457,330.848377797054,582825.039584487,3074.573266
+1975,"baleen whales",0,0,0,0,0,NA
+1975,"bathypelagic fishes",0,0,0,0,0,NA
+1975,"minke whales",0.126106269423739,1056.60936853346,7352416.2498985,136.012185664923,550123.738050439,12291.900241
+1975,"orca",0,0,0,0,0,NA
+1975,"shelf and coastal fishes",0.000140904619872299,8.60764592038847,29435.1416449031,0.191313400042795,218.360558734449,19.47029973
+1975,"sperm whales",0.114333397672182,11.0872032985956,8610.00984631046,3.83300616359589,564.114126808654,3155.740794
+1975,"squids",0,0,0,0,0,NA
+1975,"toothfishes",0.00147863168895477,65.4838606029334,183026.342221052,1.45825938935036,1173.09833210855,0.8189600008
+1976,"antarctic krill",0.377128682958372,51482.7842780448,31520855.4001223,646.850260850351,1076532.49779118,6242.022427
+1976,"baleen whales",0,0,0,0,0,NA
+1976,"bathypelagic fishes",0,0,0,0,0,NA
+1976,"minke whales",0.0683129855816894,761.510854775254,4926897.63469463,111.019760725798,352075.223627618,10889.887165
+1976,"orca",4.88125178840496e-05,38.6905120285624,5619.79579751025,1.43939296546254,214.001070671308,4.975610155
+1976,"shelf and coastal fishes",0.00016678761687633,10.1982393352527,35052.3695068951,0.226553232864224,258.927665761886,32.23384029
+1976,"sperm whales",0.108612313582092,10.6748613391414,8078.19819304225,3.73637506449373,534.366409085747,2752.834938
+1976,"squids",0,0,0,0,0,NA
+1976,"toothfishes",0.000166817788699332,7.2678985520056,18800.6522604498,0.161972038114283,131.53388375989,2.043819986
+1977,"antarctic krill",0.681639067962472,98658.8903586254,54685988.9873909,1201.59047701017,2010775.8048157,11754.143945
+1977,"baleen whales",0,0,0,0,0,NA
+1977,"bathypelagic fishes",0,0,0,0,0,NA
+1977,"minke whales",0.0766545628863883,1233.50639873607,8055064.07666095,197.332743313254,528218.872165679,15253.019515
+1977,"orca",8.52764228295588e-05,67.3577012795321,9549.06023656055,2.51379548603703,364.623388118696,72.4542794
+1977,"shelf and coastal fishes",0.000442989457872585,27.1000429282541,93489.8096062911,0.601640010004604,688.306457742971,111.0914871
+1977,"sperm whales",0.32926158183942,32.5864995014201,24201.8551790977,11.6241365382669,1609.98313666985,8531.623148
+1977,"squids",0,0,0,0,0,NA
+1977,"toothfishes",0.000778389253736199,33.4323445019084,86343.9643077818,0.744767043901303,608.513448649532,2.290699999
+1978,"antarctic krill",1.23672597712193,188340.394971265,88902961.160263,2278.02772603367,3513644.80918623,22682.889698
+1978,"baleen whales",0.000181779590849737,45.3795024243492,3643.34747341776,2.13817124796536,796.011262483897,21.4220288
+1978,"bathypelagic fishes",0,0,0,0,0,NA
+1978,"minke whales",0.0593850237838594,1580.53463745877,10926745.6007723,292.106346084524,695737.270078919,20159.034618
+1978,"orca",6.06697573019738e-06,4.76602807081276,648.556668236424,0.178746114961737,24.8347770069276,5.153158216
+1978,"shelf and coastal fishes",0.00178576038950469,109.101880469967,374392.970706563,2.4230990343419,2772.19278005341,98.35187018
+1978,"sperm whales",0.569659384619899,55.3073763876221,40508.942850174,19.2547146379766,2684.03745921264,15540.076339
+1978,"squids",0,0,0,0,0,NA
+1978,"toothfishes",0.000324567958917371,13.7568816852003,34291.5430804469,0.305663863938647,250.768792843635,4.099960026
+1979,"antarctic krill",1.91624264627357,301913.153475803,107310222.77521,3628.46618409277,4546462.79071672,35205.874337
+1979,"baleen whales",0,0,0,0,0,NA
+1979,"bathypelagic fishes",0,0,0,0,0,NA
+1979,"minke whales",0.0155315128064456,702.896993530757,5478944.92027787,164.659399676418,282483.069778527,12171.111837
+1979,"orca",0,0,0,0,0,NA
+1979,"shelf and coastal fishes",0.000121977448775245,7.41967626527329,24196.3920210293,0.165274870286387,188.863405017217,6.678670056
+1979,"sperm whales",0.113658464947444,10.2686582837184,7725.44936167275,3.42167503829047,499.184665224033,3142.329586
+1979,"squids",3.89970468470513e-05,2.13902345318953,7208.42549325184,0.0425499206127067,53.4554177005533,0.5304599938
+1979,"toothfishes",1.77477290739791e-05,0.740928074236709,1836.0647904714,0.016452922042675,13.5631345663749,0.0607299994
+1980,"antarctic krill",0.0363945114190337,5683.76889828607,1824460.91975934,69.9242965723485,69104.0663780621,1156.892186
+1980,"baleen whales",0,0,0,0,0,NA
+1980,"bathypelagic fishes",0,0,0,0,0,NA
+1980,"minke whales",0.0132547785695704,1047.46328660659,7983847.22335687,273.173432850964,379723.581823164,20473.311172
+1980,"orca",0.00195778973113287,1532.57278786711,207439.617647671,57.6532735917645,7989.27554226562,1662.000686
+1980,"shelf and coastal fishes",0.000145720154613742,8.81758320363037,29071.9857258361,0.197160724680215,225.172982106345,109.4125181
+1980,"sperm whales",0,0,0,0,0,NA
+1980,"squids",0,0,0,0,0,NA
+1980,"toothfishes",0.000457888169292181,18.8082259950297,47141.5193868596,0.417173531418338,345.495704171845,3.726210007
+1981,"antarctic krill",0.0402366589640512,6597.02993931401,2199945.51137003,79.8838742825605,89535.045838767,1487.227576
+1981,"baleen whales",0,0,0,0,0,NA
+1981,"bathypelagic fishes",0,0,0,0,0,NA
+1981,"minke whales",0.00356910075198507,544.817505407699,4703918.93696565,166.858704410476,182556.826518568,12543.83246
+1981,"orca",0,0,0,0,0,NA
+1981,"shelf and coastal fishes",0.000184171472603787,11.1169653623466,36940.7926727849,0.248855578472129,284.035812850209,15.39609003
+1981,"sperm whales",0,0,0,0,0,NA
+1981,"squids",3.03060767160609e-06,0.166708318483638,558.09168544922,0.00331468807631919,4.14402055012459,0.03310000049
+1981,"toothfishes",0.00055907530007868,22.7280137851759,56097.9368583157,0.500596169910163,416.416337710442,2.131250004
+1982,"antarctic krill",0.153376545587506,26452.1300651217,9316705.69474446,316.136934106955,404808.264663854,2974.835736
+1982,"baleen whales",0,0,0,0,0,NA
+1982,"bathypelagic fishes",0,0,0,0,0,NA
+1982,"minke whales",0.000427633731449426,122.136413462213,1052914.43142125,40.3782828772503,34382.9628135381,2928.160142
+1982,"orca",0,0,0,0,0,NA
+1982,"shelf and coastal fishes",0.000439673032196199,26.5020416835794,88598.6360730994,0.592928494950287,677.004412604417,485.0080704
+1982,"sperm whales",0,0,0,0,0,NA
+1982,"squids",0.000105730984956577,5.85718552069049,19622.4847181262,0.115918806896095,144.571169979208,1.04436999
+1982,"toothfishes",0.000335274964626693,13.4822000736504,32674.8666233782,0.294978972479464,246.30765746186,1.386470006
+1983,"antarctic krill",0.117487775248083,21113.2900077384,7645175.05478695,249.934026482252,339573.641518271,2044.500027
+1983,"baleen whales",0,0,0,0,0,NA
+1983,"bathypelagic fishes",0,0,0,0,0,NA
+1983,"minke whales",0.000294590123391796,171.788101132348,1214811.31263612,53.3800774685634,36341.262287164,3446.25529
+1983,"orca",0,0,0,0,0,NA
+1983,"shelf and coastal fishes",0.000300055426674123,18.0676088939572,60227.9116188621,0.404426514382864,461.515393212661,89.96643833
+1983,"sperm whales",0,0,0,0,0,NA
+1983,"squids",1.66363595467795e-05,0.924719701500243,2946.15655785977,0.0182702320890437,22.7281482323638,0.1866500038
+1983,"toothfishes",8.15522143578934e-05,3.23495205891956,7819.81654837209,0.070501213393749,59.0522113807096,1.366409988
+1984,"antarctic krill",0.190251872183089,35351.254610242,14448592.8908063,416.181949092064,582944.592097148,2709.84866
+1984,"baleen whales",0,0,0,0,0,NA
+1984,"bathypelagic fishes",0,0,0,0,0,NA
+1984,"minke whales",0.000147855242199945,206.66046462667,1262917.92630747,58.7000889392952,35008.386740928,3665.390159
+1984,"orca",0,0,0,0,0,NA
+1984,"shelf and coastal fishes",0.000386581036645797,23.2505029359546,77780.4454916434,0.521435414409521,594.757926082975,106.6215284
+1984,"sperm whales",0,0,0,0,0,NA
+1984,"squids",5.44676607201875e-07,0.0301547667646296,95.963276467112,0.000595075812752826,0.740088264397289,0.004459999989
+1984,"toothfishes",0.000256212301007622,9.98780870782777,24439.335644258,0.217277749527129,182.316976979773,0.8970200067
+1985,"antarctic krill",0.0064929866128895,1442.46572810617,649683.960465745,16.941467671935,24202.5360013057,519.1204781
+1985,"baleen whales",0,0,0,0,0,NA
+1985,"bathypelagic fishes",0,0,0,0,0,NA
+1985,"minke whales",5.26120305700487e-05,179.603401691054,981798.577725823,48.247597800076,25883.8784112128,2918.84628
+1985,"orca",0,0,0,0,0,NA
+1985,"shelf and coastal fishes",0.00054019841919073,32.5113422294424,108660.240062467,0.728118436504392,831.373910786766,593.029211
+1985,"sperm whales",0,0,0,0,0,NA
+1985,"squids",3.05436094915518e-05,1.69534853806627,5427.67734411341,0.0334055766152259,41.5689128733917,0.2605699965
+1985,"toothfishes",8.3606311589117e-06,0.320623976971712,788.638515129336,0.00696507646034313,5.84801072698982,0.4367699997
+1986,"antarctic krill",0.00591308936619066,1569.70770829647,810054.248542358,18.4218780980281,27392.0209826147,612.8385115
+1986,"baleen whales",0,0,0,0,0,NA
+1986,"bathypelagic fishes",0,0,0,0,0,NA
+1986,"minke whales",1.42137253797262e-05,121.11632714374,603706.249810575,31.726677959259,15366.9638985132,1830.754771
+1986,"orca",0,0,0,0,0,NA
+1986,"shelf and coastal fishes",0.00023560757303113,14.1789136667705,47134.6479392859,0.31706349825037,362.591953715169,879.5133491
+1986,"sperm whales",0,0,0,0,0,NA
+1986,"squids",3.67672074662905e-05,2.04368924341604,6481.92391404642,0.0401981170831243,50.0642379929497,0.3249499991
+1986,"toothfishes",4.03189271698463e-06,0.152547520008656,380.693517810555,0.00330019794585993,2.76425683380846,0.2850599979
+1987,"antarctic krill",0.0224147960020515,7192.52350955842,4095545.32709911,84.1086434435763,132976.631278776,3478.806415
+1987,"baleen whales",0,0,0,0,0,NA
+1987,"bathypelagic fishes",0,0,0,0,0,NA
+1987,"minke whales",1.1764671320925e-05,251.985825029417,1129955.22907567,61.1986612782746,28258.6739749076,3473.88366
+1987,"orca",0,0,0,0,0,NA
+1987,"shelf and coastal fishes",0.000134952657810586,8.11272537449236,27161.359591538,0.181146351855993,207.592152453479,300.1093111
+1987,"sperm whales",0,0,0,0,0,NA
+1987,"squids",0,0,0,0,0,NA
+1987,"toothfishes",1.15755716603565e-05,0.432243518171051,1095.68052281299,0.00932818298553618,7.77739609770068,0.02718999982
+1988,"antarctic krill",0.00133525468900368,512.721563490597,315681.048254874,5.99281532815086,10223.8457824173,291.8726803
+1988,"baleen whales",0,0,0,0,0,NA
+1988,"bathypelagic fishes",0,0,0,0,0,NA
+1988,"minke whales",0,0,0,0,0,NA
+1988,"orca",0,0,0,0,0,NA
+1988,"shelf and coastal fishes",0.000289381379999273,17.3625072722318,58835.3212184565,0.386734609901179,444.607490737075,843.5801861
+1988,"sperm whales",0,0,0,0,0,NA
+1988,"squids",0,0,0,0,0,NA
+1988,"toothfishes",7.92255970254466e-08,0.00290787052324625,7.48735703731791,6.27538020568737e-05,0.0520199178174188,0.01544999983
+1989,"antarctic krill",0.00212713643028534,978.348749766704,635436.989504676,11.4098964983429,20035.2447763472,357.907489
+1989,"baleen whales",0,0,0,0,0,NA
+1989,"bathypelagic fishes",0,0,0,0,0,NA
+1989,"minke whales",1.63026712105321e-07,29.5047113345099,111352.869673374,6.32334717083765,2697.33673622911,381.9965695
+1989,"orca",0,0,0,0,0,NA
+1989,"shelf and coastal fishes",0.00111948430587139,66.9239006889131,228764.71167134,1.49249383347316,1717.36722738572,105.377348
+1989,"sperm whales",0,0,0,0,0,NA
+1989,"squids",0,0,0,0,0,NA
+1989,"toothfishes",8.23963730358299e-08,0.00297244869471143,7.77313317324758,6.4152419277572e-05,0.0529089032790169,0.00563999985
+1990,"antarctic krill",0.00248050284498795,1342.82208229658,904933.886845863,15.3451184754231,28065.8100039964,312.9948106
+1990,"baleen whales",0,0,0,0,0,NA
+1990,"bathypelagic fishes",0,0,0,0,0,NA
+1990,"minke whales",7.63630060351809e-08,40.2388781479677,138554.466366176,8.06038367270966,3332.06652860292,477.860466
+1990,"orca",0,0,0,0,0,NA
+1990,"shelf and coastal fishes",0.000267963680651732,16.0225328074298,53449.6788051277,0.357384917669994,410.869847229205,2374.424925
+1990,"sperm whales",0,0,0,0,0,NA
+1990,"squids",2.06547899725178e-06,0.114324374959929,370.098595238698,0.00224196329623953,2.83575357327212,0.00638999997
+1990,"toothfishes",3.36239578470071e-07,0.0119523067657075,31.6385204603441,0.000257349034310236,0.21137777494196,0.02411999987
+1991,"antarctic krill",0.00134553655510634,848.982382891944,591244.17509255,9.70945127288721,18166.3040766827,129.4829007
+1991,"baleen whales",0,0,0,0,0,NA
+1991,"bathypelagic fishes",0.00377567129990561,2441.44206075221,4423888.28413048,19.5894955842716,52048.1553801803,0.0006900000262
+1991,"minke whales",6.5780936941707e-08,99.589827790676,318552.93035582,18.8921890826512,7557.54587671227,218.872255
+1991,"orca",0,0,0,0,0,NA
+1991,"shelf and coastal fishes",1.21043341547846e-06,0.0724912166470181,243.303587604665,0.00161550480055974,1.85710945835437,0.0766799977
+1991,"sperm whales",0,0,0,0,0,NA
+1991,"squids",0,0,0,0,0,NA
+1991,"toothfishes",8.33915936508082e-07,0.0291658171822492,78.2375212738,0.000627804855326636,0.514823821356211,0.000390000012
+1992,"antarctic krill",0.00176572658381744,1311.47288743137,922059.593274181,14.6096133284509,29189.2944503651,197.4575535
+1992,"baleen whales",0,0,0,0,0,NA
+1992,"bathypelagic fishes",0,0,0,0,0,NA
+1992,"minke whales",9.21096373863984e-08,417.038736156457,1261189.90315001,76.2844357707108,29714.5948540136,874.4692575
+1992,"orca",0,0,0,0,0,NA
+1992,"shelf and coastal fishes",2.49554677398627e-07,0.0149810956833541,51.0454805514271,0.00033337846207184,0.383216318401521,0.1292200051
+1992,"sperm whales",0,0,0,0,0,NA
+1992,"squids",0,0,0,0,0,NA
+1992,"toothfishes",0,0,0,0,0,NA
+1993,"antarctic krill",0.000314651694367664,272.152209092309,190624.156699171,3.02065741751467,6225.68144916262,39.91374024
+1993,"baleen whales",0,0,0,0,0,NA
+1993,"bathypelagic fishes",3.3716353842598e-07,0.222231871956151,193.278033030659,0.0017718760062393,4.92260962168682,NA
+1993,"minke whales",0,0,0,0,0,NA
+1993,"orca",0,0,0,0,0,NA
+1993,"shelf and coastal fishes",9.52483616464584e-08,0.00573356069365815,19.8298473631537,0.000127484756176537,0.146482471214545,0.05741999857
+1993,"sperm whales",0,0,0,0,0,NA
+1993,"squids",3.42806615853342e-05,1.88122492854433,6180.62136353494,0.0369986185607674,47.8896606743368,0.01541000019
+1993,"toothfishes",0,0,0,0,0,NA
+1994,"antarctic krill",0.00117171152043121,1159.15586960712,811667.787943236,12.8628946619796,26794.9144261546,170.7674989
+1994,"baleen whales",0,0,0,0,0,NA
+1994,"bathypelagic fishes",0,0,0,0,0,NA
+1994,"minke whales",7.58615837868932e-09,341.728886979993,964502.866274797,60.6972409927744,22376.0356973462,688.886386
+1994,"orca",0,0,0,0,0,NA
+1994,"shelf and coastal fishes",6.07729602205312e-08,0.00367087647286555,12.8726946841351,8.16961059935137e-05,0.0937363014596523,0.03061999939
+1994,"sperm whales",0,0,0,0,0,NA
+1994,"squids",0,0,0,0,0,NA
+1994,"toothfishes",0,0,0,0,0,NA
+1995,"antarctic krill",2.46755878658798e-05,27.9628149935274,19561.6335244012,0.311286032169859,656.730276497649,142.1750183
+1995,"baleen whales",0,0,0,0,0,NA
+1995,"bathypelagic fishes",0,0,0,0,0,NA
+1995,"minke whales",1.85931168469476e-09,230.671676077931,648047.119384502,41.7663327780159,14622.4270142024,472.888556
+1995,"orca",0,0,0,0,0,NA
+1995,"shelf and coastal fishes",1.15069858219505e-06,0.0698360828023001,247.608823194875,0.0015556272002469,1.78205646868724,0.9738699796
+1995,"sperm whales",0,0,0,0,0,NA
+1995,"squids",0,0,0,0,0,NA
+1995,"toothfishes",0,0,0,0,0,NA
+1996,"antarctic krill",9.14337644179817e-07,1.19722739385307,832.816775334757,0.0132659116632541,28.3303138208581,0.08643000084
+1996,"baleen whales",0,0,0,0,0,NA
+1996,"bathypelagic fishes",0,0,0,0,0,NA
+1996,"minke whales",1.65070639019819e-09,615.577646417296,1679655.84066171,110.419134487132,36520.9654054761,1245.152311
+1996,"orca",0,0,0,0,0,NA
+1996,"shelf and coastal fishes",0,0,0,0,0,NA
+1996,"sperm whales",0,0,0,0,0,NA
+1996,"squids",0,0,0,0,0,NA
+1996,"toothfishes",0,0,0,0,0,NA
+1997,"antarctic krill",0,0,0,0,0,NA
+1997,"baleen whales",0,0,0,0,0,NA
+1997,"bathypelagic fishes",0,0,0,0,0,NA
+1997,"minke whales",6.06442696473824e-11,66.3617587811297,189882.617519263,12.9033488994347,3566.70132667328,145.9225225
+1997,"orca",0,0,0,0,0,NA
+1997,"shelf and coastal fishes",0,0,0,0,0,NA
+1997,"sperm whales",0,0,0,0,0,NA
+1997,"squids",0,0,0,0,0,NA
+1997,"toothfishes",0.000247101734518217,7.6576048753766,21726.4787390583,0.164529954206077,136.766274786413,0.7753400006
+1998,"antarctic krill",0,0,0,0,0,NA
+1998,"baleen whales",0,0,0,0,0,NA
+1998,"bathypelagic fishes",0,0,0,0,0,NA
+1998,"minke whales",1.31660125982576e-10,431.745978746838,1157791.93345649,79.3972562908002,21515.2604409561,896.178509
+1998,"orca",0,0,0,0,0,NA
+1998,"shelf and coastal fishes",0,0,0,0,0,NA
+1998,"sperm whales",0,0,0,0,0,NA
+1998,"squids",0,0,0,0,0,NA
+1998,"toothfishes",0,0,0,0,0,NA
+1999,"antarctic krill",0,0,0,0,0,NA
+1999,"baleen whales",0,0,0,0,0,NA
+1999,"bathypelagic fishes",0,0,0,0,0,NA
+1999,"minke whales",4.96343973798813e-12,47.7467108511862,128787.832580107,9.05714404012775,2324.8105319354,102.4018305
+1999,"orca",0,0,0,0,0,NA
+1999,"shelf and coastal fishes",2.2263260979033e-06,0.137474074196718,500.734629076428,0.00303757488672605,3.50711755831302,0.04433000042
+1999,"sperm whales",0,0,0,0,0,NA
+1999,"squids",0,0,0,0,0,NA
+1999,"toothfishes",2.52887336314561e-05,0.747736784848026,2119.16048869191,0.0159947184294944,13.4434812599121,0.0276800006
+2000,"antarctic krill",0,0,0,0,0,NA
+2000,"baleen whales",0,0,0,0,0,NA
+2000,"bathypelagic fishes",0,0,0,0,0,NA
+2000,"minke whales",6.09368811288625e-12,154.426722397078,389735.820606505,27.6596555788407,6940.46655441653,311.770658
+2000,"orca",0,0,0,0,0,NA
+2000,"shelf and coastal fishes",3.30068888469868e-07,0.0203764017704839,74.6728191962457,0.00045018383900553,0.521381066879099,0.003080000053
+2000,"sperm whales",0,0,0,0,0,NA
+2000,"squids",0,0,0,0,0,NA
+2000,"toothfishes",0.000421278473671129,12.1944507854249,34681.130090214,0.260388742938124,219.866965236493,0.1998500044
+2001,"antarctic krill",0,0,0,0,0,NA
+2001,"baleen whales",0,0,0,0,0,NA
+2001,"bathypelagic fishes",0,0,0,0,0,NA
+2001,"minke whales",3.42278676124464e-12,221.106293898533,533318.854205295,38.3554077118719,9274.84449260948,431.588399
+2001,"orca",0,0,0,0,0,NA
+2001,"shelf and coastal fishes",9.98726525077803e-05,6.16301501926841,22674.2973175985,0.136065228443599,158.71252044987,3.300429834
+2001,"sperm whales",0,0,0,0,0,NA
+2001,"squids",0,0,0,0,0,NA
+2001,"toothfishes",2.95283890207693e-05,0.838160820062843,2360.14288428027,0.0178742338559323,15.1668304478907,1.440319999
+2002,"antarctic krill",0,0,0,0,0,NA
+2002,"baleen whales",0,0,0,0,0,NA
+2002,"bathypelagic fishes",0,0,0,0,0,NA
+2002,"minke whales",1.66814665145943e-12,295.981220315067,694876.229352942,50.7559008256223,11599.9885548679,570.6544375
+2002,"orca",0,0,0,0,0,NA
+2002,"shelf and coastal fishes",0,0,0,0,0,NA
+2002,"sperm whales",0,0,0,0,0,NA
+2002,"squids",0,0,0,0,0,NA
+2002,"toothfishes",0,0,0,0,0,NA
+2003,"antarctic krill",0,0,0,0,0,NA
+2003,"baleen whales",0,0,0,0,0,NA
+2003,"bathypelagic fishes",0,0,0,0,0,NA
+2003,"minke whales",4.1703273510403e-13,191.987677490764,442095.396206777,32.9044466053169,7159.09044956529,369.784363
+2003,"orca",0,0,0,0,0,NA
+2003,"shelf and coastal fishes",6.21621252648046e-05,3.81506436826304,14091.794583186,0.0843132044081637,101.872016151106,9.149509811
+2003,"sperm whales",0,0,0,0,0,NA
+2003,"squids",0,0,0,0,0,NA
+2003,"toothfishes",0.0110368092947273,301.708553731345,856593.754419603,6.41652680095398,5467.99334556456,2.935880085
+2004,"antarctic krill",0,0,0,0,0,NA
+2004,"baleen whales",0,0,0,0,0,NA
+2004,"bathypelagic fishes",0,0,0,0,0,NA
+2004,"minke whales",2.01899101369528e-13,309.346632045523,687756.32943342,52.2224789209674,11132.6219548936,582.8371235
+2004,"orca",0,0,0,0,0,NA
+2004,"shelf and coastal fishes",0.000102171054520145,6.26513202102645,23109.8445357253,0.13824185976616,166.784471578913,47.79790881
+2004,"sperm whales",0,0,0,0,0,NA
+2004,"squids",0,0,0,0,0,NA
+2004,"toothfishes",0.00624898552044975,166.952758645053,332919.219891128,3.54697313124164,3019.1247497982,39.74411849
+2005,"antarctic krill",0,0,0,0,0,NA
+2005,"baleen whales",0,0,0,0,0,NA
+2005,"bathypelagic fishes",0,0,0,0,0,NA
+2005,"minke whales",0,0,0,0,0,NA
+2005,"orca",0,0,0,0,0,NA
+2005,"shelf and coastal fishes",4.65184107933635e-05,2.84740976595602,10488.1126796106,0.0628331204777365,75.6604875380844,NA
+2005,"sperm whales",0,0,0,0,0,NA
+2005,"squids",0,0,0,0,0,NA
+2005,"toothfishes",0.0104079785157791,272.235137363797,450474.651750415,5.78332376204224,4921.92140233003,NA
+2006,"antarctic krill",0,0,0,0,0,NA
+2006,"baleen whales",0.00113801134980937,283.157835265942,21858.5333391175,12.9354502878471,4781.3579713309,263.5097886
+2006,"bathypelagic fishes",0,0,0,0,0,NA
+2006,"minke whales",1.48237141770166e-13,1993.61755103378,4093845.59527827,326.451791187699,66373.2394217841,3546.646587
+2006,"orca",0,0,0,0,0,NA
+2006,"shelf and coastal fishes",2.64322624214446e-05,1.61523819400859,5953.31431410705,0.0356691184106812,42.8442151984894,NA
+2006,"sperm whales",0,0,0,0,0,NA
+2006,"squids",1.97907208085583e-07,0.0108421943736494,36.7746447614935,0.000216592010222604,0.279816161466714,NA
+2006,"toothfishes",0.0244302697916353,627.720652452443,767088.637110741,13.3317649954616,11335.8896599862,NA
+2007,"antarctic krill",0,0,0,0,0,NA
+2007,"baleen whales",0,0,0,0,0,NA
+2007,"bathypelagic fishes",0,0,0,0,0,NA
+2007,"minke whales",1.13782012400912e-15,44.199947129867,120124.461512908,10.2639897373189,1746.31192787945,114.5599065
+2007,"orca",0,0,0,0,0,NA
+2007,"shelf and coastal fishes",4.50651620172917e-05,2.75014906893303,10146.2865713748,0.0607740010018034,72.8194255326712,NA
+2007,"sperm whales",0,0,0,0,0,NA
+2007,"squids",1.80753460576903e-07,0.0100256716797321,33.9250235830681,0.000198156888612738,0.256513839706002,NA
+2007,"toothfishes",0.0142193288117935,358.916947119483,219207.752209475,7.62475216905664,6459.32516039266,NA
+2008,"antarctic krill",0,0,0,0,0,NA
+2008,"baleen whales",0,0,0,0,0,NA
+2008,"bathypelagic fishes",0,0,0,0,0,NA
+2008,"minke whales",5.05440266339184e-15,456.760775997449,1123304.91725359,96.9419006152974,16342.8727257781,1078.141376
+2008,"orca",0,0,0,0,0,NA
+2008,"shelf and coastal fishes",1.15546359555668e-05,0.703170421404617,2597.82504432861,0.015546010665514,18.6049263163267,NA
+2008,"sperm whales",0,0,0,0,0,NA
+2008,"squids",1.34861316985547e-07,0.00755560094258683,25.669302700008,0.000149041315729268,0.192673961268629,NA
+2008,"toothfishes",0.0330998329667743,825.23363944008,355414.057318872,17.50915097825,14798.4058660626,NA
+2009,"antarctic krill",0,0,0,0,0,NA
+2009,"baleen whales",0,0,0,0,0,NA
+2009,"bathypelagic fishes",0,0,0,0,0,NA
+2009,"minke whales",0,0,0,0,0,NA
+2009,"orca",0,0,0,0,0,NA
+2009,"shelf and coastal fishes",2.95485959449989e-05,1.79422088055071,6641.2747188084,0.039690454957679,47.4146277313087,NA
+2009,"sperm whales",0,0,0,0,0,NA
+2009,"squids",1.56886075329272e-07,0.00880748965951763,30.0339703169351,0.000173239601046809,0.223698359864654,NA
+2009,"toothfishes",0.0193991468896316,477.156827113668,154554.087434984,10.1157325886473,8339.41562843853,NA
+2010,"antarctic krill",0,0,0,0,0,NA
+2010,"baleen whales",0.000143765533100397,35.6773662950177,2736.39981808824,1.62853239424423,599.762215848345,33.2558336
+2010,"bathypelagic fishes",0,0,0,0,0,NA
+2010,"minke whales",7.37998171976769e-16,539.029589725768,1197168.72865079,108.000524488608,17424.3353664118,1190.011479
+2010,"orca",0,0,0,0,0,NA
+2010,"shelf and coastal fishes",4.93841587148827e-06,0.2994987057935,1109.52424385214,0.00663182759480999,7.90558828530873,NA
+2010,"sperm whales",0,0,0,0,0,NA
+2010,"squids",0,0,0,0,0,NA
+2010,"toothfishes",0.025051533347408,605.497817646758,170428.465791121,12.861582806238,10544.6260147332,NA
