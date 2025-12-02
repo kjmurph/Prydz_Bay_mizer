@@ -15,7 +15,7 @@ cat("Running all MC parameterisations with climate forcing, no fishing\n\n")
 # Configuration
 # ------------------------------------------------------------------------------
 spinup_years <- 118  # Same as original fished ensemble
-checkpoint_interval <- 10  # Save progress every N simulations (more frequent for safety)
+checkpoint_interval <- 1  # Save progress after EVERY simulation for maximum safety
 
 # Output settings
 output_dir <- "Output_large_files/climate_only_ensemble"
@@ -97,8 +97,11 @@ for (i in seq_along(remaining_indices)) {
   sim_start <- Sys.time()
   
   tryCatch({
-    # Extract params from the fished simulation
+    # Extract params from the fished simulation (handle both direct and nested structures)
     fished_sim <- fished_sims[[idx]]
+    if (is.list(fished_sim) && !inherits(fished_sim, "MizerSim")) {
+      fished_sim <- fished_sim[[1]]
+    }
     params_original <- fished_sim@params
     
     cat("  Upgrading to therMizer params...")
@@ -121,18 +124,18 @@ for (i in seq_along(remaining_indices)) {
     )
     cat(" done\n")
     
-    # Run main simulation
-    cat("  Running main simulation (170 years)...")
+    # Run main simulation (169 years to match fished ensemble ending at 2010)
+    cat("  Running main simulation (169 years)...")
     sim_climate_only <- project(
       params_climate,
       initial_n = sim_spinup@n[spinup_years, , ],
       t_start = 1841,
-      t_max = 170,
+      t_max = 169,
       effort = 0
     )
     cat(" done\n")
     
-    # Verify output
+    # Verify output ends at 2010 (matching fished ensemble)
     sim_times <- as.numeric(dimnames(sim_climate_only@n)$time)
     if (max(sim_times) != 2010) {
       stop("Unexpected end time: ", max(sim_times))
@@ -150,6 +153,10 @@ for (i in seq_along(remaining_indices)) {
     sim_duration <- round(difftime(sim_end, sim_start, units = "mins"), 2)
     cat("  Completed in", sim_duration, "minutes\n")
     cat("  Saved:", basename(sim_file), "\n")
+    
+    # Memory cleanup after each simulation
+    rm(fished_sim, params_original, params_climate, sim_spinup, sim_climate_only)
+    gc()
     
   }, error = function(e) {
     cat("  ERROR:", as.character(e), "\n")
