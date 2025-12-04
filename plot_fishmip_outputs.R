@@ -12,6 +12,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(scales)
+library(patchwork)
 
 ###############################################################################
 # Configuration
@@ -267,36 +268,110 @@ cat(sprintf("  Saved: %s\n", file.path(PLOT_DIR, "tclog10_faceted_uncertainty.pn
 
 cat("Creating combined biomass and catch panel...\n")
 
-# Prepare combined data
-tcb$variable <- "Biomass"
-tc$variable <- "Catch"
-combined <- bind_rows(tcb, tc)
-combined$variable <- factor(combined$variable, levels = c("Biomass", "Catch"))
+# Peak fishing effort years
+PEAK_BALEEN_YEAR <- 1933
+PEAK_SPERM_YEAR <- 1948
+PEAK_KRILL_YEAR <- 1979
+
+# Model domain area for unit conversion
+MODEL_DOMAIN_AREA <- 1.95e+13  # m^2
+GRAMS_PER_TONNE <- 1e6
+
+# Load observed catch data
+yield_fg <- read.csv("monte_carlo_2111_summaries/yield_timeseries_summary_per_year_tonnes.csv")
+obs_catch <- yield_fg %>%
+  group_by(Year) %>%
+  summarise(obs_total_t = sum(ObsYield_t, na.rm = TRUE), .groups = "drop") %>%
+  mutate(obs_gm2 = obs_total_t * GRAMS_PER_TONNE / MODEL_DOMAIN_AREA) %>%
+  filter(Year >= 1900)
 
 # Filter to start from 1900 for cleaner visualization
-combined_filtered <- combined %>% filter(year >= 1900)
+tcb_filtered <- tcb %>% filter(year >= 1900)
+tc_filtered <- tc %>% filter(year >= 1900)
 
-p_combined <- ggplot(combined_filtered, aes(x = year)) +
-  geom_ribbon(aes(ymin = q05, ymax = q95, fill = variable), alpha = 0.2) +
-  geom_ribbon(aes(ymin = q25, ymax = q75, fill = variable), alpha = 0.4) +
-  geom_line(aes(y = median, color = variable), linewidth = 1) +
-  geom_vline(xintercept = FISHING_START_YEAR, linetype = "dashed", color = "black", alpha = 0.7) +
-  facet_wrap(~variable, scales = "free_y", ncol = 1) +
-  scale_color_manual(values = c("Biomass" = "steelblue", "Catch" = "darkred"), guide = "none") +
-  scale_fill_manual(values = c("Biomass" = "steelblue", "Catch" = "darkred"), guide = "none") +
+# Create biomass panel (linear scale)
+p_biomass <- ggplot(tcb_filtered, aes(x = year)) +
+  geom_ribbon(aes(ymin = q05, ymax = q95), fill = "steelblue", alpha = 0.2) +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "steelblue", alpha = 0.4) +
+  geom_line(aes(y = median), color = "steelblue", linewidth = 1) +
+  geom_vline(xintercept = PEAK_BALEEN_YEAR, linetype = "dashed", color = "grey40", alpha = 0.8) +
+  geom_vline(xintercept = PEAK_SPERM_YEAR, linetype = "dashed", color = "grey40", alpha = 0.8) +
+  geom_vline(xintercept = PEAK_KRILL_YEAR, linetype = "dashed", color = "grey40", alpha = 0.8) +
+  annotate("text", x = PEAK_BALEEN_YEAR, y = Inf, label = "Peak\nBaleen Whale", 
+           vjust = 1.5, hjust = 0.5, size = 3.5, color = "grey30") +
+  annotate("text", x = PEAK_SPERM_YEAR, y = Inf, label = "Peak\nSperm Whale", 
+           vjust = 1.5, hjust = 0.5, size = 3.5, color = "grey30") +
+  annotate("text", x = PEAK_KRILL_YEAR, y = Inf, label = "Peak\nKrill", 
+           vjust = 1.5, hjust = 0.5, size = 3.5, color = "grey30") +
   labs(
-    title = "FishMIP Outputs: Total Consumer Biomass and Catch Density",
-    subtitle = "Prydz Bay Mizer Model Ensemble (2111 simulations)",
-    x = "Year",
+    subtitle = "Biomass",
     y = expression("Density (g m"^-2*")")
   ) +
   scale_x_continuous(breaks = seq(1900, 2010, by = 20)) +
-  theme_bw(base_size = 12) +
+  theme_bw(base_size = 14) +
   theme(
-    plot.title = element_text(face = "bold"),
     panel.grid.minor = element_blank(),
-    strip.background = element_rect(fill = "gray90"),
-    strip.text = element_text(face = "bold")
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 13),
+    axis.text = element_text(size = 12),
+    plot.subtitle = element_text(face = "bold", hjust = 0.5, size = 13)
+  )
+
+# Create catch panel (log scale)
+# Add small offset to handle zeros in log scale
+tc_filtered_log <- tc_filtered %>%
+  mutate(
+    median_log = pmax(median, 1e-6),
+    q05_log = pmax(q05, 1e-6),
+    q25_log = pmax(q25, 1e-6),
+    q75_log = pmax(q75, 1e-6),
+    q95_log = pmax(q95, 1e-6)
+  )
+
+# Also offset observed catch for log scale
+obs_catch_log <- obs_catch %>%
+  mutate(obs_gm2_log = pmax(obs_gm2, 1e-6))
+
+p_catch <- ggplot(tc_filtered_log, aes(x = year)) +
+  geom_ribbon(aes(ymin = q05_log, ymax = q95_log), fill = "darkred", alpha = 0.2) +
+  geom_ribbon(aes(ymin = q25_log, ymax = q75_log), fill = "darkred", alpha = 0.4) +
+  geom_line(aes(y = median_log), color = "darkred", linewidth = 1) +
+  # Add observed catch as black line with points
+  geom_line(data = obs_catch_log, aes(x = Year, y = obs_gm2_log), 
+            color = "black", linewidth = 0.4) +
+  geom_point(data = obs_catch_log, aes(x = Year, y = obs_gm2_log), 
+             color = "black", size = 1.5, alpha = 0.8) +
+  geom_vline(xintercept = PEAK_BALEEN_YEAR, linetype = "dashed", color = "grey40", alpha = 0.8) +
+  geom_vline(xintercept = PEAK_SPERM_YEAR, linetype = "dashed", color = "grey40", alpha = 0.8) +
+  geom_vline(xintercept = PEAK_KRILL_YEAR, linetype = "dashed", color = "grey40", alpha = 0.8) +
+  labs(
+    subtitle = "Catch",
+    x = "Year",
+    y = expression("Density (g m"^-2*", log scale)")
+  ) +
+  scale_y_log10(
+    labels = scales::label_scientific(),
+    limits = c(1e-6, 1)
+  ) +
+  scale_x_continuous(breaks = seq(1900, 2010, by = 20)) +
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 12),
+    plot.subtitle = element_text(face = "bold", hjust = 0.5, size = 13)
+  )
+
+# Combine panels
+library(patchwork)
+p_combined <- p_biomass / p_catch +
+  plot_annotation(
+    title = "FishMIP Outputs: Total Consumer Biomass and Catch Density",
+    subtitle = "Prydz Bay Mizer Model Ensemble (2111 simulations)",
+    theme = theme(
+      plot.title = element_text(face = "bold", size = 14),
+      plot.subtitle = element_text(size = 11, color = "grey40")
+    )
   )
 
 ggsave(file.path(PLOT_DIR, "combined_biomass_catch.png"), p_combined, width = 10, height = 8, dpi = 300)

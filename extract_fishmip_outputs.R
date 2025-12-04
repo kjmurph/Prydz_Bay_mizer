@@ -6,9 +6,13 @@
 #
 # Outputs:
 #   - tcblog10: Total Consumer Biomass Density in log10 Weight Bins (g m^-2)
+#               Only includes sizes >= 1g (FishMIP bins: 1g-10g through >100kg)
 #   - tcb: Total Consumer Biomass Density (g m^-2)
+#          Includes ALL sizes (including organisms < 1g)
 #   - tclog10: Total Catch Density in log10 Weight Bins (g m^-2)
+#              Only includes sizes >= 1g (FishMIP bins: 1g-10g through >100kg)
 #   - tc: Total Catch Density (g m^-2)
+#         Includes ALL catch (including organisms < 1g, e.g., krill)
 #   - Plus ensemble statistics (median, 5%, 25%, 75%, 95% quantiles)
 #
 # Author: Generated for Prydz Bay mizer project
@@ -129,18 +133,19 @@ extract_fishmip_from_sim <- function(sim) {
   # Calculate biomass
   biomass_array <- calc_biomass_from_n(n_array, w_vec, dw_vec)
   
-  # Assign mizer bins to FishMIP classes
+  # tcb: total consumer biomass (sum across ALL weight bins and species)
+  # This includes all sizes, including those below 1g
+  tcb <- apply(biomass_array, 1, sum)  # Sum over species and weight bins for each time step
+  
+  # Assign mizer bins to FishMIP classes (for tcblog10, which only includes >= 1g)
   bin_assignments <- assign_fishmip_bins(w_vec)
   
-  # Aggregate to FishMIP size classes
+  # Aggregate to FishMIP size classes (only 1g and above)
   biomass_by_sizeclass <- aggregate_to_fishmip_bins(biomass_array, bin_assignments, n_bins = 6)
   
   # Sum across species to get total consumer biomass in each size class
-  # tcblog10: total biomass in each log10 size class (time x 6)
+  # tcblog10: total biomass in each log10 size class (time x 6), only >= 1g
   tcblog10 <- apply(biomass_by_sizeclass, c(1, 3), sum)
-  
-  # tcb: total consumer biomass (sum across all size classes and species)
-  tcb <- rowSums(tcblog10)
   
   # Convert to density (g m^-2)
   tcblog10_density <- tcblog10 / MODEL_DOMAIN_AREA
@@ -163,15 +168,16 @@ extract_fishmip_from_sim <- function(sim) {
     catch_array[, , i] <- fmort[, , i] * n_array[, , i] * w_vec[i] * dw_vec[i]
   }
   
-  # Aggregate catch to FishMIP size classes
+  # tc: total catch (sum across ALL weight bins and species)
+  # This includes all sizes, including catch of organisms < 1g (e.g., krill)
+  tc <- apply(catch_array, 1, sum)  # Sum over species and weight bins for each time step
+  
+  # Aggregate catch to FishMIP size classes (only 1g and above)
   catch_by_sizeclass <- aggregate_to_fishmip_bins(catch_array, bin_assignments, n_bins = 6)
   
   # Sum across species to get total catch in each size class
-  # tclog10: total catch in each log10 size class (time x 6)
+  # tclog10: total catch in each log10 size class (time x 6), only >= 1g
   tclog10 <- apply(catch_by_sizeclass, c(1, 3), sum)
-  
-  # tc: total catch (sum across all size classes and species)
-  tc <- rowSums(tclog10)
   
   # Convert to density (g m^-2)
   tclog10_density <- tclog10 / MODEL_DOMAIN_AREA
