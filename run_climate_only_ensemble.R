@@ -17,9 +17,6 @@ cat("Running all MC parameterisations with climate forcing, no fishing\n\n")
 n_cores <- parallel::detectCores() - 2  # Leave 2 cores free
 cat("Using", n_cores, "cores for parallel processing\n\n")
 
-# Spinup settings
-spinup_years <- 118  # Same as original
-
 # Output settings
 output_dir <- "Output_large_files/climate_only_ensemble"
 checkpoint_interval <- 100  # Save checkpoint every N simulations
@@ -41,43 +38,30 @@ fished_sims <- mc_results$simulations
 n_sims <- length(fished_sims)
 cat("  Found", n_sims, "simulations to process\n")
 
-# Load climate forcings
-extended_ocean_temp <- readRDS("temperature_forcing_1841_2010.rds")
-extended_n_pp_array <- readRDS("phytoplankton_forcing_1841_2010.rds")
-cat("  Loaded temperature forcing:", dim(extended_ocean_temp), "\n")
-cat("  Loaded phytoplankton forcing:", dim(extended_n_pp_array), "\n")
+# Note: Climate forcings are already embedded in the fished ensemble params
+# No need to load them separately
 
 # ------------------------------------------------------------------------------
 # Function to run a single climate-only simulation
 # ------------------------------------------------------------------------------
-run_climate_only_sim <- function(sim_idx, fished_sim, ocean_temp, n_pp, spinup_years = 118) {
+run_climate_only_sim <- function(fished_sim) {
   
   tryCatch({
     # Extract the params from the fished simulation
-    # The params contain the perturbed species parameters (gamma, initial n, etc.)
+    # The params ALREADY contain:
+    # 1. Post-spinup initial_n (from the 3-cycle spinup done during MC generation)
+    # 2. Climate forcing arrays (ocean_temp and n_pp)
+    # 3. Perturbed species parameters (gamma, catchability, etc.)
+    # 
+    # For a true matched control, we use these exact params and just set effort=0
+    # NO ADDITIONAL SPINUP is needed - that would alter the initial conditions
     params_original <- fished_sim@params
     
-    # Upgrade to therMizer params with climate forcing
-    params_climate <- upgradeTherParams(
-      params_original,
-      ocean_temp_array = ocean_temp,
-      n_pp_array = n_pp,
-      aerobic_effect = FALSE,
-      metabolism_effect = TRUE
-    )
-    
-    # Run spinup (unfished, using first year climate)
-    sim_spinup <- project(
-      params_climate,
-      t_start = 1841,
-      t_max = spinup_years,
-      effort = 0
-    )
-    
-    # Run main simulation with climate forcing but no fishing
+    # Run simulation with climate forcing but no fishing
+    # This gives us the climate-only response using the EXACT same initial
+    # conditions as the corresponding fished simulation
     sim_climate_only <- project(
-      params_climate,
-      initial_n = sim_spinup@n[spinup_years, , ],
+      params_original,
       t_start = 1841,
       t_max = 170,  # 1841-2010
       effort = 0
@@ -85,14 +69,12 @@ run_climate_only_sim <- function(sim_idx, fished_sim, ocean_temp, n_pp, spinup_y
     
     return(list(
       success = TRUE,
-      sim_idx = sim_idx,
       simulation = sim_climate_only
     ))
     
   }, error = function(e) {
     return(list(
       success = FALSE,
-      sim_idx = sim_idx,
       error = as.character(e)
     ))
   })
@@ -155,25 +137,18 @@ for (batch_idx in 1:n_batches) {
   
   batch_start_time <- Sys.time()
   
+  # Extract only the sims needed for this batch (avoids serialization issues)
+  batch_sims <- fished_sims[batch_indices]
+  
   # Set up cluster for parallel processing
   cl <- makeCluster(n_cores)
-  clusterExport(cl, c("fished_sims", "extended_ocean_temp", "extended_n_pp_array",
-                      "spinup_years", "run_climate_only_sim"))
   clusterEvalQ(cl, {
     library(therMizer)
     library(mizer)
   })
   
   # Run batch in parallel with progress bar
-  batch_results <- pblapply(batch_indices, function(idx) {
-    run_climate_only_sim(
-      sim_idx = idx,
-      fished_sim = fished_sims[[idx]],
-      ocean_temp = extended_ocean_temp,
-      n_pp = extended_n_pp_array,
-      spinup_years = spinup_years
-    )
-  }, cl = cl)
+  batch_results <- pblapply(batch_sims, run_climate_only_sim, cl = cl)
   
   # Stop cluster
   stopCluster(cl)
