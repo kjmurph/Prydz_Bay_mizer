@@ -124,6 +124,14 @@ extract_fishmip_from_sim <- function(sim) {
   
   # Get N array (time x species x weight bins)
   n_array <- sim@n
+  
+  # Trim to 170 time points if needed (to match fished ensemble: 1841-2010)
+  # project() with t_max=170 from t_start=1841 gives 171 points (includes both endpoints)
+  # We want 1841-2010 (170 years), so keep first 170 points
+  if (dim(n_array)[1] == 171) {
+    n_array <- n_array[1:170, , ]
+  }
+  
   times <- as.numeric(dimnames(n_array)$time)
   n_times <- length(times)
   n_species <- dim(n_array)[2]
@@ -148,25 +156,14 @@ extract_fishmip_from_sim <- function(sim) {
   tcblog10_density <- tcblog10 / MODEL_DOMAIN_AREA
   tcb_density <- tcb / MODEL_DOMAIN_AREA
   
-  # NOTE: For climate-only (unfished) simulations, catch is zero everywhere
-  # But we still calculate them for consistency with the fished ensemble outputs
+  # =========================================================================
+  # Catch outputs (all zeros for climate-only/unfished simulations)
+  # =========================================================================
+  # No fishing in climate-only simulations, so all catch values are zero
+  # We still create these arrays for consistency with fished ensemble format
   
-  # Get fishing mortality by gear (should be zero everywhere)
-  fmort_gear <- getFMortGear(sim)
-  fmort <- apply(fmort_gear, c(1, 3, 4), sum)
-  
-  # Catch arrays (should be all zeros)
-  catch_array <- array(0, dim = c(n_times, n_species, n_w))
-  for (i in seq_along(w_vec)) {
-    catch_array[, , i] <- fmort[, , i] * n_array[, , i] * w_vec[i] * dw_vec[i]
-  }
-  
-  tc <- apply(catch_array, 1, sum)
-  catch_by_sizeclass <- aggregate_to_fishmip_bins(catch_array, bin_assignments, n_bins = 6)
-  tclog10 <- apply(catch_by_sizeclass, c(1, 3), sum)
-  
-  tclog10_density <- tclog10 / MODEL_DOMAIN_AREA
-  tc_density <- tc / MODEL_DOMAIN_AREA
+  tclog10_density <- matrix(0, nrow = n_times, ncol = 6)  # time x 6 size classes, all zeros
+  tc_density <- rep(0, n_times)  # time vector, all zeros
   
   return(list(
     times = times,
@@ -193,14 +190,18 @@ if (!dir.exists(OUTPUT_DIR)) {
 # Load Monte Carlo results (climate-only compiled ensemble)
 cat("Loading climate-only Monte Carlo results...\n")
 mc <- readRDS(MC_RESULTS_FILE)
-n_sims <- mc$n_simulations
+n_sims <- length(mc$simulations)
 cat(sprintf("  Loaded %d simulations\n", n_sims))
 
 # Get time dimension from first simulation
 sim1 <- mc$simulations[[1]]
-times <- as.numeric(dimnames(sim1@n)$time)
-n_times <- length(times)
-cat(sprintf("  Time range: %d - %d (%d time steps)\n", min(times), max(times), n_times))
+times_raw <- as.numeric(dimnames(sim1@n)$time)
+n_times_raw <- length(times_raw)
+cat(sprintf("  Time range: %d - %d (%d time steps)\n", min(times_raw), max(times_raw), n_times_raw))
+
+# We'll trim to 170 to match fished ensemble (1841-2010)
+n_times <- 170
+times <- times_raw[1:n_times]  # Use only first 170 years
 
 # Get species names
 species_names <- dimnames(sim1@n)$sp
@@ -224,7 +225,7 @@ for (b in 1:6) {
   }
 }
 
-# Initialize arrays to store all simulation results
+# Initialize arrays to store all simulation results (using 170 time points)
 cat("\nProcessing simulations...\n")
 all_tcblog10 <- array(NA, dim = c(n_sims, n_times, 6))
 all_tcb <- matrix(NA, nrow = n_sims, ncol = n_times)
@@ -239,6 +240,9 @@ for (i in 1:n_sims) {
   result <- tryCatch({
     extract_fishmip_from_sim(sim)
   }, error = function(e) {
+    if (i <= 3) {  # Print first 3 errors for debugging
+      cat("\n  Error in sim", i, ":", conditionMessage(e), "\n")
+    }
     NULL
   })
   
