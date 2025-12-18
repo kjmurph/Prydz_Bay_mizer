@@ -53,6 +53,17 @@ FISHMIP_MISSING <- 1.0e+20
 MC_RESULTS_FILE <- "Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/combined_rerun_successful_sims_20250923_122211.rds"
 OUTPUT_DIR <- "fishmip_outputs"
 
+# FishMIP naming convention components
+FISHMIP_MODEL <- "mizer"
+FISHMIP_FORCING <- "gfdl-mom6-cobalt2"
+FISHMIP_CLIMATE <- "obsclim"
+FISHMIP_SOC <- "histsoc"
+FISHMIP_SENS <- "default"
+FISHMIP_REGION <- "prydz-bay"
+FISHMIP_TIMESTEP <- "annual"
+FISHMIP_START_YEAR <- "1841"
+FISHMIP_END_YEAR <- "2010"
+
 ###############################################################################
 # Helper Functions
 ###############################################################################
@@ -349,9 +360,15 @@ for (t in 1:n_times) {
 
 cat("Saving CSV outputs...\n")
 
+# Convert years to days since 1841-1-1 for FishMIP ISIMIP3a protocol
+convert_year_to_days <- function(year) {
+  return((year - 1841) * 365)
+}
+time_days <- convert_year_to_days(times)
+
 # tcblog10 - reshape to long format for CSV
 tcblog10_df <- expand.grid(
-  year = times,
+  time = time_days,
   size_class = FISHMIP_BIN_NAMES
 )
 tcblog10_df$median <- as.vector(tcblog10_stats[, , "median"])
@@ -362,14 +379,17 @@ tcblog10_df$q95 <- as.vector(tcblog10_stats[, , "q95"])
 
 # Ensure size_class is ordered correctly
 tcblog10_df$size_class <- factor(tcblog10_df$size_class, levels = FISHMIP_BIN_NAMES)
-tcblog10_df <- tcblog10_df[order(tcblog10_df$year, tcblog10_df$size_class), ]
+tcblog10_df <- tcblog10_df[order(tcblog10_df$time, tcblog10_df$size_class), ]
 
-write.csv(tcblog10_df, file.path(OUTPUT_DIR, "tcblog10_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tcblog10_ensemble_stats.csv")))
+filename <- sprintf("%s_%s_%s_%s_%s_tcblog10_%s_%s_%s_%s.csv",
+                   FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                   FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+write.csv(tcblog10_df, file.path(OUTPUT_DIR, filename), row.names = FALSE)
+cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, filename)))
 
 # tcb - simple data frame
 tcb_df <- data.frame(
-  year = times,
+  time = time_days,
   median = tcb_stats[, "median"],
   q05 = tcb_stats[, "q05"],
   q25 = tcb_stats[, "q25"],
@@ -377,12 +397,15 @@ tcb_df <- data.frame(
   q95 = tcb_stats[, "q95"]
 )
 
-write.csv(tcb_df, file.path(OUTPUT_DIR, "tcb_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tcb_ensemble_stats.csv")))
+filename <- sprintf("%s_%s_%s_%s_%s_tcb_%s_%s_%s_%s.csv",
+                   FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                   FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+write.csv(tcb_df, file.path(OUTPUT_DIR, filename), row.names = FALSE)
+cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, filename)))
 
 # tclog10 - reshape to long format for CSV
 tclog10_df <- expand.grid(
-  year = times,
+  time = time_days,
   size_class = FISHMIP_BIN_NAMES
 )
 tclog10_df$median <- as.vector(tclog10_stats[, , "median"])
@@ -393,14 +416,17 @@ tclog10_df$q95 <- as.vector(tclog10_stats[, , "q95"])
 
 # Ensure size_class is ordered correctly
 tclog10_df$size_class <- factor(tclog10_df$size_class, levels = FISHMIP_BIN_NAMES)
-tclog10_df <- tclog10_df[order(tclog10_df$year, tclog10_df$size_class), ]
+tclog10_df <- tclog10_df[order(tclog10_df$time, tclog10_df$size_class), ]
 
-write.csv(tclog10_df, file.path(OUTPUT_DIR, "tclog10_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tclog10_ensemble_stats.csv")))
+filename <- sprintf("%s_%s_%s_%s_%s_tclog10_%s_%s_%s_%s.csv",
+                   FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                   FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+write.csv(tclog10_df, file.path(OUTPUT_DIR, filename), row.names = FALSE)
+cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, filename)))
 
 # tc - simple data frame
 tc_df <- data.frame(
-  year = times,
+  time = time_days,
   median = tc_stats[, "median"],
   q05 = tc_stats[, "q05"],
   q25 = tc_stats[, "q25"],
@@ -408,8 +434,11 @@ tc_df <- data.frame(
   q95 = tc_stats[, "q95"]
 )
 
-write.csv(tc_df, file.path(OUTPUT_DIR, "tc_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tc_ensemble_stats.csv")))
+filename <- sprintf("%s_%s_%s_%s_%s_tc_%s_%s_%s_%s.csv",
+                   FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                   FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+write.csv(tc_df, file.path(OUTPUT_DIR, filename), row.names = FALSE)
+cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, filename)))
 
 # Also save per-simulation raw data for full transparency (compressed)
 cat("Saving per-simulation raw data (this may take a moment)...\n")
@@ -468,8 +497,8 @@ cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tc_all_sims.rds")))
 if (has_ncdf4) {
   cat("Saving NetCDF outputs...\n")
   
-  # Create time dimension (years since 1841)
-  time_dim <- ncdim_def("time", "years", times, unlim = FALSE)
+  # Create time dimension (days since 1841-1-1 for FishMIP ISIMIP3a protocol)
+  time_dim <- ncdim_def("time", "days since 1841-1-1 00:00:00", time_days, unlim = FALSE)
   
   # Create size class dimension
   size_class_dim <- ncdim_def("size_class", "log10_g", 1:6, unlim = FALSE)
@@ -505,8 +534,12 @@ if (has_ncdf4) {
                        longname = "Total Catch Density",
                        prec = "float")
   
-  # Create NetCDF file
-  nc_file <- file.path(OUTPUT_DIR, "prydz_bay_mizer_fishmip_outputs.nc")
+  # Create NetCDF file with FishMIP naming convention
+  # Note: NetCDF combines all variables, so we use a generic "allvars" identifier
+  nc_filename <- sprintf("%s_%s_%s_%s_%s_allvars_%s_%s_%s_%s.nc",
+                        FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                        FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+  nc_file <- file.path(OUTPUT_DIR, nc_filename)
   nc <- nc_create(nc_file, list(tcblog10_var, tcb_var, tclog10_var, tc_var))
   
   # Put data

@@ -50,7 +50,8 @@ if (!file.exists(climate_file)) {
   stop("Climate-only ensemble not found. Run compile_climate_only_ensemble.R first.")
 }
 climate_ensemble <- readRDS(climate_file)
-cat("  Climate-only: ", climate_ensemble$n_simulations, " simulations\n")
+n_climate <- climate_ensemble$n_successful
+cat("  Climate-only: ", n_climate, " simulations\n")
 
 # Fished ensemble
 fished_file <- "Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/mc_ensemble_2111_cleaned.rds"
@@ -159,7 +160,9 @@ biomass_summary_climate$Species <- factor(biomass_summary_climate$Species, level
 n_sims <- climate_ensemble$n_simulations
 
 p_biomass <- ggplot(biomass_summary_climate, aes(x = Year, y = median_t, color = Species, fill = Species)) +
-  # 25-75 percentile ribbon only
+  # 5-95 percentile ribbon (90% credible interval)
+  geom_ribbon(aes(ymin = q05_t, ymax = q95_t), alpha = 0.2, color = NA) +
+  # 25-75 percentile ribbon (50% credible interval)
   geom_ribbon(aes(ymin = q25_t, ymax = q75_t), alpha = 0.3, color = NA) +
   # Median line
   geom_line(linewidth = 0.8) +
@@ -174,7 +177,6 @@ p_biomass <- ggplot(biomass_summary_climate, aes(x = Year, y = median_t, color =
   theme(legend.position = 'none', 
         strip.text = element_text(face = 'bold')) +
   labs(
-    title = sprintf('Monte Carlo: Climate-Only Biomass vs Observations (%d sims)', n_sims),
     x = 'Year', 
     y = 'Biomass [t]'
   )
@@ -410,7 +412,7 @@ close(pb)
 
 cat("\nCalculating slope/intercept for climate-only simulations...\n")
 climate_slopes <- list()
-pb <- txtProgressBar(min = 0, max = climate_ensemble$n_simulations, style = 3)
+pb <- txtProgressBar(min = 0, max = n_climate, style = 3)
 for (i in seq_along(climate_ensemble$simulations)) {
   sim <- climate_ensemble$simulations[[i]]
   if (is.null(sim)) next

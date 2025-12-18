@@ -55,6 +55,17 @@ FISHMIP_MISSING <- 1.0e+20
 MC_RESULTS_FILE <- "Output_large_files/climate_only_ensemble/climate_only_ensemble_compiled.rds"
 OUTPUT_DIR <- "fishmip_outputs_climate_only"
 
+# FishMIP naming convention components (climate-only = nat scenario)
+FISHMIP_MODEL <- "mizer"
+FISHMIP_FORCING <- "gfdl-mom6-cobalt2"
+FISHMIP_CLIMATE <- "obsclim"
+FISHMIP_SOC <- "nat"  # natural/no-fishing scenario
+FISHMIP_SENS <- "default"
+FISHMIP_REGION <- "prydz-bay"
+FISHMIP_TIMESTEP <- "annual"
+FISHMIP_START_YEAR <- "1841"
+FISHMIP_END_YEAR <- "2010"
+
 ###############################################################################
 # Helper Functions
 ###############################################################################
@@ -229,8 +240,7 @@ for (b in 1:6) {
 cat("\nProcessing simulations...\n")
 all_tcblog10 <- array(NA, dim = c(n_sims, n_times, 6))
 all_tcb <- matrix(NA, nrow = n_sims, ncol = n_times)
-all_tclog10 <- array(NA, dim = c(n_sims, n_times, 6))
-all_tc <- matrix(NA, nrow = n_sims, ncol = n_times)
+# Note: No catch outputs for climate-only (no fishing)
 failed_sims <- c()
 
 # Process each simulation
@@ -249,8 +259,7 @@ for (i in 1:n_sims) {
   if (!is.null(result)) {
     all_tcblog10[i, , ] <- result$tcblog10
     all_tcb[i, ] <- result$tcb
-    all_tclog10[i, , ] <- result$tclog10
-    all_tc[i, ] <- result$tc
+    # No catch extraction needed (climate-only has no fishing)
   } else {
     failed_sims <- c(failed_sims, i)
   }
@@ -299,38 +308,7 @@ for (t in 1:n_times) {
   tcb_stats[t, 5] <- quantile(vals, 0.95, na.rm = TRUE)
 }
 
-# Calculate ensemble statistics for tclog10 (should be all zeros)
-tclog10_stats <- array(0, dim = c(n_times, 6, 5))
-dimnames(tclog10_stats) <- list(
-  time = as.character(times),
-  size_class = FISHMIP_BIN_NAMES,
-  stat = c("median", "q05", "q25", "q75", "q95")
-)
-
-for (t in 1:n_times) {
-  for (b in 1:6) {
-    vals <- all_tclog10[, t, b]
-    tclog10_stats[t, b, 1] <- median(vals, na.rm = TRUE)
-    tclog10_stats[t, b, 2] <- quantile(vals, 0.05, na.rm = TRUE)
-    tclog10_stats[t, b, 3] <- quantile(vals, 0.25, na.rm = TRUE)
-    tclog10_stats[t, b, 4] <- quantile(vals, 0.75, na.rm = TRUE)
-    tclog10_stats[t, b, 5] <- quantile(vals, 0.95, na.rm = TRUE)
-  }
-}
-
-# Calculate ensemble statistics for tc (should be all zeros)
-tc_stats <- matrix(0, nrow = n_times, ncol = 5)
-colnames(tc_stats) <- c("median", "q05", "q25", "q75", "q95")
-rownames(tc_stats) <- as.character(times)
-
-for (t in 1:n_times) {
-  vals <- all_tc[, t]
-  tc_stats[t, 1] <- median(vals, na.rm = TRUE)
-  tc_stats[t, 2] <- quantile(vals, 0.05, na.rm = TRUE)
-  tc_stats[t, 3] <- quantile(vals, 0.25, na.rm = TRUE)
-  tc_stats[t, 4] <- quantile(vals, 0.75, na.rm = TRUE)
-  tc_stats[t, 5] <- quantile(vals, 0.95, na.rm = TRUE)
-}
+# Note: No catch statistics for climate-only (no fishing)
 
 ###############################################################################
 # Save CSV Outputs
@@ -338,9 +316,19 @@ for (t in 1:n_times) {
 
 cat("Saving CSV outputs...\n")
 
+# Convert years to days since 1841-1-1 (FishMIP ISIMIP3a protocol)
+# Our data spans 1841-2010 (includes spin-up and transition period)
+# Format: "days since 1841-1-1 00:00:00"
+convert_year_to_days <- function(year) {
+  # Each year = 365 days (assuming no leap years for simplicity, consistent with model)
+  (year - 1841) * 365
+}
+
+time_days <- convert_year_to_days(times)
+
 # tcblog10 - reshape to long format for CSV
 tcblog10_df <- expand.grid(
-  year = times,
+  time = time_days,
   size_class = FISHMIP_BIN_NAMES
 )
 tcblog10_df$median <- as.vector(tcblog10_stats[, , "median"])
@@ -350,14 +338,17 @@ tcblog10_df$q75 <- as.vector(tcblog10_stats[, , "q75"])
 tcblog10_df$q95 <- as.vector(tcblog10_stats[, , "q95"])
 
 tcblog10_df$size_class <- factor(tcblog10_df$size_class, levels = FISHMIP_BIN_NAMES)
-tcblog10_df <- tcblog10_df[order(tcblog10_df$year, tcblog10_df$size_class), ]
+tcblog10_df <- tcblog10_df[order(tcblog10_df$time, tcblog10_df$size_class), ]
 
-write.csv(tcblog10_df, file.path(OUTPUT_DIR, "tcblog10_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tcblog10_ensemble_stats.csv")))
+filename <- sprintf("%s_%s_%s_%s_%s_tcblog10_%s_%s_%s_%s.csv",
+                   FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                   FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+write.csv(tcblog10_df, file.path(OUTPUT_DIR, filename), row.names = FALSE)
+cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, filename)))
 
 # tcb - simple data frame
 tcb_df <- data.frame(
-  year = times,
+  time = time_days,
   median = tcb_stats[, "median"],
   q05 = tcb_stats[, "q05"],
   q25 = tcb_stats[, "q25"],
@@ -365,38 +356,13 @@ tcb_df <- data.frame(
   q95 = tcb_stats[, "q95"]
 )
 
-write.csv(tcb_df, file.path(OUTPUT_DIR, "tcb_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tcb_ensemble_stats.csv")))
+filename <- sprintf("%s_%s_%s_%s_%s_tcb_%s_%s_%s_%s.csv",
+                   FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                   FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+write.csv(tcb_df, file.path(OUTPUT_DIR, filename), row.names = FALSE)
+cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, filename)))
 
-# tclog10 - reshape to long format for CSV
-tclog10_df <- expand.grid(
-  year = times,
-  size_class = FISHMIP_BIN_NAMES
-)
-tclog10_df$median <- as.vector(tclog10_stats[, , "median"])
-tclog10_df$q05 <- as.vector(tclog10_stats[, , "q05"])
-tclog10_df$q25 <- as.vector(tclog10_stats[, , "q25"])
-tclog10_df$q75 <- as.vector(tclog10_stats[, , "q75"])
-tclog10_df$q95 <- as.vector(tclog10_stats[, , "q95"])
-
-tclog10_df$size_class <- factor(tclog10_df$size_class, levels = FISHMIP_BIN_NAMES)
-tclog10_df <- tclog10_df[order(tclog10_df$year, tclog10_df$size_class), ]
-
-write.csv(tclog10_df, file.path(OUTPUT_DIR, "tclog10_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tclog10_ensemble_stats.csv")))
-
-# tc - simple data frame
-tc_df <- data.frame(
-  year = times,
-  median = tc_stats[, "median"],
-  q05 = tc_stats[, "q05"],
-  q25 = tc_stats[, "q25"],
-  q75 = tc_stats[, "q75"],
-  q95 = tc_stats[, "q95"]
-)
-
-write.csv(tc_df, file.path(OUTPUT_DIR, "tc_ensemble_stats.csv"), row.names = FALSE)
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tc_ensemble_stats.csv")))
+# Note: No catch outputs for climate-only (no fishing)
 
 # Also save per-simulation raw data for full transparency (compressed)
 cat("Saving per-simulation raw data (this may take a moment)...\n")
@@ -424,28 +390,7 @@ raw_tcb_df <- data.frame(
 saveRDS(raw_tcb_df, file.path(OUTPUT_DIR, "tcb_all_sims.rds"))
 cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tcb_all_sims.rds")))
 
-# tclog10 raw
-raw_tclog10_list <- list()
-for (i in 1:n_sims) {
-  df <- expand.grid(year = times, size_class = FISHMIP_BIN_NAMES)
-  df$sim_id <- i
-  df$tclog10_gm2 <- as.vector(all_tclog10[i, , ])
-  raw_tclog10_list[[i]] <- df
-}
-raw_tclog10_df <- do.call(rbind, raw_tclog10_list)
-raw_tclog10_df$size_class <- factor(raw_tclog10_df$size_class, levels = FISHMIP_BIN_NAMES)
-
-saveRDS(raw_tclog10_df, file.path(OUTPUT_DIR, "tclog10_all_sims.rds"))
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tclog10_all_sims.rds")))
-
-# tc raw
-raw_tc_df <- data.frame(
-  sim_id = rep(1:n_sims, each = n_times),
-  year = rep(times, n_sims),
-  tc_gm2 = as.vector(t(all_tc))
-)
-saveRDS(raw_tc_df, file.path(OUTPUT_DIR, "tc_all_sims.rds"))
-cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tc_all_sims.rds")))
+# Note: No catch raw data for climate-only (no fishing)
 
 ###############################################################################
 # Save NetCDF Output
@@ -454,7 +399,12 @@ cat(sprintf("  Saved: %s\n", file.path(OUTPUT_DIR, "tc_all_sims.rds")))
 if (has_ncdf4) {
   cat("Saving NetCDF outputs...\n")
   
-  time_dim <- ncdim_def("time", "years", times, unlim = FALSE)
+  # FishMIP naming convention for NetCDF
+  nc_filename <- sprintf("%s_%s_%s_%s_%s_allvars_%s_%s_%s_%s.nc",
+                        FISHMIP_MODEL, FISHMIP_FORCING, FISHMIP_CLIMATE, FISHMIP_SOC, FISHMIP_SENS,
+                        FISHMIP_REGION, FISHMIP_TIMESTEP, FISHMIP_START_YEAR, FISHMIP_END_YEAR)
+  
+  time_dim <- ncdim_def("time", "days since 1841-1-1 00:00:00", time_days, unlim = FALSE)
   size_class_dim <- ncdim_def("size_class", "log10_g", 1:6, unlim = FALSE)
   stat_dim <- ncdim_def("statistic", "", 1:5, unlim = FALSE)
   
@@ -470,25 +420,14 @@ if (has_ncdf4) {
                         longname = "Total Consumer Biomass Density",
                         prec = "float")
   
-  tclog10_var <- ncvar_def("tclog10", "g m-2", 
-                            list(time_dim, size_class_dim, stat_dim),
-                            missval = FISHMIP_MISSING,
-                            longname = "Total Catch Density in log10 Weight Bins",
-                            prec = "float")
+  # Note: No catch variables for climate-only (no fishing)
   
-  tc_var <- ncvar_def("tc", "g m-2",
-                       list(time_dim, stat_dim),
-                       missval = FISHMIP_MISSING,
-                       longname = "Total Catch Density",
-                       prec = "float")
-  
-  nc_file <- file.path(OUTPUT_DIR, "prydz_bay_mizer_fishmip_climate_only_outputs.nc")
-  nc <- nc_create(nc_file, list(tcblog10_var, tcb_var, tclog10_var, tc_var))
+  # Create NetCDF file with FishMIP naming convention
+  nc_file <- file.path(OUTPUT_DIR, nc_filename)
+  nc <- nc_create(nc_file, list(tcblog10_var, tcb_var))
   
   ncvar_put(nc, tcblog10_var, tcblog10_stats)
   ncvar_put(nc, tcb_var, tcb_stats)
-  ncvar_put(nc, tclog10_var, tclog10_stats)
-  ncvar_put(nc, tc_var, tc_stats)
   
   ncatt_put(nc, 0, "title", "Prydz Bay mizer FishMIP ISIMIP3a outputs - Climate-Only (Unfished)")
   ncatt_put(nc, 0, "institution", "University of Tasmania")
@@ -532,13 +471,7 @@ cat(sprintf("  Overall median: %.4e\n", median(tcb_stats[, "median"])))
 cat(sprintf("  Overall 90%% CI: [%.4e, %.4e]\n", 
             median(tcb_stats[, "q05"]), median(tcb_stats[, "q95"])))
 
-cat("\ntclog10 (Total Catch Density by size class, g m^-2):\n")
-cat("-----------------------------------------------------\n")
-cat("  [All zeros - no fishing in climate-only scenario]\n")
-
-cat("\ntc (Total Catch Density, g m^-2):\n")
-cat("----------------------------------\n")
-cat("  [All zeros - no fishing in climate-only scenario]\n")
+cat("\nNote: No catch outputs for climate-only (no fishing scenario)\n")
 
 cat("\n=============================================================\n")
 cat("Output files saved to:", OUTPUT_DIR, "\n")

@@ -23,7 +23,8 @@ cat("Loading ensembles...\n")
 # Climate-only (unfished) ensemble
 climate_file <- "Output_large_files/climate_only_ensemble/climate_only_ensemble_compiled.rds"
 climate_ensemble <- readRDS(climate_file)
-cat("  Climate-only:", climate_ensemble$n_simulations, "simulations\n")
+n_climate <- climate_ensemble$n_successful
+cat("  Climate-only:", n_climate, "simulations\n")
 
 # Fished ensemble
 fished_file <- "Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/mc_ensemble_2111_cleaned.rds"
@@ -70,7 +71,7 @@ cat("Extracting community spectra for reference period...\n")
 
 # Storage for spectra
 fished_spectra <- matrix(NA, nrow = n_fished, ncol = n_w)
-climate_spectra <- matrix(NA, nrow = climate_ensemble$n_simulations, ncol = n_w)
+climate_spectra <- matrix(NA, nrow = n_climate, ncol = n_w)
 
 # Process fished simulations
 cat("  Processing fished simulations...\n")
@@ -89,8 +90,8 @@ close(pb)
 
 # Process climate-only simulations
 cat("  Processing climate-only simulations...\n")
-pb <- txtProgressBar(min = 0, max = climate_ensemble$n_simulations, style = 3)
-for (i in seq_len(climate_ensemble$n_simulations)) {
+pb <- txtProgressBar(min = 0, max = n_climate, style = 3)
+for (i in seq_len(n_climate)) {
   setTxtProgressBar(pb, i)
   sim <- tryCatch(climate_ensemble$simulations[[i]], error = function(e) NULL)
   if (is.null(sim)) next
