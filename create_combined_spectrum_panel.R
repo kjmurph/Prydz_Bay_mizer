@@ -127,17 +127,15 @@ p_panel_b <- ggplot(panel_b_data, aes(x = w, color = period_label, fill = period
   )
 
 # ------------------------------------------------------------------------------
-# Combine panels using patchwork
+# Combine panels using patchwork with Nature-style panel tags
 # ------------------------------------------------------------------------------
 cat("Combining panels...\n")
 
 p_combined <- p_panel_a + p_panel_b +
   plot_annotation(
-    title = "Large Organism Size Spectrum: Pre-Exploitation to Recovery",
-    subtitle = paste0("Zoomed to \u2265 10 kg | Ratio relative to ", reference_name),
+    tag_levels = 'A',
     theme = theme(
-      plot.title = element_text(size = 16, face = "bold"),
-      plot.subtitle = element_text(size = 12, color = "grey40")
+      plot.tag = element_text(size = 14, face = "bold")
     )
   )
 
