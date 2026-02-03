@@ -215,6 +215,7 @@ process_ensemble <- function(ensemble_file, ensemble_name, output_prefix) {
     # Full consumption by simulation (compressed - key combinations only)
     baleen_krill = list(),
     baleen_ltl = list(),
+    baleen_all_prey = list(),
     all_whales_krill = list(),
     all_whales_ltl = list(),
     all_whales_all_prey = list(),
@@ -255,6 +256,10 @@ process_ensemble <- function(ensemble_file, ensemble_name, output_prefix) {
     
     ts <- aggregate_consumption(consumption_data, SPECIES_GROUPS$baleen_whales, SPECIES_GROUPS$ltl_prey)
     if (!is.null(ts)) results$baleen_ltl[[length(results$baleen_ltl) + 1]] <- ts
+    
+    # Baleen whales eating all prey (for total consumption)
+    ts <- aggregate_consumption(consumption_data, SPECIES_GROUPS$baleen_whales, consumption_data$prey)
+    if (!is.null(ts)) results$baleen_all_prey[[length(results$baleen_all_prey) + 1]] <- ts
     
     # All whales
     ts <- aggregate_consumption(consumption_data, SPECIES_GROUPS$all_whales, SPECIES_GROUPS$krill)
@@ -413,6 +418,7 @@ cat("Predator-Prey Combinations Extracted:\n")
 cat("--------------------------------------\n")
 cat("  baleen_krill:        Baleen whales eating Antarctic krill\n")
 cat("  baleen_ltl:          Baleen whales eating all LTL prey\n")
+cat("  baleen_all_prey:     Baleen whales eating all prey (total consumption)\n")
 cat("  all_whales_krill:    All whales eating Antarctic krill\n")
 cat("  all_whales_ltl:      All whales eating all LTL prey\n")
 cat("  all_whales_all_prey: All whales eating all prey (total consumption)\n")
