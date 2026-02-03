@@ -49,6 +49,29 @@ FISHMIP_BIN_NAMES <- c("1g-10g", "10g-100g", "100g-1kg", "1kg-10kg", "10kg-100kg
 # FishMIP missing value
 FISHMIP_MISSING <- 1.0e+20
 
+###############################################################################
+# Monte Carlo Ensemble File Locations
+# 
+# The following paths document available ensemble simulation files:
+#
+# PRIMARY ENSEMBLE (recommended for most analyses):
+#   - Path: Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/combined_rerun_successful_sims_20250923_122211.rds
+#   - Description: Latest combined rerun with successful simulations
+#   - Time range: 1841-2010
+#
+# CLEANED ENSEMBLE (2111 simulations):
+#   - Path: Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/mc_ensemble_2111_cleaned.rds
+#   - Description: Quality-controlled ensemble with 2111 successful simulations
+#
+# CLIMATE-ONLY ENSEMBLE (unfished baseline):
+#   - Path: Output_large_files/climate_only_ensemble/climate_only_ensemble_compiled.rds
+#   - Description: Simulations without fishing, for fished vs unfished comparisons
+#
+# PARAMETER SUMMARIES:
+#   - Path: Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/combined_rerun_params_summary_20250923_122211.csv
+#
+###############################################################################
+
 # Input/output paths
 MC_RESULTS_FILE <- "Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/combined_rerun_successful_sims_20250923_122211.rds"
 OUTPUT_DIR <- "fishmip_outputs"

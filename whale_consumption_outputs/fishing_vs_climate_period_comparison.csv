@@ -1,0 +1,7 @@
+"period","fishing_median","fishing_mean","climate_median","climate_mean","median_pct_of_climate","mean_pct_of_climate","median_difference","mean_difference"
+"pre_whaling",9345.9,1013210,9345.9,1013210,100,100,0,0
+"early_whaling",9032.1,1032299.4,9032.1,1032299.4,100,100,0,0
+"peak_whaling",8521.1,1181118.8,8878.8,1200486.6,96,98.4,357.699999999999,19367.8
+"post_whaling",6224.7,900308.3,8636.7,1239158.3,72.1,72.7,2412,338850
+"krill_fishing",2819.7,352567.1,8846.8,1283973.3,31.9,27.5,6027.1,931406.2
+"modern",3275.1,300901.8,8909.7,1315004.7,36.8,22.9,5634.6,1014102.9
