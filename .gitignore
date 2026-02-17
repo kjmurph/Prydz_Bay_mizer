@@ -18,3 +18,6 @@ Annabelle_Network_Plots/
 gfdl_woa-regridded_bias-corr-data_temp_prydz-bay/
 gfdl-mom6-cobalt2_obsclim_thetao_15arcmin_prydz-bay_monthly_1961_2010.zarr/
 *.nb.html
+
+# Ecosystem assessment large data files
+ecosystem_assessment_outputs/*.rds
