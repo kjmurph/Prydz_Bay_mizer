@@ -756,15 +756,54 @@ calculate_group_biomass <- function(sim, time_range = NULL, species_group = NULL
 
 calculate_spectrum_slope_intercept <- function(sim, time_range = NULL,
                                                min_w = 1, max_w = 1e6) {
+  # Try getCommunitySlope first (preferred method)
   slope_data <- tryCatch(
     mizer::getCommunitySlope(sim, min_w = min_w, max_w = max_w, biomass = TRUE),
-    error = function(e) NULL
+    error = function(e) {
+      warning(sprintf("getCommunitySlope failed: %s. Using manual calculation.", e$message))
+      NULL
+    }
   )
-  if (is.null(slope_data)) return(c(slope = NA, intercept = NA))
-  if (is.null(time_range)) time_range <- seq_len(nrow(slope_data))
-  slope_val <- mean(slope_data[time_range, "slope"], na.rm = TRUE)
-  intercept_val <- mean(slope_data[time_range, "intercept"], na.rm = TRUE)
-  return(c(slope = slope_val, intercept = intercept_val))
+  
+  # If getCommunitySlope fails, calculate manually from size spectrum
+  if (is.null(slope_data)) {
+    tryCatch({
+      times <- as.numeric(dimnames(sim@n)$time)
+      if (is.null(time_range)) time_range <- seq_along(times)
+      w <- sim@params@w
+      n <- sim@n
+      
+      # Calculate community size spectrum (sum across species)
+      community_n <- apply(n, c(1, 3), sum)  # Sum over species dimension
+      
+      # Fit linear model on log-log scale for specified time range
+      log_w <- log10(w[w >= min_w & w <= max_w])
+      w_idx <- which(w >= min_w & w <= max_w)
+      
+      slopes <- numeric(length(time_range))
+      intercepts <- numeric(length(time_range))
+      
+      for (i in seq_along(time_range)) {
+        t_idx <- time_range[i]
+        log_n <- log10(community_n[t_idx, w_idx] + 1e-20)  # Add small constant to avoid log(0)
+        fit <- lm(log_n ~ log_w)
+        slopes[i] <- coef(fit)[2]
+        intercepts[i] <- coef(fit)[1]
+      }
+      
+      return(c(slope = mean(slopes, na.rm = TRUE), 
+               intercept = mean(intercepts, na.rm = TRUE)))
+    }, error = function(e) {
+      warning(sprintf("Manual spectrum calculation also failed: %s", e$message))
+      return(c(slope = NA, intercept = NA))
+    })
+  } else {
+    # Use existing getCommunitySlope results
+    if (is.null(time_range)) time_range <- seq_len(nrow(slope_data))
+    slope_val <- mean(slope_data[time_range, "slope"], na.rm = TRUE)
+    intercept_val <- mean(slope_data[time_range, "intercept"], na.rm = TRUE)
+    return(c(slope = slope_val, intercept = intercept_val))
+  }
 }
 
 calculate_lfi_mizer <- function(sim, time_range = NULL, species_group = NULL,
@@ -915,8 +954,8 @@ extract_simulation_metrics <- function(sim, decades_df = DECADES) {
       krill_biomass = calculate_group_biomass(sim, time_range, SPECIES_GROUPS$krill),
       ltl_biomass = calculate_group_biomass(sim, time_range, SPECIES_GROUPS$ltl),
       apex_biomass = calculate_group_biomass(sim, time_range, SPECIES_GROUPS$apex_predators),
-      spectrum_slope = spec["slope"],
-      spectrum_intercept = spec["intercept"],
+      spectrum_slope = unname(spec["slope"]),
+      spectrum_intercept = unname(spec["intercept"]),
       mean_tl = calculate_mean_tl(sim, time_range, consumers_only = TRUE),
       htl_indicator = calculate_htl_indicator(sim, time_range),
       large_fish_indicator = calculate_lfi_mizer(sim, time_range,
@@ -952,8 +991,8 @@ extract_b0_metrics <- function(sim) {
     krill_biomass = calculate_group_biomass(sim, time_range, SPECIES_GROUPS$krill),
     ltl_biomass = calculate_group_biomass(sim, time_range, SPECIES_GROUPS$ltl),
     apex_biomass = calculate_group_biomass(sim, time_range, SPECIES_GROUPS$apex_predators),
-    spectrum_slope = spec["slope"],
-    spectrum_intercept = spec["intercept"],
+    spectrum_slope = unname(spec["slope"]),
+    spectrum_intercept = unname(spec["intercept"]),
     mean_tl = calculate_mean_tl(sim, time_range, consumers_only = TRUE),
     htl_indicator = calculate_htl_indicator(sim, time_range),
     large_fish_indicator = calculate_lfi_mizer(sim, time_range,
@@ -1559,10 +1598,17 @@ plot_biomass_proportion_heatmap <- function(ratio_summary, prop_col, threshold_v
 plot_structural_deviation_heatmap <- function(structural_summary,
                                               envelope_col, envelope_label,
                                               title, output_path, filename) {
+  # Include all metrics, even if some decades have NA (will show as grey)
   plot_data <- structural_summary %>%
-    filter(!is.na(.data[[envelope_col]])) %>%
     mutate(display_name = sapply(metric_name, get_display_name),
            prop_value = .data[[envelope_col]])
+  
+  # Only skip if NO valid data for ANY metric
+  if (all(is.na(plot_data$prop_value))) {
+    cat(sprintf("  Skipping %s (no valid data)\n", filename)); 
+    return(NULL)
+  }
+  
   str_names <- sapply(STRUCTURAL_METRICS, get_display_name)
   valid_names <- str_names[str_names %in% plot_data$display_name]
   decade_order <- unique(plot_data$decade[order(plot_data$start_year)])
@@ -1595,16 +1641,22 @@ plot_structural_deviation_heatmap <- function(structural_summary,
 
 plot_structural_zscore_heatmap <- function(structural_summary, title,
                                            output_path, filename) {
+  # Include all metrics, show NA as grey (happens when SD ~ 0)
   plot_data <- structural_summary %>%
-    filter(!is.na(z_median)) %>%
     mutate(display_name = sapply(metric_name, get_display_name),
-           z_clamped = pmin(pmax(z_median, -5), 5))
+           z_clamped = ifelse(is.na(z_median), NA, pmin(pmax(z_median, -5), 5)))
+  
+  # Only skip if NO metrics at all
+  if (nrow(plot_data) == 0) {
+    cat(sprintf("  Skipping %s (no data)\n", filename)); 
+    return(NULL)
+  }
+  
   str_names <- sapply(STRUCTURAL_METRICS, get_display_name)
   valid_names <- str_names[str_names %in% plot_data$display_name]
   decade_order <- unique(plot_data$decade[order(plot_data$start_year)])
   plot_data$decade <- factor(plot_data$decade, levels = decade_order)
   plot_data$display_name <- factor(plot_data$display_name, levels = rev(valid_names))
-  if (nrow(plot_data) == 0) { cat(sprintf("  Skipping %s\n", filename)); return(NULL) }
 
   p <- ggplot(plot_data, aes(x = decade, y = display_name, fill = z_clamped)) +
     geom_tile(color = "white", linewidth = 0.5) +
