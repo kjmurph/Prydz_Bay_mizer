@@ -6,6 +6,18 @@
 #   Category B (Structural): empirical deviation from B0 ensemble envelope
 #   Category C (Exploitation): absolute fishing mortality rates
 #
+# Metrics:
+#   Category A: total, whale, baleen, seal, fish, krill, ltl, apex biomass
+#   Category B: spectrum slope/intercept, mean TL, HTL indicator,
+#               LFI 100g (fish-only; adapted from Zhang et al. 2015),
+#               Fish LFI 1000g (fish-only; Greenstreet et al. 2011),
+#               Shannon diversity H' (Zhang et al. 2015),
+#               W-statistic ABC curves (Clarke & Warwick 1994),
+#               Production:Biomass ratio (P/B),
+#               mean weight, mean max weight,
+#               predator-prey ratio, consumer:LTL ratio
+#   Category C: total, whale, krill exploitation rates
+#
 # Sources: ecosystem_assessment_v2.R
 # Diagnostics: ecosystem_assessment_diagnostics_v2.R (run separately after)
 ###############################################################################
@@ -42,6 +54,11 @@ cat("    P(outside B0 1st-99th percentile)  Substantially altered\n")
 cat("    z-score: (value - B0 median) / B0 SD\n")
 cat("  Category C — EXPLOITATION: absolute F values\n\n")
 
+cat("Metrics:\n")
+cat(sprintf("  Category A (Biomass):      %d metrics\n", length(BIOMASS_METRICS)))
+cat(sprintf("  Category B (Structural):   %d metrics\n", length(STRUCTURAL_METRICS)))
+cat(sprintf("  Category C (Exploitation): %d metrics\n\n", length(EXPLOITATION_METRICS)))
+
 # Validate files
 cat("Checking ensemble files...\n")
 stopifnot("Fishing ensemble not found" = file.exists(ENSEMBLE_PATHS$fishing))
@@ -73,7 +90,8 @@ for (m in c("total_biomass", "baleen_biomass", "krill_biomass", "apex_biomass"))
 }
 cat("  STRUCTURAL (natural range = Q05-Q95):\n")
 for (m in c("spectrum_slope", "spectrum_intercept", "mean_tl", "htl_indicator",
-            "large_fish_indicator", "predator_prey_ratio")) {
+            "large_fish_indicator", "fish_lfi", "shannon_diversity",
+            "w_statistic", "production_biomass_ratio", "predator_prey_ratio")) {
   th <- results$empirical_thresholds[[m]]
   if (!is.null(th) && !is.na(th$median))
     cat(sprintf("    %-25s: median = %.4f, range = [%.4f, %.4f]\n",

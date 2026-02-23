@@ -29,8 +29,11 @@ if (!exists("BIOMASS_METRICS")) {
 }
 if (!exists("STRUCTURAL_METRICS")) {
   STRUCTURAL_METRICS <- c("spectrum_slope", "spectrum_intercept", "mean_tl",
-                          "htl_indicator", "large_fish_indicator", "mean_weight",
-                          "mean_max_weight", "predator_prey_ratio", "consumer_ltl_ratio")
+                          "htl_indicator", "large_fish_indicator", "fish_lfi",
+                          "shannon_diversity", "w_statistic",
+                          "production_biomass_ratio",
+                          "mean_weight", "mean_max_weight",
+                          "predator_prey_ratio", "consumer_ltl_ratio")
 }
 
 ###############################################################################
@@ -461,15 +464,19 @@ create_all_diagnostics <- function() {
 
   # --- Structural time series (Category B) ---
   structural_to_plot <- list(
-    list(col = "spectrum_slope", name = "Size Spectrum Slope", label = "Slope"),
-    list(col = "spectrum_intercept", name = "Size Spectrum Intercept", label = "Intercept"),
-    list(col = "mean_tl", name = "Mean Trophic Level (Consumers)", label = "Trophic Level"),
-    list(col = "htl_indicator", name = "High Trophic Level Indicator", label = "Proportion"),
-    list(col = "large_fish_indicator", name = "Large Fish Indicator", label = "Proportion"),
-    list(col = "mean_weight", name = "Mean Individual Weight", label = "Weight (g)"),
-    list(col = "mean_max_weight", name = "Mean Max Weight", label = "Weight (g)"),
-    list(col = "predator_prey_ratio", name = "Predator-Prey Ratio (Apex:Mid-TL)", label = "Ratio"),
-    list(col = "consumer_ltl_ratio", name = "Consumer:LTL Biomass Ratio", label = "Ratio"))
+    list(col = "spectrum_slope",           name = "Size Spectrum Slope",              label = "Slope"),
+    list(col = "spectrum_intercept",       name = "Size Spectrum Intercept",          label = "Intercept"),
+    list(col = "mean_tl",                  name = "Mean Trophic Level (Consumers)",   label = "Trophic Level"),
+    list(col = "htl_indicator",            name = "High Trophic Level Indicator",     label = "Proportion"),
+    list(col = "large_fish_indicator",     name = "Fish LFI (100g)",              label = "Proportion"),
+    list(col = "fish_lfi",                 name = "Fish LFI (1000g)",                label = "Proportion"),
+    list(col = "shannon_diversity",        name = "Shannon Diversity (H')",           label = "H'"),
+    list(col = "w_statistic",              name = "W-Statistic (ABC Curves)",         label = "W"),
+    list(col = "production_biomass_ratio", name = "Production:Biomass Ratio (P/B)",   label = "P/B (yr^-1)"),
+    list(col = "mean_weight",              name = "Mean Individual Weight",           label = "Weight (g)"),
+    list(col = "mean_max_weight",          name = "Mean Max Weight",                  label = "Weight (g)"),
+    list(col = "predator_prey_ratio",      name = "Predator-Prey Ratio (Apex:Mid-TL)", label = "Ratio"),
+    list(col = "consumer_ltl_ratio",       name = "Consumer:LTL Biomass Ratio",      label = "Ratio"))
 
   cat("Structural time series (Category B - difference panels with B0 envelope):\n")
   for (metric in structural_to_plot) {
