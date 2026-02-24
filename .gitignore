@@ -21,3 +21,7 @@ gfdl-mom6-cobalt2_obsclim_thetao_15arcmin_prydz-bay_monthly_1961_2010.zarr/
 
 # Ecosystem assessment large data files
 ecosystem_assessment_outputs/*.rds
+
+# Binary output files
+*.png
+*.pdf
