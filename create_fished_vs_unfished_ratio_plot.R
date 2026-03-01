@@ -7,6 +7,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(patchwork)
+library(scales)
 
 cat("=== Fished vs Unfished Size Spectrum (Reference Period) ===\n\n")
 
@@ -616,3 +617,483 @@ p_multipanel <- p_comm_mp / p_minke_mp / p_orca_mp / p_sperm_mp / p_baleen_mp
 out_mp <- file.path(output_dir, "fished_vs_unfished_species_multipanel.png")
 ggsave(out_mp, p_multipanel, width = 10, height = 14, dpi = 300)
 cat("  Saved:", out_mp, "\n")
+
+# ==============================================================================
+# SECTION: Biomass functional group composition panels
+# Bottom panels to pair with the size-spectrum ratio plots above.
+# Each bar (stacked area) shows the PROPORTION of total biomass at each size
+# bin contributed by each functional group, using ensemble-median abundances.
+# ==============================================================================
+
+cat("\n=== Biomass Functional Group Composition Panels ===\n\n")
+
+# ---- Load model params for dw vector and species w_max ----
+cat("Loading model params for dw and species w_max info...\n")
+params_obj <- readRDS("params_sel_adj.RDS")
+dw         <- params_obj@dw           # width of each w bin (g)
+sp_wmax    <- setNames(
+  mizer::species_params(params_obj)$w_max,
+  as.character(mizer::species_params(params_obj)$species)
+)
+rm(params_obj)
+
+# ---- Functional group assignment (by species w_max, matching shaded bands) ----
+fg_levels_ordered <- c(
+  "Krill & zooplankton", "Small pelagic fish", "Commercial fish",
+  "Minke whales", "Orca", "Sperm whales", "Baleen whales"
+)
+
+fg_colours <- c(
+  "Krill & zooplankton" = "#F9C74F",
+  "Small pelagic fish"  = "#F3722C",
+  "Commercial fish"     = "#7CAE7A",
+  "Minke whales"        = "#C6DBF0",
+  "Orca"                = "#84B4D4",
+  "Sperm whales"        = "#4878A4",
+  "Baleen whales"       = "#1A3F6B"
+)
+
+# Assign species to functional groups using the same w_max thresholds as the
+# shaded bands in the ratio panels above
+sp_groups <- cut(
+  sp_wmax[sp_names],
+  breaks        = c(0, fg_krill_max, fg_pelagic_max, fg_comm_max,
+                    fg_minke_max, fg_orca_max, fg_sperm_max, Inf),
+  labels        = fg_levels_ordered,
+  include.lowest = TRUE
+)
+
+cat("  Species-to-functional-group assignment:\n")
+for (sp in sp_names) {
+  cat(sprintf("    %-35s -> %s\n", sp,
+              as.character(sp_groups)[match(sp, sp_names)]))
+}
+
+# ---- Helper: compute functional-group median biomass from a species cache ----
+# sp_list : named list of n_sims × n_w abundance matrices
+# Returns a long data frame: w | functional_group | biomass
+compute_fg_biomass_df <- function(sp_list, sp_names, sp_groups, w_bins, dw) {
+  # Per-species ensemble-median abundance at each size bin
+  sp_median_n <- sapply(sp_names, function(sp) {
+    n_mat <- sp_list[[sp]]            # n_sims × n_w
+    apply(n_mat, 2, median, na.rm = TRUE)
+  })
+  # sp_median_n is n_w × n_sp (sapply stacks column-wise)
+
+  # Convert to biomass: N * w * dw
+  bm_mat <- sweep(sp_median_n, 1, w_bins * dw, "*")  # n_w × n_sp
+
+  # Aggregate by functional group
+  fg_bm <- sapply(fg_levels_ordered, function(fg) {
+    sp_in_fg <- sp_names[as.character(sp_groups) == fg]
+    if (length(sp_in_fg) == 0) return(rep(0, length(w_bins)))
+    if (length(sp_in_fg) == 1) return(bm_mat[, sp_in_fg])
+    rowSums(bm_mat[, sp_in_fg, drop = FALSE])
+  })
+  # fg_bm is n_w × n_fg
+
+  as.data.frame(fg_bm) %>%
+    dplyr::mutate(w = w_bins) %>%
+    tidyr::pivot_longer(-w, names_to = "functional_group", values_to = "biomass") %>%
+    dplyr::mutate(functional_group = factor(functional_group,
+                                            levels = fg_levels_ordered))
+}
+
+# ---- Helper: build proportional stacked area panel ----
+build_biomass_panel <- function(bm_df, panel_title, show_x_axis = TRUE) {
+  # Compute proportions (0-1) within each w bin, then cumulative for ribbons
+  bm_prop <- bm_df %>%
+    dplyr::group_by(w) %>%
+    dplyr::mutate(
+      total = sum(biomass, na.rm = TRUE),
+      prop  = dplyr::if_else(total > 0, biomass / total, 0)
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::arrange(w, functional_group) %>%
+    dplyr::group_by(w) %>%
+    dplyr::mutate(
+      cum_upper = cumsum(prop),
+      cum_lower = cum_upper - prop
+    ) %>%
+    dplyr::ungroup()
+
+  # Background band annotations matching the ratio panels
+  annot_bands <- list(
+    annotate("rect", xmin = min(w_bins), xmax = fg_krill_max,
+             ymin = 0, ymax = 1, fill = "grey85", alpha = 0.3),
+    annotate("rect", xmin = fg_krill_max,   xmax = fg_pelagic_max,
+             ymin = 0, ymax = 1, fill = "grey75", alpha = 0.25),
+    annotate("rect", xmin = fg_pelagic_max, xmax = fg_comm_max,
+             ymin = 0, ymax = 1, fill = "grey65", alpha = 0.2),
+    annotate("rect", xmin = fg_comm_max,    xmax = fg_minke_max,
+             ymin = 0, ymax = 1, fill = mm_fill, alpha = mm_alpha),
+    annotate("rect", xmin = fg_minke_max,   xmax = fg_orca_max,
+             ymin = 0, ymax = 1, fill = mm_fill, alpha = mm_alpha * 1.4),
+    annotate("rect", xmin = fg_orca_max,    xmax = fg_sperm_max,
+             ymin = 0, ymax = 1, fill = mm_fill, alpha = mm_alpha * 1.8),
+    annotate("rect", xmin = fg_sperm_max,   xmax = fg_baleen_max,
+             ymin = 0, ymax = 1, fill = mm_fill, alpha = mm_alpha * 2.2)
+  )
+
+  p <- ggplot(bm_prop, aes(x = w)) +
+    annot_bands +
+    geom_ribbon(
+      aes(ymin = cum_lower, ymax = cum_upper, fill = functional_group),
+      alpha = 0.92
+    ) +
+    scale_fill_manual(
+      values = fg_colours,
+      name   = "Functional group",
+      drop   = FALSE
+    ) +
+    scale_x_log10(
+      labels = function(x) {
+        dplyr::case_when(
+          x >= 1e6 ~ paste0(x / 1e6, " t"),
+          x >= 1e3 ~ paste0(x / 1e3, " kg"),
+          TRUE     ~ paste0(round(x, 1), " g")
+        )
+      }
+    ) +
+    scale_y_continuous(
+      breaks = c(0, 0.25, 0.5, 0.75, 1.0),
+      labels = scales::percent_format(accuracy = 1),
+      limits = c(0, 1),
+      expand = c(0, 0)
+    ) +
+    labs(
+      title = panel_title,
+      x     = if (show_x_axis) "Body mass" else NULL,
+      y     = "Proportion of biomass"
+    ) +
+    theme_classic() +
+    theme(
+      plot.title         = element_text(size = 14, face = "bold"),
+      axis.title         = element_text(size = 11),
+      axis.text          = element_text(size = 10),
+      legend.position    = "right",
+      legend.title       = element_text(size = 10, face = "bold"),
+      legend.text        = element_text(size = 9),
+      panel.grid.major.y = element_line(color = "grey90", linewidth = 0.3)
+    )
+
+  if (!show_x_axis) {
+    p <- p + theme(axis.text.x = element_blank(),
+                   axis.ticks.x = element_blank())
+  }
+  p
+}
+
+# ---- Compute reference-period fished biomass by functional group ----
+cat("Computing functional group biomass — fished reference period (2001-2010)...\n")
+bm_fished_ref <- compute_fg_biomass_df(fished_sp_list, sp_names, sp_groups,
+                                       w_bins, dw)
+p_bm_ref <- build_biomass_panel(
+  bm_fished_ref,
+  panel_title  = "Biomass by functional group — Fished (2001-2010)",
+  show_x_axis  = TRUE
+)
+
+out_bm_ref <- file.path(output_dir, "biomass_composition_ref_period.png")
+ggsave(out_bm_ref, p_bm_ref, width = 12, height = 4.5, dpi = 300)
+cat("  Saved:", out_bm_ref, "\n")
+
+# ---- Combined Version 1: full-spectrum ratio + reference-period biomass ----
+cat("Creating combined Version 1 figure (ratio 2001-2010 + biomass 2001-2010)...\n")
+
+p_top_v1 <- p_full +
+  labs(
+    title    = "a) Fishing impact — Fished vs Climate-only (2001-2010)",
+    subtitle = NULL
+  ) +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x  = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+p_bottom_v1 <- p_bm_ref +
+  labs(title = "b) Biomass by functional group — Fished (2001-2010)")
+
+p_combined_v1 <- p_top_v1 / p_bottom_v1 +
+  plot_layout(heights = c(2, 1))
+
+out_v1 <- file.path(output_dir, "combined_v1_ref_period.png")
+ggsave(out_v1, p_combined_v1, width = 12, height = 10.5, dpi = 300)
+cat("  Saved:", out_v1, "\n")
+
+# ==============================================================================
+# SECTION: Pre-industrial baseline (1841-1860) extraction for Version 2
+# ==============================================================================
+
+cat("\n=== Pre-industrial baseline extraction (1841-1860) ===\n\n")
+
+preindustrial_years <- 1841:1860
+preindustrial_name  <- "Pre-industrial (1841-1860)"
+
+preindustrial_comm_cache    <- file.path(output_dir,
+                                         "spectra_cache_preindustrial.rds")
+preindustrial_species_cache <- file.path(output_dir,
+                                         "spectra_cache_species_preindustrial.rds")
+
+if (file.exists(preindustrial_comm_cache) &&
+    file.exists(preindustrial_species_cache)) {
+
+  cat("Loading cached pre-industrial spectra...\n")
+  pi_comm               <- readRDS(preindustrial_comm_cache)
+  preindustrial_spectra <- pi_comm$climate_spectra
+  cat("  Loaded:", nrow(preindustrial_spectra),
+      "pre-industrial climate-only simulations\n\n")
+  rm(pi_comm)
+
+  pi_sp                 <- readRDS(preindustrial_species_cache)
+  preindustrial_sp_list <- pi_sp$climate_sp
+  cat("  Species cache loaded.\n\n")
+  rm(pi_sp)
+
+} else {
+  cat("No pre-industrial cache found — extracting from climate-only ensemble.\n\n")
+
+  climate_file     <- "Output_large_files/climate_only_ensemble/climate_only_ensemble_compiled.rds"
+  climate_ensemble <- readRDS(climate_file)
+  n_climate_pi     <- climate_ensemble$n_successful
+  cat("  Climate-only ensemble:", n_climate_pi, "simulations\n")
+
+  preindustrial_spectra <- matrix(NA, nrow = n_climate_pi, ncol = n_w)
+  pi_sp_list <- lapply(sp_names, function(s) matrix(NA, nrow = n_climate_pi, ncol = n_w))
+  names(pi_sp_list) <- sp_names
+
+  cat("  Extracting pre-industrial spectra (1841-1860)...\n")
+  pb <- txtProgressBar(min = 0, max = n_climate_pi, style = 3)
+  for (i in seq_len(n_climate_pi)) {
+    setTxtProgressBar(pb, i)
+    sim <- tryCatch(climate_ensemble$simulations[[i]], error = function(e) NULL)
+    if (is.null(sim)) next
+    comm <- tryCatch(extract_community_spectrum(sim, preindustrial_years),
+                     error = function(e) NULL)
+    if (!is.null(comm) && length(comm) == n_w)
+      preindustrial_spectra[i, ] <- comm
+    sp_mat <- tryCatch(extract_species_spectrum(sim, preindustrial_years),
+                       error = function(e) NULL)
+    if (!is.null(sp_mat) && ncol(sp_mat) == n_w) {
+      for (j in seq_along(sp_names)) pi_sp_list[[sp_names[j]]][i, ] <- sp_mat[j, ]
+    }
+  }
+  close(pb)
+  rm(climate_ensemble); gc()
+  cat("\n  Done.\n")
+
+  saveRDS(
+    list(w_bins = w_bins, n_w = n_w, climate_spectra = preindustrial_spectra),
+    preindustrial_comm_cache
+  )
+  saveRDS(
+    list(sp_names = sp_names, climate_sp = pi_sp_list),
+    preindustrial_species_cache
+  )
+  cat("  Pre-industrial caches saved.\n\n")
+  preindustrial_sp_list <- pi_sp_list
+}
+
+# ==============================================================================
+# Version 2 top panel: fished (2001-2010) / pre-industrial (1841-1860) ratio
+# Per-pair: fished sim_i at 2001-2010 divided by matched climate-only sim_i at
+# 1841-1860 — removes parameter uncertainty while showing the combined effect
+# of fishing AND climate change relative to pre-industrial baseline.
+# ==============================================================================
+
+cat("Computing fished (2001-2010) / pre-industrial (1841-1860) ratio...\n")
+
+ratio_v2_matrix <- fished_spectra / preindustrial_spectra
+ratio_v2_matrix[!is.finite(ratio_v2_matrix)] <- NA
+
+ratio_v2_stats <- data.frame(
+  w            = w_bins,
+  ratio_median = apply(ratio_v2_matrix, 2, median,   na.rm = TRUE),
+  ratio_mean   = apply(ratio_v2_matrix, 2, mean,     na.rm = TRUE),
+  ratio_q05    = apply(ratio_v2_matrix, 2, quantile, probs = 0.05, na.rm = TRUE),
+  ratio_q25    = apply(ratio_v2_matrix, 2, quantile, probs = 0.25, na.rm = TRUE),
+  ratio_q75    = apply(ratio_v2_matrix, 2, quantile, probs = 0.75, na.rm = TRUE),
+  ratio_q95    = apply(ratio_v2_matrix, 2, quantile, probs = 0.95, na.rm = TRUE)
+)
+
+write.csv(ratio_v2_stats,
+          file.path(output_dir, "fished_vs_preindustrial_ratio_stats.csv"),
+          row.names = FALSE)
+
+# Recompute whale-trough annotation positions for V2 ratio
+trough_minke_v2  <- with(ratio_v2_stats,
+  w[w > 4e6 & w < 1.5e7][which.min(ratio_median[w > 4e6 & w < 1.5e7])])
+trough_sperm_v2  <- with(ratio_v2_stats,
+  w[w > 2e7 & w < 8e7][which.min(ratio_median[w > 2e7 & w < 8e7])])
+trough_baleen_v2 <- with(ratio_v2_stats,
+  w[w >= 8e7][which.min(ratio_median[w >= 8e7])])
+
+trough_minke_v2_y  <- ratio_v2_stats$ratio_median[ratio_v2_stats$w == trough_minke_v2]
+trough_sperm_v2_y  <- ratio_v2_stats$ratio_median[ratio_v2_stats$w == trough_sperm_v2]
+trough_baleen_v2_y <- ratio_v2_stats$ratio_median[ratio_v2_stats$w == trough_baleen_v2]
+
+trough_minke_v2_lx       <- trough_minke_v2  / 1.87
+trough_sperm_v2_lx       <- trough_sperm_v2  / 1.87
+trough_baleen_v2_rx_line <- trough_baleen_v2 * 1.05
+trough_baleen_v2_ry_line <- trough_baleen_v2_y + 0.15
+trough_baleen_v2_rx_lbl  <- trough_baleen_v2 * 1.06
+trough_baleen_v2_ry_lbl  <- trough_baleen_v2_y + 0.17
+
+# Dynamic y-axis ceiling (ratio can exceed 1 if populations have grown)
+v2_y_max <- max(
+  ceiling(quantile(ratio_v2_stats$ratio_q75, 0.99, na.rm = TRUE) * 10) / 10 + 0.1,
+  1.32
+)
+v2_y_max <- min(v2_y_max, 3.0)   # safety cap
+
+p_v2_ratio <- ggplot(ratio_v2_stats %>% filter(w >= 1), aes(x = w)) +
+  # Functional group bands
+  annotate("rect", xmin = 1, xmax = fg_krill_max,
+           ymin = -Inf, ymax = Inf, fill = "grey85", alpha = 0.6) +
+  annotate("text", x = sqrt(1 * fg_krill_max), y = v2_y_max * 0.96,
+           label = "Krill", size = 3.0, colour = "grey30", hjust = 0.5) +
+  annotate("rect", xmin = fg_krill_max,   xmax = fg_pelagic_max,
+           ymin = -Inf, ymax = Inf, fill = "grey75", alpha = 0.5) +
+  annotate("text", x = sqrt(fg_krill_max * fg_pelagic_max), y = v2_y_max * 0.96,
+           label = "Other\npelagic fish", size = 3.0, colour = "grey30", hjust = 0.5) +
+  annotate("rect", xmin = fg_pelagic_max, xmax = fg_comm_max,
+           ymin = -Inf, ymax = Inf, fill = "grey65", alpha = 0.4) +
+  annotate("text", x = sqrt(fg_pelagic_max * fg_comm_max), y = v2_y_max * 0.96,
+           label = "Commercial\nfish", size = 3.0, colour = "grey20", hjust = 0.5) +
+  annotate("rect", xmin = fg_comm_max,  xmax = fg_minke_max,
+           ymin = -Inf, ymax = Inf, fill = mm_fill, alpha = mm_alpha) +
+  annotate("text", x = sqrt(fg_comm_max * fg_minke_max), y = v2_y_max * 0.96,
+           label = "Minke", size = 2.7, colour = "grey25", hjust = 0.5) +
+  annotate("rect", xmin = fg_minke_max, xmax = fg_orca_max,
+           ymin = -Inf, ymax = Inf, fill = mm_fill, alpha = mm_alpha * 1.4) +
+  annotate("text", x = sqrt(fg_minke_max * fg_orca_max), y = v2_y_max * 0.96,
+           label = "Orca", size = 2.7, colour = "grey20", hjust = 0.5) +
+  annotate("rect", xmin = fg_orca_max,  xmax = fg_sperm_max,
+           ymin = -Inf, ymax = Inf, fill = mm_fill, alpha = mm_alpha * 1.8) +
+  annotate("text", x = sqrt(fg_orca_max * fg_sperm_max), y = v2_y_max * 0.96,
+           label = "Sperm", size = 2.7, colour = "grey15", hjust = 0.5) +
+  annotate("rect", xmin = fg_sperm_max, xmax = fg_baleen_max,
+           ymin = -Inf, ymax = Inf, fill = mm_fill, alpha = mm_alpha * 2.2) +
+  annotate("text", x = sqrt(fg_sperm_max * fg_baleen_max), y = v2_y_max * 0.96,
+           label = "Baleen", size = 2.7, colour = "grey10", hjust = 0.5) +
+  # Whale trough pointer lines
+  annotate("segment",
+           x    = trough_minke_v2_lx, xend = trough_minke_v2,
+           y    = trough_minke_v2_y,  yend = trough_minke_v2_y,
+           colour = "grey30", linewidth = 0.5) +
+  annotate("segment",
+           x    = trough_sperm_v2_lx, xend = trough_sperm_v2,
+           y    = trough_sperm_v2_y,  yend = trough_sperm_v2_y,
+           colour = "grey30", linewidth = 0.5) +
+  annotate("segment",
+           x    = trough_baleen_v2,        xend = trough_baleen_v2_rx_line,
+           y    = trough_baleen_v2_y,      yend = trough_baleen_v2_ry_line,
+           colour = "grey30", linewidth = 0.5) +
+  # Data ribbon and median line (blue to distinguish from V1 red)
+  geom_ribbon(aes(ymin = ratio_q25, ymax = ratio_q75),
+              fill = "#4878A4", alpha = 0.3) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40",
+             linewidth = 0.8) +
+  geom_line(aes(y = ratio_median), colour = "#4878A4", linewidth = 1.2) +
+  # Whale labels
+  annotate("text", x = trough_minke_v2_lx,  y = trough_minke_v2_y,
+           label = "Minke whales", size = 3.2, hjust = 1, vjust = 0.5,
+           colour = "grey20") +
+  annotate("text", x = trough_sperm_v2_lx,  y = trough_sperm_v2_y,
+           label = "Sperm whales", size = 3.2, hjust = 1, vjust = 0.5,
+           colour = "grey20") +
+  annotate("text", x = trough_baleen_v2_rx_lbl, y = trough_baleen_v2_ry_lbl,
+           label = "Baleen\nwhales", size = 3.2, hjust = 0, vjust = 0.5,
+           colour = "grey20") +
+  scale_x_log10(
+    labels = function(x) {
+      dplyr::case_when(
+        x >= 1e6 ~ paste0(x / 1e6, " t"),
+        x >= 1e3 ~ paste0(x / 1e3, " kg"),
+        TRUE     ~ paste0(round(x, 1), " g")
+      )
+    }
+  ) +
+  scale_y_continuous(
+    limits = c(0, v2_y_max),
+    breaks = scales::pretty_breaks(n = 6)
+  ) +
+  labs(
+    title    = "Fishing & Climate Impact on Size Spectrum",
+    subtitle = paste0("Per-pair ratio: Fished (2001-2010) / ",
+                      "Pre-industrial climate-only (1841-1860)"),
+    x        = "Body mass",
+    y        = "Abundance ratio (Fished 2001-2010 / Pre-industrial)"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title         = element_text(size = 16, face = "bold"),
+    plot.subtitle      = element_text(size = 12, color = "grey40"),
+    axis.title         = element_text(size = 12),
+    axis.text          = element_text(size = 11),
+    panel.grid.major.y = element_line(color = "grey90", linewidth = 0.3)
+  )
+
+ggsave(
+  file.path(output_dir, "fished_vs_preindustrial_ratio_full_spectrum.png"),
+  p_v2_ratio, width = 12, height = 6, dpi = 300
+)
+cat("  Saved:",
+    file.path(output_dir, "fished_vs_preindustrial_ratio_full_spectrum.png"), "\n")
+
+# ---- Pre-industrial biomass composition panel ----
+cat("Computing functional group biomass — pre-industrial (1841-1860)...\n")
+bm_preindustrial <- compute_fg_biomass_df(preindustrial_sp_list, sp_names,
+                                          sp_groups, w_bins, dw)
+p_bm_preindustrial <- build_biomass_panel(
+  bm_preindustrial,
+  panel_title = "Biomass by functional group — Pre-industrial climate-only (1841-1860)",
+  show_x_axis = TRUE
+)
+
+out_bm_pi <- file.path(output_dir, "biomass_composition_preindustrial.png")
+ggsave(out_bm_pi, p_bm_preindustrial, width = 12, height = 4.5, dpi = 300)
+cat("  Saved:", out_bm_pi, "\n")
+
+# ---- Combined Version 2: ratio + fished biomass + pre-industrial biomass ----
+cat("Creating combined Version 2 figure (3 panels)...\n")
+
+p_top_v2 <- p_v2_ratio +
+  labs(
+    title    = "a) Fishing & climate impact — Fished (2001-2010) vs Pre-industrial (1841-1860)",
+    subtitle = NULL
+  ) +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x  = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+p_mid_v2 <- p_bm_ref +
+  labs(title = "b) Biomass by functional group — Fished (2001-2010)") +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x  = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+p_bot_v2 <- p_bm_preindustrial +
+  labs(title = "c) Biomass by functional group — Pre-industrial climate-only (1841-1860)")
+
+p_combined_v2 <- p_top_v2 / p_mid_v2 / p_bot_v2 +
+  plot_layout(heights = c(2, 1, 1))
+
+out_v2 <- file.path(output_dir, "combined_v2_preindustrial.png")
+ggsave(out_v2, p_combined_v2, width = 12, height = 14, dpi = 300)
+cat("  Saved:", out_v2, "\n")
+
+cat("\n=== All biomass composition figures complete ===\n")
+cat("Figures saved to:", output_dir, "\n")
+cat("  Standalone panels:\n")
+cat("    biomass_composition_ref_period.png        (12 x 4.5 in)\n")
+cat("    biomass_composition_preindustrial.png     (12 x 4.5 in)\n")
+cat("    fished_vs_preindustrial_ratio_full_spectrum.png  (12 x 6 in)\n")
+cat("  Combined multipanel:\n")
+cat("    combined_v1_ref_period.png   (12 x 10.5 in) — ratio + fished biomass\n")
+cat("    combined_v2_preindustrial.png (12 x 14 in)  — ratio + fished + pre-industrial\n")
