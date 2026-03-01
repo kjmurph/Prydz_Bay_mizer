@@ -213,10 +213,9 @@ calculate_group_biomass <- function(sim, time_range = NULL, species_group = NULL
   return(mean(total, na.rm = TRUE))
 }
 
-calculate_spectrum_slope_intercept <- function(sim, time_range = NULL,
-                                               min_w = 1, max_w = 1e6) {
+calculate_spectrum_slope_intercept <- function(sim, time_range = NULL) {
   slope_data <- tryCatch(
-    mizer::getCommunitySlope(sim, min_w = min_w, max_w = max_w, biomass = TRUE),
+    mizer::getCommunitySlope(sim, biomass = TRUE),
     error = function(e) {
       warning(sprintf("getCommunitySlope failed: %s. Using manual calculation.", e$message))
       NULL
@@ -229,8 +228,8 @@ calculate_spectrum_slope_intercept <- function(sim, time_range = NULL,
       w <- sim@params@w
       n <- sim@n
       community_n <- apply(n, c(1, 3), sum)
-      log_w <- log10(w[w >= min_w & w <= max_w])
-      w_idx <- which(w >= min_w & w <= max_w)
+      log_w <- log10(w)
+      w_idx <- seq_along(w)
       slopes <- numeric(length(time_range))
       intercepts <- numeric(length(time_range))
       for (i in seq_along(time_range)) {
