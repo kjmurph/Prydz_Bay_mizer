@@ -19,8 +19,6 @@ suppressPackageStartupMessages({
   library(therMizer)
   library(mizer)
   library(dplyr)
-  library(parallel)
-  library(pbapply)
 })
 
 # Source main script to get constants (DECADES, B0_PERIOD, OUTPUT_DIR, etc.)
@@ -36,9 +34,6 @@ CLIMATE_ENSEMBLE <- "Output_large_files/climate_only_ensemble/climate_only_ensem
 
 METRICS_DIR  <- OUTPUT_DIR_LARGE   # "Output_large_files/ecosystem_assessment"
 BACKUP_SUFFIX <- "_pre_fullspectrum_backup"
-
-n_cores <- max(1L, parallel::detectCores() - 2L)
-cat(sprintf("Using %d cores\n\n", n_cores))
 
 # ------------------------------------------------------------------------------
 # Load existing metric files (will be patched in-place)
@@ -125,94 +120,99 @@ compute_b0_spectrum_for_sim <- function(sim) {
 }
 
 # ------------------------------------------------------------------------------
-# Run in parallel
+# Compute spectra sequentially
+# Note: fish_sims/clim_sims are too large to export to cluster workers on
+# Windows; sequential processing is used instead. The spectrum calculation
+# via getCommunitySlope() is fast once the data are in memory.
 # ------------------------------------------------------------------------------
-cat("=== Recomputing spectrum slope/intercept (full community, max_w = Inf) ===\n")
-
-cl <- parallel::makeCluster(n_cores)
-on.exit(parallel::stopCluster(cl), add = TRUE)
-
-parallel::clusterEvalQ(cl, {
-  suppressPackageStartupMessages({ library(therMizer); library(mizer); library(dplyr) })
-})
-parallel::clusterExport(cl,
-  c("calculate_spectrum_slope_intercept", "compute_spectrum_for_sim",
-    "compute_b0_spectrum_for_sim", "DECADES", "B0_PERIOD"),
-  envir = environment())
+cat("=== Recomputing spectrum slope/intercept (full model size range) ===\n")
 
 sim_ids <- seq_len(n_sims)
 
-cat("  Computing fishing ensemble spectra...\n")
-fish_spectra <- pblapply(sim_ids, function(i) {
-  tryCatch(compute_spectrum_for_sim(fish_sims[[i]]),
-           error = function(e) NULL)
-}, cl = cl)
-names(fish_spectra) <- sim_ids
+cat(sprintf("  Computing fishing ensemble spectra [%d sims]...\n", n_sims))
+fish_spectra <- vector("list", n_sims)
+for (i in sim_ids) {
+  if (i %% 100 == 0) cat(sprintf("    %d / %d\n", i, n_sims))
+  fish_spectra[[i]] <- tryCatch(
+    compute_spectrum_for_sim(fish_sims[[i]]),
+    error = function(e) NULL
+  )
+}
 
-cat("  Computing climate-only ensemble spectra...\n")
-clim_spectra <- pblapply(sim_ids, function(i) {
-  tryCatch(compute_spectrum_for_sim(clim_sims[[i]]),
-           error = function(e) NULL)
-}, cl = cl)
-names(clim_spectra) <- sim_ids
+cat(sprintf("  Computing climate-only ensemble spectra [%d sims]...\n", n_sims))
+clim_spectra <- vector("list", n_sims)
+for (i in sim_ids) {
+  if (i %% 100 == 0) cat(sprintf("    %d / %d\n", i, n_sims))
+  clim_spectra[[i]] <- tryCatch(
+    compute_spectrum_for_sim(clim_sims[[i]]),
+    error = function(e) NULL
+  )
+}
 
-cat("  Computing B0 reference spectra (from climate-only)...\n")
-b0_spectra <- pblapply(sim_ids, function(i) {
-  tryCatch(compute_b0_spectrum_for_sim(clim_sims[[i]]),
-           error = function(e) c(slope = NA_real_, intercept = NA_real_))
-}, cl = cl)
-names(b0_spectra) <- sim_ids
+cat(sprintf("  Computing B0 reference spectra (from climate-only) [%d sims]...\n", n_sims))
+b0_spectra <- vector("list", n_sims)
+for (i in sim_ids) {
+  if (i %% 100 == 0) cat(sprintf("    %d / %d\n", i, n_sims))
+  b0_spectra[[i]] <- tryCatch(
+    compute_b0_spectrum_for_sim(clim_sims[[i]]),
+    error = function(e) c(slope = NA_real_, intercept = NA_real_)
+  )
+}
 
-parallel::stopCluster(cl)
-on.exit(NULL)
+# Check success rate before patching
+n_fish_ok <- sum(!sapply(fish_spectra, is.null))
+n_clim_ok <- sum(!sapply(clim_spectra, is.null))
+cat(sprintf("  Fishing spectra computed:       %d / %d\n", n_fish_ok, n_sims))
+cat(sprintf("  Climate-only spectra computed:  %d / %d\n", n_clim_ok, n_sims))
+if (n_fish_ok == 0) stop("All fishing spectrum calculations failed. Check that ecosystem_assessment_v2.R was sourced correctly.")
 
 cat("\n=== Patching metric data frames ===\n")
+
+# Helper: build a patch data frame from a list of per-sim spectrum results
+build_patch_df <- function(spectra_list, sim_ids) {
+  rows <- lapply(sim_ids, function(i) {
+    res <- spectra_list[[i]]
+    if (is.null(res)) return(NULL)
+    res$sim_id <- i
+    res
+  })
+  bind_rows(rows)
+}
 
 # ------------------------------------------------------------------------------
 # Patch fishing_raw
 # ------------------------------------------------------------------------------
-patch_df <- bind_rows(lapply(sim_ids, function(i) {
-  res <- fish_spectra[[as.character(i)]]
-  if (is.null(res)) return(NULL)
-  res$sim_id <- i
-  res
-}))
-colnames(patch_df)[colnames(patch_df) == "slope"]     <- "spectrum_slope_new"
-colnames(patch_df)[colnames(patch_df) == "intercept"] <- "spectrum_intercept_new"
+patch_fish <- build_patch_df(fish_spectra, sim_ids)
+cat(sprintf("  patch_fish rows: %d, cols: %s\n", nrow(patch_fish), paste(names(patch_fish), collapse=", ")))
 
 fish_raw_updated <- fish_raw %>%
-  left_join(patch_df, by = c("sim_id", "decade")) %>%
+  left_join(patch_fish %>% rename(spectrum_slope_new = slope, spectrum_intercept_new = intercept),
+            by = c("sim_id", "decade")) %>%
   mutate(
     spectrum_slope     = coalesce(spectrum_slope_new,     spectrum_slope),
     spectrum_intercept = coalesce(spectrum_intercept_new, spectrum_intercept)
   ) %>%
   select(-spectrum_slope_new, -spectrum_intercept_new)
 
-n_patched_fish <- sum(!is.na(patch_df$spectrum_slope_new))
+n_patched_fish <- sum(!is.na(patch_fish$slope))
 cat(sprintf("  fishing_metrics_raw: patched %d / %d decade-sim rows\n",
             n_patched_fish, nrow(fish_raw)))
 
 # ------------------------------------------------------------------------------
 # Patch climate_raw
 # ------------------------------------------------------------------------------
-patch_clim <- bind_rows(lapply(sim_ids, function(i) {
-  res <- clim_spectra[[as.character(i)]]
-  if (is.null(res)) return(NULL)
-  res$sim_id <- i
-  res
-}))
-colnames(patch_clim)[colnames(patch_clim) == "slope"]     <- "spectrum_slope_new"
-colnames(patch_clim)[colnames(patch_clim) == "intercept"] <- "spectrum_intercept_new"
+patch_clim <- build_patch_df(clim_spectra, sim_ids)
 
 clim_raw_updated <- clim_raw %>%
-  left_join(patch_clim, by = c("sim_id", "decade")) %>%
+  left_join(patch_clim %>% rename(spectrum_slope_new = slope, spectrum_intercept_new = intercept),
+            by = c("sim_id", "decade")) %>%
   mutate(
     spectrum_slope     = coalesce(spectrum_slope_new,     spectrum_slope),
     spectrum_intercept = coalesce(spectrum_intercept_new, spectrum_intercept)
   ) %>%
   select(-spectrum_slope_new, -spectrum_intercept_new)
 
-n_patched_clim <- sum(!is.na(patch_clim$spectrum_slope_new))
+n_patched_clim <- sum(!is.na(patch_clim$slope))
 cat(sprintf("  climate_only_metrics_raw: patched %d / %d decade-sim rows\n",
             n_patched_clim, nrow(clim_raw)))
 
@@ -220,10 +220,12 @@ cat(sprintf("  climate_only_metrics_raw: patched %d / %d decade-sim rows\n",
 # Patch b0_reference
 # ------------------------------------------------------------------------------
 b0_patch_df <- bind_rows(lapply(sim_ids, function(i) {
-  spec <- b0_spectra[[as.character(i)]]
-  data.frame(sim_id = i,
-             spectrum_slope_new     = unname(spec["slope"]),
-             spectrum_intercept_new = unname(spec["intercept"]))
+  spec <- b0_spectra[[i]]
+  data.frame(
+    sim_id                 = i,
+    spectrum_slope_new     = unname(spec["slope"]),
+    spectrum_intercept_new = unname(spec["intercept"])
+  )
 }))
 
 b0_ref_updated <- b0_ref %>%
@@ -257,7 +259,7 @@ saveRDS(clim_raw_updated, file.path(OUTPUT_DIR, "climate_only_metrics_raw.rds"))
 cat("  Updated OUTPUT_DIR copies in:", OUTPUT_DIR, "\n")
 
 cat("\n=== Summary ===\n")
-cat("  Spectrum slope now uses full model size range (getCommunitySlope defaults: min_w and max_w from model)\n")
+cat("  spectrum_slope and spectrum_intercept recalculated over full model size range (getCommunitySlope defaults)\n")
 cat("  Previously excluded species (max_w > 1e6 g):\n")
 cat("    medium divers (w_max = 1.28e6), large divers (2.02e6),\n")
 cat("    minke whales (6e6), orca (1.06e7), sperm whales (3.65e7),\n")
