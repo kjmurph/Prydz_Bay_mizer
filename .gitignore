@@ -25,3 +25,5 @@ ecosystem_assessment_outputs/*.rds
 # Binary output files
 *.png
 *.pdf
+ecosystem_assessment_outputs/climate_only_metrics_raw.rds
+ecosystem_assessment_outputs/fishing_metrics_raw.rds
