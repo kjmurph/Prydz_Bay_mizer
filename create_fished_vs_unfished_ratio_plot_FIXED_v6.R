@@ -13,6 +13,7 @@
 
 library(mizer)
 library(ggplot2)
+library(ggpattern)
 library(dplyr)
 library(tidyr)
 library(patchwork)
@@ -409,11 +410,62 @@ compute_fg_biomass_df <- function(sp_list, sp_names, sp_groups_vec, w_bins, dw,
     dplyr::mutate(functional_group = factor(functional_group, levels = fg_levels))
 }
 
-aggregate_to_log_bins <- function(bm_df, n_bins = 60) {
-  w_pos <- bm_df$w[bm_df$w > 0]
-  w_range <- range(w_pos, na.rm = TRUE)
-  log_breaks <- seq(log10(w_range[1]), log10(w_range[2]),
-                    length.out = n_bins + 1)
+# Compute per-bin total biomass quantiles across ensemble members
+# Returns data.frame with bin_id, bin_left, bin_right, total_q25, total_q75
+compute_bin_uncertainty <- function(sp_list, sp_names, w_bins, dw,
+                                    log_breaks, probs = c(0.25, 0.75)) {
+  n_sims <- nrow(sp_list[[sp_names[1]]])
+  n_w    <- length(w_bins)
+  n_bins <- length(log_breaks) - 1
+  w_dw   <- w_bins * dw
+  # Assign each w_bin to a log bin
+  bin_ids <- findInterval(log10(w_bins[w_bins > 0]), log_breaks, all.inside = TRUE)
+  w_pos_idx <- which(w_bins > 0)
+
+  cat(sprintf("  Computing ensemble uncertainty (%d sims, %d bins)...\n", n_sims, n_bins))
+
+  # For each simulation, compute total biomass per log bin
+  # (sum across all species, then aggregate to bins)
+  bin_totals <- matrix(0, nrow = n_sims, ncol = n_bins)
+  for (sp in sp_names) {
+    n_mat <- sp_list[[sp]]  # [n_sims × n_w]
+    # biomass = n * w * dw  (element-wise sweep along columns)
+    bm_mat <- sweep(n_mat, 2, w_dw, "*")
+    # Aggregate to bins
+    for (b in seq_len(n_bins)) {
+      w_in_bin <- w_pos_idx[bin_ids == b]
+      if (length(w_in_bin) == 0) next
+      if (length(w_in_bin) == 1) {
+        bin_totals[, b] <- bin_totals[, b] + bm_mat[, w_in_bin]
+      } else {
+        bin_totals[, b] <- bin_totals[, b] + rowSums(bm_mat[, w_in_bin, drop = FALSE], na.rm = TRUE)
+      }
+    }
+  }
+
+  # Convert g to tonnes
+  bin_totals <- bin_totals / 1e6
+
+  # Compute quantiles across simulations for each bin
+  q_low  <- apply(bin_totals, 2, quantile, probs = probs[1], na.rm = TRUE)
+  q_high <- apply(bin_totals, 2, quantile, probs = probs[2], na.rm = TRUE)
+
+  data.frame(
+    bin_id    = seq_len(n_bins),
+    bin_left  = 10^log_breaks[seq_len(n_bins)],
+    bin_right = 10^log_breaks[seq_len(n_bins) + 1],
+    total_q25 = q_low,
+    total_q75 = q_high
+  )
+}
+
+aggregate_to_log_bins <- function(bm_df, n_bins = 60, log_breaks = NULL) {
+  if (is.null(log_breaks)) {
+    w_pos <- bm_df$w[bm_df$w > 0]
+    w_range <- range(w_pos, na.rm = TRUE)
+    log_breaks <- seq(log10(w_range[1]), log10(w_range[2]),
+                      length.out = n_bins + 1)
+  }
   bm_df %>%
     dplyr::filter(w > 0) %>%
     dplyr::mutate(
@@ -425,6 +477,17 @@ aggregate_to_log_bins <- function(bm_df, n_bins = 60) {
     dplyr::group_by(bin_id, bin_left, bin_right, bin_mid, functional_group) %>%
     dplyr::summarise(biomass = sum(biomass, na.rm = TRUE), .groups = "drop")
 }
+
+# ==============================================================================
+# Shared log-break grid (ensures band/bar alignment between panels)
+# ==============================================================================
+shared_w_pos <- w_bins[w_bins > 0]
+shared_w_range <- range(shared_w_pos)
+shared_n_bins <- 60
+shared_log_breaks <- seq(log10(shared_w_range[1]), log10(shared_w_range[2]),
+                         length.out = shared_n_bins + 1)
+cat(sprintf("Shared binning: %d bins, log10 range [%.2f, %.2f]\n",
+            shared_n_bins, shared_log_breaks[1], shared_log_breaks[shared_n_bins + 1]))
 
 # ==============================================================================
 # Compute data-driven dominance bands from actual biomass
@@ -441,8 +504,8 @@ bm_dominance <- compute_fg_biomass_df(
   fg_levels = dominance_group_levels
 )
 
-# Use v4's aggregate_to_log_bins (bins from full data range = seamless)
-agg_dominance <- aggregate_to_log_bins(bm_dominance, n_bins = 80)
+# Use the shared log-break grid so dominance bands align with panel b bars
+agg_dominance <- aggregate_to_log_bins(bm_dominance, log_breaks = shared_log_breaks)
 
 # For each bin, find which dominance group has the highest biomass
 dominant_per_bin <- agg_dominance %>%
@@ -513,21 +576,11 @@ for (i in seq_len(nrow(bands_fixed))) {
 # Band annotation generator — data-driven, contiguous
 # ==============================================================================
 generate_band_annotations <- function(bands_df, y_label_pos = 1.24, y_min = 0) {
-  # Fills: grey gradient for non-mammal, blue for large marine mammals (orca shade)
-  band_fills <- c(
-    "Krill" = "grey90", "Salps" = "grey82",
-    "Pelagic fishes" = "grey74", "Commercial fishes" = "grey66",
-    "Squids" = "grey58", "Toothfishes" = "grey50",
-    "Flying birds & penguins" = "grey42", "Seals" = "grey34",
-    "Large marine mammals" = mm_fill
-  )
-  band_alphas <- c(
-    "Krill" = 0.6, "Salps" = 0.55,
-    "Pelagic fishes" = 0.5, "Commercial fishes" = 0.45,
-    "Squids" = 0.4, "Toothfishes" = 0.35,
-    "Flying birds & penguins" = 0.3, "Seals" = 0.25,
-    "Large marine mammals" = mm_alpha * 1.4   # orca shade
-  )
+  # Fills: alternating light/dark grey, only LMM gets blue
+  grey_light <- "grey85"
+  grey_dark  <- "grey70"
+  band_alpha_val <- 0.40   # uniform alpha for all non-LMM bands
+
   short_labels <- c(
     "Krill" = "Krill", "Salps" = "Salps",
     "Pelagic fishes" = "Pelagic\nfishes",
@@ -537,46 +590,47 @@ generate_band_annotations <- function(bands_df, y_label_pos = 1.24, y_min = 0) {
     "Large marine mammals" = "Large marine\nmammals"
   )
 
-  annots <- list()
-  prev_log_x <- -Inf
-  stagger_up <- FALSE
+  # Collect rects and texts SEPARATELY so text always draws on top of all rects
+  rect_annots <- list()
+  text_annots <- list()
 
   for (i in seq_len(nrow(bands_df))) {
     grp  <- as.character(bands_df$dominant_group[i])
     xmin <- bands_df$band_xmin[i]; xmax <- bands_df$band_xmax[i]
-    if (!grp %in% names(band_fills)) next
+    if (!grp %in% names(short_labels)) next
+
+    # Determine fill: LMM = blue, others alternate light/dark grey
+    if (grp == "Large marine mammals") {
+      fill_col <- mm_fill
+      fill_alpha <- mm_alpha * 1.4
+    } else {
+      fill_col   <- if (i %% 2 == 1) grey_light else grey_dark
+      fill_alpha <- band_alpha_val
+    }
 
     # Centre label on visible portion (clamp xmin to w_min_plot for Krill etc.)
     xmin_vis <- max(xmin, w_min_plot)
     xmid <- sqrt(xmin_vis * xmax)
-    log_xmid <- log10(xmid)
 
     # Add band rectangle
-    annots <- c(annots, list(
+    rect_annots <- c(rect_annots, list(
       annotate("rect", xmin = xmin, xmax = xmax, ymin = y_min, ymax = Inf,
-               fill = band_fills[grp], alpha = band_alphas[grp])
+               fill = fill_col, alpha = fill_alpha)
     ))
 
-    # Detect overlap: stagger labels when midpoints are close in log space
-    proximity <- log_xmid - prev_log_x
-    if (proximity < 0.55 && prev_log_x > -Inf) {
-      y_off <- if (stagger_up) y_label_pos * 0.065 else -y_label_pos * 0.065
-      stagger_up <- !stagger_up
-    } else {
-      y_off <- 0
-      stagger_up <- FALSE
-    }
+    # All labels at the same y, except "Flying birds & penguins" offset below
+    y_off <- if (grp == "Flying birds & penguins") -y_label_pos * 0.065 else 0
 
-    annots <- c(annots, list(
+    text_annots <- c(text_annots, list(
       annotate("text", x = xmid, y = y_label_pos + y_off,
                label = short_labels[grp],
                size = ifelse(grp %in% c("Large marine mammals",
                                          "Flying birds & penguins"), 2.7, 3.0),
                colour = "grey25", hjust = 0.5)
     ))
-    prev_log_x <- log_xmid
   }
-  annots
+  # Return rects first, then all text labels on top
+  c(rect_annots, text_annots)
 }
 
 # ==============================================================================
@@ -693,25 +747,25 @@ build_ratio_panel <- function(ratio_stats, bands_df,
     geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 0.8) +
     geom_line(aes(y = ratio_median), colour = ribbon_colour, linewidth = 1.2) +
     scale_x_log10(labels = x_labels_shared, breaks = x_breaks_shared,
-                  limits = c(w_min_plot, w_max_plot), oob = scales::squish) +
+                  limits = c(w_min_plot, w_max_plot), oob = scales::squish,
+                  expand = expansion(mult = 0)) +
     scale_y_continuous(limits = y_limits, breaks = y_breaks,
                        expand = expansion(mult = c(0, 0.02))) +
     labs(x = "Body mass", y = y_label) +
-    # "Dominant biomass" label — OUTSIDE plot on the right
-    # Matches trough label font: size 3.2, grey20
+    # "Dominant biomass" label — well OUTSIDE plot on the right
     annotate("text",
-             x = w_max_plot * 2.5,        # squished to right edge by oob
+             x = w_max_plot * 4.0,        # squished to right edge by oob
              y = y_limits[2] * 0.955,      # same height as band labels
              label = "Dominant\nbiomass",
              size = 4.5, colour = "grey20",
-             hjust = 0, vjust = 0.5,        # left-aligned at right edge -> renders in margin
+             hjust = 0, vjust = 0.5,
              fontface = "italic") +
     theme_classic() +
     theme(
       axis.title = element_text(size = 12),
       axis.text  = element_text(size = 11),
       panel.grid.major.y = element_line(color = "grey90", linewidth = 0.3),
-      plot.margin = margin(5.5, 80, 5.5, 5.5)   # wider right margin for larger label
+      plot.margin = margin(5.5, 100, 5.5, 5.5)   # wider right margin for label
     ) +
     coord_cartesian(clip = "off")                 # allow drawing outside panel
 
@@ -724,30 +778,34 @@ build_ratio_panel <- function(ratio_stats, bands_df,
 build_biomass_bar_panel <- function(agg_df, panel_title = "", show_x_axis = TRUE,
                                    colour_map = fg_colours_individual,
                                    bar_alpha = 0.7,
-                                   y_label = expression(paste("Biomass (t ", m^{-2}, ")"))) {
+                                   y_label = expression(paste("Biomass (t ", km^{-2}, ")")),
+                                   uncertainty_df = NULL) {
+
+  # Helper: compute log-stacked rectangles from an aggregated df
+  compute_stack <- function(adf, floor_val) {
+    adf %>%
+      dplyr::arrange(bin_id, functional_group) %>%
+      dplyr::group_by(bin_id) %>%
+      dplyr::mutate(
+        total         = sum(biomass, na.rm = TRUE),
+        prop          = dplyr::if_else(total > 0, biomass / total, 0),
+        cum_prop      = cumsum(prop),
+        cum_prop_prev = cum_prop - prop,
+        log_floor     = log10(floor_val),
+        log_total     = log10(pmax(total, floor_val)),
+        log_bottom    = log_floor + cum_prop_prev * (log_total - log_floor),
+        log_top       = log_floor + cum_prop * (log_total - log_floor),
+        cum_bottom    = 10^log_bottom,
+        cum_top       = 10^log_top
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::filter(biomass > 0)
+  }
 
   # Convert grams to tonnes for display (1 t = 1e6 g)
   agg_df <- agg_df %>% dplyr::mutate(biomass = biomass / 1e6)
-
   y_floor <- min(agg_df$biomass[agg_df$biomass > 0], na.rm = TRUE) * 0.5
-
-  stack_df <- agg_df %>%
-    dplyr::arrange(bin_id, functional_group) %>%
-    dplyr::group_by(bin_id) %>%
-    dplyr::mutate(
-      total         = sum(biomass, na.rm = TRUE),
-      prop          = dplyr::if_else(total > 0, biomass / total, 0),
-      cum_prop      = cumsum(prop),
-      cum_prop_prev = cum_prop - prop,
-      log_floor     = log10(y_floor),
-      log_total     = log10(pmax(total, y_floor)),
-      log_bottom    = log_floor + cum_prop_prev * (log_total - log_floor),
-      log_top       = log_floor + cum_prop * (log_total - log_floor),
-      cum_bottom    = 10^log_bottom,
-      cum_top       = 10^log_top
-    ) %>%
-    dplyr::ungroup() %>%
-    dplyr::filter(biomass > 0)
+  stack_df <- compute_stack(agg_df, y_floor)
 
   # Only show species with visible bars within x-axis range
   visible_species <- stack_df %>%
@@ -763,7 +821,25 @@ build_biomass_bar_panel <- function(agg_df, panel_title = "", show_x_axis = TRUE
           fill = functional_group),
       alpha = bar_alpha,
       colour = "grey30", linewidth = 0.15
-    ) +
+    )
+
+  # Add ensemble uncertainty error bars (IQR of total biomass per bin)
+  if (!is.null(uncertainty_df)) {
+    # Compute bar tops (total) for positioning
+    bar_tops <- stack_df %>%
+      dplyr::group_by(bin_id, bin_left, bin_right) %>%
+      dplyr::summarise(bar_top = max(cum_top, na.rm = TRUE), .groups = "drop")
+    err_df <- dplyr::inner_join(bar_tops, uncertainty_df, by = "bin_id") %>%
+      dplyr::mutate(xmid = sqrt(bin_left.x * bin_right.x))
+    p <- p +
+      geom_errorbar(
+        data = err_df,
+        aes(x = xmid, ymin = total_q25, ymax = total_q75),
+        width = 0, linewidth = 0.35, colour = "grey20", alpha = 0.6
+      )
+  }
+
+  p <- p +
     scale_fill_manual(
       values = colour_map,
       name   = "Species",
@@ -773,7 +849,9 @@ build_biomass_bar_panel <- function(agg_df, panel_title = "", show_x_axis = TRUE
     scale_x_log10(
       labels = x_labels_shared,
       breaks = x_breaks_shared,
-      limits = c(w_min_plot, w_max_plot)
+      limits = c(w_min_plot, w_max_plot),
+      oob    = scales::squish,
+      expand = expansion(mult = 0)
     ) +
     scale_y_log10(
       labels = scales::label_scientific()
@@ -809,7 +887,12 @@ bm_fished_ref <- compute_fg_biomass_df(
   fished_sp_list, sp_names, sp_groups_individual, w_bins, dw,
   fg_levels = fg_individual_levels
 )
-agg_fished_ref <- aggregate_to_log_bins(bm_fished_ref, n_bins = 60)
+agg_fished_ref <- aggregate_to_log_bins(bm_fished_ref, log_breaks = shared_log_breaks)
+
+# Compute ensemble uncertainty (IQR) for fished reference period
+uncertainty_fished_ref <- compute_bin_uncertainty(
+  fished_sp_list, sp_names, w_bins, dw, shared_log_breaks
+)
 
 # ==============================================================================
 # V1: Fished / Climate-only, Reference Period (2001-2010) — 2 panels
@@ -830,7 +913,8 @@ for (pal_name in names(palette_list)) {
   cat(sprintf("  Saving V1 with palette: %s\n", pal_name))
   p_bm <- build_biomass_bar_panel(agg_fished_ref,
                                    colour_map = palette_list[[pal_name]],
-                                   bar_alpha = 0.7)
+                                   bar_alpha = 0.7,
+                                   uncertainty_df = uncertainty_fished_ref)
   p_combined <- (p_top_v1 / p_bm) +
     plot_layout(heights = c(1, 1)) +
     plot_annotation(
@@ -843,6 +927,12 @@ for (pal_name in names(palette_list)) {
     paste0("fishing_impact_fished_vs_climateonly_ref2001-2010_2panel", suffix, ".png"))
   ggsave(out, p_combined, width = 12, height = 11, dpi = 300)
   cat("    ->", out, "\n")
+
+  # Also save a compact (reduced height) version
+  out_compact <- file.path(output_dir,
+    paste0("fishing_impact_fished_vs_climateonly_ref2001-2010_2panel", suffix, "_compact.png"))
+  ggsave(out_compact, p_combined, width = 12, height = 8, dpi = 300)
+  cat("    ->", out_compact, "\n")
 }
 
 # ==============================================================================
@@ -922,7 +1012,12 @@ bm_preindustrial <- compute_fg_biomass_df(
   preindustrial_sp_list, sp_names, sp_groups_individual, w_bins, dw,
   fg_levels = fg_individual_levels
 )
-agg_preindustrial <- aggregate_to_log_bins(bm_preindustrial, n_bins = 60)
+agg_preindustrial <- aggregate_to_log_bins(bm_preindustrial, log_breaks = shared_log_breaks)
+
+# Ensemble uncertainty for pre-industrial biomass
+uncertainty_preindustrial <- compute_bin_uncertainty(
+  preindustrial_sp_list, sp_names, w_bins, dw, shared_log_breaks
+)
 
 # ==============================================================================
 # V2: Fished (2001-2010) / Pre-industrial (1841-1860) — 3 panels
@@ -943,14 +1038,16 @@ for (pal_name in names(palette_list)) {
   cat(sprintf("  Saving V2 with palette: %s\n", pal_name))
   p_mid <- build_biomass_bar_panel(agg_fished_ref,
                                     colour_map = palette_list[[pal_name]],
-                                    bar_alpha = 0.7) +
+                                    bar_alpha = 0.7,
+                                    uncertainty_df = uncertainty_fished_ref) +
     theme(axis.title.x = element_blank(),
           axis.text.x  = element_blank(),
           axis.ticks.x = element_blank())
 
   p_bot <- build_biomass_bar_panel(agg_preindustrial,
                                     colour_map = palette_list[[pal_name]],
-                                    bar_alpha = 0.7)
+                                    bar_alpha = 0.7,
+                                    uncertainty_df = uncertainty_preindustrial)
 
   p_combined <- (p_top_v2 / p_mid / p_bot) +
     plot_layout(heights = c(1.5, 1, 1)) +

@@ -84,7 +84,7 @@ cat(sprintf("  Processing %d paired simulations\n\n", n_sims))
 
 # ------------------------------------------------------------------------------
 # Helper: compute spectrum slope/intercept for all decades in one sim
-# (uses updated calculate_spectrum_slope_intercept with max_w = Inf)
+# (uses updated calculate_spectrum_slope_intercept filtered to species >= krill w_inf)
 # ------------------------------------------------------------------------------
 compute_spectrum_for_sim <- function(sim) {
   times <- as.numeric(dimnames(sim@n)$time)

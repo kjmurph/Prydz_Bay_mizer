@@ -1,0 +1,152 @@
+starting worker pid=12080 on localhost:11634 at 09:27:19.292
+starting worker pid=6236 on localhost:11634 at 09:27:19.393
+starting worker pid=44548 on localhost:11634 at 09:27:19.512
+starting worker pid=50884 on localhost:11634 at 09:27:19.614
+Loading required package: viridisLite
+Loading required package: viridisLite
+[Worker 44548] Loading chunk: chunk_03.rds
+[Worker 6236] Loading chunk: chunk_02.rds
+[Worker 50884] Loading chunk: chunk_04.rds
+[Worker 12080] Loading chunk: chunk_01.rds
+[Worker 44548] Chunk loaded: 527 sims
+[Worker 44548] Processing sim 1/527 (sim_id=1057)
+[Worker 6236] Chunk loaded: 528 sims
+[Worker 6236] Processing sim 1/528 (sim_id=529)
+[Worker 12080] Chunk loaded: 528 sims
+[Worker 12080] Processing sim 1/528 (sim_id=1)
+[Worker 50884] Chunk loaded: 528 sims
+[Worker 50884] Processing sim 1/528 (sim_id=1584)
+[Worker 12080] Processing sim 51/528 (sim_id=51)
+[Worker 6236] Processing sim 51/528 (sim_id=579)
+[Worker 50884] Processing sim 51/528 (sim_id=1634)
+[Worker 44548] Processing sim 51/527 (sim_id=1107)
+[Worker 12080] Processing sim 101/528 (sim_id=101)
+[Worker 6236] Processing sim 101/528 (sim_id=629)
+[Worker 44548] Processing sim 101/527 (sim_id=1157)
+[Worker 50884] Processing sim 101/528 (sim_id=1684)
+[Worker 12080] Processing sim 151/528 (sim_id=151)
+[Worker 6236] Processing sim 151/528 (sim_id=679)
+[Worker 44548] Processing sim 151/527 (sim_id=1207)
+[Worker 50884] Processing sim 151/528 (sim_id=1734)
+[Worker 6236] Processing sim 201/528 (sim_id=729)
+[Worker 12080] Processing sim 201/528 (sim_id=201)
+[Worker 44548] Processing sim 201/527 (sim_id=1257)
+[Worker 50884] Processing sim 201/528 (sim_id=1784)
+[Worker 44548] Processing sim 251/527 (sim_id=1307)
+[Worker 12080] Processing sim 251/528 (sim_id=251)
+[Worker 6236] Processing sim 251/528 (sim_id=779)
+[Worker 50884] Processing sim 251/528 (sim_id=1834)
+[Worker 44548] Processing sim 301/527 (sim_id=1357)
+[Worker 50884] Processing sim 301/528 (sim_id=1884)
+[Worker 6236] Processing sim 301/528 (sim_id=829)
+[Worker 12080] Processing sim 301/528 (sim_id=301)
+[Worker 50884] Processing sim 351/528 (sim_id=1934)
+[Worker 44548] Processing sim 351/527 (sim_id=1407)
+[Worker 6236] Processing sim 351/528 (sim_id=879)
+[Worker 12080] Processing sim 351/528 (sim_id=351)
+[Worker 50884] Processing sim 401/528 (sim_id=1984)
+[Worker 44548] Processing sim 401/527 (sim_id=1457)
+[Worker 6236] Processing sim 401/528 (sim_id=929)
+[Worker 12080] Processing sim 401/528 (sim_id=401)
+[Worker 50884] Processing sim 451/528 (sim_id=2034)
+[Worker 44548] Processing sim 451/527 (sim_id=1507)
+[Worker 6236] Processing sim 451/528 (sim_id=979)
+[Worker 12080] Processing sim 451/528 (sim_id=451)
+[Worker 50884] Processing sim 501/528 (sim_id=2084)
+[Worker 44548] Processing sim 501/527 (sim_id=1557)
+[Worker 6236] Processing sim 501/528 (sim_id=1029)
+[Worker 12080] Processing sim 501/528 (sim_id=501)
+[Worker 44548] Done: saving results to result_03.rds
+[Worker 44548] Chunk done: 8959 fishing rows, 8959 climate rows, 527 B0 rows
+[Worker 50884] Done: saving results to result_04.rds
+[Worker 50884] Chunk done: 8976 fishing rows, 8976 climate rows, 528 B0 rows
+[Worker 6236] Done: saving results to result_02.rds
+[Worker 6236] Chunk done: 8976 fishing rows, 8976 climate rows, 528 B0 rows
+[Worker 12080] Done: saving results to result_01.rds
+[Worker 12080] Chunk done: 8976 fishing rows, 8976 climate rows, 528 B0 rows
+Warning messages:
+1: package 'tidyr' was built under R version 4.5.2 
+2: package 'ggplot2' was built under R version 4.5.2 
+3: package 'viridisLite' was built under R version 4.5.2 
+2: package 'ggplot2' was built under R version 4.5.2 
+4: package 'patchwork' was built under R version 4.5.2 
+
+3: package 'viridisLite' was built under R version 4.5.2 
+5: package 'ggtext' was built under R version 4.5.2 
+4: package 'patchwork' was built under R version 4.5.2 
+4: package 'patchwork' was built under R version 4.5.2 
+5: package 'ggtext' was built under R version 4.5.2 
+starting worker pid=54520 on localhost:11309 at 14:23:24.037
+starting worker pid=24776 on localhost:11309 at 14:23:24.132
+starting worker pid=3000 on localhost:11309 at 14:23:24.270
+starting worker pid=24364 on localhost:11309 at 14:23:24.389
+Loading required package: viridisLite
+Loading required package: viridisLite
+Loading required package: viridisLite
+[Worker 24776] Loading chunk: chunk_02.rds
+[Worker 24364] Loading chunk: chunk_04.rds
+[Worker 3000] Loading chunk: chunk_03.rds
+[Worker 54520] Loading chunk: chunk_01.rds
+[Worker 3000] Chunk loaded: 527 sims
+[Worker 3000] Processing sim 1/527 (sim_id=1057)
+[Worker 54520] Chunk loaded: 528 sims
+[Worker 54520] Processing sim 1/528 (sim_id=1)
+[Worker 24776] Chunk loaded: 528 sims
+[Worker 24776] Processing sim 1/528 (sim_id=529)
+[Worker 24364] Chunk loaded: 528 sims
+[Worker 24364] Processing sim 1/528 (sim_id=1584)
+[Worker 3000] Processing sim 51/527 (sim_id=1107)
+[Worker 24364] Processing sim 51/528 (sim_id=1634)
+[Worker 24776] Processing sim 51/528 (sim_id=579)
+[Worker 54520] Processing sim 51/528 (sim_id=51)
+[Worker 3000] Processing sim 101/527 (sim_id=1157)
+[Worker 24364] Processing sim 101/528 (sim_id=1684)
+[Worker 54520] Processing sim 101/528 (sim_id=101)
+[Worker 24776] Processing sim 101/528 (sim_id=629)
+[Worker 3000] Processing sim 151/527 (sim_id=1207)
+[Worker 54520] Processing sim 151/528 (sim_id=151)
+[Worker 24364] Processing sim 151/528 (sim_id=1734)
+[Worker 24776] Processing sim 151/528 (sim_id=679)
+[Worker 54520] Processing sim 201/528 (sim_id=201)
+[Worker 3000] Processing sim 201/527 (sim_id=1257)
+[Worker 24364] Processing sim 201/528 (sim_id=1784)
+[Worker 24776] Processing sim 201/528 (sim_id=729)
+[Worker 54520] Processing sim 251/528 (sim_id=251)
+[Worker 3000] Processing sim 251/527 (sim_id=1307)
+[Worker 24364] Processing sim 251/528 (sim_id=1834)
+[Worker 24776] Processing sim 251/528 (sim_id=779)
+[Worker 54520] Processing sim 301/528 (sim_id=301)
+[Worker 3000] Processing sim 301/527 (sim_id=1357)
+[Worker 24776] Processing sim 301/528 (sim_id=829)
+[Worker 24364] Processing sim 301/528 (sim_id=1884)
+[Worker 3000] Processing sim 351/527 (sim_id=1407)
+[Worker 54520] Processing sim 351/528 (sim_id=351)
+[Worker 24776] Processing sim 351/528 (sim_id=879)
+[Worker 24364] Processing sim 351/528 (sim_id=1934)
+[Worker 3000] Processing sim 401/527 (sim_id=1457)
+[Worker 54520] Processing sim 401/528 (sim_id=401)
+[Worker 24776] Processing sim 401/528 (sim_id=929)
+[Worker 24364] Processing sim 401/528 (sim_id=1984)
+[Worker 54520] Processing sim 451/528 (sim_id=451)
+[Worker 3000] Processing sim 451/527 (sim_id=1507)
+[Worker 24776] Processing sim 451/528 (sim_id=979)
+[Worker 24364] Processing sim 451/528 (sim_id=2034)
+[Worker 54520] Processing sim 501/528 (sim_id=501)
+[Worker 3000] Processing sim 501/527 (sim_id=1557)
+[Worker 24776] Processing sim 501/528 (sim_id=1029)
+[Worker 24364] Processing sim 501/528 (sim_id=2084)
+[Worker 3000] Done: saving results to result_03.rds
+[Worker 3000] Chunk done: 8959 fishing rows, 8959 climate rows, 527 B0 rows
+[Worker 54520] Done: saving results to result_01.rds
+[Worker 54520] Chunk done: 8976 fishing rows, 8976 climate rows, 528 B0 rows
+[Worker 24776] Done: saving results to result_02.rds
+[Worker 24776] Chunk done: 8976 fishing rows, 8976 climate rows, 528 B0 rows
+[Worker 24364] Done: saving results to result_04.rds
+[Worker 24364] Chunk done: 8976 fishing rows, 8976 climate rows, 528 B0 rows
+Warning messages:
+1: package 'tidyr' was built under R version 4.5.2 
+2: package 'ggplot2' was built under R version 4.5.2 
+3: package 'viridisLite' was built under R version 4.5.2 
+3: package 'viridisLite' was built under R version 4.5.2 5:4: package 'patchwork' was built under R version 4.5.2 
+4: package 'patchwork' was built under R version 4.5.2 
+5: package 'ggtext' was built under R version 4.5.2 

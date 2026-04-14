@@ -10,6 +10,8 @@ message("=== Generating Monte Carlo plots from saved results ===")
 
 # Choose saved results (prefer 1000-sim; fallback to 10-sim)
 mc_candidates <- c(
+  "Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/mc_ensemble_2111_cleaned.rds",
+  "monte_carlo_results_nsims_1250_SD_3_5_5_tol_0.0025_tmax_1500.rds",
   "monte_carlo_results_SD2_tol0.005_tmax1000_nsims1000.rds",
   "monte_carlo_results_SD2_tol0.005_tmax1000_nsims10.rds"
 )
@@ -166,16 +168,63 @@ yield_unc_line <- yield_unc %>%
 yield_obs_filtered <- yield_ts_tidy %>% filter(Species %in% species_with_yield, Yield > 0) %>%
   mutate(Species = factor(Species, levels = species_order))
 
+# Use the effort array to determine first/last year of effort per species
+combined_effort_array <- readRDS("effort_array_1841_2010.rds")
+effort_years_by_species <- do.call(rbind, lapply(colnames(combined_effort_array), function(sp) {
+  yrs <- as.numeric(rownames(combined_effort_array))[combined_effort_array[, sp] > 0]
+  if (length(yrs) > 0) data.frame(Species = sp, first_year = min(yrs), last_year = max(yrs), stringsAsFactors = FALSE)
+  else NULL
+})) %>%
+  filter(Species %in% species_with_yield)
+
+message("Effort periods per fished species:")
+for (i in seq_len(nrow(effort_years_by_species))) {
+  message(sprintf("  %-30s %d - %d", effort_years_by_species$Species[i],
+                  effort_years_by_species$first_year[i], effort_years_by_species$last_year[i]))
+}
+
+# Create zero-catch rows for pre-effort (1900 to first_year - 1) per species
+zero_catch_pre <- effort_years_by_species %>%
+  rowwise() %>%
+  do(data.frame(
+    Species = .$Species,
+    Year = 1900:(.$first_year - 1),
+    Yield = 0,
+    stringsAsFactors = FALSE
+  )) %>%
+  ungroup()
+
+# Create zero-catch rows for post-effort (last_year + 1 to 2010) per species
+zero_catch_post <- effort_years_by_species %>%
+  filter(last_year < 2010) %>%
+  rowwise() %>%
+  do(data.frame(
+    Species = .$Species,
+    Year = (.$last_year + 1):2010,
+    Yield = 0,
+    stringsAsFactors = FALSE
+  )) %>%
+  ungroup()
+
+# Combine zero-catch padding (kept separate for distinct styling)
+zero_catch_all <- bind_rows(
+  zero_catch_pre %>% mutate(Species = factor(Species, levels = species_order)),
+  zero_catch_post %>% mutate(Species = factor(Species, levels = species_order))
+)
+
 p_yield <- ggplot() +
   geom_ribbon(data = yield_unc_ribbon, aes(x = Year, ymin = q05, ymax = q95, fill = Species), alpha = 0.2) +
   geom_ribbon(data = yield_unc_ribbon, aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.3) +
   geom_line(data = yield_unc_line, aes(x = Year, y = median, color = Species), linewidth = 1.0, linetype = "solid", lineend = "round") +
-  geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield, colour = Species), size = 1) +
-  geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield), shape = 1, size = 1, colour = "black") +
+  geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield, colour = Species), size = 1.2) +
+  geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield), shape = 1, size = 1.2, colour = "black") +
+  geom_point(data = zero_catch_all, aes(x = Year, y = Yield, colour = Species), size = 0.48) +
+  geom_point(data = zero_catch_all, aes(x = Year, y = Yield), shape = 1, size = 0.48, stroke = 0.36, colour = "black") +
   geom_vline(xintercept = 1961, linetype = "dashed") +
   geom_vline(xintercept = 2010, linetype = "dashed") +
-  scale_y_log10(
-    breaks = scales::log_breaks(n = 6),
+  scale_y_continuous(
+    trans = scales::pseudo_log_trans(sigma = 1, base = 10),
+    breaks = c(0, 10^seq(2, 14, 2)),
     labels = (function() {
       sci <- scales::label_scientific(digits = 1)
       function(x) vapply(x, function(v) {
@@ -194,19 +243,14 @@ p_yield <- ggplot() +
       }, character(1))
     })()
   ) +
-  coord_cartesian(xlim = {
-    baleen_start_obs <- yield_obs_filtered %>% filter(Species == "baleen whales") %>% summarise(min_year = min(Year, na.rm = TRUE)) %>% pull(min_year)
-    global_start_obs <- yield_obs_filtered %>% summarise(min_year = min(Year, na.rm = TRUE)) %>% pull(min_year)
-    start_year <- if (!is.null(baleen_start_obs) && length(baleen_start_obs) == 1 && is.finite(baleen_start_obs)) baleen_start_obs else if (!is.null(global_start_obs) && length(global_start_obs) == 1 && is.finite(global_start_obs)) global_start_obs else 1930
-    c(start_year, max(yield_unc$Year, na.rm = TRUE))
-  }) +
+  coord_cartesian(xlim = c(1900, 2010)) +
   facet_wrap(~Species, scales = "free_y") +
-  theme_bw() +
+  theme_bw(base_size = 14.4) +
   theme(legend.position = "none", strip.text = element_text(face = "bold")) +
-  labs(x = "Year", y = "Yield [t/year]", title = paste0("Monte Carlo: Yield vs Observations (", length(valid_sims), " sims)"))
+  labs(x = "Year", y = expression(Yield~(t~y^{-1})))
 
 tryCatch({
-  ggsave("montecarlo_yield.png", p_yield, width = 12, height = 8, dpi = 300)
+  ggsave("montecarlo_yield.png", p_yield, width = 12, height = 6.5, dpi = 300)
   message("Saved montecarlo_yield.png")
 }, error = function(e) {
   message("Failed to save montecarlo_yield.png: ", e$message)

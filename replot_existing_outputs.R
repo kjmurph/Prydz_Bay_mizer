@@ -15,6 +15,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(viridis)
   library(patchwork)
+  library(ggtext)
 })
 
 cat("=============================================================\n")
@@ -67,6 +68,9 @@ paired_comparisons <- paired_data
 cat(sprintf("  Using pre-computed paired data: %d records (%d sims)\n",
             nrow(paired_comparisons), round(n_sims)))
 
+# Structural envelope flags: use original unpaired approach from cached paired_data.rds
+# (raw value vs B0 global quantiles). Null-subtraction is applied at plot time.
+
 cat("\nSummarizing results by metric category...\n")
 cat("  Summarizing biomass ratios...\n")
 biomass_summaries <- summarize_biomass_ratios(paired_comparisons)
@@ -110,33 +114,20 @@ plots$bio_climate_ratio <- plot_biomass_ratio_heatmap(
   sprintf("Median ratio: Climate-only / B0 (%d-%d)", B0_PERIOD[1], B0_PERIOD[2]),
   output_dir, "heatmap_biomass_climate_ratio")
 
-# Biomass proportion heatmaps
-cat("  Category A: Biomass proportion heatmaps...\n")
-plots$bio_prop_075 <- plot_biomass_proportion_heatmap(
-  biomass_absolute, "prop_below_075", 0.75,
-  "CCAMLR \u03B3\u2082 escapement; Constable et al. 2000",
-  "Absolute Health: P(Biomass/B0 < 0.75)",
-  output_dir, "heatmap_biomass_prop_below_075")
-plots$bio_prop_040 <- plot_biomass_proportion_heatmap(
-  biomass_absolute, "prop_below_040", 0.40,
-  "BMSY proxy; Restrepo et al. 1998",
-  "Absolute Health: P(Biomass/B0 < 0.40)",
-  output_dir, "heatmap_biomass_prop_below_040")
-plots$bio_prop_020 <- plot_biomass_proportion_heatmap(
-  biomass_absolute, "prop_below_020", 0.20,
-  "CCAMLR \u03B3\u2081 / MSST collapse; Constable et al. 2000",
-  "Absolute Health: P(Biomass/B0 < 0.20)",
-  output_dir, "heatmap_biomass_prop_below_020")
-plots$whale_prop_054 <- plot_biomass_proportion_heatmap(
-  biomass_absolute, "prop_below_054", 0.54,
-  "IWC RMP protection level; IWC 1994, Punt & Donovan 2007",
-  "Whale Populations: P(Biomass/B0 < 0.54)",
-  output_dir, "heatmap_whale_prop_below_054", metrics_filter = WHALE_METRICS)
-plots$whale_exploit_054 <- plot_biomass_proportion_heatmap(
-  biomass_exploit, "prop_below_054", 0.54,
-  "IWC RMP protection level; IWC 1994, Punt & Donovan 2007",
-  "Exploitation Impact on Whales: P(Fishing/Climate-only < 0.54)",
-  output_dir, "heatmap_whale_exploit_prop_below_054", metrics_filter = WHALE_METRICS)
+# Biomass proportion heatmaps (metric-specific thresholds)
+cat("  Category A: Biomass proportion heatmaps (metric-specific thresholds)...\n")
+plots$bio_absolute_specific <- plot_biomass_metric_specific_heatmap(
+  biomass_absolute,
+  "Absolute Health: P(B/B0 < Metric-Specific Threshold)",
+  output_dir, "heatmap_biomass_absolute_metric_specific")
+plots$bio_exploit_specific <- plot_biomass_metric_specific_heatmap(
+  biomass_exploit,
+  "Exploitation Impact: P(Fishing/Climate-only < Threshold)",
+  output_dir, "heatmap_biomass_exploit_metric_specific")
+plots$bio_climate_specific <- plot_biomass_metric_specific_heatmap(
+  biomass_climate,
+  "Climate Impact: P(Climate-only/B0 < Threshold)",
+  output_dir, "heatmap_biomass_climate_metric_specific")
 
 # Category B: Structural deviation heatmaps
 cat("  Category B: Structural deviation heatmaps...\n")
@@ -174,9 +165,18 @@ plots$combined_climate <- plot_combined_heatmap(
   "Ecosystem Assessment: Climate Impact",
   output_dir, "heatmap_combined_climate")
 
-# Category C: Exploitation heatmap
-cat("  Category C: Exploitation rate heatmap...\n")
+# Category C: Exploitation heatmap (aggregated)
+cat("  Category C: Exploitation rate heatmap (aggregated)...\n")
 plots$exploitation_F <- plot_exploitation_heatmap(exploitation_summary, output_dir)
+
+# Category C v2: Per-species exploitation heatmap
+cat("  Category C: Per-species exploitation rate heatmap...\n")
+species_exploit <- compute_species_exploitation_summary()
+plots$exploitation_species <- plot_species_exploitation_heatmap(species_exploit, output_dir)
+
+# Category C v3: Per-species dual-panel (Median F | 95th percentile F)
+cat("  Category C: Per-species exploitation dual-panel heatmap...\n")
+plots$exploitation_dual <- plot_species_exploitation_dual(species_exploit, output_dir)
 
 cat("\n=============================================================\n")
 cat("SAVING SUMMARY CSV FILES\n")
@@ -190,6 +190,7 @@ write.csv(structural_exploit, file.path(output_dir, "summary_structural_exploit.
 write.csv(structural_absolute, file.path(output_dir, "summary_structural_absolute.csv"), row.names = FALSE)
 write.csv(structural_climate, file.path(output_dir, "summary_structural_climate.csv"), row.names = FALSE)
 write.csv(exploitation_summary, file.path(output_dir, "summary_exploitation_rates.csv"), row.names = FALSE)
+write.csv(species_exploit, file.path(output_dir, "summary_exploitation_rates_species.csv"), row.names = FALSE)
 
 cat("  Summary CSVs saved to ecosystem_assessment_outputs/\n")
 
