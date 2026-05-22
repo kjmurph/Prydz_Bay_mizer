@@ -22,7 +22,7 @@ periods <- list(
 )
 
 # Model domain area for density conversion
-model_domain_area <- 1.95e+13  # m^2
+model_domain_area <- 1.474341e+12  # m^2 (therMizer calibration domain, 05_therMizer_calibration_scale_model_domain.Rmd)
 
 # ------------------------------------------------------------------------------
 # Load the unfished simulation

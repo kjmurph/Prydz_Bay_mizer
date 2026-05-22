@@ -1,0 +1,23 @@
+Loading required package: mizer
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+Warning message:
+package 'dplyr' was built under R version 4.5.3 
+Warning message:
+package 'tidyr' was built under R version 4.5.2 
+Loading required package: viridisLite
+Warning message:
+package 'viridisLite' was built under R version 4.5.2 
+Warning message:
+package 'patchwork' was built under R version 4.5.3 
+Warning message:
+package 'ggtext' was built under R version 4.5.2 

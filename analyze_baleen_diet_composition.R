@@ -19,7 +19,7 @@ library(viridis)
 
 # Configuration
 OUTPUT_DIR <- "whale_consumption_outputs"
-MODEL_DOMAIN_AREA <- 1.95e+13
+MODEL_DOMAIN_AREA <- 1.474341e+12  # m² (therMizer calibration domain, 05_therMizer_calibration_scale_model_domain.Rmd)
 
 # Baleen whale species
 BALEEN_SPECIES <- c("baleen whales", "minke whales")

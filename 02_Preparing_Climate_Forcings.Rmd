@@ -79,15 +79,14 @@ df_diat_raw <- read.csv("FishMIP_Plankton_Forcing/gfdl-mom6-cobalt2_obsclim_phyd
 df_area <- df_diat_raw %>% 
   select(area_m2)
   
-Hawaiian_Longline_area <- df_diat_raw %>%
+df_area_total <- df_diat_raw %>%
   select(c(lat,lon,area_m2)) %>%  
   mutate(total_area = sum(area_m2))
 
-head(Hawaiian_Longline_area)
-dim(Hawaiian_Longline_area)
 
-dim(df_area)
-summary(df_area)
+head(df_area_total)
+dim(df_area_total)
+summary(df_area_total)
 ```
 
 Each 1 degree grid cell -->   $9540434011 m2$

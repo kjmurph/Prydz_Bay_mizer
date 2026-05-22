@@ -22,7 +22,7 @@ SUMMARY_DIR <- "monte_carlo_2111_summaries"
 PLOT_DIR <- "fishmip_outputs/comparison_plots"
 
 # Model domain area
-MODEL_DOMAIN_AREA <- 1.95e+13  # m^2
+MODEL_DOMAIN_AREA <- 1.474341e+12  # m^2 (therMizer calibration domain, 05_therMizer_calibration_scale_model_domain.Rmd)
 GRAMS_PER_TONNE <- 1e6
 
 # Reference year

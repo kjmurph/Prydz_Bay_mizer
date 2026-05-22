@@ -1,0 +1,3231 @@
+"time","species","effort"
+0,"antarctic krill",0
+0,"baleen whales",0
+0,"bathypelagic fishes",0
+0,"flying birds",0
+0,"large divers",0
+0,"leopard seals",0
+0,"medium divers",0
+0,"mesopelagic fishes",0
+0,"mesozooplankton",0
+0,"minke whales",0
+0,"orca",0
+0,"other krill",0
+0,"other macrozooplankton",0
+0,"salps",0
+0,"shelf and coastal fishes",0
+0,"small divers",0
+0,"sperm whales",0
+0,"squids",0
+0,"toothfishes",0
+365,"antarctic krill",0
+365,"baleen whales",0
+365,"bathypelagic fishes",0
+365,"flying birds",0
+365,"large divers",0
+365,"leopard seals",0
+365,"medium divers",0
+365,"mesopelagic fishes",0
+365,"mesozooplankton",0
+365,"minke whales",0
+365,"orca",0
+365,"other krill",0
+365,"other macrozooplankton",0
+365,"salps",0
+365,"shelf and coastal fishes",0
+365,"small divers",0
+365,"sperm whales",0
+365,"squids",0
+365,"toothfishes",0
+730,"antarctic krill",0
+730,"baleen whales",0
+730,"bathypelagic fishes",0
+730,"flying birds",0
+730,"large divers",0
+730,"leopard seals",0
+730,"medium divers",0
+730,"mesopelagic fishes",0
+730,"mesozooplankton",0
+730,"minke whales",0
+730,"orca",0
+730,"other krill",0
+730,"other macrozooplankton",0
+730,"salps",0
+730,"shelf and coastal fishes",0
+730,"small divers",0
+730,"sperm whales",0
+730,"squids",0
+730,"toothfishes",0
+1095,"antarctic krill",0
+1095,"baleen whales",0
+1095,"bathypelagic fishes",0
+1095,"flying birds",0
+1095,"large divers",0
+1095,"leopard seals",0
+1095,"medium divers",0
+1095,"mesopelagic fishes",0
+1095,"mesozooplankton",0
+1095,"minke whales",0
+1095,"orca",0
+1095,"other krill",0
+1095,"other macrozooplankton",0
+1095,"salps",0
+1095,"shelf and coastal fishes",0
+1095,"small divers",0
+1095,"sperm whales",0
+1095,"squids",0
+1095,"toothfishes",0
+1460,"antarctic krill",0
+1460,"baleen whales",0
+1460,"bathypelagic fishes",0
+1460,"flying birds",0
+1460,"large divers",0
+1460,"leopard seals",0
+1460,"medium divers",0
+1460,"mesopelagic fishes",0
+1460,"mesozooplankton",0
+1460,"minke whales",0
+1460,"orca",0
+1460,"other krill",0
+1460,"other macrozooplankton",0
+1460,"salps",0
+1460,"shelf and coastal fishes",0
+1460,"small divers",0
+1460,"sperm whales",0
+1460,"squids",0
+1460,"toothfishes",0
+1825,"antarctic krill",0
+1825,"baleen whales",0
+1825,"bathypelagic fishes",0
+1825,"flying birds",0
+1825,"large divers",0
+1825,"leopard seals",0
+1825,"medium divers",0
+1825,"mesopelagic fishes",0
+1825,"mesozooplankton",0
+1825,"minke whales",0
+1825,"orca",0
+1825,"other krill",0
+1825,"other macrozooplankton",0
+1825,"salps",0
+1825,"shelf and coastal fishes",0
+1825,"small divers",0
+1825,"sperm whales",0
+1825,"squids",0
+1825,"toothfishes",0
+2190,"antarctic krill",0
+2190,"baleen whales",0
+2190,"bathypelagic fishes",0
+2190,"flying birds",0
+2190,"large divers",0
+2190,"leopard seals",0
+2190,"medium divers",0
+2190,"mesopelagic fishes",0
+2190,"mesozooplankton",0
+2190,"minke whales",0
+2190,"orca",0
+2190,"other krill",0
+2190,"other macrozooplankton",0
+2190,"salps",0
+2190,"shelf and coastal fishes",0
+2190,"small divers",0
+2190,"sperm whales",0
+2190,"squids",0
+2190,"toothfishes",0
+2555,"antarctic krill",0
+2555,"baleen whales",0
+2555,"bathypelagic fishes",0
+2555,"flying birds",0
+2555,"large divers",0
+2555,"leopard seals",0
+2555,"medium divers",0
+2555,"mesopelagic fishes",0
+2555,"mesozooplankton",0
+2555,"minke whales",0
+2555,"orca",0
+2555,"other krill",0
+2555,"other macrozooplankton",0
+2555,"salps",0
+2555,"shelf and coastal fishes",0
+2555,"small divers",0
+2555,"sperm whales",0
+2555,"squids",0
+2555,"toothfishes",0
+2920,"antarctic krill",0
+2920,"baleen whales",0
+2920,"bathypelagic fishes",0
+2920,"flying birds",0
+2920,"large divers",0
+2920,"leopard seals",0
+2920,"medium divers",0
+2920,"mesopelagic fishes",0
+2920,"mesozooplankton",0
+2920,"minke whales",0
+2920,"orca",0
+2920,"other krill",0
+2920,"other macrozooplankton",0
+2920,"salps",0
+2920,"shelf and coastal fishes",0
+2920,"small divers",0
+2920,"sperm whales",0
+2920,"squids",0
+2920,"toothfishes",0
+3285,"antarctic krill",0
+3285,"baleen whales",0
+3285,"bathypelagic fishes",0
+3285,"flying birds",0
+3285,"large divers",0
+3285,"leopard seals",0
+3285,"medium divers",0
+3285,"mesopelagic fishes",0
+3285,"mesozooplankton",0
+3285,"minke whales",0
+3285,"orca",0
+3285,"other krill",0
+3285,"other macrozooplankton",0
+3285,"salps",0
+3285,"shelf and coastal fishes",0
+3285,"small divers",0
+3285,"sperm whales",0
+3285,"squids",0
+3285,"toothfishes",0
+3650,"antarctic krill",0
+3650,"baleen whales",0
+3650,"bathypelagic fishes",0
+3650,"flying birds",0
+3650,"large divers",0
+3650,"leopard seals",0
+3650,"medium divers",0
+3650,"mesopelagic fishes",0
+3650,"mesozooplankton",0
+3650,"minke whales",0
+3650,"orca",0
+3650,"other krill",0
+3650,"other macrozooplankton",0
+3650,"salps",0
+3650,"shelf and coastal fishes",0
+3650,"small divers",0
+3650,"sperm whales",0
+3650,"squids",0
+3650,"toothfishes",0
+4015,"antarctic krill",0
+4015,"baleen whales",0
+4015,"bathypelagic fishes",0
+4015,"flying birds",0
+4015,"large divers",0
+4015,"leopard seals",0
+4015,"medium divers",0
+4015,"mesopelagic fishes",0
+4015,"mesozooplankton",0
+4015,"minke whales",0
+4015,"orca",0
+4015,"other krill",0
+4015,"other macrozooplankton",0
+4015,"salps",0
+4015,"shelf and coastal fishes",0
+4015,"small divers",0
+4015,"sperm whales",0
+4015,"squids",0
+4015,"toothfishes",0
+4380,"antarctic krill",0
+4380,"baleen whales",0
+4380,"bathypelagic fishes",0
+4380,"flying birds",0
+4380,"large divers",0
+4380,"leopard seals",0
+4380,"medium divers",0
+4380,"mesopelagic fishes",0
+4380,"mesozooplankton",0
+4380,"minke whales",0
+4380,"orca",0
+4380,"other krill",0
+4380,"other macrozooplankton",0
+4380,"salps",0
+4380,"shelf and coastal fishes",0
+4380,"small divers",0
+4380,"sperm whales",0
+4380,"squids",0
+4380,"toothfishes",0
+4745,"antarctic krill",0
+4745,"baleen whales",0
+4745,"bathypelagic fishes",0
+4745,"flying birds",0
+4745,"large divers",0
+4745,"leopard seals",0
+4745,"medium divers",0
+4745,"mesopelagic fishes",0
+4745,"mesozooplankton",0
+4745,"minke whales",0
+4745,"orca",0
+4745,"other krill",0
+4745,"other macrozooplankton",0
+4745,"salps",0
+4745,"shelf and coastal fishes",0
+4745,"small divers",0
+4745,"sperm whales",0
+4745,"squids",0
+4745,"toothfishes",0
+5110,"antarctic krill",0
+5110,"baleen whales",0
+5110,"bathypelagic fishes",0
+5110,"flying birds",0
+5110,"large divers",0
+5110,"leopard seals",0
+5110,"medium divers",0
+5110,"mesopelagic fishes",0
+5110,"mesozooplankton",0
+5110,"minke whales",0
+5110,"orca",0
+5110,"other krill",0
+5110,"other macrozooplankton",0
+5110,"salps",0
+5110,"shelf and coastal fishes",0
+5110,"small divers",0
+5110,"sperm whales",0
+5110,"squids",0
+5110,"toothfishes",0
+5475,"antarctic krill",0
+5475,"baleen whales",0
+5475,"bathypelagic fishes",0
+5475,"flying birds",0
+5475,"large divers",0
+5475,"leopard seals",0
+5475,"medium divers",0
+5475,"mesopelagic fishes",0
+5475,"mesozooplankton",0
+5475,"minke whales",0
+5475,"orca",0
+5475,"other krill",0
+5475,"other macrozooplankton",0
+5475,"salps",0
+5475,"shelf and coastal fishes",0
+5475,"small divers",0
+5475,"sperm whales",0
+5475,"squids",0
+5475,"toothfishes",0
+5840,"antarctic krill",0
+5840,"baleen whales",0
+5840,"bathypelagic fishes",0
+5840,"flying birds",0
+5840,"large divers",0
+5840,"leopard seals",0
+5840,"medium divers",0
+5840,"mesopelagic fishes",0
+5840,"mesozooplankton",0
+5840,"minke whales",0
+5840,"orca",0
+5840,"other krill",0
+5840,"other macrozooplankton",0
+5840,"salps",0
+5840,"shelf and coastal fishes",0
+5840,"small divers",0
+5840,"sperm whales",0
+5840,"squids",0
+5840,"toothfishes",0
+6205,"antarctic krill",0
+6205,"baleen whales",0
+6205,"bathypelagic fishes",0
+6205,"flying birds",0
+6205,"large divers",0
+6205,"leopard seals",0
+6205,"medium divers",0
+6205,"mesopelagic fishes",0
+6205,"mesozooplankton",0
+6205,"minke whales",0
+6205,"orca",0
+6205,"other krill",0
+6205,"other macrozooplankton",0
+6205,"salps",0
+6205,"shelf and coastal fishes",0
+6205,"small divers",0
+6205,"sperm whales",0
+6205,"squids",0
+6205,"toothfishes",0
+6570,"antarctic krill",0
+6570,"baleen whales",0
+6570,"bathypelagic fishes",0
+6570,"flying birds",0
+6570,"large divers",0
+6570,"leopard seals",0
+6570,"medium divers",0
+6570,"mesopelagic fishes",0
+6570,"mesozooplankton",0
+6570,"minke whales",0
+6570,"orca",0
+6570,"other krill",0
+6570,"other macrozooplankton",0
+6570,"salps",0
+6570,"shelf and coastal fishes",0
+6570,"small divers",0
+6570,"sperm whales",0
+6570,"squids",0
+6570,"toothfishes",0
+6935,"antarctic krill",0
+6935,"baleen whales",0
+6935,"bathypelagic fishes",0
+6935,"flying birds",0
+6935,"large divers",0
+6935,"leopard seals",0
+6935,"medium divers",0
+6935,"mesopelagic fishes",0
+6935,"mesozooplankton",0
+6935,"minke whales",0
+6935,"orca",0
+6935,"other krill",0
+6935,"other macrozooplankton",0
+6935,"salps",0
+6935,"shelf and coastal fishes",0
+6935,"small divers",0
+6935,"sperm whales",0
+6935,"squids",0
+6935,"toothfishes",0
+7300,"antarctic krill",0
+7300,"baleen whales",0
+7300,"bathypelagic fishes",0
+7300,"flying birds",0
+7300,"large divers",0
+7300,"leopard seals",0
+7300,"medium divers",0
+7300,"mesopelagic fishes",0
+7300,"mesozooplankton",0
+7300,"minke whales",0
+7300,"orca",0
+7300,"other krill",0
+7300,"other macrozooplankton",0
+7300,"salps",0
+7300,"shelf and coastal fishes",0
+7300,"small divers",0
+7300,"sperm whales",0
+7300,"squids",0
+7300,"toothfishes",0
+7665,"antarctic krill",0
+7665,"baleen whales",0
+7665,"bathypelagic fishes",0
+7665,"flying birds",0
+7665,"large divers",0
+7665,"leopard seals",0
+7665,"medium divers",0
+7665,"mesopelagic fishes",0
+7665,"mesozooplankton",0
+7665,"minke whales",0
+7665,"orca",0
+7665,"other krill",0
+7665,"other macrozooplankton",0
+7665,"salps",0
+7665,"shelf and coastal fishes",0
+7665,"small divers",0
+7665,"sperm whales",0
+7665,"squids",0
+7665,"toothfishes",0
+8030,"antarctic krill",0
+8030,"baleen whales",0
+8030,"bathypelagic fishes",0
+8030,"flying birds",0
+8030,"large divers",0
+8030,"leopard seals",0
+8030,"medium divers",0
+8030,"mesopelagic fishes",0
+8030,"mesozooplankton",0
+8030,"minke whales",0
+8030,"orca",0
+8030,"other krill",0
+8030,"other macrozooplankton",0
+8030,"salps",0
+8030,"shelf and coastal fishes",0
+8030,"small divers",0
+8030,"sperm whales",0
+8030,"squids",0
+8030,"toothfishes",0
+8395,"antarctic krill",0
+8395,"baleen whales",0
+8395,"bathypelagic fishes",0
+8395,"flying birds",0
+8395,"large divers",0
+8395,"leopard seals",0
+8395,"medium divers",0
+8395,"mesopelagic fishes",0
+8395,"mesozooplankton",0
+8395,"minke whales",0
+8395,"orca",0
+8395,"other krill",0
+8395,"other macrozooplankton",0
+8395,"salps",0
+8395,"shelf and coastal fishes",0
+8395,"small divers",0
+8395,"sperm whales",0
+8395,"squids",0
+8395,"toothfishes",0
+8760,"antarctic krill",0
+8760,"baleen whales",0
+8760,"bathypelagic fishes",0
+8760,"flying birds",0
+8760,"large divers",0
+8760,"leopard seals",0
+8760,"medium divers",0
+8760,"mesopelagic fishes",0
+8760,"mesozooplankton",0
+8760,"minke whales",0
+8760,"orca",0
+8760,"other krill",0
+8760,"other macrozooplankton",0
+8760,"salps",0
+8760,"shelf and coastal fishes",0
+8760,"small divers",0
+8760,"sperm whales",0
+8760,"squids",0
+8760,"toothfishes",0
+9125,"antarctic krill",0
+9125,"baleen whales",0
+9125,"bathypelagic fishes",0
+9125,"flying birds",0
+9125,"large divers",0
+9125,"leopard seals",0
+9125,"medium divers",0
+9125,"mesopelagic fishes",0
+9125,"mesozooplankton",0
+9125,"minke whales",0
+9125,"orca",0
+9125,"other krill",0
+9125,"other macrozooplankton",0
+9125,"salps",0
+9125,"shelf and coastal fishes",0
+9125,"small divers",0
+9125,"sperm whales",0
+9125,"squids",0
+9125,"toothfishes",0
+9490,"antarctic krill",0
+9490,"baleen whales",0
+9490,"bathypelagic fishes",0
+9490,"flying birds",0
+9490,"large divers",0
+9490,"leopard seals",0
+9490,"medium divers",0
+9490,"mesopelagic fishes",0
+9490,"mesozooplankton",0
+9490,"minke whales",0
+9490,"orca",0
+9490,"other krill",0
+9490,"other macrozooplankton",0
+9490,"salps",0
+9490,"shelf and coastal fishes",0
+9490,"small divers",0
+9490,"sperm whales",0
+9490,"squids",0
+9490,"toothfishes",0
+9855,"antarctic krill",0
+9855,"baleen whales",0
+9855,"bathypelagic fishes",0
+9855,"flying birds",0
+9855,"large divers",0
+9855,"leopard seals",0
+9855,"medium divers",0
+9855,"mesopelagic fishes",0
+9855,"mesozooplankton",0
+9855,"minke whales",0
+9855,"orca",0
+9855,"other krill",0
+9855,"other macrozooplankton",0
+9855,"salps",0
+9855,"shelf and coastal fishes",0
+9855,"small divers",0
+9855,"sperm whales",0
+9855,"squids",0
+9855,"toothfishes",0
+10220,"antarctic krill",0
+10220,"baleen whales",0
+10220,"bathypelagic fishes",0
+10220,"flying birds",0
+10220,"large divers",0
+10220,"leopard seals",0
+10220,"medium divers",0
+10220,"mesopelagic fishes",0
+10220,"mesozooplankton",0
+10220,"minke whales",0
+10220,"orca",0
+10220,"other krill",0
+10220,"other macrozooplankton",0
+10220,"salps",0
+10220,"shelf and coastal fishes",0
+10220,"small divers",0
+10220,"sperm whales",0
+10220,"squids",0
+10220,"toothfishes",0
+10585,"antarctic krill",0
+10585,"baleen whales",0
+10585,"bathypelagic fishes",0
+10585,"flying birds",0
+10585,"large divers",0
+10585,"leopard seals",0
+10585,"medium divers",0
+10585,"mesopelagic fishes",0
+10585,"mesozooplankton",0
+10585,"minke whales",0
+10585,"orca",0
+10585,"other krill",0
+10585,"other macrozooplankton",0
+10585,"salps",0
+10585,"shelf and coastal fishes",0
+10585,"small divers",0
+10585,"sperm whales",0
+10585,"squids",0
+10585,"toothfishes",0
+10950,"antarctic krill",0
+10950,"baleen whales",0
+10950,"bathypelagic fishes",0
+10950,"flying birds",0
+10950,"large divers",0
+10950,"leopard seals",0
+10950,"medium divers",0
+10950,"mesopelagic fishes",0
+10950,"mesozooplankton",0
+10950,"minke whales",0
+10950,"orca",0
+10950,"other krill",0
+10950,"other macrozooplankton",0
+10950,"salps",0
+10950,"shelf and coastal fishes",0
+10950,"small divers",0
+10950,"sperm whales",0
+10950,"squids",0
+10950,"toothfishes",0
+11315,"antarctic krill",0
+11315,"baleen whales",0
+11315,"bathypelagic fishes",0
+11315,"flying birds",0
+11315,"large divers",0
+11315,"leopard seals",0
+11315,"medium divers",0
+11315,"mesopelagic fishes",0
+11315,"mesozooplankton",0
+11315,"minke whales",0
+11315,"orca",0
+11315,"other krill",0
+11315,"other macrozooplankton",0
+11315,"salps",0
+11315,"shelf and coastal fishes",0
+11315,"small divers",0
+11315,"sperm whales",0
+11315,"squids",0
+11315,"toothfishes",0
+11680,"antarctic krill",0
+11680,"baleen whales",0
+11680,"bathypelagic fishes",0
+11680,"flying birds",0
+11680,"large divers",0
+11680,"leopard seals",0
+11680,"medium divers",0
+11680,"mesopelagic fishes",0
+11680,"mesozooplankton",0
+11680,"minke whales",0
+11680,"orca",0
+11680,"other krill",0
+11680,"other macrozooplankton",0
+11680,"salps",0
+11680,"shelf and coastal fishes",0
+11680,"small divers",0
+11680,"sperm whales",0
+11680,"squids",0
+11680,"toothfishes",0
+12045,"antarctic krill",0
+12045,"baleen whales",0
+12045,"bathypelagic fishes",0
+12045,"flying birds",0
+12045,"large divers",0
+12045,"leopard seals",0
+12045,"medium divers",0
+12045,"mesopelagic fishes",0
+12045,"mesozooplankton",0
+12045,"minke whales",0
+12045,"orca",0
+12045,"other krill",0
+12045,"other macrozooplankton",0
+12045,"salps",0
+12045,"shelf and coastal fishes",0
+12045,"small divers",0
+12045,"sperm whales",0
+12045,"squids",0
+12045,"toothfishes",0
+12410,"antarctic krill",0
+12410,"baleen whales",0
+12410,"bathypelagic fishes",0
+12410,"flying birds",0
+12410,"large divers",0
+12410,"leopard seals",0
+12410,"medium divers",0
+12410,"mesopelagic fishes",0
+12410,"mesozooplankton",0
+12410,"minke whales",0
+12410,"orca",0
+12410,"other krill",0
+12410,"other macrozooplankton",0
+12410,"salps",0
+12410,"shelf and coastal fishes",0
+12410,"small divers",0
+12410,"sperm whales",0
+12410,"squids",0
+12410,"toothfishes",0
+12775,"antarctic krill",0
+12775,"baleen whales",0
+12775,"bathypelagic fishes",0
+12775,"flying birds",0
+12775,"large divers",0
+12775,"leopard seals",0
+12775,"medium divers",0
+12775,"mesopelagic fishes",0
+12775,"mesozooplankton",0
+12775,"minke whales",0
+12775,"orca",0
+12775,"other krill",0
+12775,"other macrozooplankton",0
+12775,"salps",0
+12775,"shelf and coastal fishes",0
+12775,"small divers",0
+12775,"sperm whales",0
+12775,"squids",0
+12775,"toothfishes",0
+13140,"antarctic krill",0
+13140,"baleen whales",0
+13140,"bathypelagic fishes",0
+13140,"flying birds",0
+13140,"large divers",0
+13140,"leopard seals",0
+13140,"medium divers",0
+13140,"mesopelagic fishes",0
+13140,"mesozooplankton",0
+13140,"minke whales",0
+13140,"orca",0
+13140,"other krill",0
+13140,"other macrozooplankton",0
+13140,"salps",0
+13140,"shelf and coastal fishes",0
+13140,"small divers",0
+13140,"sperm whales",0
+13140,"squids",0
+13140,"toothfishes",0
+13505,"antarctic krill",0
+13505,"baleen whales",0
+13505,"bathypelagic fishes",0
+13505,"flying birds",0
+13505,"large divers",0
+13505,"leopard seals",0
+13505,"medium divers",0
+13505,"mesopelagic fishes",0
+13505,"mesozooplankton",0
+13505,"minke whales",0
+13505,"orca",0
+13505,"other krill",0
+13505,"other macrozooplankton",0
+13505,"salps",0
+13505,"shelf and coastal fishes",0
+13505,"small divers",0
+13505,"sperm whales",0
+13505,"squids",0
+13505,"toothfishes",0
+13870,"antarctic krill",0
+13870,"baleen whales",0
+13870,"bathypelagic fishes",0
+13870,"flying birds",0
+13870,"large divers",0
+13870,"leopard seals",0
+13870,"medium divers",0
+13870,"mesopelagic fishes",0
+13870,"mesozooplankton",0
+13870,"minke whales",0
+13870,"orca",0
+13870,"other krill",0
+13870,"other macrozooplankton",0
+13870,"salps",0
+13870,"shelf and coastal fishes",0
+13870,"small divers",0
+13870,"sperm whales",0
+13870,"squids",0
+13870,"toothfishes",0
+14235,"antarctic krill",0
+14235,"baleen whales",0
+14235,"bathypelagic fishes",0
+14235,"flying birds",0
+14235,"large divers",0
+14235,"leopard seals",0
+14235,"medium divers",0
+14235,"mesopelagic fishes",0
+14235,"mesozooplankton",0
+14235,"minke whales",0
+14235,"orca",0
+14235,"other krill",0
+14235,"other macrozooplankton",0
+14235,"salps",0
+14235,"shelf and coastal fishes",0
+14235,"small divers",0
+14235,"sperm whales",0
+14235,"squids",0
+14235,"toothfishes",0
+14600,"antarctic krill",0
+14600,"baleen whales",0
+14600,"bathypelagic fishes",0
+14600,"flying birds",0
+14600,"large divers",0
+14600,"leopard seals",0
+14600,"medium divers",0
+14600,"mesopelagic fishes",0
+14600,"mesozooplankton",0
+14600,"minke whales",0
+14600,"orca",0
+14600,"other krill",0
+14600,"other macrozooplankton",0
+14600,"salps",0
+14600,"shelf and coastal fishes",0
+14600,"small divers",0
+14600,"sperm whales",0
+14600,"squids",0
+14600,"toothfishes",0
+14965,"antarctic krill",0
+14965,"baleen whales",0
+14965,"bathypelagic fishes",0
+14965,"flying birds",0
+14965,"large divers",0
+14965,"leopard seals",0
+14965,"medium divers",0
+14965,"mesopelagic fishes",0
+14965,"mesozooplankton",0
+14965,"minke whales",0
+14965,"orca",0
+14965,"other krill",0
+14965,"other macrozooplankton",0
+14965,"salps",0
+14965,"shelf and coastal fishes",0
+14965,"small divers",0
+14965,"sperm whales",0
+14965,"squids",0
+14965,"toothfishes",0
+15330,"antarctic krill",0
+15330,"baleen whales",0
+15330,"bathypelagic fishes",0
+15330,"flying birds",0
+15330,"large divers",0
+15330,"leopard seals",0
+15330,"medium divers",0
+15330,"mesopelagic fishes",0
+15330,"mesozooplankton",0
+15330,"minke whales",0
+15330,"orca",0
+15330,"other krill",0
+15330,"other macrozooplankton",0
+15330,"salps",0
+15330,"shelf and coastal fishes",0
+15330,"small divers",0
+15330,"sperm whales",0
+15330,"squids",0
+15330,"toothfishes",0
+15695,"antarctic krill",0
+15695,"baleen whales",0
+15695,"bathypelagic fishes",0
+15695,"flying birds",0
+15695,"large divers",0
+15695,"leopard seals",0
+15695,"medium divers",0
+15695,"mesopelagic fishes",0
+15695,"mesozooplankton",0
+15695,"minke whales",0
+15695,"orca",0
+15695,"other krill",0
+15695,"other macrozooplankton",0
+15695,"salps",0
+15695,"shelf and coastal fishes",0
+15695,"small divers",0
+15695,"sperm whales",0
+15695,"squids",0
+15695,"toothfishes",0
+16060,"antarctic krill",0
+16060,"baleen whales",0
+16060,"bathypelagic fishes",0
+16060,"flying birds",0
+16060,"large divers",0
+16060,"leopard seals",0
+16060,"medium divers",0
+16060,"mesopelagic fishes",0
+16060,"mesozooplankton",0
+16060,"minke whales",0
+16060,"orca",0
+16060,"other krill",0
+16060,"other macrozooplankton",0
+16060,"salps",0
+16060,"shelf and coastal fishes",0
+16060,"small divers",0
+16060,"sperm whales",0
+16060,"squids",0
+16060,"toothfishes",0
+16425,"antarctic krill",0
+16425,"baleen whales",0
+16425,"bathypelagic fishes",0
+16425,"flying birds",0
+16425,"large divers",0
+16425,"leopard seals",0
+16425,"medium divers",0
+16425,"mesopelagic fishes",0
+16425,"mesozooplankton",0
+16425,"minke whales",0
+16425,"orca",0
+16425,"other krill",0
+16425,"other macrozooplankton",0
+16425,"salps",0
+16425,"shelf and coastal fishes",0
+16425,"small divers",0
+16425,"sperm whales",0
+16425,"squids",0
+16425,"toothfishes",0
+16790,"antarctic krill",0
+16790,"baleen whales",0
+16790,"bathypelagic fishes",0
+16790,"flying birds",0
+16790,"large divers",0
+16790,"leopard seals",0
+16790,"medium divers",0
+16790,"mesopelagic fishes",0
+16790,"mesozooplankton",0
+16790,"minke whales",0
+16790,"orca",0
+16790,"other krill",0
+16790,"other macrozooplankton",0
+16790,"salps",0
+16790,"shelf and coastal fishes",0
+16790,"small divers",0
+16790,"sperm whales",0
+16790,"squids",0
+16790,"toothfishes",0
+17155,"antarctic krill",0
+17155,"baleen whales",0
+17155,"bathypelagic fishes",0
+17155,"flying birds",0
+17155,"large divers",0
+17155,"leopard seals",0
+17155,"medium divers",0
+17155,"mesopelagic fishes",0
+17155,"mesozooplankton",0
+17155,"minke whales",0
+17155,"orca",0
+17155,"other krill",0
+17155,"other macrozooplankton",0
+17155,"salps",0
+17155,"shelf and coastal fishes",0
+17155,"small divers",0
+17155,"sperm whales",0
+17155,"squids",0
+17155,"toothfishes",0
+17520,"antarctic krill",0
+17520,"baleen whales",0
+17520,"bathypelagic fishes",0
+17520,"flying birds",0
+17520,"large divers",0
+17520,"leopard seals",0
+17520,"medium divers",0
+17520,"mesopelagic fishes",0
+17520,"mesozooplankton",0
+17520,"minke whales",0
+17520,"orca",0
+17520,"other krill",0
+17520,"other macrozooplankton",0
+17520,"salps",0
+17520,"shelf and coastal fishes",0
+17520,"small divers",0
+17520,"sperm whales",0
+17520,"squids",0
+17520,"toothfishes",0
+17885,"antarctic krill",0
+17885,"baleen whales",0
+17885,"bathypelagic fishes",0
+17885,"flying birds",0
+17885,"large divers",0
+17885,"leopard seals",0
+17885,"medium divers",0
+17885,"mesopelagic fishes",0
+17885,"mesozooplankton",0
+17885,"minke whales",0
+17885,"orca",0
+17885,"other krill",0
+17885,"other macrozooplankton",0
+17885,"salps",0
+17885,"shelf and coastal fishes",0
+17885,"small divers",0
+17885,"sperm whales",0
+17885,"squids",0
+17885,"toothfishes",0
+18250,"antarctic krill",0
+18250,"baleen whales",0
+18250,"bathypelagic fishes",0
+18250,"flying birds",0
+18250,"large divers",0
+18250,"leopard seals",0
+18250,"medium divers",0
+18250,"mesopelagic fishes",0
+18250,"mesozooplankton",0
+18250,"minke whales",0
+18250,"orca",0
+18250,"other krill",0
+18250,"other macrozooplankton",0
+18250,"salps",0
+18250,"shelf and coastal fishes",0
+18250,"small divers",0
+18250,"sperm whales",0
+18250,"squids",0
+18250,"toothfishes",0
+18615,"antarctic krill",0
+18615,"baleen whales",0
+18615,"bathypelagic fishes",0
+18615,"flying birds",0
+18615,"large divers",0
+18615,"leopard seals",0
+18615,"medium divers",0
+18615,"mesopelagic fishes",0
+18615,"mesozooplankton",0
+18615,"minke whales",0
+18615,"orca",0
+18615,"other krill",0
+18615,"other macrozooplankton",0
+18615,"salps",0
+18615,"shelf and coastal fishes",0
+18615,"small divers",0
+18615,"sperm whales",0
+18615,"squids",0
+18615,"toothfishes",0
+18980,"antarctic krill",0
+18980,"baleen whales",0
+18980,"bathypelagic fishes",0
+18980,"flying birds",0
+18980,"large divers",0
+18980,"leopard seals",0
+18980,"medium divers",0
+18980,"mesopelagic fishes",0
+18980,"mesozooplankton",0
+18980,"minke whales",0
+18980,"orca",0
+18980,"other krill",0
+18980,"other macrozooplankton",0
+18980,"salps",0
+18980,"shelf and coastal fishes",0
+18980,"small divers",0
+18980,"sperm whales",0
+18980,"squids",0
+18980,"toothfishes",0
+19345,"antarctic krill",0
+19345,"baleen whales",0
+19345,"bathypelagic fishes",0
+19345,"flying birds",0
+19345,"large divers",0
+19345,"leopard seals",0
+19345,"medium divers",0
+19345,"mesopelagic fishes",0
+19345,"mesozooplankton",0
+19345,"minke whales",0
+19345,"orca",0
+19345,"other krill",0
+19345,"other macrozooplankton",0
+19345,"salps",0
+19345,"shelf and coastal fishes",0
+19345,"small divers",0
+19345,"sperm whales",0
+19345,"squids",0
+19345,"toothfishes",0
+19710,"antarctic krill",0
+19710,"baleen whales",0
+19710,"bathypelagic fishes",0
+19710,"flying birds",0
+19710,"large divers",0
+19710,"leopard seals",0
+19710,"medium divers",0
+19710,"mesopelagic fishes",0
+19710,"mesozooplankton",0
+19710,"minke whales",0
+19710,"orca",0
+19710,"other krill",0
+19710,"other macrozooplankton",0
+19710,"salps",0
+19710,"shelf and coastal fishes",0
+19710,"small divers",0
+19710,"sperm whales",0
+19710,"squids",0
+19710,"toothfishes",0
+20075,"antarctic krill",0
+20075,"baleen whales",0
+20075,"bathypelagic fishes",0
+20075,"flying birds",0
+20075,"large divers",0
+20075,"leopard seals",0
+20075,"medium divers",0
+20075,"mesopelagic fishes",0
+20075,"mesozooplankton",0
+20075,"minke whales",0
+20075,"orca",0
+20075,"other krill",0
+20075,"other macrozooplankton",0
+20075,"salps",0
+20075,"shelf and coastal fishes",0
+20075,"small divers",0
+20075,"sperm whales",0
+20075,"squids",0
+20075,"toothfishes",0
+20440,"antarctic krill",0
+20440,"baleen whales",0
+20440,"bathypelagic fishes",0
+20440,"flying birds",0
+20440,"large divers",0
+20440,"leopard seals",0
+20440,"medium divers",0
+20440,"mesopelagic fishes",0
+20440,"mesozooplankton",0
+20440,"minke whales",0
+20440,"orca",0
+20440,"other krill",0
+20440,"other macrozooplankton",0
+20440,"salps",0
+20440,"shelf and coastal fishes",0
+20440,"small divers",0
+20440,"sperm whales",0
+20440,"squids",0
+20440,"toothfishes",0
+20805,"antarctic krill",0
+20805,"baleen whales",0
+20805,"bathypelagic fishes",0
+20805,"flying birds",0
+20805,"large divers",0
+20805,"leopard seals",0
+20805,"medium divers",0
+20805,"mesopelagic fishes",0
+20805,"mesozooplankton",0
+20805,"minke whales",0
+20805,"orca",0
+20805,"other krill",0
+20805,"other macrozooplankton",0
+20805,"salps",0
+20805,"shelf and coastal fishes",0
+20805,"small divers",0
+20805,"sperm whales",0
+20805,"squids",0
+20805,"toothfishes",0
+21170,"antarctic krill",0
+21170,"baleen whales",0
+21170,"bathypelagic fishes",0
+21170,"flying birds",0
+21170,"large divers",0
+21170,"leopard seals",0
+21170,"medium divers",0
+21170,"mesopelagic fishes",0
+21170,"mesozooplankton",0
+21170,"minke whales",0
+21170,"orca",0
+21170,"other krill",0
+21170,"other macrozooplankton",0
+21170,"salps",0
+21170,"shelf and coastal fishes",0
+21170,"small divers",0
+21170,"sperm whales",0
+21170,"squids",0
+21170,"toothfishes",0
+21535,"antarctic krill",0
+21535,"baleen whales",0
+21535,"bathypelagic fishes",0
+21535,"flying birds",0
+21535,"large divers",0
+21535,"leopard seals",0
+21535,"medium divers",0
+21535,"mesopelagic fishes",0
+21535,"mesozooplankton",0
+21535,"minke whales",0
+21535,"orca",0
+21535,"other krill",0
+21535,"other macrozooplankton",0
+21535,"salps",0
+21535,"shelf and coastal fishes",0
+21535,"small divers",0
+21535,"sperm whales",0
+21535,"squids",0
+21535,"toothfishes",0
+21900,"antarctic krill",0
+21900,"baleen whales",0
+21900,"bathypelagic fishes",0
+21900,"flying birds",0
+21900,"large divers",0
+21900,"leopard seals",0
+21900,"medium divers",0
+21900,"mesopelagic fishes",0
+21900,"mesozooplankton",0
+21900,"minke whales",0
+21900,"orca",0
+21900,"other krill",0
+21900,"other macrozooplankton",0
+21900,"salps",0
+21900,"shelf and coastal fishes",0
+21900,"small divers",0
+21900,"sperm whales",0
+21900,"squids",0
+21900,"toothfishes",0
+22265,"antarctic krill",0
+22265,"baleen whales",0
+22265,"bathypelagic fishes",0
+22265,"flying birds",0
+22265,"large divers",0
+22265,"leopard seals",0
+22265,"medium divers",0
+22265,"mesopelagic fishes",0
+22265,"mesozooplankton",0
+22265,"minke whales",0
+22265,"orca",0
+22265,"other krill",0
+22265,"other macrozooplankton",0
+22265,"salps",0
+22265,"shelf and coastal fishes",0
+22265,"small divers",0
+22265,"sperm whales",0
+22265,"squids",0
+22265,"toothfishes",0
+22630,"antarctic krill",0
+22630,"baleen whales",0
+22630,"bathypelagic fishes",0
+22630,"flying birds",0
+22630,"large divers",0
+22630,"leopard seals",0
+22630,"medium divers",0
+22630,"mesopelagic fishes",0
+22630,"mesozooplankton",0
+22630,"minke whales",0
+22630,"orca",0
+22630,"other krill",0
+22630,"other macrozooplankton",0
+22630,"salps",0
+22630,"shelf and coastal fishes",0
+22630,"small divers",0
+22630,"sperm whales",0
+22630,"squids",0
+22630,"toothfishes",0
+22995,"antarctic krill",0
+22995,"baleen whales",0
+22995,"bathypelagic fishes",0
+22995,"flying birds",0
+22995,"large divers",0
+22995,"leopard seals",0
+22995,"medium divers",0
+22995,"mesopelagic fishes",0
+22995,"mesozooplankton",0
+22995,"minke whales",0
+22995,"orca",0
+22995,"other krill",0
+22995,"other macrozooplankton",0
+22995,"salps",0
+22995,"shelf and coastal fishes",0
+22995,"small divers",0
+22995,"sperm whales",0
+22995,"squids",0
+22995,"toothfishes",0
+23360,"antarctic krill",0
+23360,"baleen whales",0
+23360,"bathypelagic fishes",0
+23360,"flying birds",0
+23360,"large divers",0
+23360,"leopard seals",0
+23360,"medium divers",0
+23360,"mesopelagic fishes",0
+23360,"mesozooplankton",0
+23360,"minke whales",0
+23360,"orca",0
+23360,"other krill",0
+23360,"other macrozooplankton",0
+23360,"salps",0
+23360,"shelf and coastal fishes",0
+23360,"small divers",0
+23360,"sperm whales",0
+23360,"squids",0
+23360,"toothfishes",0
+23725,"antarctic krill",0
+23725,"baleen whales",0
+23725,"bathypelagic fishes",0
+23725,"flying birds",0
+23725,"large divers",0
+23725,"leopard seals",0
+23725,"medium divers",0
+23725,"mesopelagic fishes",0
+23725,"mesozooplankton",0
+23725,"minke whales",0
+23725,"orca",0
+23725,"other krill",0
+23725,"other macrozooplankton",0
+23725,"salps",0
+23725,"shelf and coastal fishes",0
+23725,"small divers",0
+23725,"sperm whales",0
+23725,"squids",0
+23725,"toothfishes",0
+24090,"antarctic krill",0
+24090,"baleen whales",0
+24090,"bathypelagic fishes",0
+24090,"flying birds",0
+24090,"large divers",0
+24090,"leopard seals",0
+24090,"medium divers",0
+24090,"mesopelagic fishes",0
+24090,"mesozooplankton",0
+24090,"minke whales",0
+24090,"orca",0
+24090,"other krill",0
+24090,"other macrozooplankton",0
+24090,"salps",0
+24090,"shelf and coastal fishes",0
+24090,"small divers",0
+24090,"sperm whales",0
+24090,"squids",0
+24090,"toothfishes",0
+24455,"antarctic krill",0
+24455,"baleen whales",0
+24455,"bathypelagic fishes",0
+24455,"flying birds",0
+24455,"large divers",0
+24455,"leopard seals",0
+24455,"medium divers",0
+24455,"mesopelagic fishes",0
+24455,"mesozooplankton",0
+24455,"minke whales",0
+24455,"orca",0
+24455,"other krill",0
+24455,"other macrozooplankton",0
+24455,"salps",0
+24455,"shelf and coastal fishes",0
+24455,"small divers",0
+24455,"sperm whales",0
+24455,"squids",0
+24455,"toothfishes",0
+24820,"antarctic krill",0
+24820,"baleen whales",0
+24820,"bathypelagic fishes",0
+24820,"flying birds",0
+24820,"large divers",0
+24820,"leopard seals",0
+24820,"medium divers",0
+24820,"mesopelagic fishes",0
+24820,"mesozooplankton",0
+24820,"minke whales",0
+24820,"orca",0
+24820,"other krill",0
+24820,"other macrozooplankton",0
+24820,"salps",0
+24820,"shelf and coastal fishes",0
+24820,"small divers",0
+24820,"sperm whales",0
+24820,"squids",0
+24820,"toothfishes",0
+25185,"antarctic krill",0
+25185,"baleen whales",0
+25185,"bathypelagic fishes",0
+25185,"flying birds",0
+25185,"large divers",0
+25185,"leopard seals",0
+25185,"medium divers",0
+25185,"mesopelagic fishes",0
+25185,"mesozooplankton",0
+25185,"minke whales",0
+25185,"orca",0
+25185,"other krill",0
+25185,"other macrozooplankton",0
+25185,"salps",0
+25185,"shelf and coastal fishes",0
+25185,"small divers",0
+25185,"sperm whales",0
+25185,"squids",0
+25185,"toothfishes",0
+25550,"antarctic krill",0
+25550,"baleen whales",0
+25550,"bathypelagic fishes",0
+25550,"flying birds",0
+25550,"large divers",0
+25550,"leopard seals",0
+25550,"medium divers",0
+25550,"mesopelagic fishes",0
+25550,"mesozooplankton",0
+25550,"minke whales",0
+25550,"orca",0
+25550,"other krill",0
+25550,"other macrozooplankton",0
+25550,"salps",0
+25550,"shelf and coastal fishes",0
+25550,"small divers",0
+25550,"sperm whales",0
+25550,"squids",0
+25550,"toothfishes",0
+25915,"antarctic krill",0
+25915,"baleen whales",0
+25915,"bathypelagic fishes",0
+25915,"flying birds",0
+25915,"large divers",0
+25915,"leopard seals",0
+25915,"medium divers",0
+25915,"mesopelagic fishes",0
+25915,"mesozooplankton",0
+25915,"minke whales",0
+25915,"orca",0
+25915,"other krill",0
+25915,"other macrozooplankton",0
+25915,"salps",0
+25915,"shelf and coastal fishes",0
+25915,"small divers",0
+25915,"sperm whales",0
+25915,"squids",0
+25915,"toothfishes",0
+26280,"antarctic krill",0
+26280,"baleen whales",0
+26280,"bathypelagic fishes",0
+26280,"flying birds",0
+26280,"large divers",0
+26280,"leopard seals",0
+26280,"medium divers",0
+26280,"mesopelagic fishes",0
+26280,"mesozooplankton",0
+26280,"minke whales",0
+26280,"orca",0
+26280,"other krill",0
+26280,"other macrozooplankton",0
+26280,"salps",0
+26280,"shelf and coastal fishes",0
+26280,"small divers",0
+26280,"sperm whales",0
+26280,"squids",0
+26280,"toothfishes",0
+26645,"antarctic krill",0
+26645,"baleen whales",0
+26645,"bathypelagic fishes",0
+26645,"flying birds",0
+26645,"large divers",0
+26645,"leopard seals",0
+26645,"medium divers",0
+26645,"mesopelagic fishes",0
+26645,"mesozooplankton",0
+26645,"minke whales",0
+26645,"orca",0
+26645,"other krill",0
+26645,"other macrozooplankton",0
+26645,"salps",0
+26645,"shelf and coastal fishes",0
+26645,"small divers",0
+26645,"sperm whales",0
+26645,"squids",0
+26645,"toothfishes",0
+27010,"antarctic krill",0
+27010,"baleen whales",0
+27010,"bathypelagic fishes",0
+27010,"flying birds",0
+27010,"large divers",0
+27010,"leopard seals",0
+27010,"medium divers",0
+27010,"mesopelagic fishes",0
+27010,"mesozooplankton",0
+27010,"minke whales",0
+27010,"orca",0
+27010,"other krill",0
+27010,"other macrozooplankton",0
+27010,"salps",0
+27010,"shelf and coastal fishes",0
+27010,"small divers",0
+27010,"sperm whales",0
+27010,"squids",0
+27010,"toothfishes",0
+27375,"antarctic krill",0
+27375,"baleen whales",0
+27375,"bathypelagic fishes",0
+27375,"flying birds",0
+27375,"large divers",0
+27375,"leopard seals",0
+27375,"medium divers",0
+27375,"mesopelagic fishes",0
+27375,"mesozooplankton",0
+27375,"minke whales",0
+27375,"orca",0
+27375,"other krill",0
+27375,"other macrozooplankton",0
+27375,"salps",0
+27375,"shelf and coastal fishes",0
+27375,"small divers",0
+27375,"sperm whales",0
+27375,"squids",0
+27375,"toothfishes",0
+27740,"antarctic krill",0
+27740,"baleen whales",0
+27740,"bathypelagic fishes",0
+27740,"flying birds",0
+27740,"large divers",0
+27740,"leopard seals",0
+27740,"medium divers",0
+27740,"mesopelagic fishes",0
+27740,"mesozooplankton",0
+27740,"minke whales",0
+27740,"orca",0
+27740,"other krill",0
+27740,"other macrozooplankton",0
+27740,"salps",0
+27740,"shelf and coastal fishes",0
+27740,"small divers",0
+27740,"sperm whales",0
+27740,"squids",0
+27740,"toothfishes",0
+28105,"antarctic krill",0
+28105,"baleen whales",0
+28105,"bathypelagic fishes",0
+28105,"flying birds",0
+28105,"large divers",0
+28105,"leopard seals",0
+28105,"medium divers",0
+28105,"mesopelagic fishes",0
+28105,"mesozooplankton",0
+28105,"minke whales",0
+28105,"orca",0
+28105,"other krill",0
+28105,"other macrozooplankton",0
+28105,"salps",0
+28105,"shelf and coastal fishes",0
+28105,"small divers",0
+28105,"sperm whales",0
+28105,"squids",0
+28105,"toothfishes",0
+28470,"antarctic krill",0
+28470,"baleen whales",0
+28470,"bathypelagic fishes",0
+28470,"flying birds",0
+28470,"large divers",0
+28470,"leopard seals",0
+28470,"medium divers",0
+28470,"mesopelagic fishes",0
+28470,"mesozooplankton",0
+28470,"minke whales",0
+28470,"orca",0
+28470,"other krill",0
+28470,"other macrozooplankton",0
+28470,"salps",0
+28470,"shelf and coastal fishes",0
+28470,"small divers",0
+28470,"sperm whales",0
+28470,"squids",0
+28470,"toothfishes",0
+28835,"antarctic krill",0
+28835,"baleen whales",0
+28835,"bathypelagic fishes",0
+28835,"flying birds",0
+28835,"large divers",0
+28835,"leopard seals",0
+28835,"medium divers",0
+28835,"mesopelagic fishes",0
+28835,"mesozooplankton",0
+28835,"minke whales",0
+28835,"orca",0
+28835,"other krill",0
+28835,"other macrozooplankton",0
+28835,"salps",0
+28835,"shelf and coastal fishes",0
+28835,"small divers",0
+28835,"sperm whales",0
+28835,"squids",0
+28835,"toothfishes",0
+29200,"antarctic krill",0
+29200,"baleen whales",0
+29200,"bathypelagic fishes",0
+29200,"flying birds",0
+29200,"large divers",0
+29200,"leopard seals",0
+29200,"medium divers",0
+29200,"mesopelagic fishes",0
+29200,"mesozooplankton",0
+29200,"minke whales",0
+29200,"orca",0
+29200,"other krill",0
+29200,"other macrozooplankton",0
+29200,"salps",0
+29200,"shelf and coastal fishes",0
+29200,"small divers",0
+29200,"sperm whales",0
+29200,"squids",0
+29200,"toothfishes",0
+29565,"antarctic krill",0
+29565,"baleen whales",0
+29565,"bathypelagic fishes",0
+29565,"flying birds",0
+29565,"large divers",0
+29565,"leopard seals",0
+29565,"medium divers",0
+29565,"mesopelagic fishes",0
+29565,"mesozooplankton",0
+29565,"minke whales",0
+29565,"orca",0
+29565,"other krill",0
+29565,"other macrozooplankton",0
+29565,"salps",0
+29565,"shelf and coastal fishes",0
+29565,"small divers",0
+29565,"sperm whales",0
+29565,"squids",0
+29565,"toothfishes",0
+29930,"antarctic krill",0
+29930,"baleen whales",0
+29930,"bathypelagic fishes",0
+29930,"flying birds",0
+29930,"large divers",0
+29930,"leopard seals",0
+29930,"medium divers",0
+29930,"mesopelagic fishes",0
+29930,"mesozooplankton",0
+29930,"minke whales",0
+29930,"orca",0
+29930,"other krill",0
+29930,"other macrozooplankton",0
+29930,"salps",0
+29930,"shelf and coastal fishes",0
+29930,"small divers",0
+29930,"sperm whales",0
+29930,"squids",0
+29930,"toothfishes",0
+30295,"antarctic krill",0
+30295,"baleen whales",0
+30295,"bathypelagic fishes",0
+30295,"flying birds",0
+30295,"large divers",0
+30295,"leopard seals",0
+30295,"medium divers",0
+30295,"mesopelagic fishes",0
+30295,"mesozooplankton",0
+30295,"minke whales",0
+30295,"orca",0
+30295,"other krill",0
+30295,"other macrozooplankton",0
+30295,"salps",0
+30295,"shelf and coastal fishes",0
+30295,"small divers",0
+30295,"sperm whales",0
+30295,"squids",0
+30295,"toothfishes",0
+30660,"antarctic krill",0
+30660,"baleen whales",0
+30660,"bathypelagic fishes",0
+30660,"flying birds",0
+30660,"large divers",0
+30660,"leopard seals",0
+30660,"medium divers",0
+30660,"mesopelagic fishes",0
+30660,"mesozooplankton",0
+30660,"minke whales",0
+30660,"orca",0
+30660,"other krill",0
+30660,"other macrozooplankton",0
+30660,"salps",0
+30660,"shelf and coastal fishes",0
+30660,"small divers",0
+30660,"sperm whales",0
+30660,"squids",0
+30660,"toothfishes",0
+31025,"antarctic krill",0
+31025,"baleen whales",0
+31025,"bathypelagic fishes",0
+31025,"flying birds",0
+31025,"large divers",0
+31025,"leopard seals",0
+31025,"medium divers",0
+31025,"mesopelagic fishes",0
+31025,"mesozooplankton",0
+31025,"minke whales",0
+31025,"orca",0
+31025,"other krill",0
+31025,"other macrozooplankton",0
+31025,"salps",0
+31025,"shelf and coastal fishes",0
+31025,"small divers",0
+31025,"sperm whales",0
+31025,"squids",0
+31025,"toothfishes",0
+31390,"antarctic krill",0
+31390,"baleen whales",0
+31390,"bathypelagic fishes",0
+31390,"flying birds",0
+31390,"large divers",0
+31390,"leopard seals",0
+31390,"medium divers",0
+31390,"mesopelagic fishes",0
+31390,"mesozooplankton",0
+31390,"minke whales",0
+31390,"orca",0
+31390,"other krill",0
+31390,"other macrozooplankton",0
+31390,"salps",0
+31390,"shelf and coastal fishes",0
+31390,"small divers",0
+31390,"sperm whales",0
+31390,"squids",0
+31390,"toothfishes",0
+31755,"antarctic krill",0
+31755,"baleen whales",0
+31755,"bathypelagic fishes",0
+31755,"flying birds",0
+31755,"large divers",0
+31755,"leopard seals",0
+31755,"medium divers",0
+31755,"mesopelagic fishes",0
+31755,"mesozooplankton",0
+31755,"minke whales",0
+31755,"orca",0
+31755,"other krill",0
+31755,"other macrozooplankton",0
+31755,"salps",0
+31755,"shelf and coastal fishes",0
+31755,"small divers",0
+31755,"sperm whales",0
+31755,"squids",0
+31755,"toothfishes",0
+32120,"antarctic krill",0
+32120,"baleen whales",0
+32120,"bathypelagic fishes",0
+32120,"flying birds",0
+32120,"large divers",0
+32120,"leopard seals",0
+32120,"medium divers",0
+32120,"mesopelagic fishes",0
+32120,"mesozooplankton",0
+32120,"minke whales",0
+32120,"orca",0
+32120,"other krill",0
+32120,"other macrozooplankton",0
+32120,"salps",0
+32120,"shelf and coastal fishes",0
+32120,"small divers",0
+32120,"sperm whales",0
+32120,"squids",0
+32120,"toothfishes",0
+32485,"antarctic krill",0
+32485,"baleen whales",0.168538466
+32485,"bathypelagic fishes",0
+32485,"flying birds",0
+32485,"large divers",0
+32485,"leopard seals",0
+32485,"medium divers",0
+32485,"mesopelagic fishes",0
+32485,"mesozooplankton",0
+32485,"minke whales",0
+32485,"orca",0
+32485,"other krill",0
+32485,"other macrozooplankton",0
+32485,"salps",0
+32485,"shelf and coastal fishes",0
+32485,"small divers",0
+32485,"sperm whales",0
+32485,"squids",0
+32485,"toothfishes",0
+32850,"antarctic krill",0
+32850,"baleen whales",0.791453644
+32850,"bathypelagic fishes",0
+32850,"flying birds",0
+32850,"large divers",0
+32850,"leopard seals",0
+32850,"medium divers",0
+32850,"mesopelagic fishes",0
+32850,"mesozooplankton",0
+32850,"minke whales",0
+32850,"orca",0
+32850,"other krill",0
+32850,"other macrozooplankton",0
+32850,"salps",0
+32850,"shelf and coastal fishes",0
+32850,"small divers",0
+32850,"sperm whales",0
+32850,"squids",0
+32850,"toothfishes",0
+33215,"antarctic krill",0
+33215,"baleen whales",0.552852794
+33215,"bathypelagic fishes",0
+33215,"flying birds",0
+33215,"large divers",0
+33215,"leopard seals",0
+33215,"medium divers",0
+33215,"mesopelagic fishes",0
+33215,"mesozooplankton",0
+33215,"minke whales",0
+33215,"orca",0
+33215,"other krill",0
+33215,"other macrozooplankton",0
+33215,"salps",0
+33215,"shelf and coastal fishes",0
+33215,"small divers",0
+33215,"sperm whales",0.007064715
+33215,"squids",0
+33215,"toothfishes",0
+33580,"antarctic krill",0
+33580,"baleen whales",1
+33580,"bathypelagic fishes",0
+33580,"flying birds",0
+33580,"large divers",0
+33580,"leopard seals",0
+33580,"medium divers",0
+33580,"mesopelagic fishes",0
+33580,"mesozooplankton",0
+33580,"minke whales",0
+33580,"orca",0
+33580,"other krill",0
+33580,"other macrozooplankton",0
+33580,"salps",0
+33580,"shelf and coastal fishes",0
+33580,"small divers",0
+33580,"sperm whales",0.146334626
+33580,"squids",0
+33580,"toothfishes",0
+33945,"antarctic krill",0
+33945,"baleen whales",0.656832819
+33945,"bathypelagic fishes",0
+33945,"flying birds",0
+33945,"large divers",0
+33945,"leopard seals",0
+33945,"medium divers",0
+33945,"mesopelagic fishes",0
+33945,"mesozooplankton",0
+33945,"minke whales",0
+33945,"orca",0
+33945,"other krill",0
+33945,"other macrozooplankton",0
+33945,"salps",0
+33945,"shelf and coastal fishes",0
+33945,"small divers",0
+33945,"sperm whales",0.239262861
+33945,"squids",0
+33945,"toothfishes",0
+34310,"antarctic krill",0
+34310,"baleen whales",0.512635831
+34310,"bathypelagic fishes",0
+34310,"flying birds",0
+34310,"large divers",0
+34310,"leopard seals",0
+34310,"medium divers",0
+34310,"mesopelagic fishes",0
+34310,"mesozooplankton",0
+34310,"minke whales",0
+34310,"orca",0
+34310,"other krill",0
+34310,"other macrozooplankton",0
+34310,"salps",0
+34310,"shelf and coastal fishes",0
+34310,"small divers",0
+34310,"sperm whales",0.164531468
+34310,"squids",0
+34310,"toothfishes",0
+34675,"antarctic krill",0
+34675,"baleen whales",0.449130012
+34675,"bathypelagic fishes",0
+34675,"flying birds",0
+34675,"large divers",0
+34675,"leopard seals",0
+34675,"medium divers",0
+34675,"mesopelagic fishes",0
+34675,"mesozooplankton",0
+34675,"minke whales",0
+34675,"orca",0
+34675,"other krill",0
+34675,"other macrozooplankton",0
+34675,"salps",0
+34675,"shelf and coastal fishes",0
+34675,"small divers",0
+34675,"sperm whales",0.163102075
+34675,"squids",0
+34675,"toothfishes",0
+35040,"antarctic krill",0
+35040,"baleen whales",0.46282544
+35040,"bathypelagic fishes",0
+35040,"flying birds",0
+35040,"large divers",0
+35040,"leopard seals",0
+35040,"medium divers",0
+35040,"mesopelagic fishes",0
+35040,"mesozooplankton",0
+35040,"minke whales",0
+35040,"orca",0
+35040,"other krill",0
+35040,"other macrozooplankton",0
+35040,"salps",0
+35040,"shelf and coastal fishes",0
+35040,"small divers",0
+35040,"sperm whales",0.158975176
+35040,"squids",0
+35040,"toothfishes",0
+35405,"antarctic krill",0
+35405,"baleen whales",0.222611804
+35405,"bathypelagic fishes",0
+35405,"flying birds",0
+35405,"large divers",0
+35405,"leopard seals",0
+35405,"medium divers",0
+35405,"mesopelagic fishes",0
+35405,"mesozooplankton",0
+35405,"minke whales",0
+35405,"orca",0
+35405,"other krill",0
+35405,"other macrozooplankton",0
+35405,"salps",0
+35405,"shelf and coastal fishes",0
+35405,"small divers",0
+35405,"sperm whales",0.094914991
+35405,"squids",0
+35405,"toothfishes",0
+35770,"antarctic krill",0
+35770,"baleen whales",0.444978698
+35770,"bathypelagic fishes",0
+35770,"flying birds",0
+35770,"large divers",0
+35770,"leopard seals",0
+35770,"medium divers",0
+35770,"mesopelagic fishes",0
+35770,"mesozooplankton",0
+35770,"minke whales",0
+35770,"orca",0
+35770,"other krill",0
+35770,"other macrozooplankton",0
+35770,"salps",0
+35770,"shelf and coastal fishes",0
+35770,"small divers",0
+35770,"sperm whales",0.575069755
+35770,"squids",0
+35770,"toothfishes",0
+36135,"antarctic krill",0
+36135,"baleen whales",0.223718305
+36135,"bathypelagic fishes",0
+36135,"flying birds",0
+36135,"large divers",0
+36135,"leopard seals",0
+36135,"medium divers",0
+36135,"mesopelagic fishes",0
+36135,"mesozooplankton",0
+36135,"minke whales",0
+36135,"orca",0
+36135,"other krill",0
+36135,"other macrozooplankton",0
+36135,"salps",0
+36135,"shelf and coastal fishes",0
+36135,"small divers",0
+36135,"sperm whales",0.425915134
+36135,"squids",0
+36135,"toothfishes",0
+36500,"antarctic krill",0
+36500,"baleen whales",0
+36500,"bathypelagic fishes",0
+36500,"flying birds",0
+36500,"large divers",0
+36500,"leopard seals",0
+36500,"medium divers",0
+36500,"mesopelagic fishes",0
+36500,"mesozooplankton",0
+36500,"minke whales",0
+36500,"orca",0
+36500,"other krill",0
+36500,"other macrozooplankton",0
+36500,"salps",0
+36500,"shelf and coastal fishes",0
+36500,"small divers",0
+36500,"sperm whales",0
+36500,"squids",0
+36500,"toothfishes",0
+36865,"antarctic krill",0
+36865,"baleen whales",0
+36865,"bathypelagic fishes",0
+36865,"flying birds",0
+36865,"large divers",0
+36865,"leopard seals",0
+36865,"medium divers",0
+36865,"mesopelagic fishes",0
+36865,"mesozooplankton",0
+36865,"minke whales",0
+36865,"orca",0
+36865,"other krill",0
+36865,"other macrozooplankton",0
+36865,"salps",0
+36865,"shelf and coastal fishes",0
+36865,"small divers",0
+36865,"sperm whales",0
+36865,"squids",0
+36865,"toothfishes",0
+37230,"antarctic krill",0
+37230,"baleen whales",0
+37230,"bathypelagic fishes",0
+37230,"flying birds",0
+37230,"large divers",0
+37230,"leopard seals",0
+37230,"medium divers",0
+37230,"mesopelagic fishes",0
+37230,"mesozooplankton",0
+37230,"minke whales",0
+37230,"orca",0
+37230,"other krill",0
+37230,"other macrozooplankton",0
+37230,"salps",0
+37230,"shelf and coastal fishes",0
+37230,"small divers",0
+37230,"sperm whales",0
+37230,"squids",0
+37230,"toothfishes",0
+37595,"antarctic krill",0
+37595,"baleen whales",0
+37595,"bathypelagic fishes",0
+37595,"flying birds",0
+37595,"large divers",0
+37595,"leopard seals",0
+37595,"medium divers",0
+37595,"mesopelagic fishes",0
+37595,"mesozooplankton",0
+37595,"minke whales",0
+37595,"orca",0
+37595,"other krill",0
+37595,"other macrozooplankton",0
+37595,"salps",0
+37595,"shelf and coastal fishes",0
+37595,"small divers",0
+37595,"sperm whales",0
+37595,"squids",0
+37595,"toothfishes",0
+37960,"antarctic krill",0
+37960,"baleen whales",0
+37960,"bathypelagic fishes",0
+37960,"flying birds",0
+37960,"large divers",0
+37960,"leopard seals",0
+37960,"medium divers",0
+37960,"mesopelagic fishes",0
+37960,"mesozooplankton",0
+37960,"minke whales",0
+37960,"orca",0
+37960,"other krill",0
+37960,"other macrozooplankton",0
+37960,"salps",0
+37960,"shelf and coastal fishes",0
+37960,"small divers",0
+37960,"sperm whales",0
+37960,"squids",0
+37960,"toothfishes",0
+38325,"antarctic krill",0
+38325,"baleen whales",0.024378751
+38325,"bathypelagic fishes",0
+38325,"flying birds",0
+38325,"large divers",0
+38325,"leopard seals",0
+38325,"medium divers",0
+38325,"mesopelagic fishes",0
+38325,"mesozooplankton",0
+38325,"minke whales",0
+38325,"orca",0
+38325,"other krill",0
+38325,"other macrozooplankton",0
+38325,"salps",0
+38325,"shelf and coastal fishes",0
+38325,"small divers",0
+38325,"sperm whales",0.014757279
+38325,"squids",0
+38325,"toothfishes",0
+38690,"antarctic krill",0
+38690,"baleen whales",0.341213859
+38690,"bathypelagic fishes",0
+38690,"flying birds",0
+38690,"large divers",0
+38690,"leopard seals",0
+38690,"medium divers",0
+38690,"mesopelagic fishes",0
+38690,"mesozooplankton",0
+38690,"minke whales",0
+38690,"orca",0
+38690,"other krill",0
+38690,"other macrozooplankton",0
+38690,"salps",0
+38690,"shelf and coastal fishes",0
+38690,"small divers",0
+38690,"sperm whales",0.563571249
+38690,"squids",0
+38690,"toothfishes",0
+39055,"antarctic krill",0
+39055,"baleen whales",0.577311039
+39055,"bathypelagic fishes",0
+39055,"flying birds",0
+39055,"large divers",0
+39055,"leopard seals",0
+39055,"medium divers",0
+39055,"mesopelagic fishes",0
+39055,"mesozooplankton",0
+39055,"minke whales",0
+39055,"orca",0
+39055,"other krill",0
+39055,"other macrozooplankton",0
+39055,"salps",0
+39055,"shelf and coastal fishes",0
+39055,"small divers",0
+39055,"sperm whales",1
+39055,"squids",0
+39055,"toothfishes",0
+39420,"antarctic krill",0
+39420,"baleen whales",0.031533882
+39420,"bathypelagic fishes",0
+39420,"flying birds",0
+39420,"large divers",0
+39420,"leopard seals",0
+39420,"medium divers",0
+39420,"mesopelagic fishes",0
+39420,"mesozooplankton",0
+39420,"minke whales",0
+39420,"orca",0
+39420,"other krill",0
+39420,"other macrozooplankton",0
+39420,"salps",0
+39420,"shelf and coastal fishes",0
+39420,"small divers",0
+39420,"sperm whales",0.24381717
+39420,"squids",0
+39420,"toothfishes",0
+39785,"antarctic krill",0
+39785,"baleen whales",0.181552636
+39785,"bathypelagic fishes",0
+39785,"flying birds",0
+39785,"large divers",0
+39785,"leopard seals",0
+39785,"medium divers",0
+39785,"mesopelagic fishes",0
+39785,"mesozooplankton",0
+39785,"minke whales",0
+39785,"orca",0
+39785,"other krill",0
+39785,"other macrozooplankton",0
+39785,"salps",0
+39785,"shelf and coastal fishes",0.034370645
+39785,"small divers",0
+39785,"sperm whales",0.30445022
+39785,"squids",0
+39785,"toothfishes",0
+40150,"antarctic krill",0
+40150,"baleen whales",0.219381122
+40150,"bathypelagic fishes",0
+40150,"flying birds",0
+40150,"large divers",0
+40150,"leopard seals",0
+40150,"medium divers",0
+40150,"mesopelagic fishes",0
+40150,"mesozooplankton",0
+40150,"minke whales",0
+40150,"orca",0
+40150,"other krill",0
+40150,"other macrozooplankton",0
+40150,"salps",0
+40150,"shelf and coastal fishes",0.051569407
+40150,"small divers",0
+40150,"sperm whales",0.783000257
+40150,"squids",0
+40150,"toothfishes",0
+40515,"antarctic krill",0
+40515,"baleen whales",0.386551053
+40515,"bathypelagic fishes",0
+40515,"flying birds",0
+40515,"large divers",0
+40515,"leopard seals",0
+40515,"medium divers",0
+40515,"mesopelagic fishes",0
+40515,"mesozooplankton",0
+40515,"minke whales",0
+40515,"orca",0
+40515,"other krill",0
+40515,"other macrozooplankton",0
+40515,"salps",0
+40515,"shelf and coastal fishes",0.410124971
+40515,"small divers",0
+40515,"sperm whales",0.215843217
+40515,"squids",0
+40515,"toothfishes",0
+40880,"antarctic krill",0
+40880,"baleen whales",0.329532963
+40880,"bathypelagic fishes",0
+40880,"flying birds",0
+40880,"large divers",0
+40880,"leopard seals",0
+40880,"medium divers",0
+40880,"mesopelagic fishes",0
+40880,"mesozooplankton",0
+40880,"minke whales",0
+40880,"orca",0
+40880,"other krill",0
+40880,"other macrozooplankton",0
+40880,"salps",0
+40880,"shelf and coastal fishes",0.058815548
+40880,"small divers",0
+40880,"sperm whales",0.185358974
+40880,"squids",0
+40880,"toothfishes",0
+41245,"antarctic krill",0
+41245,"baleen whales",0.256309948
+41245,"bathypelagic fishes",0
+41245,"flying birds",0
+41245,"large divers",0
+41245,"leopard seals",0
+41245,"medium divers",0
+41245,"mesopelagic fishes",0
+41245,"mesozooplankton",0
+41245,"minke whales",0
+41245,"orca",0
+41245,"other krill",0
+41245,"other macrozooplankton",0
+41245,"salps",0
+41245,"shelf and coastal fishes",0.043985251
+41245,"small divers",0
+41245,"sperm whales",0.444271022
+41245,"squids",0
+41245,"toothfishes",0
+41610,"antarctic krill",0
+41610,"baleen whales",0.16869128
+41610,"bathypelagic fishes",0
+41610,"flying birds",0
+41610,"large divers",0
+41610,"leopard seals",0
+41610,"medium divers",0
+41610,"mesopelagic fishes",0
+41610,"mesozooplankton",0
+41610,"minke whales",0
+41610,"orca",0
+41610,"other krill",0
+41610,"other macrozooplankton",0
+41610,"salps",0
+41610,"shelf and coastal fishes",0.158006521
+41610,"small divers",0
+41610,"sperm whales",0.313132657
+41610,"squids",0
+41610,"toothfishes",0
+41975,"antarctic krill",0
+41975,"baleen whales",0.292049377
+41975,"bathypelagic fishes",0
+41975,"flying birds",0
+41975,"large divers",0
+41975,"leopard seals",0
+41975,"medium divers",0
+41975,"mesopelagic fishes",0
+41975,"mesozooplankton",0
+41975,"minke whales",0
+41975,"orca",0
+41975,"other krill",0
+41975,"other macrozooplankton",0
+41975,"salps",0
+41975,"shelf and coastal fishes",0.22656444
+41975,"small divers",0
+41975,"sperm whales",0.432093949
+41975,"squids",0
+41975,"toothfishes",0
+42340,"antarctic krill",0
+42340,"baleen whales",0.045137428
+42340,"bathypelagic fishes",0
+42340,"flying birds",0
+42340,"large divers",0
+42340,"leopard seals",0
+42340,"medium divers",0
+42340,"mesopelagic fishes",0
+42340,"mesozooplankton",0
+42340,"minke whales",0
+42340,"orca",0
+42340,"other krill",0
+42340,"other macrozooplankton",0
+42340,"salps",0
+42340,"shelf and coastal fishes",0.133964225
+42340,"small divers",0
+42340,"sperm whales",0.276019051
+42340,"squids",0
+42340,"toothfishes",0
+42705,"antarctic krill",0
+42705,"baleen whales",0.225158153
+42705,"bathypelagic fishes",0
+42705,"flying birds",0
+42705,"large divers",0
+42705,"leopard seals",0
+42705,"medium divers",0
+42705,"mesopelagic fishes",0
+42705,"mesozooplankton",0
+42705,"minke whales",0
+42705,"orca",0
+42705,"other krill",0
+42705,"other macrozooplankton",0
+42705,"salps",0
+42705,"shelf and coastal fishes",0.076938911
+42705,"small divers",0
+42705,"sperm whales",0.47813534
+42705,"squids",0
+42705,"toothfishes",0
+43070,"antarctic krill",0
+43070,"baleen whales",0.299376638
+43070,"bathypelagic fishes",0
+43070,"flying birds",0
+43070,"large divers",0
+43070,"leopard seals",0
+43070,"medium divers",0
+43070,"mesopelagic fishes",0
+43070,"mesozooplankton",0
+43070,"minke whales",0
+43070,"orca",0
+43070,"other krill",0
+43070,"other macrozooplankton",0
+43070,"salps",0
+43070,"shelf and coastal fishes",0.789533289
+43070,"small divers",0
+43070,"sperm whales",0.315862014
+43070,"squids",0
+43070,"toothfishes",0
+43435,"antarctic krill",0
+43435,"baleen whales",0.205749798
+43435,"bathypelagic fishes",0
+43435,"flying birds",0
+43435,"large divers",0
+43435,"leopard seals",0
+43435,"medium divers",0
+43435,"mesopelagic fishes",0
+43435,"mesozooplankton",0
+43435,"minke whales",0
+43435,"orca",0
+43435,"other krill",0
+43435,"other macrozooplankton",0
+43435,"salps",0
+43435,"shelf and coastal fishes",0.304730932
+43435,"small divers",0
+43435,"sperm whales",0.110977646
+43435,"squids",0
+43435,"toothfishes",0
+43800,"antarctic krill",0
+43800,"baleen whales",0.029538771
+43800,"bathypelagic fishes",0
+43800,"flying birds",0
+43800,"large divers",0
+43800,"leopard seals",0
+43800,"medium divers",0
+43800,"mesopelagic fishes",0
+43800,"mesozooplankton",0
+43800,"minke whales",0
+43800,"orca",0
+43800,"other krill",0
+43800,"other macrozooplankton",0
+43800,"salps",0
+43800,"shelf and coastal fishes",0.047567975
+43800,"small divers",0
+43800,"sperm whales",0.045083698
+43800,"squids",0
+43800,"toothfishes",0
+44165,"antarctic krill",0
+44165,"baleen whales",0.067008672
+44165,"bathypelagic fishes",0
+44165,"flying birds",0
+44165,"large divers",0
+44165,"leopard seals",0
+44165,"medium divers",0
+44165,"mesopelagic fishes",0
+44165,"mesozooplankton",0
+44165,"minke whales",0
+44165,"orca",0
+44165,"other krill",0
+44165,"other macrozooplankton",0
+44165,"salps",0
+44165,"shelf and coastal fishes",0.106678595
+44165,"small divers",0
+44165,"sperm whales",0.104498634
+44165,"squids",0
+44165,"toothfishes",0
+44530,"antarctic krill",0
+44530,"baleen whales",0.050885884
+44530,"bathypelagic fishes",0
+44530,"flying birds",0
+44530,"large divers",0
+44530,"leopard seals",0
+44530,"medium divers",0
+44530,"mesopelagic fishes",0
+44530,"mesozooplankton",0
+44530,"minke whales",0.000750691
+44530,"orca",0
+44530,"other krill",0
+44530,"other macrozooplankton",0
+44530,"salps",0
+44530,"shelf and coastal fishes",0.273000452
+44530,"small divers",0
+44530,"sperm whales",0.140407744
+44530,"squids",0
+44530,"toothfishes",0
+44895,"antarctic krill",0
+44895,"baleen whales",0.044031105
+44895,"bathypelagic fishes",0
+44895,"flying birds",0
+44895,"large divers",0
+44895,"leopard seals",0
+44895,"medium divers",0
+44895,"mesopelagic fishes",0
+44895,"mesozooplankton",0
+44895,"minke whales",0.024857019
+44895,"orca",0
+44895,"other krill",0
+44895,"other macrozooplankton",0
+44895,"salps",0
+44895,"shelf and coastal fishes",0.051765002
+44895,"small divers",0
+44895,"sperm whales",0.191400091
+44895,"squids",0
+44895,"toothfishes",0
+45260,"antarctic krill",0
+45260,"baleen whales",0.007453333
+45260,"bathypelagic fishes",0
+45260,"flying birds",0
+45260,"large divers",0
+45260,"leopard seals",0
+45260,"medium divers",0
+45260,"mesopelagic fishes",0
+45260,"mesozooplankton",0
+45260,"minke whales",0.018491462
+45260,"orca",0
+45260,"other krill",0
+45260,"other macrozooplankton",0
+45260,"salps",0
+45260,"shelf and coastal fishes",0.110359831
+45260,"small divers",0
+45260,"sperm whales",0.026549701
+45260,"squids",0
+45260,"toothfishes",0
+45625,"antarctic krill",0
+45625,"baleen whales",0.014064574
+45625,"bathypelagic fishes",0
+45625,"flying birds",0
+45625,"large divers",0
+45625,"leopard seals",0
+45625,"medium divers",0
+45625,"mesopelagic fishes",0
+45625,"mesozooplankton",0
+45625,"minke whales",0
+45625,"orca",0
+45625,"other krill",0
+45625,"other macrozooplankton",0
+45625,"salps",0
+45625,"shelf and coastal fishes",0.237654137
+45625,"small divers",0
+45625,"sperm whales",0.056714976
+45625,"squids",0
+45625,"toothfishes",0
+45990,"antarctic krill",0
+45990,"baleen whales",0.136336822
+45990,"bathypelagic fishes",0
+45990,"flying birds",0
+45990,"large divers",0
+45990,"leopard seals",0
+45990,"medium divers",0
+45990,"mesopelagic fishes",0
+45990,"mesozooplankton",0
+45990,"minke whales",0.020427757
+45990,"orca",0
+45990,"other krill",0
+45990,"other macrozooplankton",0
+45990,"salps",0
+45990,"shelf and coastal fishes",0.02877742
+45990,"small divers",0
+45990,"sperm whales",0.14241869
+45990,"squids",0
+45990,"toothfishes",0
+46355,"antarctic krill",0
+46355,"baleen whales",0.018358598
+46355,"bathypelagic fishes",0
+46355,"flying birds",0
+46355,"large divers",0
+46355,"leopard seals",0
+46355,"medium divers",0
+46355,"mesopelagic fishes",0
+46355,"mesozooplankton",0
+46355,"minke whales",0
+46355,"orca",0
+46355,"other krill",0
+46355,"other macrozooplankton",0
+46355,"salps",0
+46355,"shelf and coastal fishes",0.077899109
+46355,"small divers",0
+46355,"sperm whales",0.130446792
+46355,"squids",0
+46355,"toothfishes",0
+46720,"antarctic krill",0
+46720,"baleen whales",0.010443238
+46720,"bathypelagic fishes",0
+46720,"flying birds",0
+46720,"large divers",0
+46720,"leopard seals",0
+46720,"medium divers",0
+46720,"mesopelagic fishes",0
+46720,"mesozooplankton",0
+46720,"minke whales",0
+46720,"orca",0
+46720,"other krill",0
+46720,"other macrozooplankton",0
+46720,"salps",0
+46720,"shelf and coastal fishes",0.028566798
+46720,"small divers",0
+46720,"sperm whales",0.063332311
+46720,"squids",0
+46720,"toothfishes",0
+47085,"antarctic krill",0
+47085,"baleen whales",0.008637259
+47085,"bathypelagic fishes",0
+47085,"flying birds",0
+47085,"large divers",0
+47085,"leopard seals",0
+47085,"medium divers",0
+47085,"mesopelagic fishes",0
+47085,"mesozooplankton",0
+47085,"minke whales",0.017580035
+47085,"orca",0
+47085,"other krill",0
+47085,"other macrozooplankton",0
+47085,"salps",0
+47085,"shelf and coastal fishes",0.032843769
+47085,"small divers",0
+47085,"sperm whales",0.144029438
+47085,"squids",0
+47085,"toothfishes",0
+47450,"antarctic krill",0
+47450,"baleen whales",0
+47450,"bathypelagic fishes",0
+47450,"flying birds",0
+47450,"large divers",0
+47450,"leopard seals",0
+47450,"medium divers",0
+47450,"mesopelagic fishes",0
+47450,"mesozooplankton",0
+47450,"minke whales",0
+47450,"orca",0
+47450,"other krill",0
+47450,"other macrozooplankton",0
+47450,"salps",0
+47450,"shelf and coastal fishes",0.168724618
+47450,"small divers",0
+47450,"sperm whales",0
+47450,"squids",0
+47450,"toothfishes",0.080186024
+47815,"antarctic krill",0
+47815,"baleen whales",0.000982619
+47815,"bathypelagic fishes",0
+47815,"flying birds",0
+47815,"large divers",0
+47815,"leopard seals",0
+47815,"medium divers",0
+47815,"mesopelagic fishes",0
+47815,"mesozooplankton",0
+47815,"minke whales",0.634627875
+47815,"orca",0.004458775
+47815,"other krill",0
+47815,"other macrozooplankton",0
+47815,"salps",0
+47815,"shelf and coastal fishes",0.70957094
+47815,"small divers",0
+47815,"sperm whales",0.070231544
+47815,"squids",0
+47815,"toothfishes",0.03265065
+48180,"antarctic krill",0
+48180,"baleen whales",0.005301843
+48180,"bathypelagic fishes",0
+48180,"flying birds",0
+48180,"large divers",0
+48180,"leopard seals",0
+48180,"medium divers",0
+48180,"mesopelagic fishes",0
+48180,"mesozooplankton",0
+48180,"minke whales",1
+48180,"orca",0.106434943
+48180,"other krill",0
+48180,"other macrozooplankton",0
+48180,"salps",0
+48180,"shelf and coastal fishes",0.063667799
+48180,"small divers",0
+48180,"sperm whales",0.125992937
+48180,"squids",0
+48180,"toothfishes",0.011707731
+48545,"antarctic krill",0.004891594
+48545,"baleen whales",0
+48545,"bathypelagic fishes",0
+48545,"flying birds",0
+48545,"large divers",0
+48545,"leopard seals",0
+48545,"medium divers",0
+48545,"mesopelagic fishes",0
+48545,"mesozooplankton",0
+48545,"minke whales",0.576873708
+48545,"orca",0
+48545,"other krill",0
+48545,"other macrozooplankton",0
+48545,"salps",0
+48545,"shelf and coastal fishes",0.215179891
+48545,"small divers",0
+48545,"sperm whales",0.030933262
+48545,"squids",0
+48545,"toothfishes",0.057717866
+48910,"antarctic krill",0.081096072
+48910,"baleen whales",0
+48910,"bathypelagic fishes",0
+48910,"flying birds",0
+48910,"large divers",0
+48910,"leopard seals",0
+48910,"medium divers",0
+48910,"mesopelagic fishes",0
+48910,"mesozooplankton",0
+48910,"minke whales",0.368559569
+48910,"orca",0
+48910,"other krill",0
+48910,"other macrozooplankton",0
+48910,"salps",0
+48910,"shelf and coastal fishes",0.078985614
+48910,"small divers",0
+48910,"sperm whales",0.039168554
+48910,"squids",0
+48910,"toothfishes",0.083202338
+49275,"antarctic krill",0.159275974
+49275,"baleen whales",0
+49275,"bathypelagic fishes",0
+49275,"flying birds",0
+49275,"large divers",0
+49275,"leopard seals",0
+49275,"medium divers",0
+49275,"mesopelagic fishes",0
+49275,"mesozooplankton",0
+49275,"minke whales",0.303740563
+49275,"orca",0.024959302
+49275,"other krill",0
+49275,"other macrozooplankton",0
+49275,"salps",0
+49275,"shelf and coastal fishes",0.093450037
+49275,"small divers",0
+49275,"sperm whales",0.037222333
+49275,"squids",0
+49275,"toothfishes",0.009227649
+49640,"antarctic krill",0.309593559
+49640,"baleen whales",0
+49640,"bathypelagic fishes",0
+49640,"flying birds",0
+49640,"large divers",0
+49640,"leopard seals",0
+49640,"medium divers",0
+49640,"mesopelagic fishes",0
+49640,"mesozooplankton",0
+49640,"minke whales",0.538525256
+49640,"orca",0.043594615
+49640,"other krill",0
+49640,"other macrozooplankton",0
+49640,"salps",0
+49640,"shelf and coastal fishes",0.247999149
+49640,"small divers",0
+49640,"sperm whales",0.112890003
+49640,"squids",0
+49640,"toothfishes",0.042418792
+50005,"antarctic krill",0.602652333
+50005,"baleen whales",0.002119272
+50005,"bathypelagic fishes",0
+50005,"flying birds",0
+50005,"large divers",0
+50005,"leopard seals",0
+50005,"medium divers",0
+50005,"mesopelagic fishes",0
+50005,"mesozooplankton",0
+50005,"minke whales",0.840907459
+50005,"orca",0.003100575
+50005,"other krill",0
+50005,"other macrozooplankton",0
+50005,"salps",0
+50005,"shelf and coastal fishes",1
+50005,"small divers",0
+50005,"sperm whales",0.19539242
+50005,"squids",0
+50005,"toothfishes",0.017401927
+50370,"antarctic krill",1
+50370,"baleen whales",0
+50370,"bathypelagic fishes",0
+50370,"flying birds",0
+50370,"large divers",0
+50370,"leopard seals",0
+50370,"medium divers",0
+50370,"mesopelagic fishes",0
+50370,"mesozooplankton",0
+50370,"minke whales",0.523869311
+50370,"orca",0
+50370,"other krill",0
+50370,"other macrozooplankton",0
+50370,"salps",0
+50370,"shelf and coastal fishes",0.068343614
+50370,"small divers",0
+50370,"sperm whales",0.039002096
+50370,"squids",0.360827095
+50370,"toothfishes",0.000936989
+50735,"antarctic krill",0.018837988
+50735,"baleen whales",0
+50735,"bathypelagic fishes",0
+50735,"flying birds",0
+50735,"large divers",0
+50735,"leopard seals",0
+50735,"medium divers",0
+50735,"mesopelagic fishes",0
+50735,"mesozooplankton",0
+50735,"minke whales",0.875500664
+50735,"orca",1
+50735,"other krill",0
+50735,"other macrozooplankton",0
+50735,"salps",0
+50735,"shelf and coastal fishes",0.081700565
+50735,"small divers",0
+50735,"sperm whales",0
+50735,"squids",0
+50735,"toothfishes",0.023765169
+51100,"antarctic krill",0.021535861
+51100,"baleen whales",0
+51100,"bathypelagic fishes",0
+51100,"flying birds",0
+51100,"large divers",0
+51100,"leopard seals",0
+51100,"medium divers",0
+51100,"mesopelagic fishes",0
+51100,"mesozooplankton",0
+51100,"minke whales",0.586171704
+51100,"orca",0
+51100,"other krill",0
+51100,"other macrozooplankton",0
+51100,"salps",0
+51100,"shelf and coastal fishes",0.10334241
+51100,"small divers",0
+51100,"sperm whales",0
+51100,"squids",0.028451024
+51100,"toothfishes",0.028548808
+51465,"antarctic krill",0.086350633
+51465,"baleen whales",0
+51465,"bathypelagic fishes",0
+51465,"flying birds",0
+51465,"large divers",0
+51465,"leopard seals",0
+51465,"medium divers",0
+51465,"mesopelagic fishes",0
+51465,"mesozooplankton",0
+51465,"minke whales",0.140989516
+51465,"orca",0
+51465,"other krill",0
+51465,"other macrozooplankton",0
+51465,"salps",0
+51465,"shelf and coastal fishes",0.246846467
+51465,"small divers",0
+51465,"sperm whales",0
+51465,"squids",1
+51465,"toothfishes",0.016846487
+51830,"antarctic krill",0.068378576
+51830,"baleen whales",0
+51830,"bathypelagic fishes",0
+51830,"flying birds",0
+51830,"large divers",0
+51830,"leopard seals",0
+51830,"medium divers",0
+51830,"mesopelagic fishes",0
+51830,"mesozooplankton",0
+51830,"minke whales",0.165935551
+51830,"orca",0
+51830,"other krill",0
+51830,"other macrozooplankton",0
+51830,"salps",0
+51830,"shelf and coastal fishes",0.168468116
+51830,"small divers",0
+51830,"sperm whales",0
+51830,"squids",0.158141585
+51830,"toothfishes",0.004033106
+52195,"antarctic krill",0.112023459
+52195,"baleen whales",0
+52195,"bathypelagic fishes",0
+52195,"flying birds",0
+52195,"large divers",0
+52195,"leopard seals",0
+52195,"medium divers",0
+52195,"mesopelagic fishes",0
+52195,"mesozooplankton",0
+52195,"minke whales",0.17648679
+52195,"orca",0
+52195,"other krill",0
+52195,"other macrozooplankton",0
+52195,"salps",0
+52195,"shelf and coastal fishes",0.217029544
+52195,"small divers",0
+52195,"sperm whales",0
+52195,"squids",0.005167856
+52195,"toothfishes",0.012442096
+52560,"antarctic krill",0.004603571
+52560,"baleen whales",0
+52560,"bathypelagic fishes",0
+52560,"flying birds",0
+52560,"large divers",0
+52560,"leopard seals",0
+52560,"medium divers",0
+52560,"mesopelagic fishes",0
+52560,"mesozooplankton",0
+52560,"minke whales",0.140541058
+52560,"orca",0
+52560,"other krill",0
+52560,"other macrozooplankton",0
+52560,"salps",0
+52560,"shelf and coastal fishes",0.3031417
+52560,"small divers",0
+52560,"sperm whales",0
+52560,"squids",0.290409667
+52560,"toothfishes",0.000399551
+52925,"antarctic krill",0.00503529
+52925,"baleen whales",0
+52925,"bathypelagic fishes",0
+52925,"flying birds",0
+52925,"large divers",0
+52925,"leopard seals",0
+52925,"medium divers",0
+52925,"mesopelagic fishes",0
+52925,"mesozooplankton",0
+52925,"minke whales",0.08814997
+52925,"orca",0
+52925,"other krill",0
+52925,"other macrozooplankton",0
+52925,"salps",0
+52925,"shelf and coastal fishes",0.132161068
+52925,"small divers",0
+52925,"sperm whales",0
+52925,"squids",0.349750602
+52925,"toothfishes",0.000189636
+53290,"antarctic krill",0.023312544
+53290,"baleen whales",0
+53290,"bathypelagic fishes",0
+53290,"flying birds",0
+53290,"large divers",0
+53290,"leopard seals",0
+53290,"medium divers",0
+53290,"mesopelagic fishes",0
+53290,"mesozooplankton",0
+53290,"minke whales",0.167265844
+53290,"orca",0
+53290,"other krill",0
+53290,"other macrozooplankton",0
+53290,"salps",0
+53290,"shelf and coastal fishes",0.075660392
+53290,"small divers",0
+53290,"sperm whales",0
+53290,"squids",0
+53290,"toothfishes",0.000536683
+53655,"antarctic krill",0.001674383
+53655,"baleen whales",0
+53655,"bathypelagic fishes",0
+53655,"flying birds",0
+53655,"large divers",0
+53655,"leopard seals",0
+53655,"medium divers",0
+53655,"mesopelagic fishes",0
+53655,"mesozooplankton",0
+53655,"minke whales",0
+53655,"orca",0
+53655,"other krill",0
+53655,"other macrozooplankton",0
+53655,"salps",0
+53655,"shelf and coastal fishes",0.162365691
+53655,"small divers",0
+53655,"sperm whales",0
+53655,"squids",0
+53655,"toothfishes",3.61e-06
+54020,"antarctic krill",0.003142077
+54020,"baleen whales",0
+54020,"bathypelagic fishes",0
+54020,"flying birds",0
+54020,"large divers",0
+54020,"leopard seals",0
+54020,"medium divers",0
+54020,"mesopelagic fishes",0
+54020,"mesozooplankton",0
+54020,"minke whales",0.016923242
+54020,"orca",0
+54020,"other krill",0
+54020,"other macrozooplankton",0
+54020,"salps",0
+54020,"shelf and coastal fishes",0.628770581
+54020,"small divers",0
+54020,"sperm whales",0
+54020,"squids",0
+54020,"toothfishes",3.69e-06
+54385,"antarctic krill",0.004155474
+54385,"baleen whales",0
+54385,"bathypelagic fishes",0
+54385,"flying birds",0
+54385,"large divers",0
+54385,"leopard seals",0
+54385,"medium divers",0
+54385,"mesopelagic fishes",0
+54385,"mesozooplankton",0
+54385,"minke whales",0.021170211
+54385,"orca",0
+54385,"other krill",0
+54385,"other macrozooplankton",0
+54385,"salps",0
+54385,"shelf and coastal fishes",0.150555034
+54385,"small divers",0
+54385,"sperm whales",0
+54385,"squids",0.01972016
+54385,"toothfishes",1.48e-05
+54750,"antarctic krill",0.002636141
+54750,"baleen whales",0
+54750,"bathypelagic fishes",1
+54750,"flying birds",0
+54750,"large divers",0
+54750,"leopard seals",0
+54750,"medium divers",0
+54750,"mesopelagic fishes",0
+54750,"mesozooplankton",0
+54750,"minke whales",0.048958189
+54750,"orca",0
+54750,"other krill",0
+54750,"other macrozooplankton",0
+54750,"salps",0
+54750,"shelf and coastal fishes",0.000680204
+54750,"small divers",0
+54750,"sperm whales",0
+54750,"squids",0
+54750,"toothfishes",3.61e-05
+55115,"antarctic krill",0.004103914
+55115,"baleen whales",0
+55115,"bathypelagic fishes",0
+55115,"flying birds",0
+55115,"large divers",0
+55115,"leopard seals",0
+55115,"medium divers",0
+55115,"mesopelagic fishes",0
+55115,"mesozooplankton",0
+55115,"minke whales",0.19560465
+55115,"orca",0
+55115,"other krill",0
+55115,"other macrozooplankton",0
+55115,"salps",0
+55115,"shelf and coastal fishes",0.000140302
+55115,"small divers",0
+55115,"sperm whales",0
+55115,"squids",0
+55115,"toothfishes",0
+55480,"antarctic krill",0.00083915
+55480,"baleen whales",0
+55480,"bathypelagic fishes",8.96e-05
+55480,"flying birds",0
+55480,"large divers",0
+55480,"leopard seals",0
+55480,"medium divers",0
+55480,"mesopelagic fishes",0
+55480,"mesozooplankton",0
+55480,"minke whales",0
+55480,"orca",0
+55480,"other krill",0
+55480,"other macrozooplankton",0
+55480,"salps",0
+55480,"shelf and coastal fishes",5.36e-05
+55480,"small divers",0
+55480,"sperm whales",0
+55480,"squids",0.324248054
+55480,"toothfishes",0
+55845,"antarctic krill",0.003502392
+55845,"baleen whales",0
+55845,"bathypelagic fishes",0
+55845,"flying birds",0
+55845,"large divers",0
+55845,"leopard seals",0
+55845,"medium divers",0
+55845,"mesopelagic fishes",0
+55845,"mesozooplankton",0
+55845,"minke whales",0.154092759
+55845,"orca",0
+55845,"other krill",0
+55845,"other macrozooplankton",0
+55845,"salps",0
+55845,"shelf and coastal fishes",3.42e-05
+55845,"small divers",0
+55845,"sperm whales",0
+55845,"squids",0
+55845,"toothfishes",0
+56210,"antarctic krill",8.48e-05
+56210,"baleen whales",0
+56210,"bathypelagic fishes",0
+56210,"flying birds",0
+56210,"large divers",0
+56210,"leopard seals",0
+56210,"medium divers",0
+56210,"mesopelagic fishes",0
+56210,"mesozooplankton",0
+56210,"minke whales",0.105777533
+56210,"orca",0
+56210,"other krill",0
+56210,"other macrozooplankton",0
+56210,"salps",0
+56210,"shelf and coastal fishes",0.000646891
+56210,"small divers",0
+56210,"sperm whales",0
+56210,"squids",0
+56210,"toothfishes",0
+56575,"antarctic krill",3.66e-06
+56575,"baleen whales",0
+56575,"bathypelagic fishes",0
+56575,"flying birds",0
+56575,"large divers",0
+56575,"leopard seals",0
+56575,"medium divers",0
+56575,"mesopelagic fishes",0
+56575,"mesozooplankton",0
+56575,"minke whales",0.278520462
+56575,"orca",0
+56575,"other krill",0
+56575,"other macrozooplankton",0
+56575,"salps",0
+56575,"shelf and coastal fishes",0
+56575,"small divers",0
+56575,"sperm whales",0
+56575,"squids",0
+56575,"toothfishes",0
+56940,"antarctic krill",0
+56940,"baleen whales",0
+56940,"bathypelagic fishes",0
+56940,"flying birds",0
+56940,"large divers",0
+56940,"leopard seals",0
+56940,"medium divers",0
+56940,"mesopelagic fishes",0
+56940,"mesozooplankton",0
+56940,"minke whales",0.032640512
+56940,"orca",0
+56940,"other krill",0
+56940,"other macrozooplankton",0
+56940,"salps",0
+56940,"shelf and coastal fishes",0
+56940,"small divers",0
+56940,"sperm whales",0
+56940,"squids",0
+56940,"toothfishes",0.009423965
+57305,"antarctic krill",0
+57305,"baleen whales",0
+57305,"bathypelagic fishes",0
+57305,"flying birds",0
+57305,"large divers",0
+57305,"leopard seals",0
+57305,"medium divers",0
+57305,"mesopelagic fishes",0
+57305,"mesozooplankton",0
+57305,"minke whales",0.200460659
+57305,"orca",0
+57305,"other krill",0
+57305,"other macrozooplankton",0
+57305,"salps",0
+57305,"shelf and coastal fishes",0
+57305,"small divers",0
+57305,"sperm whales",0
+57305,"squids",0
+57305,"toothfishes",0
+57670,"antarctic krill",0
+57670,"baleen whales",0
+57670,"bathypelagic fishes",0
+57670,"flying birds",0
+57670,"large divers",0
+57670,"leopard seals",0
+57670,"medium divers",0
+57670,"mesopelagic fishes",0
+57670,"mesozooplankton",0
+57670,"minke whales",0.022905636
+57670,"orca",0
+57670,"other krill",0
+57670,"other macrozooplankton",0
+57670,"salps",0
+57670,"shelf and coastal fishes",0.001248139
+57670,"small divers",0
+57670,"sperm whales",0
+57670,"squids",0
+57670,"toothfishes",0.00091445
+58035,"antarctic krill",0
+58035,"baleen whales",0
+58035,"bathypelagic fishes",0
+58035,"flying birds",0
+58035,"large divers",0
+58035,"leopard seals",0
+58035,"medium divers",0
+58035,"mesopelagic fishes",0
+58035,"mesozooplankton",0
+58035,"minke whales",0.069738061
+58035,"orca",0
+58035,"other krill",0
+58035,"other macrozooplankton",0
+58035,"salps",0
+58035,"shelf and coastal fishes",0.000184915
+58035,"small divers",0
+58035,"sperm whales",0
+58035,"squids",0
+58035,"toothfishes",0.014880503
+58400,"antarctic krill",0
+58400,"baleen whales",0
+58400,"bathypelagic fishes",0
+58400,"flying birds",0
+58400,"large divers",0
+58400,"leopard seals",0
+58400,"medium divers",0
+58400,"mesopelagic fishes",0
+58400,"mesozooplankton",0
+58400,"minke whales",0.096539354
+58400,"orca",0
+58400,"other krill",0
+58400,"other macrozooplankton",0
+58400,"salps",0
+58400,"shelf and coastal fishes",0.055906879
+58400,"small divers",0
+58400,"sperm whales",0
+58400,"squids",0
+58400,"toothfishes",0.00102132
+58765,"antarctic krill",0
+58765,"baleen whales",0
+58765,"bathypelagic fishes",0
+58765,"flying birds",0
+58765,"large divers",0
+58765,"leopard seals",0
+58765,"medium divers",0
+58765,"mesopelagic fishes",0
+58765,"mesozooplankton",0
+58765,"minke whales",0.127646181
+58765,"orca",0
+58765,"other krill",0
+58765,"other macrozooplankton",0
+58765,"salps",0
+58765,"shelf and coastal fishes",0
+58765,"small divers",0
+58765,"sperm whales",0
+58765,"squids",0
+58765,"toothfishes",0
+59130,"antarctic krill",0
+59130,"baleen whales",0
+59130,"bathypelagic fishes",0
+59130,"flying birds",0
+59130,"large divers",0
+59130,"leopard seals",0
+59130,"medium divers",0
+59130,"mesopelagic fishes",0
+59130,"mesozooplankton",0
+59130,"minke whales",0.08271479
+59130,"orca",0
+59130,"other krill",0
+59130,"other macrozooplankton",0
+59130,"salps",0
+59130,"shelf and coastal fishes",0.034799465
+59130,"small divers",0
+59130,"sperm whales",0
+59130,"squids",0
+59130,"toothfishes",0.366624871
+59495,"antarctic krill",0
+59495,"baleen whales",0
+59495,"bathypelagic fishes",0
+59495,"flying birds",0
+59495,"large divers",0
+59495,"leopard seals",0
+59495,"medium divers",0
+59495,"mesopelagic fishes",0
+59495,"mesozooplankton",0
+59495,"minke whales",0.130371251
+59495,"orca",0
+59495,"other krill",0
+59495,"other macrozooplankton",0
+59495,"salps",0
+59495,"shelf and coastal fishes",0.05730902
+59495,"small divers",0
+59495,"sperm whales",0
+59495,"squids",0
+59495,"toothfishes",0.202581364
+59860,"antarctic krill",0
+59860,"baleen whales",0
+59860,"bathypelagic fishes",0
+59860,"flying birds",0
+59860,"large divers",0
+59860,"leopard seals",0
+59860,"medium divers",0
+59860,"mesopelagic fishes",0
+59860,"mesozooplankton",0
+59860,"minke whales",0
+59860,"orca",0
+59860,"other krill",0
+59860,"other macrozooplankton",0
+59860,"salps",0
+59860,"shelf and coastal fishes",0.026128466
+59860,"small divers",0
+59860,"sperm whales",0
+59860,"squids",0
+59860,"toothfishes",0.330243607
+60225,"antarctic krill",0
+60225,"baleen whales",0.013172489
+60225,"bathypelagic fishes",0
+60225,"flying birds",0
+60225,"large divers",0
+60225,"leopard seals",0
+60225,"medium divers",0
+60225,"mesopelagic fishes",0
+60225,"mesozooplankton",0
+60225,"minke whales",0.793327561
+60225,"orca",0
+60225,"other krill",0
+60225,"other macrozooplankton",0
+60225,"salps",0
+60225,"shelf and coastal fishes",0.014863837
+60225,"small divers",0
+60225,"sperm whales",0
+60225,"squids",0.001866925
+60225,"toothfishes",0.761320556
+60590,"antarctic krill",0
+60590,"baleen whales",0
+60590,"bathypelagic fishes",0
+60590,"flying birds",0
+60590,"large divers",0
+60590,"leopard seals",0
+60590,"medium divers",0
+60590,"mesopelagic fishes",0
+60590,"mesozooplankton",0
+60590,"minke whales",0.025625201
+60590,"orca",0
+60590,"other krill",0
+60590,"other macrozooplankton",0
+60590,"salps",0
+60590,"shelf and coastal fishes",0.025376198
+60590,"small divers",0
+60590,"sperm whales",0
+60590,"squids",0.001720439
+60590,"toothfishes",0.435384002
+60955,"antarctic krill",0
+60955,"baleen whales",0
+60955,"bathypelagic fishes",0
+60955,"flying birds",0
+60955,"large divers",0
+60955,"leopard seals",0
+60955,"medium divers",0
+60955,"mesopelagic fishes",0
+60955,"mesozooplankton",0
+60955,"minke whales",0.241162813
+60955,"orca",0
+60955,"other krill",0
+60955,"other macrozooplankton",0
+60955,"salps",0
+60955,"shelf and coastal fishes",0.00651131
+60955,"small divers",0
+60955,"sperm whales",0
+60955,"squids",0.001299506
+60955,"toothfishes",1
+61320,"antarctic krill",0
+61320,"baleen whales",0
+61320,"bathypelagic fishes",0
+61320,"flying birds",0
+61320,"large divers",0
+61320,"leopard seals",0
+61320,"medium divers",0
+61320,"mesopelagic fishes",0
+61320,"mesozooplankton",0
+61320,"minke whales",0
+61320,"orca",0
+61320,"other krill",0
+61320,"other macrozooplankton",0
+61320,"salps",0
+61320,"shelf and coastal fishes",0.016665514
+61320,"small divers",0
+61320,"sperm whales",0
+61320,"squids",0.001517318
+61320,"toothfishes",0.577656756
+61685,"antarctic krill",0
+61685,"baleen whales",0.001662413
+61685,"bathypelagic fishes",0
+61685,"flying birds",0
+61685,"large divers",0
+61685,"leopard seals",0
+61685,"medium divers",0
+61685,"mesopelagic fishes",0
+61685,"mesozooplankton",0
+61685,"minke whales",0.266186348
+61685,"orca",0
+61685,"other krill",0
+61685,"other macrozooplankton",0
+61685,"salps",0
+61685,"shelf and coastal fishes",0.00278742
+61685,"small divers",0
+61685,"sperm whales",0
+61685,"squids",0
+61685,"toothfishes",0.734109922

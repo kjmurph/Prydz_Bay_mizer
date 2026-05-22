@@ -9,7 +9,9 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-source("ecosystem_assessment_v2.R")
+# source("ecosystem_assessment_v2.R")
+source("ecosystem_assessment_v3.R")
+
 
 cat("==============================================================\n")
 cat("REGENERATE HEATMAPS (display changes only)\n")

@@ -39,6 +39,29 @@ species_order <- c(
 
 biomass$Species <- factor(biomass$Species, levels = species_order)
 
+# Climate-only biomass summary
+clim_biomass_csv <- "climate_only_analysis/climate_only_biomass_timeseries_summary.csv"
+if (!file.exists(clim_biomass_csv)) {
+  stop("Climate-only biomass summary not found: ", clim_biomass_csv,
+       "\nRun analyze_climate_only_ensemble.R first.")
+}
+clim_biomass <- read.csv(clim_biomass_csv, stringsAsFactors = FALSE)
+clim_biomass$Species <- factor(clim_biomass$Species, levels = species_order)
+cat(sprintf("  Climate-only data: %d rows\n", nrow(clim_biomass)))
+
+# Observed biomass range per species for 2001-2010 (for grey ribbon)
+obs_range <- biomass %>%
+  filter(!is.na(ObsBiomass_t), Year >= 2001, Year <= 2010) %>%
+  group_by(Species) %>%
+  summarise(
+    xmin = min(Year) - 0.5,
+    xmax = max(Year) + 0.5,
+    ymin = min(ObsBiomass_t, na.rm = TRUE),
+    ymax = max(ObsBiomass_t, na.rm = TRUE),
+    ymed = median(ObsBiomass_t, na.rm = TRUE),
+    .groups = "drop"
+  )
+
 # Number of simulations
 n_sims <- max(biomass$n, na.rm = TRUE)
 cat(sprintf("  Loaded data for %d simulations\n", n_sims))

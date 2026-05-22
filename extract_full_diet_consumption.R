@@ -26,7 +26,7 @@ library(reshape2)
 ###############################################################################
 
 # Model domain area in m^2
-MODEL_DOMAIN_AREA <- 1.95e+13  # m^2
+MODEL_DOMAIN_AREA <- 1.474341e+12  # m^2 (therMizer calibration domain, 05_therMizer_calibration_scale_model_domain.Rmd)
 G_TO_TONNES <- 1e-6
 
 # Input paths

@@ -274,7 +274,7 @@ PEAK_SPERM_YEAR <- 1948
 PEAK_KRILL_YEAR <- 1979
 
 # Model domain area for unit conversion
-MODEL_DOMAIN_AREA <- 1.95e+13  # m^2
+MODEL_DOMAIN_AREA <- 1.474341e+12  # m^2 (therMizer calibration domain, 05_therMizer_calibration_scale_model_domain.Rmd)
 GRAMS_PER_TONNE <- 1e6
 
 # Load observed catch data

@@ -24,7 +24,7 @@ library(scales)
 
 OUTPUT_DIR <- "whale_consumption_outputs"
 G_TO_TONNES <- 1e-6
-MODEL_DOMAIN_AREA <- 1.95e+13  # m^2
+MODEL_DOMAIN_AREA <- 1.474341e+12  # m^2 (therMizer calibration domain, 05_therMizer_calibration_scale_model_domain.Rmd)
 
 # Analysis periods
 ANALYSIS_PERIODS <- list(

@@ -40,7 +40,7 @@ if (!requireNamespace("ncdf4", quietly = TRUE)) {
 ###############################################################################
 
 # Model domain area in m^2 (from 02_Preparing_Climate_Forcings.Rmd)
-MODEL_DOMAIN_AREA <- 1.95e+13  # m^2
+MODEL_DOMAIN_AREA <- 1.474341e+12  # m^2 (therMizer calibration domain, 05_therMizer_calibration_scale_model_domain.Rmd)
 
 # FishMIP log10 weight class boundaries (in grams)
 # Classes: 1-10g, 10-100g, 100g-1kg, 1-10kg, 10-100kg, >100kg
