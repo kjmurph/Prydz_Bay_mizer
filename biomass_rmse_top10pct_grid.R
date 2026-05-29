@@ -276,7 +276,7 @@ p_grid <- ggplot() +
   )
 
 ggsave("biomass_rmse_top10pct_grid.png", p_grid,
-       width = 16, height = 13, dpi = 300)
+       width = 16, height = 9, dpi = 300)
 message("Saved biomass_rmse_top10pct_grid.png")
 
 message("=== Done ===")
