@@ -7,6 +7,7 @@ Warning messages:
 3: package 'patchwork' was built under R version 4.5.3 
 4: package 'ggtext' was built under R version 4.5.2 
 Loading cached data...
+  w_min variant: wmin_1g
 Deriving thresholds & paired comparisons...
 
 Empirical B0 reference thresholds:
@@ -20,20 +21,20 @@ Empirical B0 reference thresholds:
     baleen_biomass           : 1425271479720.1943 [211276621577.9755 - 36939361643209.1562]
     fish_biomass             : 10344564489783.2168 [4899419179711.1748 - 14499537219006.0977]
   STRUCTURAL METRICS (median [Q05-Q95] = natural range envelope):
-    spectrum_slope           :    -1.0876 [   -1.1073 -    -1.0695]
-    spectrum_intercept       :    11.4972 [   11.4073 -    11.5462]
+    spectrum_slope           :    -1.3651 [   -1.4048 -    -1.3053]
+    spectrum_intercept       :    12.5855 [   12.2503 -    12.7880]
     mean_tl                  :     3.5262 [    3.4438 -     3.7207]
     htl_indicator            :     0.1842 [    0.0630 -     0.3061]
     large_fish_indicator     :     0.9301 [    0.8028 -     0.9517]
     fish_lfi                 :     0.4873 [    0.4218 -     0.5522]
     shannon_diversity        :     1.8080 [    1.4491 -     1.9653]
     w_statistic              :     0.3187 [    0.2251 -     0.7383]
-    production_biomass_ratio :     2.5542 [    1.3615 -     3.9866]
+    production_biomass_ratio :     0.2333 [    0.1020 -     0.3155]
     fish_pb_ratio            :     0.2361 [    0.1914 -     0.4945]
     marine_mammal_pb_ratio   :     0.0023 [    0.0002 -     0.0080]
-    spectrum_mle_exponent    :    -1.3751 [   -1.4413 -    -1.3473]
-    spectrum_lcd_exponent    :    -2.0231 [   -2.0584 -    -1.9789]
-    spectrum_lbnbiom_slope   :    -1.0506 [   -1.0740 -    -1.0276]
+    spectrum_mle_exponent    :    -2.3705 [   -3.6964 -    -1.9410]
+    spectrum_lcd_exponent    :    -2.1387 [   -2.2457 -    -1.9688]
+    spectrum_lbnbiom_slope   :    -1.2957 [   -1.3550 -    -1.2082]
     mean_weight              :   261.1074 [  125.7350 -   753.8174]
     mean_max_weight          : 1747142.6754 [328048.5180 - 20651654.1379]
     predator_prey_ratio      :     0.0049 [    0.0027 -     0.3208]
@@ -53,7 +54,7 @@ Summarizing...
 Generating absolute 50% CI heatmap...
   Biomass panel: 8 metrics x 11 decades
   Structural panel: 10 metrics x 11 decades (skill-score normalised, null=50%)
-  Saved combined heatmap: heatmap_combined_absolute_50ci.png + .pdf + .tiff
+  Saved combined heatmap: heatmap_combined_absolute_50ci_wmin_1g.png + .pdf + .tiff
 There were 50 or more warnings (use warnings() to see the first 50)
 
 Done.

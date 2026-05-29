@@ -73,7 +73,7 @@ FISHMIP_MISSING <- 1.0e+20
 ###############################################################################
 
 # Input/output paths
-MC_RESULTS_FILE <- "Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/combined_rerun_successful_sims_20250923_122211.rds"
+MC_RESULTS_FILE <- "Output_large_files/monte_carlo_results/combined_simulation_results/rerun_results/mc_ensemble_2111_cleaned.rds"
 OUTPUT_DIR <- "fishmip_outputs"
 
 # FishMIP naming convention components

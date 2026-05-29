@@ -1,0 +1,19 @@
+Warning messages:
+1: package 'dplyr' was built under R version 4.5.3 
+2: package 'tidyr' was built under R version 4.5.2 
+Loading fishing ensemble baleen krill...
+Loading climate-only ensemble baleen krill...
+  2111 simulation pairs
+
+Computing annual ratios...
+  Years: 1901 - 2010
+  Median range: 0.259 - 1.000
+
+Loading observed catch data...
+  Max stacked catch: 496.5 kt
+  Scale factor: 0.002014 ratio/kt
+
+Generating ribbon plot with secondary catch axis...
+Saved: whale_consumption_outputs/baleen_krill_annual_ratio_catch_secondary.png
+Saved: whale_consumption_outputs/baleen_krill_annual_ratio_catch_secondary.pdf
+Done.

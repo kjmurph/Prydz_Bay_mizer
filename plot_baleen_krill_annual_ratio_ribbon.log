@@ -1,0 +1,14 @@
+Warning message:
+package 'dplyr' was built under R version 4.5.3 
+Loading fishing ensemble baleen krill...
+Loading climate-only ensemble baleen krill...
+  2111 simulation pairs
+
+Computing annual ratios...
+  Years: 1901 - 2010
+  Median range: 0.259 - 1.000
+
+Generating ribbon plot...
+Saved: whale_consumption_outputs/baleen_krill_annual_ratio_ribbon.png
+Saved: whale_consumption_outputs/baleen_krill_annual_ratio_ribbon.pdf
+Done.

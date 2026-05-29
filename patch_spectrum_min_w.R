@@ -12,11 +12,29 @@
 #     - mean_weight                          (community mean wt — displayed)
 #     - mean_max_weight                      (community mean max wt — displayed)
 #
-# All other metric columns are left unchanged. Saves updated versions of
-# fishing_metrics_raw.rds, climate_only_metrics_raw.rds, and b0_reference.rds.
-# After this script completes, re-run run_absolute_50ci_only.R to regenerate
-# the heatmap.
+# All other metric columns are left unchanged.
+#
+# Files are read from labelled source files and saved to labelled target files,
+# so multiple w_min variants can coexist. Edit the CONFIGURATION block below
+# to switch the source/target labels and target w_min value.
+#
+# Naming convention:  {basename}_wmin_{size}g.rds
+#   e.g.  fishing_metrics_raw_wmin_3.16e-8g.rds
+#         fishing_metrics_raw_wmin_1g.rds
+#
+# After this script completes, re-run run_absolute_50ci_only.R (with the
+# matching WMIN_LABEL) to regenerate the heatmap.
 ###############################################################################
+
+# === CONFIGURATION ===
+# SOURCE_LABEL: the existing labelled RDS files to start from (all non-patch
+#               columns are copied from these files unchanged).
+# TARGET_MIN_W: the new w_min (grams) to apply for the 8 patch metrics.
+# TARGET_LABEL: filename suffix for the output files.
+# Change these three values to run a new w_min variant.
+SOURCE_LABEL  <- "wmin_3.16e-8g"  # read from {basename}_{SOURCE_LABEL}.rds
+TARGET_MIN_W  <- 1                 # new minimum weight (g)
+TARGET_LABEL  <- "wmin_1g"        # write to  {basename}_{TARGET_LABEL}.rds
 
 suppressPackageStartupMessages({
   library(mizer)
@@ -26,7 +44,13 @@ suppressPackageStartupMessages({
 
 source("ecosystem_assessment_v3.R")
 
-cat(sprintf("SPECTRUM_MIN_W = %.6e g  (mesozooplankton w_min)\n\n", SPECTRUM_MIN_W))
+# Override SPECTRUM_MIN_W with the target value AFTER sourcing, so all helper
+# functions pick up the new cutoff via their default argument.
+SPECTRUM_MIN_W <- TARGET_MIN_W
+
+cat(sprintf("SPECTRUM_MIN_W = %.6e g  (%s)\n", SPECTRUM_MIN_W, TARGET_LABEL))
+cat(sprintf("Source files:  *_%s.rds\n", SOURCE_LABEL))
+cat(sprintf("Output files:  *_%s.rds\n\n", TARGET_LABEL))
 
 PATCH_COLS <- c(
   "spectrum_slope", "spectrum_intercept",
@@ -95,9 +119,9 @@ patch_metrics_df <- function(df, sims, label) {
 # Load cached data
 # ---------------------------------------------------------------------------
 cat("Loading cached metric files...\n")
-fishing_raw <- readRDS(file.path(OUTPUT_DIR_LARGE, "fishing_metrics_raw.rds"))
-climate_raw <- readRDS(file.path(OUTPUT_DIR_LARGE, "climate_only_metrics_raw.rds"))
-b0_ref      <- readRDS(file.path(OUTPUT_DIR_LARGE, "b0_reference.rds"))
+fishing_raw <- readRDS(file.path(OUTPUT_DIR_LARGE, sprintf("fishing_metrics_raw_%s.rds",      SOURCE_LABEL)))
+climate_raw <- readRDS(file.path(OUTPUT_DIR_LARGE, sprintf("climate_only_metrics_raw_%s.rds", SOURCE_LABEL)))
+b0_ref      <- readRDS(file.path(OUTPUT_DIR_LARGE, sprintf("b0_reference_%s.rds",             SOURCE_LABEL)))
 cat(sprintf("  fishing_raw:  %d rows\n", nrow(fishing_raw)))
 cat(sprintf("  climate_raw:  %d rows\n", nrow(climate_raw)))
 cat(sprintf("  b0_reference: %d rows\n\n", nrow(b0_ref)))
@@ -172,11 +196,11 @@ cat("\n")
 # Save updated files
 # ---------------------------------------------------------------------------
 cat("Saving updated cached files...\n")
-saveRDS(fishing_raw, file.path(OUTPUT_DIR_LARGE, "fishing_metrics_raw.rds"))
-cat("  Saved fishing_metrics_raw.rds\n")
-saveRDS(climate_raw, file.path(OUTPUT_DIR_LARGE, "climate_only_metrics_raw.rds"))
-cat("  Saved climate_only_metrics_raw.rds\n")
-saveRDS(b0_ref,      file.path(OUTPUT_DIR_LARGE, "b0_reference.rds"))
-cat("  Saved b0_reference.rds\n")
+out_fish <- file.path(OUTPUT_DIR_LARGE, sprintf("fishing_metrics_raw_%s.rds",      TARGET_LABEL))
+out_clim <- file.path(OUTPUT_DIR_LARGE, sprintf("climate_only_metrics_raw_%s.rds", TARGET_LABEL))
+out_b0   <- file.path(OUTPUT_DIR_LARGE, sprintf("b0_reference_%s.rds",             TARGET_LABEL))
+saveRDS(fishing_raw, out_fish); cat(sprintf("  Saved %s\n", basename(out_fish)))
+saveRDS(climate_raw, out_clim); cat(sprintf("  Saved %s\n", basename(out_clim)))
+saveRDS(b0_ref,      out_b0);   cat(sprintf("  Saved %s\n", basename(out_b0)))
 
-cat("\nPatch complete. Run run_absolute_50ci_only.R to regenerate the heatmap.\n")
+cat(sprintf("\nPatch complete. Run run_absolute_50ci_only.R with WMIN_LABEL = \"%s\" to regenerate the heatmap.\n", TARGET_LABEL))

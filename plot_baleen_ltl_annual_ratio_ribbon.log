@@ -1,0 +1,14 @@
+Warning message:
+package 'dplyr' was built under R version 4.5.3 
+Loading fishing ensemble baleen LTL...
+Loading climate-only ensemble baleen LTL...
+  2111 simulation pairs
+
+Computing annual ratios...
+  Years: 1901 – 2010
+  Median range: 0.544 – 1.000
+
+Generating ribbon plot...
+Saved: whale_consumption_outputs/baleen_ltl_annual_ratio_ribbon.png
+Saved: whale_consumption_outputs/baleen_ltl_annual_ratio_ribbon.pdf
+Done.

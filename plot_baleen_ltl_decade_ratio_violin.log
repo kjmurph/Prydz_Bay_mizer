@@ -1,0 +1,29 @@
+Warning messages:
+1: package 'dplyr' was built under R version 4.5.3 
+2: package 'tidyr' was built under R version 4.5.2 
+Loading fishing ensemble baleen LTL...
+Loading climate-only ensemble baleen LTL...
+  2111 simulation pairs
+
+Computing decade ratios...
+  Ratio rows: 23221
+  Ratio range: 0.001 - 1.110
+
+Generating violin plot...
+Warning messages:
+1: In regularize.values(x, y, ties, missing(ties), na.rm = na.rm) :
+  collapsing to unique 'x' values
+2: In regularize.values(x, y, ties, missing(ties), na.rm = na.rm) :
+  collapsing to unique 'x' values
+3: In regularize.values(x, y, ties, missing(ties), na.rm = na.rm) :
+  collapsing to unique 'x' values
+Warning messages:
+1: In regularize.values(x, y, ties, missing(ties), na.rm = na.rm) :
+  collapsing to unique 'x' values
+2: In regularize.values(x, y, ties, missing(ties), na.rm = na.rm) :
+  collapsing to unique 'x' values
+3: In regularize.values(x, y, ties, missing(ties), na.rm = na.rm) :
+  collapsing to unique 'x' values
+Saved: whale_consumption_outputs/baleen_ltl_decade_ratio_violin.png
+Saved: whale_consumption_outputs/baleen_ltl_decade_ratio_violin.pdf
+Done.

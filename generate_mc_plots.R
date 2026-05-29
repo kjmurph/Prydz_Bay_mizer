@@ -468,4 +468,35 @@ tryCatch({
   stop(e)
 })
 
+# ==== OVERLAID VARIANT: all functional groups on one panel (no facets) ====
+message("Building overlaid yield plot (all species, single panel)...")
+
+p_yield_overlaid <- ggplot() +
+  geom_ribbon(data = yield_unc_ribbon, aes(x = Year, ymin = q25, ymax = q75, fill = Species), alpha = 0.15) +
+  geom_line(data = yield_unc_line_extended, aes(x = Year, y = median, color = Species), linewidth = 0.8, linetype = "solid", lineend = "round") +
+  geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield, colour = Species), size = 1.0) +
+  geom_point(data = yield_obs_filtered, aes(x = Year, y = Yield), shape = 1, size = 1.0, colour = "black") +
+  geom_point(data = zero_catch_all, aes(x = Year, y = Yield, colour = Species), size = 0.4) +
+  geom_point(data = zero_catch_all, aes(x = Year, y = Yield), shape = 1, size = 0.4, stroke = 0.3, colour = "black") +
+  geom_vline(xintercept = 1961, linetype = "dashed") +
+  geom_vline(xintercept = 2010, linetype = "dashed") +
+  scale_y_continuous(
+    trans = scales::pseudo_log_trans(sigma = 1, base = 10),
+    breaks = c(0, 10^seq(2, 14, 2)),
+    labels = y_labels_fn
+  ) +
+  coord_cartesian(xlim = c(1900, 2010)) +
+  theme_bw(base_size = 14.4) +
+  theme(legend.position = "right", strip.text = element_text(face = "bold")) +
+  labs(x = "Year", y = expression(Yield~(t~y^{-1})),
+       color = "Species", fill = "Species")
+
+tryCatch({
+  ggsave("montecarlo_yield_overlaid.png", p_yield_overlaid, width = 14, height = 7, dpi = 300)
+  message("Saved montecarlo_yield_overlaid.png")
+}, error = function(e) {
+  message("Failed to save montecarlo_yield_overlaid.png: ", e$message)
+  stop(e)
+})
+
 message("=== Done ===")
