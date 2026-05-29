@@ -88,18 +88,18 @@ panel_levels <- c(
 )
 
 panel_colors <- c(
-  "Large baleen whales"     = "#FF6A9A",  # = baleen whales in yield plot
-  "Minke whales"            = "#E26EF7",  # = minke whales in yield plot
-  "Sperm whales"            = "#FF62BF",  # = sperm whales in yield plot
-  "Orca"                    = "#F763DF",  # = orca in yield plot
-  "Leopard seals"           = "#00A7FF",  # = leopard seals in yield plot
-  "Pinnipeds"               = "#9E91FF",  # blended medium+large divers
-  "Seabirds"                = "#00C0A3",  # blended birds
-  "Toothfishes"             = "#00B5EE",  # = toothfishes in yield plot
-  "Shelf & coastal fishes"  = "#00BD61",  # = shelf & coastal in yield plot
-  "Pelagic fishes & squid"  = "#00B813",  # = bathypelagic fishes in yield plot
-  "Antarctic krill"         = "#BC9D00",  # = antarctic krill in yield plot
-  "Zooplankton"             = "#F8766D"   # = mesozooplankton in yield plot
+  "Large baleen whales"     = "#FF61C3",  # = baleen whales in yield plot
+  "Minke whales"            = "#00B9E3",  # = minke whales in yield plot
+  "Sperm whales"            = "#DB72FB",  # = sperm whales in yield plot
+  "Orca"                    = "#619CFF",  # = orca in yield plot
+  "Leopard seals"           = "#E07B39",  # warm amber-orange (not in yield)
+  "Pinnipeds"               = "#2B6CB0",  # medium steel blue (not in yield)
+  "Seabirds"                = "#9E9E9E",  # neutral grey (not in yield)
+  "Toothfishes"             = "#00C19F",  # = toothfishes in yield plot
+  "Shelf & coastal fishes"  = "#93AA00",  # = shelf & coastal fishes in yield plot
+  "Pelagic fishes & squid"  = "#D39200",  # = bathypelagic fishes in yield plot
+  "Antarctic krill"         = "#F8766D",  # = antarctic krill in yield plot
+  "Zooplankton"             = "#6A1B9A"   # deep purple (not in yield)
 )
 
 # ---------------------------------------------------------------------------
