@@ -8,9 +8,12 @@
 #
 # Outputs:
 #   yield_rmse_per_sim.csv           — RMSE for all 2111 sims (ranked)
+#   yield_rmse_corr_per_sim.csv      — RMSE + correlation metrics + pass/fail flag
+#   yield_top10pct_corr_screen.csv   — correlation screen results for RMSE top-10% subset
 #   yield_stacked_best_sim.png       — best single sim
-#   yield_stacked_top10_mean.png     — mean of top-10 sims
-#   yield_stacked_top10pct_mean.png  — mean of top 10% sims (~211)
+#   yield_stacked_top1pct_mean.png   — mean of top 1% sims (from screened top-10% pool)
+#   yield_stacked_top5pct_mean.png   — mean of top 5% sims (from screened top-10% pool)
+#   yield_stacked_top10pct_mean.png  — mean of top 10% sims (from screened top-10% pool)
 ###############################################################################
 
 suppressPackageStartupMessages({
@@ -21,6 +24,10 @@ suppressPackageStartupMessages({
 })
 
 message("=== Yield RMSE model evaluation ===")
+
+# Correlation screening control (DBPM-style threshold).
+# Screening is applied to the already RMSE-ranked top-10% subset.
+CORR_THRESHOLD <- 0.5
 
 PLOT_YEARS <- 1900:2010
 
@@ -85,6 +92,8 @@ message("  Comparison rows (year x species within effort windows): ", nrow(obs_l
 message("Extracting yield and computing RMSE per sim (slow step)...")
 
 rmse_results <- vector("numeric", n_sims)
+corr_results_raw <- vector("numeric", n_sims)
+corr_results_log <- vector("numeric", n_sims)
 
 # Accumulate per-sim yield for later plotting (stored as list of data.frames)
 sim_yield_list <- vector("list", n_sims)
@@ -111,6 +120,23 @@ for (i in seq_len(n_sims)) {
     (log10(comp$Yield_mod + 1) - log10(comp$Yield_obs + 1))^2,
     na.rm = TRUE
   ))
+
+  # Correlation metrics across the same comparison rows.
+  # Raw correlation is provided for transparency; log-scale is used for
+  # DBPM-style screening to be consistent with the RMSE transform.
+  corr_results_raw[i] <- suppressWarnings(cor(
+    comp$Yield_mod,
+    comp$Yield_obs,
+    use = "complete.obs",
+    method = "pearson"
+  ))
+
+  corr_results_log[i] <- suppressWarnings(cor(
+    log10(comp$Yield_mod + 1),
+    log10(comp$Yield_obs + 1),
+    use = "complete.obs",
+    method = "pearson"
+  ))
 }
 
 # ---------------------------------------------------------------------------
@@ -119,13 +145,37 @@ for (i in seq_len(n_sims)) {
 rmse_df <- data.frame(
   sim_index = seq_len(n_sims),
   valid_sim_index = valid_idx,
-  rmse = rmse_results
+  rmse = rmse_results,
+  cor_raw = corr_results_raw,
+  cor_log = corr_results_log
 ) %>%
   arrange(rmse) %>%
-  mutate(rank = seq_len(n()))
+  mutate(
+    rank = seq_len(n()),
+    pass_corr = !is.na(cor_log) & cor_log > CORR_THRESHOLD
+  )
 
 write.csv(rmse_df, "yield_rmse_per_sim.csv", row.names = FALSE)
 message("Saved yield_rmse_per_sim.csv")
+
+write.csv(rmse_df, "yield_rmse_corr_per_sim.csv", row.names = FALSE)
+message("Saved yield_rmse_corr_per_sim.csv")
+
+n_top10pct <- ceiling(n_sims * 0.10)
+top10pct_screen <- rmse_df %>%
+  slice(1:n_top10pct) %>%
+  mutate(rank_within_top10pct = row_number())
+
+write.csv(top10pct_screen, "yield_top10pct_corr_screen.csv", row.names = FALSE)
+message("Saved yield_top10pct_corr_screen.csv")
+
+top10pct_pass <- top10pct_screen %>%
+  filter(pass_corr) %>%
+  arrange(rmse)
+
+message(sprintf("Correlation screen on RMSE top-10%%: cor_log > %.2f", CORR_THRESHOLD))
+message(sprintf("  Top-10%% candidates: %d", n_top10pct))
+message(sprintf("  Passing simulations: %d", nrow(top10pct_pass)))
 message(sprintf("  Best sim rank 1: sim_index=%d, RMSE=%.4f",
                 rmse_df$sim_index[1], rmse_df$rmse[1]))
 message(sprintf("  Worst sim rank %d: sim_index=%d, RMSE=%.4f",
@@ -220,35 +270,35 @@ ggsave("yield_stacked_best_sim.png", p_best, width = 12, height = 6, dpi = 300)
 message("Saved yield_stacked_best_sim.png")
 
 # ---------------------------------------------------------------------------
-# 2. Top 10 sims — mean yield
+# 2-4. Top 1%, 5%, 10% (from correlation-passing RMSE top-10% pool)
 # ---------------------------------------------------------------------------
-top10_idx <- rmse_df$sim_index[1:10]
-message("Building top-10-sim mean stacked plot...")
+if (nrow(top10pct_pass) == 0) {
+  stop("No simulations passed correlation in the RMSE top-10% pool; cannot build top-1/5/10% figures.")
+}
 
-top10_df <- build_stack_df(
-  sim_yield_list[top10_idx],
-  fished_species, effort_windows, PLOT_YEARS
-)
+build_top_group_plot <- function(pct, file_stub) {
+  n_target <- ceiling(n_sims * pct)
+  n_use <- min(n_target, nrow(top10pct_pass))
+  idx <- top10pct_pass$sim_index[1:n_use]
 
-p_top10 <- make_stacked_plot(top10_df)
-ggsave("yield_stacked_top10_mean.png", p_top10, width = 12, height = 6, dpi = 300)
-message("Saved yield_stacked_top10_mean.png")
+  message(sprintf("Building top-%.0f%% mean stacked plot (target=%d, used=%d)...",
+                  pct * 100, n_target, n_use))
 
-# ---------------------------------------------------------------------------
-# 3. Top 10% sims — mean yield
-# ---------------------------------------------------------------------------
-n_top10pct  <- ceiling(n_sims * 0.10)
-top10pct_idx <- rmse_df$sim_index[1:n_top10pct]
-message("Building top-10%-sim mean stacked plot (n=", n_top10pct, ")...")
+  out_df <- build_stack_df(
+    sim_yield_list[idx],
+    fished_species, effort_windows, PLOT_YEARS
+  )
 
-top10pct_df <- build_stack_df(
-  sim_yield_list[top10pct_idx],
-  fished_species, effort_windows, PLOT_YEARS
-)
+  p <- make_stacked_plot(out_df)
+  out_file <- paste0("yield_stacked_", file_stub, "_mean.png")
+  ggsave(out_file, p, width = 12, height = 6, dpi = 300)
+  message("Saved ", out_file)
+  p
+}
 
-p_top10pct <- make_stacked_plot(top10pct_df)
-ggsave("yield_stacked_top10pct_mean.png", p_top10pct, width = 12, height = 6, dpi = 300)
-message("Saved yield_stacked_top10pct_mean.png")
+p_top1pct <- build_top_group_plot(0.01, "top1pct")
+p_top5pct <- build_top_group_plot(0.05, "top5pct")
+p_top10pct <- build_top_group_plot(0.10, "top10pct")
 
 # ---------------------------------------------------------------------------
 # Observed plot — standalone + inset composite
