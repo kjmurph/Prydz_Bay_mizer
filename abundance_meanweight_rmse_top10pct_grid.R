@@ -715,31 +715,40 @@ message("Saved 1900-start variants.")
 # ---------------------------------------------------------------------------
 # 6. SD reference variants (1900 onward)
 #
-# For each panel, ±1 SD of the unexploited metric during the pre-exploitation
-# baseline (1901–1929) is expressed as a % of the baseline mean (i.e., the
-# coefficient of variation %).  This gives a panel-specific detectability
-# threshold: when the exploited timeseries crosses the red lines, the change
-# exceeds the natural inter-sim variability of the unexploited ensemble.
-# Method mirrors the 1 SD reference used on the NBSS paired-difference plot.
+# For each panel, the ±1 SD reference band marks the natural variability of the
+# UNEXPLOITED metric, expressed as a % of the baseline mean so it sits on the
+# "% change from unexploited" axis. Method matches the SNR detection framework in
+# Plotting scripts/biomass_slope_snr_mean_med.R (Julia's suggestion; Barrier et
+# al. 2024):
+#   noise   = SD over the full unexploited record (1841–2010) of the ensemble-
+#             MEAN unexploited trajectory — NOT the pooled inter-sim spread. The
+#             paired % change has already removed cross-calibration spread from
+#             the signal, so pooling it back into the noise would be inconsistent.
+#   ref_pct = noise / baseline-mean level × 100.
+# When the exploited median crosses ±ref_pct the change exceeds ±1 SD of the
+# unexploited ensemble's natural variability (|SNR| > 1 in the SNR figures).
 # ---------------------------------------------------------------------------
 message("Building SD-reference variants (1900 onward)...")
 
-PRE_EXPLOIT_YEARS <- 1901:1929
+# Full unexploited record: the climate-only ensemble carries no exploitation and
+# no detectable climate trend, so the whole record is the most robust natural-
+# variability baseline (matches biomass_slope_snr_mean_med.R BASELINE_YEARS).
+BASELINE_YEARS <- 1841:2010
 
-# Helper: ± CV% reference data frame from a per-sim per-year metric data frame
+# Helper: ±1 SD reference (as % of baseline mean) from a per-sim per-year metric
+# table. Noise = temporal SD of the ensemble-mean unexploited trajectory over
+# BASELINE_YEARS (the SNR-framework noise), divided by that trajectory's mean.
 make_sd_ref <- function(df, value_col) {
   df %>%
-    dplyr::filter(Year %in% PRE_EXPLOIT_YEARS) %>%
+    dplyr::filter(Year %in% BASELINE_YEARS) %>%
+    dplyr::group_by(panel, Year) %>%
+    dplyr::summarise(mu = mean(.data[[value_col]], na.rm = TRUE), .groups = "drop") %>%
     dplyr::group_by(panel) %>%
     dplyr::summarise(
-      bl_mean = mean(.data[[value_col]], na.rm = TRUE),
-      bl_sd   = sd(.data[[value_col]],   na.rm = TRUE),
+      ref_pct = sd(mu, na.rm = TRUE) / mean(mu, na.rm = TRUE) * 100,
       .groups = "drop"
     ) %>%
-    dplyr::mutate(
-      ref_pct = bl_sd / bl_mean * 100,
-      panel   = factor(panel, levels = panel_levels)
-    ) %>%
+    dplyr::mutate(panel = factor(panel, levels = panel_levels)) %>%
     { dplyr::bind_rows(
         dplyr::select(., panel, ref_pct),
         dplyr::mutate(dplyr::select(., panel, ref_pct), ref_pct = -ref_pct)
@@ -759,7 +768,7 @@ sd_ref_layer <- function(ref_df, lt = "dashed") {
 ggsave(
   "meanweight_pctchange_rmse_top10pct_grid_1900_sdref.png",
   p_mw_pct + sd_ref_layer(mw_ref) + coord_cartesian(xlim = c(1900, NA)) +
-    labs(caption = "±1 SD of unexploited mean weight (1901–1929 baseline) as % of baseline mean."),
+    labs(caption = "±1 SD of the unexploited mean weight (ensemble-mean, 1841–2010) as % of baseline mean."),
   width = 16, height = 9, dpi = 300
 )
 message("  Saved meanweight_pctchange_rmse_top10pct_grid_1900_sdref.png")
@@ -768,7 +777,7 @@ message("  Saved meanweight_pctchange_rmse_top10pct_grid_1900_sdref.png")
 ggsave(
   "abundance_pctchange_rmse_top10pct_grid_1900_sdref.png",
   p_ab_pct + sd_ref_layer(ab_ref) + coord_cartesian(xlim = c(1900, NA)) +
-    labs(caption = "±1 SD of unexploited abundance (1901–1929 baseline) as % of baseline mean."),
+    labs(caption = "±1 SD of the unexploited abundance (ensemble-mean, 1841–2010) as % of baseline mean."),
   width = 16, height = 9, dpi = 300
 )
 message("  Saved abundance_pctchange_rmse_top10pct_grid_1900_sdref.png")
@@ -782,8 +791,8 @@ ggsave(
     sd_ref_layer(ab_ref, lt = "longdash") +
     coord_cartesian(xlim = c(1900, NA)) +
     labs(caption = paste0(
-      "Red solid: ±1 SD mean individual mass (unexploited 1901–1929). ",
-      "Red long-dashed: ±1 SD abundance (same baseline)."
+      "Red solid: ±1 SD mean individual mass; red long-dashed: ±1 SD abundance ",
+      "(unexploited ensemble-mean, 1841–2010 baseline)."
     )),
   width = 16, height = 10, dpi = 300
 )
@@ -821,19 +830,28 @@ theme_1col_base <- theme_bw(base_size = 10) +
     legend.position  = "none",
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    panel.spacing.y  = unit(0.05, "lines"),
+    panel.spacing.y  = unit(0.4, "lines"),
     axis.title       = element_text(size = 11),
     axis.text        = element_text(size = 9)
   )
 
-# Helper — builds one 1-column % change facet plot
-build_1col_pct <- function(summ_df, events_sp_df, y_lab, show_strips, shared_ylims = NULL) {
+# Helper — builds one 1-column % change facet plot.
+# ref_df (optional): per-panel ±1 SD reference band (cols panel, ref_pct) drawn
+# as red dashed hlines — the natural-variability detectability threshold.
+build_1col_pct <- function(summ_df, events_sp_df, y_lab, show_strips,
+                           shared_ylims = NULL, ref_df = NULL) {
   p <- ggplot() +
     geom_hline(yintercept = 0,
                linetype = "dashed", colour = "grey40", linewidth = 0.5) +
     geom_ribbon(data = summ_df,
                 aes(x = Year, ymin = q25, ymax = q75, fill = panel),
                 alpha = 0.3) +
+    {
+      # ±1 SD reference lines (drawn under the median so it stays legible)
+      if (!is.null(ref_df))
+        geom_hline(data = ref_df, aes(yintercept = ref_pct), inherit.aes = FALSE,
+                   colour = "red", linetype = "dashed", linewidth = 0.45, alpha = 0.85)
+    } +
     geom_line(data = summ_df,
               aes(x = Year, y = median, colour = panel),
               linewidth = 0.8) +
@@ -879,13 +897,15 @@ build_1col_pct <- function(summ_df, events_sp_df, y_lab, show_strips, shared_yli
 p_ab_1col <- build_1col_pct(
   ab_ratio_summary, species_events_ab,
   y_lab       = "Abundance: % change from unexploited",
-  show_strips = FALSE
+  show_strips = FALSE,
+  ref_df      = ab_ref
 )
 
 p_mw_1col <- build_1col_pct(
   ratio_summary, species_events_mw,
   y_lab       = "Mean ind. mass: % change from unexploited",
-  show_strips = TRUE
+  show_strips = TRUE,
+  ref_df      = mw_ref
 )
 
 # Wider right panel to accommodate the strip labels without compressing the plot area.
@@ -951,14 +971,16 @@ p_ab_1col_fixed <- build_1col_pct(
   ab_ratio_summary, species_events_ab_fixed,
   y_lab        = "Abundance: % change from unexploited",
   show_strips  = FALSE,
-  shared_ylims = blank_ylims
+  shared_ylims = blank_ylims,
+  ref_df       = ab_ref
 )
 
 p_mw_1col_fixed <- build_1col_pct(
   ratio_summary, species_events_mw_fixed,
   y_lab        = "Mean ind. mass: % change from unexploited",
   show_strips  = TRUE,
-  shared_ylims = blank_ylims
+  shared_ylims = blank_ylims,
+  ref_df       = mw_ref
 )
 
 p_1col_fixed <- (p_ab_1col_fixed + p_mw_1col_fixed +

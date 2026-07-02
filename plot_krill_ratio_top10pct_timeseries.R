@@ -7,6 +7,22 @@
 #   - Large baleen + minke whales (line)       — losers under exploitation
 #   - Fishes (line)                            — winners under exploitation
 #
+# Central metric (paired framing): within each of the 212 matched ensemble
+# members the exploited/unexploited krill-consumption ratio is formed FIRST
+# (exploited ÷ unexploited, so climate/parameter differences cancel within the
+# pair), and the paired ratios are THEN summarised across members as the median
+# (line) and 25-75th percentile IQR (ribbon). This is the ratio analogue of the
+# paired-difference (median + IQR) framing in biomass_slope_snr_mean_med.R.
+#
+# ±1 SD natural-variability reference (per group, colour-matched dashed lines):
+# the noise is the SD of the UNEXPLOITED (climate-only) ensemble-mean krill
+# consumption over the full 1841-2010 baseline, expressed as a CV (÷ its baseline
+# mean) so it lands on the multiplicative ratio scale around the null of 1.0.
+# This mirrors the 1841-2010 baseline of biomass_slope_snr_mean_med.R and the
+# CV-on-ratio-scale reference of yield_ratio_combined_panels.R. Where a group's
+# median ratio leaves its ±1 SD band, the exploitation effect has emerged beyond
+# natural variability.
+#
 # Data source: full_diet_top10pct_fishing_all_sims.rds
 #              full_diet_top10pct_climate_only_all_sims.rds
 # Each element is a 3D array [year × predator × prey] of domain-wide
@@ -24,16 +40,22 @@ OUTPUT_DIR <- "whale_consumption_outputs"
 ###############################################################################
 # Colours (identical to original figure)
 ###############################################################################
-FILL_COL  <- "#4daf8d"   # ribbon fill — total all predators
-LINE_COL  <- "#1a4d38"   # median line — total all predators
-WHALE_COL <- "#e878b8"   # large baleen + minke (losers)
-FISH_COL  <- "#0072B2"   # fishes (winners)
+# Colours harmonised with the manuscript species palette (panel_colors in
+# abundance_meanweight_rmse_top10pct_grid.R):
+#   whales  -> baleen pink  #FF61C3  (baleen dominate this group's krill intake)
+#   fishes  -> pelagic-fish ochre #D39200  (blue is reserved for orca/pinnipeds)
+#   total   -> neutral charcoal (community aggregate; no single-species mapping)
+FILL_COL  <- "grey65"    # ribbon fill — total all predators (neutral aggregate)
+LINE_COL  <- "grey15"    # median line — total all predators
+WHALE_COL <- "#FF61C3"   # large baleen + minke (losers)
+FISH_COL  <- "#D39200"   # fishes (winners)
 
 KRILL_START <- 1974
 KRILL_END   <- 1996
 VLINE_COL   <- "#e8534a"
 
-YEAR_MIN <- 1901    # plot start year (sims begin 1841)
+YEAR_MIN      <- 1901         # plot start year
+BASELINE_YEARS <- 1841:2010   # unexploited natural-variability baseline (SNR)
 
 ###############################################################################
 # Predator group definitions
@@ -100,6 +122,29 @@ compute_annual_ratio <- function(fish_list, clim_list, year_min = YEAR_MIN) {
 }
 
 ###############################################################################
+# Helper: per-group ±1 SD natural-variability band (in ratio units)
+#
+# Noise follows the SNR framing of biomass_slope_snr_mean_med.R: the SD, over
+# the full unexploited 1841-2010 baseline, of the ensemble-mean UNEXPLOITED
+# (climate-only) krill-consumption trajectory. It is divided by that baseline
+# mean (a CV) so it maps onto the multiplicative ratio scale around the null of
+# 1.0, exactly as yield_ratio_combined_panels.R does for its ratio panel.
+# Returns sd_lo / sd_hi (band edges) and sigma (the CV itself).
+###############################################################################
+compute_sd_band <- function(clim_list, baseline_years = BASELINE_YEARS) {
+  rep_unexp <- do.call(rbind, clim_list) %>%
+    group_by(year) %>%
+    summarise(mu = mean(total_consumption, na.rm = TRUE), .groups = "drop") %>%
+    filter(year %in% baseline_years)
+
+  ref_mean <- mean(rep_unexp$mu, na.rm = TRUE)
+  noise    <- sd(rep_unexp$mu,   na.rm = TRUE)
+  sigma    <- noise / ref_mean
+
+  data.frame(sd_lo = max(1 - sigma, 0), sd_hi = 1 + sigma, sigma = sigma)
+}
+
+###############################################################################
 # Load top-10% diet arrays
 ###############################################################################
 cat("Loading top-10% RMSE diet arrays...\n")
@@ -161,6 +206,21 @@ cat(sprintf("  Whale median range:  %.3f – %.3f\n", min(whale_summary$med), ma
 cat(sprintf("  Fish  median range:  %.3f – %.3f\n\n", min(fish_summary$med),  max(fish_summary$med)))
 
 ###############################################################################
+# Per-group ±1 SD natural-variability bands (1841-2010 unexploited baseline)
+###############################################################################
+cat("Computing ±1 SD natural-variability bands...\n")
+sd_total <- compute_sd_band(c_total)
+sd_whale <- compute_sd_band(c_baleen_minke)
+sd_fish  <- compute_sd_band(c_fish)
+
+cat(sprintf("  All predators: sigma = %.4f  ->  band [%.3f, %.3f]\n",
+            sd_total$sigma, sd_total$sd_lo, sd_total$sd_hi))
+cat(sprintf("  Whales:        sigma = %.4f  ->  band [%.3f, %.3f]\n",
+            sd_whale$sigma, sd_whale$sd_lo, sd_whale$sd_hi))
+cat(sprintf("  Fishes:        sigma = %.4f  ->  band [%.3f, %.3f]\n\n",
+            sd_fish$sigma,  sd_fish$sd_lo,  sd_fish$sd_hi))
+
+###############################################################################
 # Build long-format ratio data
 ###############################################################################
 total_summary$group <- "All predators"
@@ -218,6 +278,16 @@ p <- ggplot() +
               mapping = aes(x = year, ymin = q25, ymax = q75),
               fill = FISH_COL, alpha = 0.25, colour = NA) +
 
+  # ---- Per-group ±1 SD natural-variability references (colour-matched) ----
+  # Dashed horizontal lines at 1 ± CV of the unexploited 1841-2010 baseline.
+  # A group's median ratio leaving its band = change beyond natural variability.
+  geom_hline(yintercept = c(sd_total$sd_lo, sd_total$sd_hi),
+             linetype = "dashed", colour = LINE_COL,  linewidth = 0.5) +
+  geom_hline(yintercept = c(sd_whale$sd_lo, sd_whale$sd_hi),
+             linetype = "dashed", colour = WHALE_COL, linewidth = 0.5) +
+  geom_hline(yintercept = c(sd_fish$sd_lo,  sd_fish$sd_hi),
+             linetype = "dashed", colour = FISH_COL,  linewidth = 0.5) +
+
   # ---- Median lines ----
   geom_line(data    = ratio_all,
             mapping = aes(x = year, y = med,
@@ -240,6 +310,15 @@ p <- ggplot() +
     expand = expansion(mult = c(0.02, 0.08))
   ) +
 
+  # ---- Methods caption (paired framing + SD reference) ----
+  labs(caption = paste(strwrap(paste0(
+    "Ratios are computed within each of the 212 matched ensemble members ",
+    "(exploited ÷ unexploited) and summarised across members as the median ",
+    "(line) and 25–75% IQR (ribbon). Dashed horizontal lines mark each group's ",
+    "±1 SD of natural variability: the SD of the unexploited ensemble-mean krill ",
+    "consumption over the 1841–2010 baseline, as a CV of its baseline mean."),
+    width = 118), collapse = "\n")) +
+
   # ---- Theme ----
   theme_bw(base_size = 11) +
   theme(
@@ -251,6 +330,7 @@ p <- ggplot() +
     legend.key.size  = unit(0.45, "cm"),
     legend.text      = element_text(size = 8.5),
     legend.title     = element_text(size = 9, face = "bold"),
+    plot.caption     = element_text(size = 7, colour = "grey35", hjust = 0),
     plot.margin      = margin(8, 12, 4, 4, "pt")
   ) +
   guides(

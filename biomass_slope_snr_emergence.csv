@@ -1,0 +1,81 @@
+"metric","window","align","baseline","threshold","first_emergence","sustained_emergence","permanent_emergence"
+"Biomass","3yr","trailing","base1901_1929",1,1976,1976,NA
+"Biomass","3yr","trailing","base1901_1929",2,NA,NA,NA
+"Biomass variability","3yr","trailing","base1901_1929",1,NA,NA,NA
+"Biomass variability","3yr","trailing","base1901_1929",2,NA,NA,NA
+"Slope","3yr","trailing","base1901_1929",1,1937,1937,1937
+"Slope","3yr","trailing","base1901_1929",2,1948,1948,1948
+"Slope variability","3yr","trailing","base1901_1929",1,NA,NA,NA
+"Slope variability","3yr","trailing","base1901_1929",2,NA,NA,NA
+"Biomass","5yr","trailing","base1901_1929",1,1976,1976,NA
+"Biomass","5yr","trailing","base1901_1929",2,NA,NA,NA
+"Biomass variability","5yr","trailing","base1901_1929",1,NA,NA,NA
+"Biomass variability","5yr","trailing","base1901_1929",2,NA,NA,NA
+"Slope","5yr","trailing","base1901_1929",1,1937,1937,1937
+"Slope","5yr","trailing","base1901_1929",2,1948,1948,1948
+"Slope variability","5yr","trailing","base1901_1929",1,1951,NA,NA
+"Slope variability","5yr","trailing","base1901_1929",2,NA,NA,NA
+"Biomass","10yr","trailing","base1901_1929",1,1976,1976,NA
+"Biomass","10yr","trailing","base1901_1929",2,NA,NA,NA
+"Biomass variability","10yr","trailing","base1901_1929",1,NA,NA,NA
+"Biomass variability","10yr","trailing","base1901_1929",2,NA,NA,NA
+"Slope","10yr","trailing","base1901_1929",1,1937,1937,1937
+"Slope","10yr","trailing","base1901_1929",2,1948,1948,1948
+"Slope variability","10yr","trailing","base1901_1929",1,1942,1951,NA
+"Slope variability","10yr","trailing","base1901_1929",2,1952,1952,NA
+"Biomass","12yr","trailing","base1901_1929",1,1976,1976,NA
+"Biomass","12yr","trailing","base1901_1929",2,NA,NA,NA
+"Biomass variability","12yr","trailing","base1901_1929",1,1939,NA,NA
+"Biomass variability","12yr","trailing","base1901_1929",2,NA,NA,NA
+"Slope","12yr","trailing","base1901_1929",1,1937,1937,1937
+"Slope","12yr","trailing","base1901_1929",2,1948,1948,1948
+"Slope variability","12yr","trailing","base1901_1929",1,1938,1940,NA
+"Slope variability","12yr","trailing","base1901_1929",2,1944,1952,NA
+"Biomass","15yr","trailing","base1901_1929",1,1976,1976,NA
+"Biomass","15yr","trailing","base1901_1929",2,NA,NA,NA
+"Biomass variability","15yr","trailing","base1901_1929",1,NA,NA,NA
+"Biomass variability","15yr","trailing","base1901_1929",2,NA,NA,NA
+"Slope","15yr","trailing","base1901_1929",1,1937,1937,1937
+"Slope","15yr","trailing","base1901_1929",2,1948,1948,1948
+"Slope variability","15yr","trailing","base1901_1929",1,1937,1937,NA
+"Slope variability","15yr","trailing","base1901_1929",2,1940,1940,NA
+"Biomass","3yr","trailing","baseFull",1,1976,1976,NA
+"Biomass","3yr","trailing","baseFull",2,NA,NA,NA
+"Biomass variability","3yr","trailing","baseFull",1,NA,NA,NA
+"Biomass variability","3yr","trailing","baseFull",2,NA,NA,NA
+"Slope","3yr","trailing","baseFull",1,1937,1937,1937
+"Slope","3yr","trailing","baseFull",2,1949,1949,1949
+"Slope variability","3yr","trailing","baseFull",1,NA,NA,NA
+"Slope variability","3yr","trailing","baseFull",2,NA,NA,NA
+"Biomass","5yr","trailing","baseFull",1,1976,1976,NA
+"Biomass","5yr","trailing","baseFull",2,NA,NA,NA
+"Biomass variability","5yr","trailing","baseFull",1,NA,NA,NA
+"Biomass variability","5yr","trailing","baseFull",2,NA,NA,NA
+"Slope","5yr","trailing","baseFull",1,1937,1937,1937
+"Slope","5yr","trailing","baseFull",2,1949,1949,1949
+"Slope variability","5yr","trailing","baseFull",1,1951,NA,NA
+"Slope variability","5yr","trailing","baseFull",2,NA,NA,NA
+"Biomass","10yr","trailing","baseFull",1,1976,1976,NA
+"Biomass","10yr","trailing","baseFull",2,NA,NA,NA
+"Biomass variability","10yr","trailing","baseFull",1,NA,NA,NA
+"Biomass variability","10yr","trailing","baseFull",2,NA,NA,NA
+"Slope","10yr","trailing","baseFull",1,1937,1937,1937
+"Slope","10yr","trailing","baseFull",2,1949,1949,1949
+"Slope variability","10yr","trailing","baseFull",1,1942,1952,NA
+"Slope variability","10yr","trailing","baseFull",2,1952,1952,NA
+"Biomass","12yr","trailing","baseFull",1,1976,1976,NA
+"Biomass","12yr","trailing","baseFull",2,NA,NA,NA
+"Biomass variability","12yr","trailing","baseFull",1,NA,NA,NA
+"Biomass variability","12yr","trailing","baseFull",2,NA,NA,NA
+"Slope","12yr","trailing","baseFull",1,1937,1937,1937
+"Slope","12yr","trailing","baseFull",2,1949,1949,1949
+"Slope variability","12yr","trailing","baseFull",1,1940,1942,NA
+"Slope variability","12yr","trailing","baseFull",2,1952,1952,NA
+"Biomass","15yr","trailing","baseFull",1,1976,1976,NA
+"Biomass","15yr","trailing","baseFull",2,NA,NA,NA
+"Biomass variability","15yr","trailing","baseFull",1,NA,NA,NA
+"Biomass variability","15yr","trailing","baseFull",2,NA,NA,NA
+"Slope","15yr","trailing","baseFull",1,1937,1937,1937
+"Slope","15yr","trailing","baseFull",2,1949,1949,1949
+"Slope variability","15yr","trailing","baseFull",1,1938,1938,NA
+"Slope variability","15yr","trailing","baseFull",2,1940,1940,NA
