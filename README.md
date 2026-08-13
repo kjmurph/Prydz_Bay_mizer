@@ -1,5 +1,13 @@
 # Prydz_Bay_mizer
 
+> **This README describes the model's early setup and is out of date.** It is kept
+> for the history of how the model was first assembled. For the current state —
+> the reference model (`params_ref_p59_cap09_tol001.rds`), the 167-member
+> ensemble, the phase workflow and the known traps — see **`AGENTS.md`**.
+>
+> In particular, the recommendation of `params/params_optim_v04_w_pp_100.rds`
+> below is many phases superseded, and the model now has 19 functional groups.
+
 `Adding fishing catch.rmd` is the current markdown to explore IWC catch data and the initial efforts to estimate effort.
 There is also a small chunk where krill catch for the Prydz Bay region has been estimated from the hisotrical fishing effort FishMIP output.
 
