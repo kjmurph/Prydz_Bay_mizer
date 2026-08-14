@@ -27,3 +27,22 @@ ecosystem_assessment_outputs/*.rds
 *.pdf
 ecosystem_assessment_outputs/climate_only_metrics_raw.rds
 ecosystem_assessment_outputs/fishing_metrics_raw.rds
+.positai
+
+# --- VM transfer artefacts -------------------------------------------------
+# Payloads and result bundles moved to and from the compute VM. Always a
+# duplicate of a directory that is already here; 40_states.tar alone was 727 MB.
+*.tar
+*.tar.gz
+
+# --- OneDrive duplicate-on-sync artefacts ----------------------------------
+# A single sync event on 2026-07-27 produced 2,423 of these, byte-identical to
+# their originals and 20.8 GB in total. Nothing references them: the " - Copy"
+# suffix means no script can find one by name.
+* - Copy.*
+
+# --- generated figure inputs ------------------------------------------------
+# Rebuilt by the scripts in "Manuscript scripts/". The twelve already tracked
+# here stay tracked -- an ignore rule never untracks anything.
+Manuscript data/*.rds
+Manuscript data/*.csv
