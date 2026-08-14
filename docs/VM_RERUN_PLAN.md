@@ -161,9 +161,48 @@ params_ref_p86_agemat.rds
 docs/VM_RERUN_PLAN.md
 ```
 
-## Open items
+## Preflight
 
-- Confirm the VM has a current `43_member_draws.rds`. `Output_large_files/` is gitignored, so it does not travel with the commit; phase 87 reads it and will stop if it is absent.
+`R/wmin_test/91_preflight.R` checks everything below and exits non-zero on
+failure, so it can be chained: `Rscript R/wmin_test/91_preflight.R && ...`.
+`41_vm_environment_check.R` is the *phase-40* check and is the wrong one here.
+
+Three inputs live under the gitignored `Output_large_files/` and must be copied
+across by hand, preserving the relative paths. Run the `scp` **locally**, not
+inside the ssh session:
+
+```powershell
+cd "<repo root>"
+$vm = "prydzbaymizer3@prydzbaymizerv3.southernoeansized.cloud.edu.au"
+scp "Output_large_files/wmin_test/43_member_draws.rds" `
+    "Output_large_files/wmin_test/45_refit_results.rds" `
+    "Output_large_files/wmin_test/46_selection_cuts.rds" `
+    "${vm}:~/Prydz_Bay_mizer/Output_large_files/wmin_test/"
+```
+
+Total ~0.8 MB. **Having phase 44 on the VM does not substitute.** `44_states/`
+and `44_rebuild_results.rds` are what 45 and 46 were *derived from*, not what
+they contain; regenerating them means re-running `45_catchability_refit.R apply`
+over 1,668 states, 1-2 hours, against a five-second copy. Nothing in this run
+reads `44_states/` — phase 88 builds fresh states from the reference and the
+draws, and phase 89 reads only `88_full_states`.
+
+The preflight's numeric fingerprint is the check that matters: the VM runs
+**R 4.4.0** against this workstation's 4.6.1, so mizer and therMizer matching at
+3.1.0 / 1.0.0 is necessary but not sufficient. Locally the fingerprint agrees to
+3.21e-15 against a 1e-10 tolerance.
+
+**Do not delete `44_states/` or `40_states/` to free disk.** They are the bulk of
+the volume but the old ensemble cannot be regenerated. `~/40_states.tar` is a
+duplicate of `40_states/`, already pulled down locally, and is the safe one to
+remove if space is ever needed.
+
+## Settled, no longer open
+
+- **Bathypelagic fishes stays fitted.** One observation in the 2004 window and a ~3e-07 multiplier, but the direction is unambiguous and it is 0.1% of the objective. Kieran, 2026-08-14: not worth an extra methods caveat.
+- **`params_ref_p86_agemat.rds` is trusted as a binary** on the VM. The recalibration scripts (66, 73, 74) are not being committed, so the reference is not rebuildable there. Kieran, 2026-08-14.
+- **The draws file holds 1,997 members**, of which 1,668 are ranked and built. Phase 87 substitutes across all 1,997; the extras are never used, so the substitution log has more rows than members built.
+- **Substitution share is large**: draws below 1, and therefore replaced — orca 63.6%, baleen 58.6%, sperm 49.0%, mesozooplankton 47.6%, minke 47.2%. About half of every member's whale and mesozooplankton multipliers are replaced rather than adjusted. State this plainly in the methods; at that share it is a statement about the prior, not a small correction.
 - Decide whether the reference recalibration scripts (66, 73, 74) should also be committed so `params_ref_p86_agemat.rds` is rebuildable rather than trusted as a binary.
 - 1952 shelf-and-coastal-fishes catch is 7,380 t against neighbouring years of 8–56 t (catch/effort ratio 17,985 vs ~300–1,000). Kieran: likely a legitimate large single-species catch, retained.
 - Whales cannot be fixed by catchability: baleen has 45x of `q` headroom against an 80x catch shortfall, and raising `q` also raises fishing mortality. Stock-limited.
