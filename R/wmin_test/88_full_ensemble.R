@@ -91,6 +91,14 @@
 # so an interrupted build resumes where it stopped. "status" reports progress
 # without touching anything; "collect" assembles from existing chunks only.
 #
+# RESUME AND STATUS MUST USE THE SAME P61_CORES AS THE ORIGINAL RUN. Chunk
+# boundaries are split(members, ceiling(seq_along(members) / CORES)), so the core
+# count decides how members map to res_NNN.rds files. Resuming at a different
+# value matches completed chunk files to the WRONG member ranges -- some members
+# never get built and others are built twice. It also makes "status" nonsense:
+# at the default 10 cores it reported "1/167" against a real "1/56".
+# 88_vm_run.sh passes nproc-2 to every mode, which is why it is the safe path.
+#
 # USAGE  Rscript R/wmin_test/88_full_ensemble.R [run|collect|status]
 # ENV    P61_BASE, P61_N, P61_CORES, P83_DRAWS, P88_MEMBERS, P88_STEM,
 #        and every phase-61/65/83 switch (defaults are the settled protocol)

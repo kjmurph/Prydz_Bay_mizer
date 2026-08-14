@@ -179,7 +179,13 @@ dry-run)
 
 status)
   echo "=== phase 88 ==="
-  Rscript R/wmin_test/88_full_ensemble.R status 2>/dev/null \
+  # P61_CORES MUST match the running job. Chunk boundaries are
+  # split(members, ceiling(seq_along(members) / CORES)), so a different core
+  # count yields a different number of chunks and the progress figure is
+  # meaningless -- status at the default 10 reported "1/167" against a real
+  # "1/56". The same mismatch would also break a RESUME, because completed
+  # chunk files would be matched to the wrong member ranges.
+  env P61_CORES="$CORES" Rscript R/wmin_test/88_full_ensemble.R status 2>/dev/null \
     || echo "  (could not read status -- run not started?)"
   [ -f "$DRAWS_OUT" ] && echo "87 output: present" || echo "87 output: absent"
   echo
