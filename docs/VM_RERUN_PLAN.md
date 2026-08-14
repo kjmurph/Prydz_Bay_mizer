@@ -26,12 +26,56 @@ The existing calibration violates that, and it is not a technicality:
 | Fitting window | per species, `first year with effort` → `min(2004, last reported catch, last effort year)` |
 | Missing catch | dropped as `NA`; never coerced to zero |
 | Objective | pooled SSE on `log10(yield + 1 g)`, per species per member |
-| Optimisation | divide `q` by modelled/observed yield ratio, re-project, iterate (6 rounds) |
+| Optimisation | divide `q` by the modelled/observed yield ratio, re-project, iterate (6 rounds) |
+| Estimator | **median of per-member ratios**, 50x per-iteration step cap |
 | Weighting | none; one global multiplier `M_s` per species applied to each member's drawn `q`, capped at `QMAX = 1` |
+| Not fitted | **baleen, sperm and minke whale `q` held at the drawn values** — non-identifiable, see below |
 | Spatial domain | Prydz Bay regional model, 19 functional groups |
 
 `yield_observed` in the params is all zero/NA and unused, so mizer never sees the
 observed series — it exists only inside this objective.
+
+### Two further corrections, found by validating phase 89 before running it
+
+`R/wmin_test/90_catchability_ab_test.R` runs the fit on 10 cached members under
+one rule change at a time. It found that the first draft of phase 89 had, beyond
+the window fix, changed two things it should not have:
+
+1. **The estimator.** It updated from the ratio of *pooled sums* across members;
+   phase 45 used the *median of per-member ratios* with a 50x step cap. Pooling
+   is dominated by the largest members and left every species short (krill 0.26,
+   toothfishes 0.29, squids 0.44, shelf 0.52) where the median lands them on
+   1.000. Restored.
+2. **Whale catchability must be held.** Phase 45 held baleen, sperm and minke at
+   the drawn `q`, recorded in `45_catchability_multipliers.rds` under
+   `$held_at_one` and `$note` — fields the *script* never wrote, which is how the
+   decision got lost. Their fit is non-identifiable: phase 45's trace runs baleen
+   `1 → 40.8 → 673 → 1.10e4 → 1.81e5 → 2.96e6` while its catch ratio never leaves
+   0.061, because `q` is clamped at 1 and the stock is the binding limit. Fitting
+   them pins every member at the ceiling and collapses the 2005–2010 out-of-sample
+   baleen catch ratio from 0.705 to 0.012. Restored.
+
+Validation on the top 10 usable phase-77 members, median member RMSE on the 2004
+window — lower is better:
+
+| multiplier set | RMSE |
+|---|---|
+| **phase 89, both corrections** | **0.9641** |
+| the current ensemble's stored multipliers | 1.0783 |
+| no correction at all (drawn `q`) | 1.1635 |
+| window fix alone, whales fitted | 1.3291 |
+| phase 89 first draft | 1.3623 |
+
+The window fix *alone* is worse than doing nothing — the whale runaway swamps it.
+Both corrections are needed, and together they beat the current ensemble on 7 of
+10 members. Toothfish falls from 40.2% to 19.7% of the pooled objective, against
+11.3% of the observations.
+
+**Open:** bathypelagic fishes has a total observed catch of 690 g across 90 years
+and a single observation inside the 2004 window, yet is still assigned a
+multiplier of ~3e-07. The direction is unambiguous (the model over-predicts it by
+six orders of magnitude) and it is 0.1% of the objective, so it is left fitted —
+but it should be stated in the methods rather than left implicit.
 
 ## Draw substitution (phase 87)
 

@@ -36,6 +36,40 @@
 # mizer never sees these NAs: `yield_observed` in the params is all zero/NA and
 # unused, so the observed series exists only inside this objective.
 #
+# ------------------------------------------- CORRECTION 3: the estimator
+# The first draft of this script also, unintentionally, changed the ESTIMATOR:
+# it updated the multiplier from the ratio of POOLED SUMS across members, where
+# phase 45 used the MEDIAN of per-member ratios with a 50x per-iteration step
+# cap. That is not a neutral difference. A pooled sum is dominated by the
+# largest members, and this project has already been bitten by exactly that
+# construction -- one divergent member once owned 83% of an across-member sum.
+#
+# MEASURED, phase 90, 10 members: the pooled estimator lands EVERY species below
+# its target (krill 0.26, toothfishes 0.29, bathypelagic 0.35, squids 0.44,
+# shelf 0.52) where the median estimator lands five of them on 1.000. It drives
+# the pooled total to match while leaving the median member systematically
+# short. Phase 45's rule is restored as the default; P89_ESTIMATOR=pooled
+# reproduces the first draft.
+#
+# --------------------------------- CORRECTION 4: whale catchability is HELD
+# baleen, sperm and minke whales are NOT fitted. This is not new -- it is
+# recorded in 45_catchability_multipliers.rds, in fields the script does not
+# write ($held_at_one and $note), and the first draft of this script silently
+# dropped it. Phase 45's own note:
+#
+#   "baleen/sperm/minke held at 1: their fit is non-identifiable (multiplier
+#    diverges to 1e6 while the catch ratio stays flat) and applying it would pin
+#    every member at the q ceiling, destroying the sampled spread in whale
+#    catchability."
+#
+# Its trace shows the divergence directly -- baleen 1 -> 40.8 -> 673 -> 1.10e4
+# -> 1.81e5 -> 2.96e6 while the catch ratio never leaves 0.061. Phase 90
+# reproduced it (baleen 9.07e5, minke 5.43e5) and measured the damage: fitting
+# whales cranks q to the ceiling, fishes the stock down harder through the
+# whaling era, and collapses the 2005-2010 out-of-sample baleen catch ratio from
+# 0.705 to 0.012. The stock is the binding limit, not catchability: observed
+# baleen catch is ~23.8x the calibrated standing stock.
+#
 # ------------------------------------------------------------- STATE SOURCE
 # P89_STATE_DIR, defaulting to the phase-88 states on the CURRENT reference. The
 # phase-45 multipliers were fitted against ensemble-44 states built on a base
@@ -61,10 +95,25 @@ OL <- "Output_large_files/wmin_test"
 STATE_DIR <- Sys.getenv("P89_STATE_DIR",
                         file.path(OL, "88_full_states"))
 OUT <- Sys.getenv("P89_OUT", file.path(OL, "89_refit_results.rds"))
-CORES <- as.integer(Sys.getenv("P89_CORES", "30"))
+CORES <- min(as.integer(Sys.getenv("P89_CORES", "30")),
+             max(1L, parallel::detectCores() - 2L))
 ITERS <- as.integer(Sys.getenv("P89_ITERS", "6"))
 CAP_YEAR <- as.integer(Sys.getenv("P89_CAP_YEAR", "2004"))
 QMAX <- as.numeric(Sys.getenv("P89_QMAX", "1"))
+# CORRECTION 3. "median" is phase 45's rule and the default; "pooled" reproduces
+# this script's first draft, which was measured to undershoot every species.
+ESTIMATOR <- Sys.getenv("P89_ESTIMATOR", "median")
+stopifnot(ESTIMATOR %in% c("median", "pooled"))
+# Phase 45's per-iteration change cap. Keeps the first step sane when the
+# starting ratio is extreme (bathypelagic fishes opens at 3.85e6).
+M_STEP_CAP <- as.numeric(Sys.getenv("P89_STEP_CAP", "50"))
+# CORRECTION 4. Species whose catchability is NOT fitted; their drawn q stands.
+# Set P89_HOLD="" to fit everything and reproduce the divergence.
+HOLD <- trimws(strsplit(Sys.getenv("P89_HOLD",
+  "baleen whales,sperm whales,minke whales"), ",")[[1]])
+HOLD <- HOLD[nzchar(HOLD)]
+# Optional member subset, for testing the method without a full ensemble.
+MEMBER_LIST <- Sys.getenv("P89_MEMBERS", "")
 if (!dir.exists(STATE_DIR)) stop("no state dir: ", STATE_DIR, call. = FALSE)
 
 effort_arr <- readRDS("effort_array_1841_2010.rds")
@@ -112,7 +161,20 @@ cat("\nfitting", length(FIT_SP), "species |", nrow(obs_long), "observations\n")
 states <- sort(list.files(STATE_DIR, pattern = "^state_\\d+\\.rds$",
                           full.names = TRUE))
 if (!length(states)) stop("no states in ", STATE_DIR, call. = FALSE)
-cat("members:", length(states), "| cores:", CORES, "| iterations:", ITERS, "\n\n")
+if (nzchar(MEMBER_LIST)) {
+  want <- as.integer(trimws(strsplit(MEMBER_LIST, ",")[[1]]))
+  sel <- file.path(STATE_DIR, sprintf("state_%05d.rds", want))
+  if (!all(file.exists(sel)))
+    stop("missing states: ", paste(want[!file.exists(sel)], collapse = ", "),
+         call. = FALSE)
+  states <- sel
+  cat("member subset:", length(states), "|", paste(want, collapse = ", "), "\n")
+}
+CORES <- min(CORES, length(states))
+cat("members:", length(states), "| cores:", CORES, "| iterations:", ITERS,
+    "| estimator:", ESTIMATOR, "\n")
+cat("held at the drawn q (not fitted):",
+    if (length(HOLD)) paste(HOLD, collapse = ", ") else "none", "\n\n")
 
 project_one <- function(f, M) {
   suppressPackageStartupMessages({library(mizer); library(therMizer)})
@@ -133,24 +195,60 @@ project_one <- function(f, M) {
 }
 
 M <- setNames(rep(1, length(FIT_SP)), FIT_SP)
+if (length(setdiff(HOLD, FIT_SP)))
+  cat("NOTE: held species not in the fitted set (no effect):",
+      paste(setdiff(HOLD, FIT_SP), collapse = ", "), "\n")
+FIT_ACTIVE <- setdiff(FIT_SP, HOLD)
+cat("fitting", length(FIT_ACTIVE), "of", length(FIT_SP), "species:",
+    paste(FIT_ACTIVE, collapse = ", "), "\n\n")
+
+# The modelled/observed catch ratio per species, by whichever estimator.
+# MEDIAN takes the median ACROSS MEMBERS of each member's own ratio, so a single
+# divergent member cannot own the answer. POOLED sums first and is the first
+# draft's rule, kept only so it can be reproduced.
+ratio_of <- function(J) {
+  if (ESTIMATOR == "median") {
+    J %>% group_by(sim_index, Species) %>%
+      summarise(mod = sum(Yield_mod), obs = sum(Yield_obs), .groups = "drop") %>%
+      filter(obs > 0) %>% group_by(Species) %>%
+      summarise(r = median(mod / obs, na.rm = TRUE), .groups = "drop")
+  } else {
+    J %>% group_by(Species) %>%
+      summarise(mod = sum(Yield_mod), obs = sum(Yield_obs), .groups = "drop") %>%
+      filter(obs > 0) %>% transmute(Species, r = mod / obs)
+  }
+}
+
 cl <- makeCluster(CORES)
 on.exit(try(stopCluster(cl), silent = TRUE), add = TRUE)
 clusterExport(cl, c("effort_arr", "QMAX", "project_one"), envir = environment())
+trace <- list()
 for (it in seq_len(ITERS)) {
   clusterExport(cl, "M", envir = environment())
   res <- parLapplyLB(cl, states, function(f) project_one(f, M))
+  nfail <- sum(vapply(res, is.null, logical(1)))
   Y <- bind_rows(res[!vapply(res, is.null, logical(1))])
-  J <- inner_join(Y, obs_long, by = c("Year", "Species"))
-  rat <- J %>% group_by(Species) %>%
-    summarise(mod = sum(Yield_mod), obs = sum(Yield_obs), .groups = "drop") %>%
-    mutate(r = mod / obs)
-  M[rat$Species] <- pmin(QMAX / 1e-12,
-                         M[rat$Species] / pmax(rat$r, 1e-6))
-  cat(sprintf("iter %d | median |log10 ratio| %.4f\n", it,
-              median(abs(log10(pmax(rat$r, 1e-12))))))
+  if (!nrow(Y)) stop("every member failed to project", call. = FALSE)
+  J <- inner_join(Y, obs_long, by = c("Year", "Species")) %>%
+    filter(Species %in% FIT_SP)
+  rat <- ratio_of(J)
+  trace[[it]] <- rat %>% mutate(iter = it, M_before = as.numeric(M[Species]),
+                                held = Species %in% HOLD)
+  # Only the ACTIVE species move. Held species keep M = 1, so each member's
+  # drawn catchability stands and the sampled spread survives.
+  upd <- rat %>% filter(Species %in% FIT_ACTIVE)
+  if (nrow(upd)) {
+    step <- pmin(pmax(1 / pmax(upd$r, 1e-12), 1 / M_STEP_CAP), M_STEP_CAP)
+    M[upd$Species] <- M[upd$Species] * step
+  }
+  cat(sprintf("iter %d | median |log10 ratio| over fitted species %.4f%s\n", it,
+              median(abs(log10(pmax(upd$r, 1e-12)))),
+              if (nfail) sprintf(" | %d member(s) failed", nfail) else ""))
   flush.console()
 }
 stopCluster(cl)
+TRACE <- bind_rows(trace)
+stopifnot(all(M[HOLD[HOLD %in% names(M)]] == 1))
 
 # --- final pass: per-member, per-species SSE on log10(y + 1 g) ----------------
 cl <- makeCluster(CORES)
@@ -169,8 +267,12 @@ summary_tbl <- per_species %>% group_by(sim_index) %>%
   summarise(rmse = sqrt(sum(sse) / sum(n)), .groups = "drop") %>% arrange(rmse)
 
 cat("\n--- multipliers ---\n")
-print(data.frame(species = names(M), M = signif(as.numeric(M), 4)),
-      row.names = FALSE)
+print(data.frame(species = names(M), M = signif(as.numeric(M), 4),
+                 held = names(M) %in% HOLD), row.names = FALSE)
+cat("\n--- final modelled/observed catch ratio (", ESTIMATOR, ") ---\n", sep = "")
+print(as.data.frame(TRACE %>% filter(iter == max(iter)) %>%
+  transmute(Species, ratio = signif(r, 4), held) %>% arrange(desc(ratio))),
+  row.names = FALSE)
 cat("\n--- objective share by species ---\n")
 print(as.data.frame(per_species %>% group_by(Species) %>%
   summarise(pct_sse = round(100*sum(sse)/sum(per_species$sse), 1),
@@ -178,7 +280,21 @@ print(as.data.frame(per_species %>% group_by(Species) %>%
   arrange(desc(pct_sse))), row.names = FALSE)
 
 saveRDS(list(summary = summary_tbl, per_species = per_species, M = M,
-             window = win, obs_used = obs_long,
+             window = win, obs_used = obs_long, trace = TRACE,
+             held_at_one = HOLD,
+             note = paste0(
+               "Multipliers fitted at q<=", QMAX, " by the 08:449-511 ratio ",
+               "method, on the ISIMIP3a-compliant window ending at min(",
+               CAP_YEAR, ", last reported catch) per species, with missing ",
+               "catch dropped rather than zeroed. Estimator: ", ESTIMATOR,
+               " with a ", M_STEP_CAP, "x per-iteration step cap. Held at 1: ",
+               paste(HOLD, collapse = ", "),
+               " -- their fit is non-identifiable (multiplier diverges to 1e6 ",
+               "while the catch ratio stays flat) and applying it would pin ",
+               "every member at the q ceiling, destroying the sampled spread ",
+               "in whale catchability."),
              meta = list(state_dir = STATE_DIR, cap_year = CAP_YEAR,
-                         qmax = QMAX, iters = ITERS, built = Sys.time())), OUT)
+                         qmax = QMAX, iters = ITERS, estimator = ESTIMATOR,
+                         step_cap = M_STEP_CAP, n_members = length(states),
+                         built = Sys.time())), OUT)
 cat("\nWROTE", OUT, "\n")
