@@ -46,3 +46,23 @@ ecosystem_assessment_outputs/fishing_metrics_raw.rds
 # here stay tracked -- an ignore rule never untracks anything.
 Manuscript data/*.rds
 Manuscript data/*.csv
+
+# --- run logs ---------------------------------------------------------------
+*.log
+
+# --- regenerable analysis outputs -------------------------------------------
+# The scripts that produce these ARE tracked, so the outputs are reproducible.
+Krill counterfactual scenarios/analysis/
+Reference model diet assessment/analysis/
+Reference model diet assessment/benchmarks/
+Reference model diet assessment/recalibrated_54/
+Manuscript analysis/*.csv
+Manuscript analysis/*.rds
+output/
+
+# Downloaded silhouettes for the Figure 1 panel, re-fetched on demand.
+R/figures/fig1/phylopic_cache/
+
+# Loose summary tables written by the root-level grid scripts.
+biomass_bb0_rmse_top10pct_summary.csv
+yield_rmse_by_group.csv
