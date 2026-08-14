@@ -96,6 +96,26 @@ Draws above 1 are never touched, for any group. All other species untouched.
 
 ## Run sequence
 
+Preferred, on the VM — `R/wmin_test/88_vm_run.sh` runs the stages inside tmux,
+logs to `Output_large_files/wmin_test/88_full_run.log`, and fires an ntfy alert
+on **both** success and failure so silence never reads as success. Each stage
+notifies separately, so a chained run tells you when 88 finished even though 89
+is still going. Detaching is safe; the job survives an ssh drop.
+
+```bash
+./R/wmin_test/88_vm_run.sh test-ntfy     # confirm alerts arrive first
+./R/wmin_test/88_vm_run.sh preflight
+./R/wmin_test/88_vm_run.sh all           # 87 + 88 + 89, ~13-14 h
+./R/wmin_test/88_vm_run.sh status        # safe at any time
+./R/wmin_test/88_vm_run.sh attach        # Ctrl-b then d to detach again
+```
+
+Cores default to `nproc - 2` (30 on the VM). `dry-run` prints the generated job
+script without launching anything. Topic defaults to `zoomss-someme-2026`;
+override with `NTFY_TOPIC=...`.
+
+The equivalent by hand:
+
 ```bash
 # 1. substitute draws (seconds) -- writes 87_member_draws_substituted.rds
 Rscript R/wmin_test/87_substitute_draws.R
