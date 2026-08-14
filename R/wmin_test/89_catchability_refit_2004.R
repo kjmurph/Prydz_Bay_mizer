@@ -70,6 +70,39 @@
 # 0.705 to 0.012. The stock is the binding limit, not catchability: observed
 # baleen catch is ~23.8x the calibrated standing stock.
 #
+# ------------------------- CORRECTION 5: FIT ONLY THE MEMBERS THAT PASSED
+# The first run of this script fitted every state file in the directory. Phase 88
+# writes a state for every member that converges on the tolerance ladder; the
+# stability and erepro screens are recorded in 88_full.rds but do NOT gate the
+# state files. So the fit ran on all 1,668 members, of which only 427 are USABLE
+# (stable AND no erepro >= 1) -- 1,241 rejected members set the multipliers.
+#
+# WHY THIS WAS HARMLESS BEFORE. Phase 45 also read its whole state directory, and
+# ensemble 44 was 99.2% stable (1,654 of 1,668), so the screen would have moved
+# 14 members. Phase 88 is 31.2% stable. The convention is inherited from a
+# context where it could not matter, into one where it dominates.
+#
+# MEASURED, on the unfiltered run (89_refit_results_unfiltered_n1668.rds), median
+# modelled/observed catch at the fitted multipliers:
+#
+#   species             all 1,668   usable 427   rejected 1,241
+#   antarctic krill        0.204        43.3          0.00022
+#   minke whales           0.0109       0.0251        0.00437
+#   toothfishes            1.00         1.46          0.867
+#
+# Krill is the failure. Rejected members produce almost no krill catch, dragging
+# the median to near zero and driving the multiplier to M = 2.615e5, at which
+# 100% of members have krill q pinned at the QMAX = 1 ceiling -- from drawn
+# values spanning 0.002-0.822. That is exactly the harm CORRECTION 4 gives as the
+# reason whales are held: it destroys the sampled spread in catchability. On the
+# members that count krill catch is OVER-predicted 43x (q10 = 26.5; 99.5% of
+# usable members above 1), so the ceiling was never the binding limit and neither
+# was the stock. Phase 92's premise rests on the unfiltered 0.204 and does not
+# survive this.
+#
+# P89_SCREEN selects the gate: "usable" (default, phase 88's own definition),
+# "stable", "admissible", or "none" to reproduce the unfiltered first run.
+#
 # ------------------------------------------------------------- STATE SOURCE
 # P89_STATE_DIR, defaulting to the phase-88 states on the CURRENT reference. The
 # phase-45 multipliers were fitted against ensemble-44 states built on a base
@@ -84,7 +117,8 @@
 # only the 1841-2010 projection.
 #
 # USAGE  Rscript R/wmin_test/89_catchability_refit_2004.R [run|collect]
-# ENV    P89_STATE_DIR, P89_OUT, P89_CORES, P89_ITERS, P89_CAP_YEAR, P89_QMAX
+# ENV    P89_STATE_DIR, P89_OUT, P89_CORES, P89_ITERS, P89_CAP_YEAR, P89_QMAX,
+#        P89_SCREEN, P89_MEMBERS_RDS
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -114,6 +148,11 @@ HOLD <- trimws(strsplit(Sys.getenv("P89_HOLD",
 HOLD <- HOLD[nzchar(HOLD)]
 # Optional member subset, for testing the method without a full ensemble.
 MEMBER_LIST <- Sys.getenv("P89_MEMBERS", "")
+# CORRECTION 5. The screen, and the table it is read from. The default table is
+# the sibling of the state directory: <stem>_states -> <stem>.rds.
+SCREEN <- Sys.getenv("P89_SCREEN", "usable")
+stopifnot(SCREEN %in% c("usable", "stable", "admissible", "none"))
+MEMBER_TABLE <- Sys.getenv("P89_MEMBERS_RDS", sub("_states/?$", ".rds", STATE_DIR))
 if (!dir.exists(STATE_DIR)) stop("no state dir: ", STATE_DIR, call. = FALSE)
 
 effort_arr <- readRDS("effort_array_1841_2010.rds")
@@ -161,12 +200,70 @@ cat("\nfitting", length(FIT_SP), "species |", nrow(obs_long), "observations\n")
 states <- sort(list.files(STATE_DIR, pattern = "^state_\\d+\\.rds$",
                           full.names = TRUE))
 if (!length(states)) stop("no states in ", STATE_DIR, call. = FALSE)
+si_of <- function(f) as.integer(sub("^state_0*", "", sub("\\.rds$", "",
+                                                         basename(f))))
+
+# --- CORRECTION 5: the member screen ------------------------------------------
+# A state file exists for every member that converged on the tolerance ladder,
+# INCLUDING those that then failed the stability screen or carry erepro >= 1.
+# Fitting on those lets rejected members set the multipliers; on the phase-88
+# states that drove krill q to the QMAX ceiling in every member. Refusing to
+# fall back to "all states" is deliberate: a silent fallback is how the first
+# run produced a plausible-looking answer from 1,241 rejected members.
+if (SCREEN == "none") {
+  cat("\nSCREEN = none: fitting ALL", length(states),
+      "states, rejected members included.\n")
+  cat("  This reproduces the first run. It is not the default for a reason --\n")
+  cat("  see CORRECTION 5 in the header.\n")
+} else {
+  if (!file.exists(MEMBER_TABLE))
+    stop("no member table: ", MEMBER_TABLE,
+         "\n  P89_SCREEN='", SCREEN, "' needs the phase-88 summary to know which",
+         "\n  members passed. Set P89_MEMBERS_RDS, or P89_SCREEN=none to fit all.",
+         call. = FALSE)
+  MT <- readRDS(MEMBER_TABLE)
+  MT <- if (is.data.frame(MT)) MT else MT$members
+  need <- c("sim_index", "stable", "n_erepro_ge1")
+  if (!is.data.frame(MT) || length(setdiff(need, names(MT))))
+    stop("the member table ", basename(MEMBER_TABLE), " has no $members frame ",
+         "with columns ", paste(need, collapse = ", "), call. = FALSE)
+  keep <- switch(SCREEN,
+    usable     = MT$stable & MT$n_erepro_ge1 == 0,
+    stable     = MT$stable,
+    admissible = MT$n_erepro_ge1 == 0)
+  pass <- as.integer(MT$sim_index[keep])
+  have <- si_of(states)
+  # Every state must be accounted for in the table. If it is not, the table and
+  # the state directory are from different runs and the screen is meaningless.
+  if (length(setdiff(have, as.integer(MT$sim_index))))
+    stop(length(setdiff(have, as.integer(MT$sim_index))), " state file(s) are ",
+         "absent from ", basename(MEMBER_TABLE), " (e.g. ",
+         setdiff(have, as.integer(MT$sim_index))[1], ") -- the table and the ",
+         "states are from different runs. Refusing to screen.", call. = FALSE)
+  states <- states[have %in% pass]
+  if (!length(states))
+    stop("the '", SCREEN, "' screen left no members", call. = FALSE)
+  cat(sprintf("\nscreen: %s | table %s\n", SCREEN, basename(MEMBER_TABLE)))
+  cat(sprintf("  built %d | stable %d | admissible %d | usable %d\n",
+              nrow(MT), sum(MT$stable), sum(MT$n_erepro_ge1 == 0),
+              sum(MT$stable & MT$n_erepro_ge1 == 0)))
+  cat(sprintf("  FITTING %d of %d states (%d rejected)\n", length(states),
+              length(have), length(have) - length(states)))
+}
+
 if (nzchar(MEMBER_LIST)) {
   want <- as.integer(trimws(strsplit(MEMBER_LIST, ",")[[1]]))
   sel <- file.path(STATE_DIR, sprintf("state_%05d.rds", want))
   if (!all(file.exists(sel)))
     stop("missing states: ", paste(want[!file.exists(sel)], collapse = ", "),
          call. = FALSE)
+  # The explicit list is applied AFTER the screen, never instead of it, so a
+  # test subset cannot quietly re-admit rejected members.
+  blocked <- want[!sel %in% states]
+  if (length(blocked))
+    stop("P89_MEMBERS asks for ", length(blocked), " member(s) the '", SCREEN,
+         "' screen rejected (e.g. ", blocked[1], "). Use P89_SCREEN=none to ",
+         "fit them anyway.", call. = FALSE)
   states <- sel
   cat("member subset:", length(states), "|", paste(want, collapse = ", "), "\n")
 }
@@ -273,6 +370,37 @@ cat("\n--- final modelled/observed catch ratio (", ESTIMATOR, ") ---\n", sep = "
 print(as.data.frame(TRACE %>% filter(iter == max(iter)) %>%
   transmute(Species, ratio = signif(r, 4), held) %>% arrange(desc(ratio))),
   row.names = FALSE)
+# --- the QMAX ceiling ---------------------------------------------------------
+# A multiplier that pushes q past QMAX is CLAMPED, so the fit saturates: M keeps
+# rising, the catch ratio stops responding, and every member ends at the same q
+# -- the sampled spread in catchability is gone. This is the failure CORRECTION 4
+# records for the whales and CORRECTION 5 measured for krill, where it went
+# unnoticed. Report it rather than let the next one hide in a plausible number.
+Q0 <- do.call(rbind, lapply(states, function(f) {
+  gp <- gear_params(readRDS(f)$params)
+  data.frame(sim_index = si_of(f), Species = as.character(gp$species),
+             q = as.numeric(gp$catchability), stringsAsFactors = FALSE)
+}))
+CEIL <- Q0 %>% filter(Species %in% names(M)) %>%
+  mutate(q_fit = pmin(QMAX, pmax(0, q * as.numeric(M[Species])))) %>%
+  group_by(Species) %>%
+  summarise(q_drawn_med = signif(median(q), 3),
+            q_fitted_med = signif(median(q_fit), 3),
+            pct_at_ceiling = round(100 * mean(q_fit >= QMAX * (1 - 1e-12)), 1),
+            .groups = "drop") %>%
+  mutate(M = signif(as.numeric(M[Species]), 4),
+         held = Species %in% HOLD) %>%
+  arrange(desc(pct_at_ceiling))
+cat("\n--- catchability against the QMAX =", QMAX, "ceiling ---\n")
+print(as.data.frame(CEIL), row.names = FALSE)
+sat <- CEIL %>% filter(!held, pct_at_ceiling > 50)
+if (nrow(sat))
+  cat("\n  WARNING: ", nrow(sat), " fitted species have >50% of members AT the ",
+      "ceiling (", paste(sat$Species, collapse = ", "), ").\n",
+      "  The fit is saturated there: the multiplier is not identifiable and the\n",
+      "  sampled spread in catchability has been destroyed. See CORRECTION 5.\n",
+      sep = "")
+
 cat("\n--- objective share by species ---\n")
 print(as.data.frame(per_species %>% group_by(Species) %>%
   summarise(pct_sse = round(100*sum(sse)/sum(per_species$sse), 1),
@@ -281,13 +409,17 @@ print(as.data.frame(per_species %>% group_by(Species) %>%
 
 saveRDS(list(summary = summary_tbl, per_species = per_species, M = M,
              window = win, obs_used = obs_long, trace = TRACE,
-             held_at_one = HOLD,
+             held_at_one = HOLD, ceiling = CEIL,
+             screen = list(rule = SCREEN, table = MEMBER_TABLE,
+                           members = si_of(states)),
              note = paste0(
                "Multipliers fitted at q<=", QMAX, " by the 08:449-511 ratio ",
                "method, on the ISIMIP3a-compliant window ending at min(",
                CAP_YEAR, ", last reported catch) per species, with missing ",
                "catch dropped rather than zeroed. Estimator: ", ESTIMATOR,
-               " with a ", M_STEP_CAP, "x per-iteration step cap. Held at 1: ",
+               " with a ", M_STEP_CAP, "x per-iteration step cap. Member ",
+               "screen: ", SCREEN, " (", length(states), " members fitted). ",
+               "Held at 1: ",
                paste(HOLD, collapse = ", "),
                " -- their fit is non-identifiable (multiplier diverges to 1e6 ",
                "while the catch ratio stays flat) and applying it would pin ",
@@ -296,5 +428,6 @@ saveRDS(list(summary = summary_tbl, per_species = per_species, M = M,
              meta = list(state_dir = STATE_DIR, cap_year = CAP_YEAR,
                          qmax = QMAX, iters = ITERS, estimator = ESTIMATOR,
                          step_cap = M_STEP_CAP, n_members = length(states),
+                         screen = SCREEN, member_table = MEMBER_TABLE,
                          built = Sys.time())), OUT)
 cat("\nWROTE", OUT, "\n")
