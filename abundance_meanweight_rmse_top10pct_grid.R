@@ -623,6 +623,66 @@ ggsave("abundance_pctchange_rmse_top10pct_grid.png", p_ab_pct,
 message("Saved abundance_pctchange_rmse_top10pct_grid.png")
 
 # ---------------------------------------------------------------------------
+# 4b. Biomass percent change (Exploited vs Unexploited), paired by sim
+#
+# Group biomass = sum of constituent-species biomass within each sim; individual
+# panels use species biomass directly. Same paired median + IQR summary as the
+# abundance/mean-weight metrics. Used only by the 3-column side-by-side variant.
+# ---------------------------------------------------------------------------
+message("Building biomass percent-change data...")
+
+compute_persim_biomass <- function(raw_df) {
+  agg <- do.call(rbind, lapply(names(group_defs), function(gname) {
+    raw_df %>%
+      dplyr::filter(Species %in% group_defs[[gname]]) %>%
+      dplyr::group_by(sim_i, Year) %>%
+      dplyr::summarise(Biomass = sum(Biomass, na.rm = TRUE), .groups = "drop") %>%
+      dplyr::mutate(panel = gname) %>%
+      dplyr::select(Year, sim_i, panel, Biomass)
+  }))
+
+  ind <- raw_df %>%
+    dplyr::filter(Species %in% names(ind_to_panel)) %>%
+    dplyr::mutate(panel = ind_to_panel[Species]) %>%
+    dplyr::select(Year, sim_i, panel, Biomass)
+
+  dplyr::bind_rows(agg, ind)
+}
+
+fish_persim_bm <- compute_persim_biomass(fish_raw)
+clim_persim_bm <- compute_persim_biomass(clim_raw)
+
+bm_ratio_persim <- dplyr::inner_join(
+  fish_persim_bm, clim_persim_bm,
+  by     = c("Year", "sim_i", "panel"),
+  suffix = c("_fish", "_clim")
+) %>%
+  dplyr::mutate(pct_change = (Biomass_fish / Biomass_clim - 1) * 100) %>%
+  dplyr::filter(is.finite(pct_change))
+
+bm_ratio_summary <- bm_ratio_persim %>%
+  dplyr::group_by(Year, panel) %>%
+  dplyr::summarise(
+    median  = median(pct_change, na.rm = TRUE),
+    q25     = quantile(pct_change, 0.25, na.rm = TRUE),
+    q75     = quantile(pct_change, 0.75, na.rm = TRUE),
+    q05     = quantile(pct_change, 0.05, na.rm = TRUE),
+    q95     = quantile(pct_change, 0.95, na.rm = TRUE),
+    n_pairs = dplyr::n(),
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(panel = factor(panel, levels = panel_levels))
+
+# Panel y-midpoints for biomass % change plot: mid of IQR range per panel
+panel_ymid_bm <- bm_ratio_summary %>%
+  dplyr::group_by(panel) %>%
+  dplyr::summarise(
+    y_mid = (max(q75, na.rm = TRUE) + min(q25, na.rm = TRUE)) / 2,
+    .groups = "drop"
+  )
+species_events_bm <- dplyr::left_join(species_events_df, panel_ymid_bm, by = "panel")
+
+# ---------------------------------------------------------------------------
 # 5. Combined: mean individual mass + abundance % change, median lines only
 # ---------------------------------------------------------------------------
 message("Building combined percent-change figure...")
@@ -757,6 +817,7 @@ make_sd_ref <- function(df, value_col) {
 
 mw_ref <- make_sd_ref(clim_persim_mw, "MeanWeight")
 ab_ref <- make_sd_ref(clim_persim_ab, "Abundance")
+bm_ref <- make_sd_ref(clim_persim_bm, "Biomass")
 
 sd_ref_layer <- function(ref_df, lt = "dashed") {
   geom_hline(data = ref_df, aes(yintercept = ref_pct),
@@ -836,10 +897,15 @@ theme_1col_base <- theme_bw(base_size = 10) +
   )
 
 # Helper — builds one 1-column % change facet plot.
+# col_label: metric name shown in the top column-header strip (e.g. "Abundance
+#   change"), added as a single-level column facet so facet_grid draws the strip.
 # ref_df (optional): per-panel ±1 SD reference band (cols panel, ref_pct) drawn
 # as red dashed hlines — the natural-variability detectability threshold.
-build_1col_pct <- function(summ_df, events_sp_df, y_lab, show_strips,
+build_1col_pct <- function(summ_df, events_sp_df, y_lab, show_strips, col_label,
                            shared_ylims = NULL, ref_df = NULL) {
+  # Single-level column facet carrying the metric name -> a top header strip
+  summ_df <- dplyr::mutate(summ_df, col_facet = factor(col_label, levels = col_label))
+
   p <- ggplot() +
     geom_hline(yintercept = 0,
                linetype = "dashed", colour = "grey40", linewidth = 0.5) +
@@ -869,12 +935,13 @@ build_1col_pct <- function(summ_df, events_sp_df, y_lab, show_strips,
               aes(x = first_year, y = y_mid, label = sp_label), inherit.aes = FALSE,
               angle = 90, hjust = 0.5, vjust = 1.3,
               size = 3.2, colour = "grey10") +
-    facet_grid(rows = vars(panel), scales = "free_y") +
+    facet_grid(rows = vars(panel), cols = vars(col_facet), scales = "free_y") +
     coord_cartesian(xlim = c(1900, NA)) +
     scale_fill_manual(values   = panel_colors, guide = "none") +
     scale_colour_manual(values = panel_colors, guide = "none") +
     scale_y_continuous(labels = function(x) paste0(x, "%")) +
     theme_1col_base +
+    theme(strip.text.x = element_text(face = "bold", size = 11)) +
     labs(x = "Year", y = y_lab)
 
   # Optional: invisible anchor points to synchronise y scale with the partner plot
@@ -884,27 +951,29 @@ build_1col_pct <- function(summ_df, events_sp_df, y_lab, show_strips,
   }
 
   if (show_strips) {
-    # Horizontal text on the right-side strip (facet_grid row default position)
+    # Horizontal text on the right-side (row) strip; keep the top column strip
     p + theme(strip.text.y.right = element_text(angle = -90, hjust = 0.5,
                                                  vjust = 0.5, size = 9.6))
   } else {
-    # Remove strip entirely so no blank space appears on the left plot
-    p + theme(strip.text.y   = element_blank(),
-              strip.background = element_blank())
+    # Hide only the row strip; the top column-header strip stays visible
+    p + theme(strip.text.y      = element_blank(),
+              strip.background.y = element_blank())
   }
 }
 
 p_ab_1col <- build_1col_pct(
   ab_ratio_summary, species_events_ab,
-  y_lab       = "Abundance: % change from unexploited",
+  y_lab       = "% change from unexploited",
   show_strips = FALSE,
+  col_label   = "Abundance change",
   ref_df      = ab_ref
 )
 
 p_mw_1col <- build_1col_pct(
   ratio_summary, species_events_mw,
-  y_lab       = "Mean ind. mass: % change from unexploited",
+  y_lab       = "% change from unexploited",
   show_strips = TRUE,
+  col_label   = "Body size change",
   ref_df      = mw_ref
 )
 
@@ -969,16 +1038,18 @@ blank_ylims <- dplyr::bind_rows(
 
 p_ab_1col_fixed <- build_1col_pct(
   ab_ratio_summary, species_events_ab_fixed,
-  y_lab        = "Abundance: % change from unexploited",
+  y_lab        = "% change from unexploited",
   show_strips  = FALSE,
+  col_label    = "Abundance change",
   shared_ylims = blank_ylims,
   ref_df       = ab_ref
 )
 
 p_mw_1col_fixed <- build_1col_pct(
   ratio_summary, species_events_mw_fixed,
-  y_lab        = "Mean ind. mass: % change from unexploited",
+  y_lab        = "% change from unexploited",
   show_strips  = TRUE,
+  col_label    = "Body size change",
   shared_ylims = blank_ylims,
   ref_df       = mw_ref
 )
@@ -994,5 +1065,124 @@ ggsave(
   width = 14, height = 20, dpi = 300
 )
 message("Saved pctchange_1col_sidebyside_fixedy.png")
+
+# ---------------------------------------------------------------------------
+# 8. Three-column variant: abundance + body size + biomass, side-by-side
+#
+# Same 12-row stacked layout as section 7, with biomass added as a third
+# column. Column-header strips name each metric ("Abundance change",
+# "Body size change", "Biomass change"); the group (row) strips appear on the
+# rightmost (biomass) column only.
+# ---------------------------------------------------------------------------
+message("Building 3-column side-by-side plot (abundance + body size + biomass)...")
+
+# --- Free-y (each panel autoscaled) ---
+p_ab_3col <- build_1col_pct(
+  ab_ratio_summary, species_events_ab,
+  y_lab       = "% change from unexploited",
+  show_strips = FALSE,
+  col_label   = "Abundance change",
+  ref_df      = ab_ref
+)
+
+p_mw_3col <- build_1col_pct(
+  ratio_summary, species_events_mw,
+  y_lab       = "% change from unexploited",
+  show_strips = FALSE,
+  col_label   = "Body size change",
+  ref_df      = mw_ref
+)
+
+p_bm_3col <- build_1col_pct(
+  bm_ratio_summary, species_events_bm,
+  y_lab       = "% change from unexploited",
+  show_strips = TRUE,
+  col_label   = "Biomass change",
+  ref_df      = bm_ref
+)
+
+p_3col_combined <- (p_ab_3col + p_mw_3col + p_bm_3col +
+  plot_layout(ncol = 3, widths = c(1, 1, 1.05)) +
+  plot_annotation(tag_levels = "a")) &
+  theme(plot.tag = element_text(face = "bold", size = 12))
+
+ggsave(
+  "pctchange_3col_sidebyside.png",
+  p_3col_combined,
+  width = 20, height = 20, dpi = 300
+)
+message("Saved pctchange_3col_sidebyside.png")
+
+# --- Fixed-y (y-axis shared across all three columns within each group row) ---
+message("Building 3-column fixed-y variant...")
+
+panel_ylims_fixed3 <- dplyr::bind_rows(
+  ab_ratio_summary %>% dplyr::select(panel, q25, q75),
+  ratio_summary    %>% dplyr::select(panel, q25, q75),
+  bm_ratio_summary %>% dplyr::select(panel, q25, q75)
+) %>%
+  dplyr::group_by(panel) %>%
+  dplyr::summarise(
+    ymin = min(q25, na.rm = TRUE),
+    ymax = max(q75, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+panel_ymid_fixed3 <- panel_ylims_fixed3 %>%
+  dplyr::mutate(y_mid = (ymin + ymax) / 2) %>%
+  dplyr::select(panel, y_mid)
+
+species_events_ab_f3 <- dplyr::left_join(species_events_df, panel_ymid_fixed3, by = "panel")
+species_events_mw_f3 <- dplyr::left_join(species_events_df, panel_ymid_fixed3, by = "panel")
+species_events_bm_f3 <- dplyr::left_join(species_events_df, panel_ymid_fixed3, by = "panel")
+
+blank_ylims3 <- dplyr::bind_rows(
+  panel_ylims_fixed3 %>% dplyr::mutate(y = ymin),
+  panel_ylims_fixed3 %>% dplyr::mutate(y = ymax)
+) %>%
+  dplyr::transmute(
+    panel = factor(panel, levels = panel_levels),
+    y     = y,
+    Year  = 1900L
+  )
+
+p_ab_3col_fixed <- build_1col_pct(
+  ab_ratio_summary, species_events_ab_f3,
+  y_lab        = "% change from unexploited",
+  show_strips  = FALSE,
+  col_label    = "Abundance change",
+  shared_ylims = blank_ylims3,
+  ref_df       = ab_ref
+)
+
+p_mw_3col_fixed <- build_1col_pct(
+  ratio_summary, species_events_mw_f3,
+  y_lab        = "% change from unexploited",
+  show_strips  = FALSE,
+  col_label    = "Body size change",
+  shared_ylims = blank_ylims3,
+  ref_df       = mw_ref
+)
+
+p_bm_3col_fixed <- build_1col_pct(
+  bm_ratio_summary, species_events_bm_f3,
+  y_lab        = "% change from unexploited",
+  show_strips  = TRUE,
+  col_label    = "Biomass change",
+  shared_ylims = blank_ylims3,
+  ref_df       = bm_ref
+)
+
+p_3col_fixed <- (p_ab_3col_fixed + p_mw_3col_fixed + p_bm_3col_fixed +
+  plot_layout(ncol = 3, widths = c(1, 1, 1.05)) +
+  plot_annotation(tag_levels = "a")) &
+  theme(plot.tag = element_text(face = "bold", size = 12))
+
+ggsave(
+  "pctchange_3col_sidebyside_fixedy.png",
+  p_3col_fixed,
+  width = 20, height = 20, dpi = 300
+)
+message("Saved pctchange_3col_sidebyside_fixedy.png")
 
 message("=== Done ===")

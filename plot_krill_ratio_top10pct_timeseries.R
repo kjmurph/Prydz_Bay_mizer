@@ -2,7 +2,7 @@
 # Antarctic krill consumption ratio: exploited / unexploited
 # Using the top-10% RMSE-filtered ensemble (212 paired sims)
 #
-# Three overlaid timeseries, 1901-2010:
+# Three overlaid timeseries, 1900-2010:
 #   - All predators combined (ribbon + line)  — total community signal
 #   - Large baleen + minke whales (line)       — losers under exploitation
 #   - Fishes (line)                            — winners under exploitation
@@ -50,11 +50,23 @@ LINE_COL  <- "grey15"    # median line — total all predators
 WHALE_COL <- "#FF61C3"   # large baleen + minke (losers)
 FISH_COL  <- "#D39200"   # fishes (winners)
 
-KRILL_START <- 1974
-KRILL_END   <- 1996
-VLINE_COL   <- "#e8534a"
+# Exploitation event lines, styled to match biomass_slope_snr_mean_med.R:
+#   onset/offset events -> grey50 dashed;  peak-effort events -> grey50 dotted;
+#   labels in grey35.
+EVENT_COL    <- "grey50"   # vline colour (matches SNR figure)
+EVENT_TXTCOL <- "grey35"   # label colour
 
-YEAR_MIN      <- 1901         # plot start year
+# Dashed onset/offset lines
+ONSET_YEARS  <- c(1930, 1974, 1996)
+ONSET_LABELS <- c("Whaling\nstarts", "Krill fishing\nstarts", "End of\nkrill fishing")
+
+# Dotted peak-effort lines (per-gear argmax of the model effort forcing;
+# same years as PEAK_YEARS in biomass_slope_snr_mean_med.R)
+PEAK_YEARS   <- c(1933, 1948, 1973, 1979)
+PEAK_LABELS  <- c("Peak baleen whaling", "Peak sperm whaling",
+                  "Peak minke whaling", "Peak krill fishing")
+
+YEAR_MIN      <- 1900         # plot start year
 BASELINE_YEARS <- 1841:2010   # unexploited natural-variability baseline (SNR)
 
 ###############################################################################
@@ -225,23 +237,24 @@ cat(sprintf("  Fishes:        sigma = %.4f  ->  band [%.3f, %.3f]\n\n",
 ###############################################################################
 total_summary$group <- "All predators"
 whale_summary$group <- "Large baleen + minke whales"
-fish_summary$group  <- "Fishes"
+fish_summary$group  <- "All fishes"   # sum of all fish groups (meso/bathy-pelagic,
+                                       # shelf & coastal, toothfishes)
 
 ratio_all <- bind_rows(total_summary, whale_summary, fish_summary)
 ratio_all$group <- factor(ratio_all$group,
                            levels = c("All predators",
                                       "Large baleen + minke whales",
-                                      "Fishes"))
+                                      "All fishes"))
 
 LINE_COLS <- c(
   "All predators"               = LINE_COL,
   "Large baleen + minke whales" = WHALE_COL,
-  "Fishes"                      = FISH_COL
+  "All fishes"                  = FISH_COL
 )
 LINE_WIDTHS <- c(
   "All predators"               = 1.0,
   "Large baleen + minke whales" = 0.9,
-  "Fishes"                      = 0.9
+  "All fishes"                  = 0.9
 )
 
 ###############################################################################
@@ -255,17 +268,7 @@ p <- ggplot() +
   geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50",
              linewidth = 0.7) +
   annotate("text", x = YEAR_MIN, y = 1, label = "Unexploited",
-           hjust = 0, vjust = -0.45, size = 3.0, colour = "grey50") +
-
-  # ---- Krill fishing period vlines ----
-  geom_vline(xintercept = KRILL_START, linetype = "dashed",
-             colour = VLINE_COL, linewidth = 0.6) +
-  annotate("text", x = KRILL_START, y = Inf, label = "Start of krill fishing",
-           hjust = -0.06, vjust = 1.4, size = 2.9, colour = VLINE_COL) +
-  geom_vline(xintercept = KRILL_END, linetype = "dashed",
-             colour = VLINE_COL, linewidth = 0.6) +
-  annotate("text", x = KRILL_END, y = Inf, label = "End of krill fishing",
-           hjust = -0.06, vjust = 1.4, size = 2.9, colour = VLINE_COL) +
+           hjust = 0, vjust = -1.1, size = 3.0, colour = "grey50") +
 
   # ---- IQR ribbons ----
   geom_ribbon(data    = total_summary,
@@ -287,6 +290,19 @@ p <- ggplot() +
              linetype = "dashed", colour = WHALE_COL, linewidth = 0.5) +
   geom_hline(yintercept = c(sd_fish$sd_lo,  sd_fish$sd_hi),
              linetype = "dashed", colour = FISH_COL,  linewidth = 0.5) +
+
+  # ---- Exploitation event lines (grey, matching the SNR figure) ----
+  # Onset/offset events: grey dashed, labels horizontal near the top.
+  geom_vline(xintercept = ONSET_YEARS, linetype = "dashed",
+             colour = EVENT_COL, linewidth = 0.6) +
+  annotate("text", x = ONSET_YEARS, y = Inf, label = ONSET_LABELS,
+           hjust = -0.06, vjust = 1.3, size = 2.9, colour = EVENT_TXTCOL) +
+  # Peak-effort events: grey dotted, labels rotated 90° along each line.
+  geom_vline(xintercept = PEAK_YEARS, linetype = "dotted",
+             colour = EVENT_COL, linewidth = 0.6) +
+  annotate("text", x = PEAK_YEARS - 1.2, y = -Inf, label = PEAK_LABELS,
+           angle = 90, hjust = -0.05, vjust = 0.5, size = 2.6,
+           colour = EVENT_TXTCOL) +
 
   # ---- Median lines ----
   geom_line(data    = ratio_all,
@@ -310,15 +326,6 @@ p <- ggplot() +
     expand = expansion(mult = c(0.02, 0.08))
   ) +
 
-  # ---- Methods caption (paired framing + SD reference) ----
-  labs(caption = paste(strwrap(paste0(
-    "Ratios are computed within each of the 212 matched ensemble members ",
-    "(exploited ÷ unexploited) and summarised across members as the median ",
-    "(line) and 25–75% IQR (ribbon). Dashed horizontal lines mark each group's ",
-    "±1 SD of natural variability: the SD of the unexploited ensemble-mean krill ",
-    "consumption over the 1841–2010 baseline, as a CV of its baseline mean."),
-    width = 118), collapse = "\n")) +
-
   # ---- Theme ----
   theme_bw(base_size = 11) +
   theme(
@@ -330,7 +337,6 @@ p <- ggplot() +
     legend.key.size  = unit(0.45, "cm"),
     legend.text      = element_text(size = 8.5),
     legend.title     = element_text(size = 9, face = "bold"),
-    plot.caption     = element_text(size = 7, colour = "grey35", hjust = 0),
     plot.margin      = margin(8, 12, 4, 4, "pt")
   ) +
   guides(

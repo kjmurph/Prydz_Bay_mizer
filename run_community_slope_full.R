@@ -9,7 +9,10 @@ library(dplyr)
 library(ggplot2)
 library(purrr)
 
-setwd("C:/Users/kjmurphy/OneDrive - University of Tasmania/Documents/GitHub/Prydz_Bay_mizer")
+# Run from the repository root. (The previous hard-coded setwd() pointed at a
+# different machine and made the script unrunnable anywhere else.)
+if (!dir.exists("Output_large_files"))
+  stop("Run this script from the repository root: 'Output_large_files/' not found.")
 
 t_start <- proc.time()
 cat("=== Full community slope analysis started:", format(Sys.time()), "===\n\n")
@@ -40,12 +43,28 @@ extract_slopes <- function(sim_list, ensemble_label) {
     if (i %% 100 == 0 || i == 1 || i == n)
       cat("    ", ensemble_label, "sim", i, "/", n,
           " elapsed:", round((proc.time() - t_start)["elapsed"] / 60, 1), "min\n")
-    db <- getCommunitySlope(sim_list[[i]], biomass = TRUE)
+    # These ensembles were written by mizer 2.5.0; mizer >= 3.0's
+    # getCommunitySlope() -> valid_species_arg() requires
+    # species_params$is_background, which 2.5.0 objects do not carry. All 19
+    # groups are modelled species, so FALSE is correct. Verified a no-op on the
+    # returned slopes: bit-identical (max abs diff 0 over 170 yr) to the values
+    # in the previous object, which was generated under mizer 2.5.0.
+    sim_i <- sim_list[[i]]
+    if (is.null(sim_i@params@species_params$is_background))
+      sim_i@params@species_params$is_background <- FALSE
+
+    # Carry time in an explicit column BEFORE the rbind. rbind.data.frame makes
+    # duplicate integer-like rownames unique by appending a digit with NO
+    # separator ("1841" -> "18411"), so the old sub("\\..*","") never fired and
+    # every Abundance year was silently multiplied by ~10. Never route time
+    # through rownames.
+    db <- getCommunitySlope(sim_i, biomass = TRUE)
     db$spectrum_type <- "Biomass"
-    da <- getCommunitySlope(sim_list[[i]], biomass = FALSE)
+    db$time          <- as.numeric(rownames(db))
+    da <- getCommunitySlope(sim_i, biomass = FALSE)
     da$spectrum_type <- "Abundance"
+    da$time          <- as.numeric(rownames(da))
     df <- rbind(db, da)
-    df$time     <- as.numeric(sub("\\..*", "", rownames(df)))
     df$sim_id   <- i
     df$ensemble <- ensemble_label
     rownames(df) <- NULL

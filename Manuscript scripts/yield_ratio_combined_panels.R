@@ -145,13 +145,13 @@ legend_species <- c("baleen whales", "sperm whales", "orca",
 
 yield_scales <- list(
   scale_fill_manual(values = sp_palette, breaks = legend_species,
-                    labels = c("Large baleen whales", "sperm whales", "orca",
-                               "minke whales", "antarctic krill")),
+                    labels = c("Large baleen whales", "Sperm whales", "Orca",
+                               "Minke whales", "Antarctic krill")),
   scale_x_continuous(breaks = seq(1900, 2010, by = 10),
                      expand = expansion(mult = c(0.01, 0.01))),
   # Main-panel y ticks in 500 (10^3 t) increments so they line up with the
   # observed-yield inset (whose max is ~500). Inset overrides its own breaks.
-  scale_y_continuous(labels = kt_formatter, breaks = seq(0, 1.5e6, by = 5e5),
+  scale_y_continuous(labels = kt_formatter, breaks = seq(0, 1.5e6, by = 2.5e5),
                      expand = expansion(mult = c(0, 0.03))),
   guides(fill = guide_legend(ncol = 1)),
   theme_bw(base_size = 13),
@@ -175,7 +175,7 @@ p_obs_inset <- Reduce(`+`, c(list(
     geom_area(position = "stack", alpha = 0.85, colour = NA)), yield_scales)) +
   labs(title = "Observed yield") +
   # Inset y ticks: 0 and 500 only, matching the main panel's 500 increment.
-  scale_y_continuous(labels = kt_formatter, breaks = c(0, 5e5),
+  scale_y_continuous(labels = kt_formatter, breaks = c(0, 2.5e5, 5e5),
                      expand = expansion(mult = c(0, 0.02))) +
   theme(legend.position = "none", axis.title = element_blank(),
         axis.text = element_text(size = 6.5),
@@ -185,7 +185,7 @@ p_obs_inset <- Reduce(`+`, c(list(
 
 # Observed inset spans the clear band across the top of the panel (opened up by
 # the raised y-cap), running from ~1940 rightward so it stays above every whisker.
-obs_inset <- inset_element(p_obs_inset, left = 0.40, bottom = 0.70,
+obs_inset <- inset_element(p_obs_inset, left = 0.58, bottom = 0.67,
                            right = 0.995, top = 0.98, align_to = "panel")
 
 panel_yield <- Reduce(`+`, c(list(
@@ -208,7 +208,7 @@ cat(sprintf("  Off-scale peaks (whisker > %.0f kt): %s\n", YMAX_CAP / 1e3,
 
 # Standalone yield figure (with inset)
 ggsave(file.path(FIG_DIR, "yield_stacked_top10pct_sd_errorbars.png"),
-       panel_yield + obs_inset, width = 12, height = 6, dpi = 300, bg = "white")
+       panel_yield + obs_inset, width = 10.2, height = 4.8, dpi = 300, bg = "white")
 cat("  Saved: yield_stacked_top10pct_sd_errorbars.png\n\n")
 
 # ===========================================================================
@@ -303,7 +303,7 @@ w_below_1g <- w_bins[w_bins < 1]
 w_min_plot <- if (length(w_below_1g) > 0) max(w_below_1g) else min(w_bins)
 w_max_plot <- fg_baleen_upper * 1.1
 
-x_breaks_shared <- c(1, 100, 1e3, 1e5, 1e6, 1e7, 1e8)
+x_breaks_shared <- c(1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8)
 x_labels_shared <- function(x) dplyr::case_when(
   x >= 1e6 ~ paste0(x / 1e6, " t"),
   x >= 1e3 ~ paste0(x / 1e3, " kg"),
@@ -406,7 +406,7 @@ generate_band_annotations <- function(bands_df, y_label_pos = 1.24, y_min = 0) {
                fill = fill_col, alpha = fill_alpha)))
     text_annots <- c(text_annots, list(
       annotate("text", x = xmid, y = y_label_pos + y_off, label = short_labels[grp],
-               size = ifelse(grp %in% c("Large marine mammals", "Flying birds & penguins"), 2.7, 3.0),
+               size = 3.2,
                colour = "grey25", hjust = 0.5)))
   }
   c(rect_annots, text_annots)
@@ -428,16 +428,22 @@ compute_whale_annotations <- function(ratio_stats) {
   if (!is.null(mk)) { lx <- mk$w / 2.0; annots <- c(annots, list(
     annotate("segment", x = lx, xend = mk$w, y = mk$y, yend = mk$y, colour = "grey30", linewidth = 0.5),
     annotate("text", x = lx, y = mk$y, label = "Minke whales", size = 3.2, hjust = 1, vjust = 0.5, colour = "grey20"))) }
-  if (!is.null(ok)) { rx <- ok$w * 1.5; ry <- ok$y + 0.08; annots <- c(annots, list(
+  if (!is.null(ok)) { rx <- ok$w * 1.5; ry <- ok$y - 0.12; annots <- c(annots, list(
     annotate("segment", x = ok$w, xend = rx, y = ok$y, yend = ry, colour = "grey30", linewidth = 0.5),
     annotate("text", x = rx, y = ry, label = "Orca", size = 3.2, hjust = 0, vjust = 0.5, colour = "grey20"))) }
   if (!is.null(sp)) { lx <- sp$w / 2.0; annots <- c(annots, list(
     annotate("segment", x = lx, xend = sp$w, y = sp$y, yend = sp$y, colour = "grey30", linewidth = 0.5),
     annotate("text", x = lx, y = sp$y, label = "Sperm whales", size = 3.2, hjust = 1, vjust = 0.5, colour = "grey20"))) }
-  if (!is.null(bl)) { rx_line <- bl$w * 1.15; ry_line <- bl$y + 0.15; rx_lbl <- bl$w * 1.18; ry_lbl <- bl$y + 0.17
+  if (!is.null(bl)) {
+    # one-line label in the lower-right (below/right of the sperm label), with a
+    # near-vertical leader up to the baleen trough (slight right-to-left lean)
+    lbl_x <- bl$w * 1.04
+    lbl_y <- 0.03
     annots <- c(annots, list(
-    annotate("segment", x = bl$w, xend = rx_line, y = bl$y, yend = ry_line, colour = "grey30", linewidth = 0.5),
-    annotate("text", x = rx_lbl, y = ry_lbl, label = "Large baleen\nwhales", size = 3.2, hjust = 0, vjust = 0.5, colour = "grey20"))) }
+    annotate("segment", x = lbl_x, xend = bl$w, y = lbl_y, yend = bl$y,
+             colour = "grey30", linewidth = 0.5),
+    annotate("text", x = lbl_x, y = lbl_y, label = "Large baleen whales",
+             size = 3.2, hjust = 1, vjust = 0.5, colour = "grey20"))) }
   annots
 }
 
@@ -466,9 +472,6 @@ panel_ratio <- ggplot(ratio_data_a, aes(x = w)) +
   whale_annots +
   geom_ribbon(aes(ymin = ratio_q25, ymax = ratio_q75), fill = ribbon_colour, alpha = 0.3) +
   geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 0.8) +
-  # horizontal +/-1 SD reference lines (representative natural variability)
-  geom_hline(yintercept = c(sd_lo_line, sd_hi_line), linetype = "dashed",
-             colour = sd_line_col, linewidth = 0.6) +
   geom_line(aes(y = ratio_median), colour = ribbon_colour, linewidth = 1.2) +
   scale_x_log10(labels = x_labels_shared, breaks = x_breaks_shared,
                 limits = c(w_min_plot, w_max_plot), oob = scales::squish,
@@ -477,17 +480,10 @@ panel_ratio <- ggplot(ratio_data_a, aes(x = w)) +
                      breaks = scales::pretty_breaks(n = 6),
                      expand = expansion(mult = c(0, 0.02))) +
   labs(x = "Body mass", y = "Abundance ratio (Exploited / Unexploited)") +
-  annotate("text", x = w_max_plot * 4.0, y = y_limits_a[2] * 0.955,
-           label = "Dominant\nbiomass", size = 4.5, colour = "grey20",
-           hjust = 0, vjust = 0.5, fontface = "italic") +
-  annotate("text", x = w_max_plot * 4.0, y = sd_hi_line,
-           label = "+1 SD", size = 3.2, colour = sd_line_col, hjust = 0, vjust = 0.5) +
-  annotate("text", x = w_max_plot * 4.0, y = sd_lo_line,
-           label = "-1 SD", size = 3.2, colour = sd_line_col, hjust = 0, vjust = 0.5) +
   theme_classic() +
   theme(axis.title = element_text(size = 12), axis.text = element_text(size = 11),
         panel.grid.major.y = element_line(color = "grey90", linewidth = 0.3),
-        plot.margin = margin(5.5, 100, 5.5, 5.5)) +
+        plot.margin = margin(5.5, 20, 5.5, 5.5)) +
   coord_cartesian(clip = "off")
 
 # (standalone ratio panel is panel b of the combined figures; not written here)
@@ -510,13 +506,13 @@ panel_ratio_b <- panel_ratio + labs(tag = "b")
 # 2 col x 1 row: yield left, ratio right
 fig_2col <- (panel_yield_a | panel_ratio_b) & tag_theme
 ggsave(file.path(FIG_DIR, "yield_ratio_combined_2col.png"), fig_2col,
-       width = 20, height = 7.5, dpi = 300, bg = "white")
+       width = 17.0, height = 6.0, dpi = 300, bg = "white")
 cat("  Saved: yield_ratio_combined_2col.png\n")
 
 # 1 col x 2 row: yield top, ratio bottom
 fig_2row <- (panel_yield_a / panel_ratio_b) & tag_theme
 ggsave(file.path(FIG_DIR, "yield_ratio_combined_2row.png"), fig_2row,
-       width = 12, height = 13, dpi = 300, bg = "white")
+       width = 10.2, height = 10.4, dpi = 300, bg = "white")
 cat("  Saved: yield_ratio_combined_2row.png\n")
 
 cat("\n=== Done ===\n")
