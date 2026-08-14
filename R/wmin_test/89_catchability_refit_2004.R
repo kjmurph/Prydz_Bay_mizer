@@ -1,0 +1,184 @@
+# =============================================================================
+# Phase 89 -- catchability re-fit, ISIMIP3a-compliant fitting window
+#
+# Phase 45 with two corrections and a new state source. The method is unchanged:
+# divide catchability by the modelled/observed yield ratio, re-project, iterate,
+# one GLOBAL multiplier M_s per species applied to every member's own drawn q.
+#
+# ---------------------------------------------------------- CORRECTION 1: 2004
+# The ISIMIP3a protocol: "Modellers are permitted to calibrate or tune their
+# models using historical fisheries catch data ... on the condition that ONLY
+# YEARS UP TO AND INCLUDING 2004 are used in model calibration/tuning." Years
+# after 2004 are the EVALUATION window and must not enter the fit.
+#
+# Phase 45 took its window from the EFFORT series (first to last year with
+# effort > 0), which runs to 2010, while the FishMIP catch reconstruction --
+# calibration_catch_histsoc_1850_2004_regional_models.csv -- ends in 2004. The
+# missing years were then filled with zeros (`coalesce(Yield_g, 0)`), so absence
+# of data entered the objective as an observation of no catch.
+#
+# The damage was concentrated and severe: 79% of ALL toothfish effort falls in
+# 2005-2010, including its effort maximum of 1.000 in 2008, where catch is
+# recorded as zero. With the +1 g offset pricing a zero at up to 11.7 log units,
+# the refit drove toothfish q DOWN 65x to suppress predictions in six
+# non-existent observations, leaving modelled catch at 0.031 of observed across
+# the 33 real years. Toothfishes carried 26.4% of the pooled objective on 11.6%
+# of the observations.
+#
+# ------------------------------------------------- CORRECTION 2: zeros vs NAs
+# The window now ends at min(2004, last year with REPORTED catch) per species.
+# That also catches squids, whose catch record ends in 1993 while its effort
+# continues -- four zero-catch-positive-effort years INSIDE the pre-2004 window,
+# the same ambiguity as toothfishes. Missing catch is NA and is DROPPED, never
+# coerced to zero. Genuine zeros before a fishery began are already excluded
+# because the window still starts at the first year with effort.
+#
+# mizer never sees these NAs: `yield_observed` in the params is all zero/NA and
+# unused, so the observed series exists only inside this objective.
+#
+# ------------------------------------------------------------- STATE SOURCE
+# P89_STATE_DIR, defaulting to the phase-88 states on the CURRENT reference. The
+# phase-45 multipliers were fitted against ensemble-44 states built on a base
+# whose stock has since moved substantially (growth recalibration, interaction
+# matrix, minke PPMR, reproduction targets). Its own header warned the original
+# catchability was "stale ... with a biomass-calibrated stock the same
+# catchability lands a small fraction of the observed catch"; that argument now
+# applies to phase 45 itself.
+#
+# WHY RE-PROJECTING IS EXACT: initial_effort is 0, so steady() and the spin-up
+# are UNFISHED and catchability cannot touch the initial condition. It enters
+# only the 1841-2010 projection.
+#
+# USAGE  Rscript R/wmin_test/89_catchability_refit_2004.R [run|collect]
+# ENV    P89_STATE_DIR, P89_OUT, P89_CORES, P89_ITERS, P89_CAP_YEAR, P89_QMAX
+# =============================================================================
+
+suppressPackageStartupMessages({
+  library(mizer); library(therMizer); library(parallel); library(dplyr)
+})
+
+OL <- "Output_large_files/wmin_test"
+STATE_DIR <- Sys.getenv("P89_STATE_DIR",
+                        file.path(OL, "88_full_states"))
+OUT <- Sys.getenv("P89_OUT", file.path(OL, "89_refit_results.rds"))
+CORES <- as.integer(Sys.getenv("P89_CORES", "30"))
+ITERS <- as.integer(Sys.getenv("P89_ITERS", "6"))
+CAP_YEAR <- as.integer(Sys.getenv("P89_CAP_YEAR", "2004"))
+QMAX <- as.numeric(Sys.getenv("P89_QMAX", "1"))
+if (!dir.exists(STATE_DIR)) stop("no state dir: ", STATE_DIR, call. = FALSE)
+
+effort_arr <- readRDS("effort_array_1841_2010.rds")
+eff_yrs <- as.numeric(rownames(effort_arr))
+
+# --- the fitting window, per species ------------------------------------------
+obs_w <- read.csv("yield_observed_timeseries.csv", check.names = FALSE)
+ocols <- setdiff(names(obs_w), "Year")
+SPN_EFF <- colnames(effort_arr)
+win <- do.call(rbind, lapply(SPN_EFF, function(s) {
+  cn <- ocols[match(make.names(s), make.names(ocols))]
+  if (is.na(cn)) return(NULL)
+  ey <- eff_yrs[effort_arr[, s] > 0]
+  if (!length(ey)) return(NULL)
+  oc <- obs_w[[cn]]; oy <- obs_w$Year
+  reported <- oy[is.finite(oc) & oc > 0]
+  if (!length(reported)) return(NULL)
+  data.frame(Species = s, first_year = min(ey),
+             last_year = min(CAP_YEAR, max(reported), max(ey)),
+             eff_last = max(ey), reported_last = max(reported),
+             stringsAsFactors = FALSE)
+}))
+win$dropped_years <- win$eff_last - win$last_year
+
+cat("=== Phase 89: catchability re-fit, window capped at", CAP_YEAR, "===\n")
+cat("states:", STATE_DIR, "\n\n")
+print(win, row.names = FALSE)
+
+obs_long <- obs_w %>%
+  tidyr::pivot_longer(-Year, names_to = "col", values_to = "Yield_g") %>%
+  mutate(Species = SPN_EFF[match(make.names(col), make.names(SPN_EFF))]) %>%
+  filter(!is.na(Species)) %>%
+  left_join(win, by = "Species") %>%
+  filter(!is.na(first_year), Year >= first_year, Year <= last_year) %>%
+  # MISSING CATCH IS DROPPED, NOT ZEROED. Genuine pre-fishery zeros are already
+  # outside the window because it starts at the first year with effort.
+  filter(is.finite(Yield_g)) %>%
+  transmute(Year, Species, Yield_obs = pmax(Yield_g, 0))
+
+FIT_SP <- obs_long %>% group_by(Species) %>%
+  summarise(o = sum(Yield_obs), .groups = "drop") %>% filter(o > 0) %>%
+  pull(Species)
+cat("\nfitting", length(FIT_SP), "species |", nrow(obs_long), "observations\n")
+
+states <- sort(list.files(STATE_DIR, pattern = "^state_\\d+\\.rds$",
+                          full.names = TRUE))
+if (!length(states)) stop("no states in ", STATE_DIR, call. = FALSE)
+cat("members:", length(states), "| cores:", CORES, "| iterations:", ITERS, "\n\n")
+
+project_one <- function(f, M) {
+  suppressPackageStartupMessages({library(mizer); library(therMizer)})
+  z <- readRDS(f); p <- z$params
+  gp <- gear_params(p)
+  m <- M[match(gp$species, names(M))]; m[is.na(m)] <- 1
+  gp$catchability <- pmin(QMAX, pmax(0, gp$catchability * m))
+  gear_params(p) <- gp
+  s <- try(project(p, initial_n = z$initial_n, t_start = 1841,
+                   effort = effort_arr, progress_bar = FALSE), silent = TRUE)
+  if (inherits(s, "try-error")) return(NULL)
+  y <- getYield(s); yr <- as.numeric(rownames(y))
+  si <- as.integer(sub("^state_0*", "", sub("\\.rds$", "", basename(f))))
+  data.frame(sim_index = si,
+             Year = rep(yr, times = ncol(y)),
+             Species = rep(colnames(y), each = length(yr)),
+             Yield_mod = as.vector(y), stringsAsFactors = FALSE)
+}
+
+M <- setNames(rep(1, length(FIT_SP)), FIT_SP)
+cl <- makeCluster(CORES)
+on.exit(try(stopCluster(cl), silent = TRUE), add = TRUE)
+clusterExport(cl, c("effort_arr", "QMAX", "project_one"), envir = environment())
+for (it in seq_len(ITERS)) {
+  clusterExport(cl, "M", envir = environment())
+  res <- parLapplyLB(cl, states, function(f) project_one(f, M))
+  Y <- bind_rows(res[!vapply(res, is.null, logical(1))])
+  J <- inner_join(Y, obs_long, by = c("Year", "Species"))
+  rat <- J %>% group_by(Species) %>%
+    summarise(mod = sum(Yield_mod), obs = sum(Yield_obs), .groups = "drop") %>%
+    mutate(r = mod / obs)
+  M[rat$Species] <- pmin(QMAX / 1e-12,
+                         M[rat$Species] / pmax(rat$r, 1e-6))
+  cat(sprintf("iter %d | median |log10 ratio| %.4f\n", it,
+              median(abs(log10(pmax(rat$r, 1e-12))))))
+  flush.console()
+}
+stopCluster(cl)
+
+# --- final pass: per-member, per-species SSE on log10(y + 1 g) ----------------
+cl <- makeCluster(CORES)
+clusterExport(cl, c("effort_arr", "QMAX", "project_one", "M"),
+              envir = environment())
+res <- parLapplyLB(cl, states, function(f) project_one(f, M))
+stopCluster(cl)
+Y <- bind_rows(res[!vapply(res, is.null, logical(1))])
+J <- inner_join(Y, obs_long, by = c("Year", "Species"))
+per_species <- J %>% group_by(sim_index, Species) %>%
+  summarise(n = n(),
+            sse = sum((log10(Yield_mod + 1) - log10(Yield_obs + 1))^2),
+            obs_tot = sum(Yield_obs), mod_tot = sum(Yield_mod),
+            .groups = "drop")
+summary_tbl <- per_species %>% group_by(sim_index) %>%
+  summarise(rmse = sqrt(sum(sse) / sum(n)), .groups = "drop") %>% arrange(rmse)
+
+cat("\n--- multipliers ---\n")
+print(data.frame(species = names(M), M = signif(as.numeric(M), 4)),
+      row.names = FALSE)
+cat("\n--- objective share by species ---\n")
+print(as.data.frame(per_species %>% group_by(Species) %>%
+  summarise(pct_sse = round(100*sum(sse)/sum(per_species$sse), 1),
+            pct_n = round(100*sum(n)/sum(per_species$n), 1), .groups = "drop") %>%
+  arrange(desc(pct_sse))), row.names = FALSE)
+
+saveRDS(list(summary = summary_tbl, per_species = per_species, M = M,
+             window = win, obs_used = obs_long,
+             meta = list(state_dir = STATE_DIR, cap_year = CAP_YEAR,
+                         qmax = QMAX, iters = ITERS, built = Sys.time())), OUT)
+cat("\nWROTE", OUT, "\n")
