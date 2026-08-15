@@ -33,7 +33,18 @@
 #    excluded from rule 1 and treated this way instead, so its distribution keeps
 #    the shape of the original prior above 1 while losing the floor pile-up.
 #
-# 3. WHALES: draw < 1 replaced by U(5, 500), where phase 87 used U(5, 50).
+# 3. WHALES: EVERY draw replaced by U(5, 100) for baleen, minke and sperm.
+#    ORCA IS NOT TREATED -- it was never exploited to the extent the other three
+#    were, so there is no reason to lift its pre-exploitation stock.
+#
+#    REPLACE, NOT CONDITIONAL, and that is the point. Substituting only draws
+#    below 1 leaves each species a MIXTURE of substituted values and its own
+#    original draws that were already >= 1, and the mixture differs by species.
+#    Under U(5,100) conditional that gave baleen a median of 22.8 against
+#    minke's 39.9 -- baleen lifted LEAST despite being the most heavily whaled,
+#    which is an artefact of the original prior rather than a choice. Replacing
+#    every draw gives all three the same distribution and removes the artefact.
+#    P96_WHALE_MODE=conditional restores the old rule.
 #
 # ------------------------------------------------------------------ ordering
 # The species order is taken from the draws themselves and the lower set is
@@ -50,19 +61,36 @@ suppressPackageStartupMessages({library(dplyr)})
 OL  <- "Output_large_files/wmin_test"
 IN  <- Sys.getenv("P96_IN",  file.path(OL, "43_member_draws.rds"))
 OUT <- Sys.getenv("P96_OUT", file.path(OL, "96_member_draws_ltl.rds"))
-SEED <- as.integer(Sys.getenv("P96_SEED", "20260815"))
+SEED <- as.integer(Sys.getenv("P96_SEED", "20260816"))
 LTL <- c(as.numeric(Sys.getenv("P96_LTL_MIN", "2")),
          as.numeric(Sys.getenv("P96_LTL_MAX", "10")))
 MZ  <- c(as.numeric(Sys.getenv("P96_MZ_MIN", "1")),
          as.numeric(Sys.getenv("P96_MZ_MAX", "10")))
 WH  <- c(as.numeric(Sys.getenv("P96_WH_MIN", "5")),
-         as.numeric(Sys.getenv("P96_WH_MAX", "500")))
+         as.numeric(Sys.getenv("P96_WH_MAX", "100")))
+# "replace" gives every member a fresh draw; "conditional" only replaces <1.
+WH_MODE <- Sys.getenv("P96_WHALE_MODE", "replace")
+stopifnot(WH_MODE %in% c("replace", "conditional"))
 P_UP  <- as.numeric(Sys.getenv("P96_P_UP",  "0.50"))   # -> U(LTL)
 P_LOW <- as.numeric(Sys.getenv("P96_P_LOW", "0.25"))   # -> kept, already <1
 stopifnot(P_UP > 0, P_LOW > 0, P_UP + P_LOW < 1)
+# An env var SET BUT EMPTY returns "" from Sys.getenv, not the default, and
+# as.numeric("") is NA -- which silently makes runif() produce NAs. Fail here
+# rather than three screens later.
+for (nm in c("LTL", "MZ", "WH")) {
+  v <- get(nm)
+  if (!all(is.finite(v)) || v[1] > v[2])
+    stop("range ", nm, " is not two finite increasing numbers: ",
+         paste(v, collapse = ", "),
+         " -- an empty environment variable gives NA, unset it properly",
+         call. = FALSE)
+}
 
+# ORCA DELIBERATELY ABSENT: it was not exploited to the extent the other three
+# were, so there is no case for lifting its pre-exploitation stock. Its draws
+# pass through untouched.
 WHALES <- trimws(strsplit(Sys.getenv("P96_WHALES",
-  "baleen whales,minke whales,sperm whales,orca"), ",")[[1]])
+  "baleen whales,minke whales,sperm whales"), ",")[[1]])
 MESO  <- "mesozooplankton"
 KRILL <- "antarctic krill"
 # Rule 1 set: shelf and coastal fishes and everything smaller, minus the two
@@ -87,8 +115,10 @@ cat(sprintf("rule 1  split  %.0f%% -> U(%g, %g) | %.0f%% kept (already <1) | %.0
             100*P_UP, LTL[1], LTL[2], 100*P_LOW, 100*(1 - P_UP - P_LOW)))
 cat("        ", paste(LTL_SPLIT, collapse = ", "), "\n")
 cat(sprintf("rule 2  <1 -> U(%g, %g)   | %s, %s\n", MZ[1], MZ[2], MESO, KRILL))
-cat(sprintf("rule 3  <1 -> U(%g, %g) | %s\n\n", WH[1], WH[2],
+cat(sprintf("rule 3  %s -> U(%g, %g) | %s\n",
+            if (WH_MODE == "replace") "ALL draws" else "<1", WH[1], WH[2],
             paste(WHALES, collapse = ", ")))
+cat("        orca NOT treated (not extensively exploited)\n\n")
 
 set.seed(SEED)
 log_rows <- list()
@@ -142,16 +172,22 @@ for (s in cond) {
 }
 for (m in members) for (s in cond) {
   was <- as.numeric(DR$draws[[m]]$abundance_scaling[s])
-  if (is.finite(was) && was < 1) {
+  # Whales under "replace" take a fresh draw regardless of their current value;
+  # mesozooplankton and krill remain conditional on being below 1.
+  take <- if (s %in% WHALES && WH_MODE == "replace") TRUE else
+    (is.finite(was) && was < 1)
+  if (take) {
     DR$draws[[m]]$abundance_scaling[s] <- RND[m, s]
     log_rows[[length(log_rows) + 1]] <- note(m, s, was, RND[m, s],
-      if (s %in% c(MESO, KRILL)) "no_below_1" else "whale")
+      if (s %in% c(MESO, KRILL)) "no_below_1" else
+        paste0("whale_", WH_MODE))
   }
 }
 SUBS <- bind_rows(log_rows)
 
 cat("\n--- resulting distribution, treated groups ---\n")
-print(as.data.frame(do.call(rbind, lapply(c(LTL_SPLIT, MESO, KRILL, WHALES),
+print(as.data.frame(do.call(rbind, lapply(c(LTL_SPLIT, MESO, KRILL, WHALES,
+                                            "orca"),
   function(s) {
     v <- vapply(members, function(m)
       as.numeric(DR$draws[[m]]$abundance_scaling[s]), numeric(1))
@@ -179,9 +215,21 @@ cat("any changed species outside the treated set: ",
 cat("untouched groups (must be unchanged)       : ",
     paste(untouched, collapse = ", "), "\n", sep = "")
 stopifnot(!any(!moved$species %in% treated))
-# rules 2 and 3 may only ever raise a value that was below 1
-c23 <- SUBS %>% filter(rule %in% c("no_below_1", "whale"))
-stopifnot(all(c23$drawn < 1), all(c23$substituted >= 1))
+# the conditional rules may only ever raise a value that was below 1
+c2 <- SUBS %>% filter(rule == "no_below_1")
+stopifnot(all(c2$drawn < 1), all(c2$substituted >= 1))
+if (WH_MODE == "conditional") {
+  c3 <- SUBS %>% filter(rule == "whale_conditional")
+  stopifnot(all(c3$drawn < 1), all(c3$substituted >= 1))
+} else {
+  # under replace EVERY member must have been redrawn for every treated whale
+  c3 <- SUBS %>% filter(rule == "whale_replace")
+  stopifnot(nrow(c3) == length(members) * length(WHALES),
+            all(c3$substituted >= WH[1]), all(c3$substituted <= WH[2]))
+}
+# orca must be untouched
+if (!"orca" %in% c(WHALES, LTL_SPLIT, MESO, KRILL))
+  stopifnot(!"orca" %in% moved$species)
 # no treated-for-no-below-1 group may be left below 1
 for (s in c(MESO, KRILL)) {
   v <- vapply(members, function(m)
@@ -196,7 +244,7 @@ DR$substitution <- list(
   ltl_split = list(species = LTL_SPLIT, range = LTL,
                    p_up = P_UP, p_low = P_LOW, p_one = 1 - P_UP - P_LOW),
   no_below_1 = list(species = c(MESO, KRILL), range = MZ),
-  whales = WHALES, whale_range = WH,
+  whales = WHALES, whale_range = WH, whale_mode = WH_MODE,
   # phase 88 asserts on these names; keep them so the draws file is a
   # drop-in replacement for 87's
   mesozoo_range = MZ, log = SUBS, built = Sys.time())
