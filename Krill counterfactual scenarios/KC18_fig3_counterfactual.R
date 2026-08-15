@@ -84,11 +84,17 @@ sp2panel <- c(ind_to_panel,
 
 # --- data ---------------------------------------------------------------------
 D <- readRDS(IN); meta <- D$meta
-keep <- D$members$sim_index[D$members$stable]
+# USABLE = stable AND admissible, matching KC16b. `stable` alone was a no-op on
+# the phase-61 ensemble (stable == usable == 122) but is not on ensembles where
+# the reproduction treatment pushes erepro >= 1: phase 88 is 521 stable of which
+# only 427 are usable, and one inadmissible member can distort a median.
+adm <- if ("n_erepro_ge1" %in% names(D$members)) D$members$n_erepro_ge1 == 0 else TRUE
+keep <- D$members$sim_index[D$members$stable & adm]
 cat("=== KC18: Figure 3, counterfactuals vs observed history ===\n")
 cat("input:", basename(IN), "| base:", basename(meta$base), "\n")
-cat("members:", nrow(D$members), "| stable:", length(keep), "\n")
-if (!length(keep)) stop("no stable members", call. = FALSE)
+cat("members:", nrow(D$members), "| stable:", sum(D$members$stable),
+    "| stable AND admissible (USED):", length(keep), "\n")
+if (!length(keep)) stop("no usable members", call. = FALSE)
 B <- D$biomass %>% filter(sim_index %in% keep)
 n_mem <- length(keep)
 

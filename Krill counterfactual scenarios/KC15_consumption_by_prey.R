@@ -85,11 +85,19 @@ cat("=== KC15: consumption of", PD$axis, "===\n")
 cat("input:", basename(IN), "| base:", basename(meta$base), "\n")
 cat("other LTL =", paste(meta$other_ltl, collapse = ", "), "\n")
 
-# Stable members only, before any aggregation: a divergent member's ratio is
+# USABLE members only, before any aggregation: a divergent member's ratio is
 # meaningless rather than merely extreme, and one can own an across-member sum.
-keep <- D$members$sim_index[D$members$stable]
-cat("members:", nrow(D$members), "| stable:", length(keep), "\n")
-if (!length(keep)) stop("no stable members", call. = FALSE)
+#
+# USABLE = stable AND admissible, matching KC16b. Filtering on `stable` alone was
+# a no-op on the phase-61 ensemble (every member was admissible, so stable ==
+# usable == 122) but is NOT on ensembles where the reproduction treatment pushes
+# erepro >= 1 -- phase 88 is 521 stable of which only 427 are usable. One
+# inadmissible member is enough to distort a median.
+adm <- if ("n_erepro_ge1" %in% names(D$members)) D$members$n_erepro_ge1 == 0 else TRUE
+keep <- D$members$sim_index[D$members$stable & adm]
+cat("members:", nrow(D$members), "| stable:", sum(D$members$stable),
+    "| stable AND admissible (USED):", length(keep), "\n")
+if (!length(keep)) stop("no usable members", call. = FALSE)
 KR <- KR[KR$sim_index %in% keep, ]
 n_mem <- length(unique(KR$sim_index))
 
