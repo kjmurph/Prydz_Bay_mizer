@@ -52,6 +52,10 @@ DATA <- "Manuscript data"
 FIGS <- Sys.getenv("FIG_OUT", "Manuscript figures")
 dir.create(FIGS, showWarnings = FALSE)
 SUF <- Sys.getenv("FIG_SUF", "rebuilt167"); BASELINE <- 1841:2010
+# FIG_SET / FIG_OUTER select the member set and the outer percentile band for
+# the phase-88 build. Both default to the published behaviour: every member in
+# the file, IQR only.
+source("Manuscript scripts/F00z_member_set.R")
 guard <- function(f) {
   if (file.exists(f)) stop("refusing to overwrite: ", f, call. = FALSE); f
 }
@@ -86,6 +90,9 @@ bf <- readRDS(file.path(DATA, sprintf("biomass_abund_fish_%s.rds", SUF)))
 bc <- readRDS(file.path(DATA, sprintf("biomass_abund_clim_%s.rds", SUF)))
 meta <- readRDS(file.path(DATA, sprintf("meta_%s.rds", SUF)))
 message("members: ", meta$n_members, " | cut: ", meta$cut)
+KEEP <- fig_members(meta)
+bf <- fig_filter(bf, KEEP, "exploited")
+bc <- fig_filter(bc, KEEP, "unexploited")
 
 # Aggregate to panels FIRST: for multi-species panels the abundance is summed and
 # the mean mass is the biomass-weighted group mean (total biomass / total number),
@@ -103,10 +110,14 @@ pair <- inner_join(PF, PC, by = c("sim_index", "Year", "panel"),
   mutate(pct_abund = 100 * (Abundance_f - Abundance_c) / Abundance_c,
          pct_mass  = 100 * (MeanMass_f  - MeanMass_c)  / MeanMass_c)
 
+OP <- fig_outer_probs()
 summ <- function(v) pair %>% group_by(panel, Year) %>%
   summarise(med = median(.data[[v]], na.rm = TRUE),
             lo = quantile(.data[[v]], 0.25, na.rm = TRUE),
-            hi = quantile(.data[[v]], 0.75, na.rm = TRUE), .groups = "drop") %>%
+            hi = quantile(.data[[v]], 0.75, na.rm = TRUE),
+            lo_o = quantile(.data[[v]], OP[1], na.rm = TRUE),
+            hi_o = quantile(.data[[v]], OP[2], na.rm = TRUE),
+            .groups = "drop") %>%
   mutate(panel = factor(panel, levels = panel_levels))
 S_ab <- summ("pct_abund"); S_mw <- summ("pct_mass")
 
@@ -189,6 +200,12 @@ build_1col_pct <- function(summ_df, ref_df, events_sp_df, y_lab, show_strips,
   p <- ggplot() +
     geom_hline(yintercept = 0, linetype = "dashed", colour = "grey40",
                linewidth = 0.5) +
+    # Outer percentile band UNDER the IQR, at a lower alpha, so the two read as
+    # nested spreads rather than competing ribbons. Off unless FIG_OUTER=1.
+    {if (fig_outer())
+      geom_ribbon(data = summ_df,
+                  aes(x = Year, ymin = lo_o, ymax = hi_o, fill = panel),
+                  alpha = 0.14)} +
     geom_ribbon(data = summ_df, aes(x = Year, ymin = lo, ymax = hi, fill = panel),
                 alpha = 0.3) +
     # +/-1 SD reference lines, drawn under the median so it stays legible
@@ -240,8 +257,14 @@ fig <- (p_ab + p_mw +
   plot_annotation(tag_levels = "a")) &
   theme(plot.tag = element_text(face = "bold", size = 12))
 
-png_out <- guard(file.path(FIGS, sprintf("fig3_pctchange_%s.png", SUF)))
-pdf_out <- guard(file.path(FIGS, sprintf("fig3_pctchange_%s.pdf", SUF)))
+# The member set and the band go in the STEM, so the full-set and top-10%
+# variants cannot overwrite one another and a file names the figure it is.
+STEM <- sprintf("fig3_pctchange_%s%s", SUF,
+                if (identical(Sys.getenv("FIG_SET", "all"), "all")) ""
+                else paste0("_", fig_set_tag()))
+if (fig_outer()) STEM <- paste0(STEM, "_iqr", 100 * fig_outer_probs()[2])
+png_out <- guard(file.path(FIGS, sprintf("%s.png", STEM)))
+pdf_out <- guard(file.path(FIGS, sprintf("%s.pdf", STEM)))
 ggsave(png_out, fig, width = 14, height = 20, dpi = 300, limitsize = FALSE)
 ggsave(pdf_out, fig, width = 14, height = 20, limitsize = FALSE)
 
@@ -250,7 +273,7 @@ out <- bind_rows(S_ab %>% mutate(metric = "abundance"),
   left_join(bind_rows(B_ab %>% mutate(metric = "abundance"),
                       B_mw %>% mutate(metric = "mean_mass")),
             by = c("panel", "metric"))
-write.csv(out, guard(file.path(DATA, sprintf("fig3_pctchange_series_%s.csv", SUF))),
+write.csv(out, guard(file.path(DATA, sprintf("%s_series.csv", STEM))),
           row.names = FALSE)
 
 cat("\n=== % change at 2010 (median across members) ===\n")

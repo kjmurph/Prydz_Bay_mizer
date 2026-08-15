@@ -37,6 +37,11 @@ dir.create(FIGS, recursive = TRUE, showWarnings = FALSE)
 # schema by R/wmin_test/50_nrmse167_figure_data.R. Panels, aggregation, colours,
 # scaling and layout are identical, so the two variants are directly comparable.
 SUF <- Sys.getenv("F05_SUF", "rebuilt167")
+# FIG_SET / FIG_OUTER select the member set and whether the outer percentile
+# band is drawn. q05/q95 were already computed here and simply not plotted; the
+# defaults leave it that way, so an unset environment reproduces the published
+# figure exactly.
+source("Manuscript scripts/F00z_member_set.R")
 guard <- function(f) {
   if (file.exists(f)) stop("refusing to overwrite: ", f, call. = FALSE); f
 }
@@ -78,8 +83,9 @@ build_panel_summary <- function(raw_df) {
     median = median(Biomass, na.rm = TRUE),
     q25    = quantile(Biomass, 0.25, na.rm = TRUE),
     q75    = quantile(Biomass, 0.75, na.rm = TRUE),
-    q05    = quantile(Biomass, 0.05, na.rm = TRUE),
-    q95    = quantile(Biomass, 0.95, na.rm = TRUE), .groups = "drop")
+    q05    = quantile(Biomass, fig_outer_probs()[1], na.rm = TRUE),
+    q95    = quantile(Biomass, fig_outer_probs()[2], na.rm = TRUE),
+    .groups = "drop")
 
   agg_out <- bind_rows(lapply(names(group_defs), function(gname) {
     raw_df %>% filter(Species %in% group_defs[[gname]]) %>%
@@ -101,12 +107,24 @@ fish_raw <- readRDS(file.path(DATA, sprintf("biomass_abund_fish_%s.rds", SUF)))
 clim_raw <- readRDS(file.path(DATA, sprintf("biomass_abund_clim_%s.rds", SUF)))
 meta <- readRDS(file.path(DATA, sprintf("meta_%s.rds", SUF)))
 message("members: ", meta$n_members, " | cut: ", meta$cut)
+KEEP <- fig_members(meta)
+fish_raw <- fig_filter(fish_raw, KEEP, "exploited")
+clim_raw <- fig_filter(clim_raw, KEEP, "unexploited")
 
 fish_summary <- build_panel_summary(fish_raw)
 clim_summary <- build_panel_summary(clim_raw)
 
 # --- plot --------------------------------------------------------------------
 p_grid <- ggplot() +
+  # Outer percentile bands first, so both IQRs sit on top of them. Off unless
+  # FIG_OUTER=1; the quantiles themselves were always computed.
+  {if (fig_outer())
+    geom_ribbon(data = clim_summary, aes(x = Year, ymin = q05, ymax = q95),
+                fill = "grey82", alpha = 0.30, colour = NA)} +
+  {if (fig_outer())
+    geom_ribbon(data = fish_summary,
+                aes(x = Year, ymin = q05, ymax = q95, fill = panel),
+                alpha = 0.14)} +
   # Unexploited: IQR ribbon (light grey), its bounds, and a thin median
   geom_ribbon(data = clim_summary, aes(x = Year, ymin = q25, ymax = q75),
               fill = "grey82", alpha = 0.6, colour = NA) +
@@ -132,13 +150,18 @@ p_grid <- ggplot() +
         panel.grid.minor = element_blank()) +
   labs(x = "Year", y = expression(Biomass~(10^6~t)))
 
-png_out <- guard(file.path(FIGS, sprintf("biomass_rmse_grid_%s.png", SUF)))
-pdf_out <- guard(file.path(FIGS, sprintf("biomass_rmse_grid_%s.pdf", SUF)))
+# Member set and band go in the STEM so the variants cannot overwrite each other.
+STEM <- sprintf("biomass_rmse_grid_%s%s", SUF,
+                if (identical(Sys.getenv("FIG_SET", "all"), "all")) ""
+                else paste0("_", fig_set_tag()))
+if (fig_outer()) STEM <- paste0(STEM, "_iqr", 100 * fig_outer_probs()[2])
+png_out <- guard(file.path(FIGS, sprintf("%s.png", STEM)))
+pdf_out <- guard(file.path(FIGS, sprintf("%s.pdf", STEM)))
 ggsave(png_out, p_grid, width = 16, height = 9, dpi = 300)
 ggsave(pdf_out, p_grid, width = 16, height = 9)
 write.csv(bind_rows(fish_summary %>% mutate(arm = "exploited"),
                     clim_summary %>% mutate(arm = "unexploited")),
-          guard(file.path(DATA, sprintf("supp_biomass_grid_series_%s.csv", SUF))),
+          guard(file.path(DATA, sprintf("supp_%s_series.csv", STEM))),
           row.names = FALSE)
 
 cat("\n=== biomass at 2010, 10^6 t (median across members) ===\n")
