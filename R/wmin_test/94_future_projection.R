@@ -101,9 +101,23 @@ mk_eff <- function(future_row) {
                     nrow = length(fut_yrs), dimnames = list(fut_yrs, SPN)))
   rownames(m) <- c(yrs_obs, fut_yrs); m
 }
-EFF <- list(none = mk_eff(setNames(rep(0, length(SPN)), SPN)),
+ZERO <- setNames(rep(0, length(SPN)), SPN)
+# THE THIRD ARM IS THE CONTROL, and without it the other two cannot be read.
+# `none` and `hold` both carry the observed 1841-2010 fishing, so a statement
+# like "baleen is at 0.303 of its 1841 level" mixes whaling with 170 years of
+# climate change plus the repeated future. `unfished` is zero effort for the
+# WHOLE 1841-2100 span under the same climate, so it isolates the climate path
+# and supplies the contemporaneous denominator: how much recovery is available
+# is (unfished - none), not (1841 - none).
+EFF <- list(unfished = { m <- mk_eff(ZERO); m[] <- 0; m },
+            none = mk_eff(ZERO),
             hold = mk_eff(hold_vec))
-cat(sprintf("\neffort arms: none (all gears 0 from %d) | hold (mean %d-%d)\n",
+stopifnot(all(EFF$unfished == 0),
+          # `none` must still carry the historical fishery, or it is not a
+          # "stop in 2011" arm at all
+          any(EFF$none[as.numeric(rownames(EFF$none)) <= 2010, ] > 0),
+          all(EFF$none[as.numeric(rownames(EFF$none)) > 2010, ] == 0))
+cat(sprintf("\neffort arms: unfished (0 throughout) | none (0 from %d) | hold (mean %d-%d)\n",
             min(fut_yrs), REF_FROM, REF_TO))
 print(round(hold_vec[hold_vec > 0], 5))
 
