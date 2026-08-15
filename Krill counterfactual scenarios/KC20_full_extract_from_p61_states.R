@@ -55,7 +55,13 @@ cat("stem:", STEM, "| base:", basename(D$meta$base), "\n")
 BASE <- suppressWarnings(validParams(readRDS(D$meta$base)))
 SP <- BASE@species_params$species
 stopifnot(!anyNA(match(OTHER_LTL, SP)), KRILL %in% SP)
-MULT <- readRDS(file.path(OUT_LARGE, "45_catchability_multipliers.rds"))$M
+# KC20_MULT: the refit whose multipliers are applied. The phase-45 default
+# belongs to ensemble 44. A phase-88 run must pass 89_refit_results.rds -- the
+# ISIMIP3a-window fit over the usable screen. This is SILENT if wrong: both
+# files carry a $M of the same shape, and for krill counterfactuals the krill
+# multiplier IS the result.
+MULT <- readRDS(Sys.getenv("KC20_MULT",
+  file.path(OUT_LARGE, "45_catchability_multipliers.rds")))$M
 
 # --- effort arms, KC14:108-118 verbatim --------------------------------------
 eff_obs <- readRDS("effort_array_1841_2010.rds")
@@ -72,6 +78,31 @@ cat("  krill multiplier:", signif(MULT[[KRILL]], 5), "| peak year", peak_year, "
 
 states <- sort(list.files(STATE_DIR, pattern = "^state_\\d+\\.rds$",
                           full.names = TRUE))
+
+# --- the member screen --------------------------------------------------------
+# KC20_SCREEN=usable keeps only members that are stable AND carry no erepro >= 1.
+# A state file exists for every member that converged on the tolerance ladder,
+# which on the phase-88 build is 1,668 of which only 427 are usable. Extracting
+# all of them is both wrong -- rejected members would enter every downstream
+# median -- and four times the work, since this projects FOUR arms per member.
+# Default is "all", so a phase-61 run is unchanged.
+SCREEN <- Sys.getenv("KC20_SCREEN", "all")
+stopifnot(SCREEN %in% c("all", "usable", "stable"))
+if (SCREEN != "all") {
+  if (!all(c("stable", "n_erepro_ge1") %in% names(D$members)))
+    stop("KC20_SCREEN='", SCREEN, "' but ", basename(SRC_RDS),
+         " has no stable / n_erepro_ge1 columns", call. = FALSE)
+  keep <- switch(SCREEN,
+    usable = D$members$stable & D$members$n_erepro_ge1 == 0,
+    stable = D$members$stable)
+  pass <- as.integer(D$members$sim_index[keep])
+  si <- as.integer(sub("^state_0*", "", sub("\\.rds$", "", basename(states))))
+  n0 <- length(states)
+  states <- states[si %in% pass]
+  cat(sprintf("  screen '%s': %d of %d states (%d rejected)\n",
+              SCREEN, length(states), n0, n0 - length(states)))
+  if (!length(states)) stop("the screen left no members", call. = FALSE)
+}
 cat("  member states:", length(states), "| cores:", CORES, "\n\n")
 if (!length(states)) stop("no member states found", call. = FALSE)
 
@@ -225,6 +256,7 @@ saveRDS(list(
   mech = do.call(rbind, lapply(res, `[[`, "mech")),
   members = MEM,
   meta = list(base = D$meta$base, peak_year = peak_year, source_stem = STEM,
+              screen = SCREEN,
               members = MEM$sim_index, members_stable = sum(MEM$stable),
               spinup_years = D$meta$spinup_years, diet_from = FROM,
               multipliers = MULT, other_ltl = OTHER_LTL,
