@@ -60,9 +60,31 @@ guard <- function(f) {
   if (file.exists(f)) stop("refusing to overwrite: ", f, call. = FALSE); f
 }
 
-MAN <- readRDS(MANIFEST)
-members <- MAN$members
+# State file naming. Phase 44/53 states carry an arm token
+# (state_<arm>_00148.rds); phase 88's do not (state_00148.rds). F0R_ARM="" picks
+# the second form. The default is unchanged, so kernel158 still reproduces.
+state_file <- function(si) file.path(STATE_DIR,
+  if (nzchar(ARM)) sprintf("state_%s_%05d.rds", ARM, si)
+  else sprintf("state_%05d.rds", si))
+
 cat("=== F00r: 1 g-cutoff Figure 2 inputs ===\n")
+# Membership: either a manifest carrying $members, or a phase-93-style cuts
+# object named by F0R_CUTS_RDS / F0R_CUT.
+CUTS_RDS <- Sys.getenv("F0R_CUTS_RDS", "")
+MAN <- NULL
+if (nzchar(CUTS_RDS)) {
+  CR <- readRDS(CUTS_RDS)
+  cut_nm <- Sys.getenv("F0R_CUT", "FULL usable")
+  if (is.null(CR$cuts[[cut_nm]]))
+    stop("no cut '", cut_nm, "' in ", CUTS_RDS, " -- have: ",
+         paste(names(CR$cuts), collapse = " | "), call. = FALSE)
+  members <- as.integer(CR$cuts[[cut_nm]])
+  cat("membership:", basename(CUTS_RDS), "| cut '", cut_nm, "' |",
+      length(members), "members\n")
+} else {
+  MAN <- readRDS(MANIFEST)
+  members <- MAN$members
+}
 if (STABLE_ONLY) {
   S <- read.csv(SUMMARY)
   drop <- setdiff(members, S$sim_index[S$stable])
@@ -70,14 +92,20 @@ if (STABLE_ONLY) {
   cat("stability filter ON:", length(drop), "dropped (",
       paste(drop, collapse = ", "), ")\n")
 } else {
-  cat("stability filter OFF -- SNR denominators may be dominated by outliers\n")
+  # For a phase-93 cut this is CORRECT, not a risk: the usable screen is
+  # `stable AND no erepro >= 1`, so the members are already stability-filtered
+  # upstream and re-filtering here would need a summary this build has no
+  # reason to carry. For a raw manifest it IS the outlier risk in the header.
+  cat("stability filter OFF -- correct for a phase-93 cut (already screened);",
+      "for a raw manifest, SNR denominators may be dominated by outliers\n")
 }
 SUFFIX <- Sys.getenv("F0R_SUFFIX", sprintf("1gkernel%d", length(members)))
-MULT <- readRDS(file.path(OUT_LARGE, "45_catchability_multipliers.rds"))$M
+MULT <- readRDS(Sys.getenv("F0R_MULT",
+  file.path(OUT_LARGE, "45_catchability_multipliers.rds")))$M
 effort_arr <- readRDS("effort_array_1841_2010.rds")
 cat("states:", STATE_DIR, "| members", length(members), "| cutoff", MIN_W,
     "g | suffix", SUFFIX, "\n")
-ok <- file.exists(file.path(STATE_DIR, sprintf("state_%s_%05d.rds", ARM, members)))
+ok <- file.exists(vapply(members, state_file, character(1)))
 if (!all(ok)) stop("missing states for: ", paste(members[!ok], collapse = ", "))
 
 # --- LBNbiom slope, transcribed from F00d:93-115 -----------------------------
@@ -109,7 +137,7 @@ worker <- function(k) {
   suppressPackageStartupMessages({ library(therMizer); library(mizer) })
   source("R/wmin_test/thermizer_shim.R")
   si <- MEM[k]
-  st <- readRDS(file.path(STATE_DIR, sprintf("state_%s_%05d.rds", ARM, si)))
+  st <- readRDS(state_file(si))
   p <- st$params
   gp <- gear_params(p)
   m <- MULT[match(gp$species, names(MULT))]; m[is.na(m)] <- 1
@@ -163,7 +191,8 @@ worker <- function(k) {
 t0 <- proc.time()
 MEM <- members
 cl <- makeCluster(min(CORES, length(members)))
-clusterExport(cl, c("MEM", "STATE_DIR", "ARM", "effort_arr", "MULT", "QMAX",
+clusterExport(cl, c("MEM", "STATE_DIR", "ARM", "state_file", "effort_arr",
+                    "MULT", "QMAX",
                     "MIN_W", "lbnbiom_slope_series", "worker"), envir = environment())
 Z <- parLapplyLB(cl, seq_along(MEM), function(j)
   tryCatch(worker(j), error = function(e)
@@ -180,11 +209,25 @@ TAB <- bind_rows(lapply(Z, `[[`, "tab")); SLP <- bind_rows(lapply(Z, `[[`, "slop
 saveRDS(TAB %>% filter(arm == "exploited"),   guard(sfx("biomass_abund_fish")))
 saveRDS(TAB %>% filter(arm == "unexploited"), guard(sfx("biomass_abund_clim")))
 saveRDS(SLP, guard(sfx("nbss_slope")))
+# base_path comes from the manifest, which a cuts-driven build does not have.
+base_p <- if (!is.null(MAN)) unname(MAN$base_path[[ARM]]) else NA_character_
 meta <- list(n_members = length(members), members = members,
              min_w_cutoff = MIN_W, state_dir = STATE_DIR,
-             base_params = unname(MAN$base_path[[ARM]]),
-             cut = sprintf("cut A re-run under %s, %d g cutoff",
-                           basename(unname(MAN$base_path[[ARM]])), MIN_W),
+             base_params = base_p,
+             # Carried so the figure layer can filter to the selection without
+             # re-deriving the ranking, exactly as F00_build_p88_data.R does.
+             cuts = if (nzchar(CUTS_RDS)) {
+               CR <- readRDS(CUTS_RDS)
+               tn <- grep("^TOP ", names(CR$cuts), value = TRUE)[1]
+               list(full = as.integer(members),
+                    top = as.integer(intersect(CR$cuts[[tn]], members)))
+             } else NULL,
+             cut = if (!is.null(MAN))
+               sprintf("cut A re-run under %s, %d g cutoff",
+                       basename(base_p), MIN_W)
+             else sprintf("%s from %s, %d g cutoff",
+                          Sys.getenv("F0R_CUT", "FULL usable"),
+                          basename(CUTS_RDS), MIN_W),
              built = Sys.time())
 saveRDS(meta, guard(sfx("meta")))
 cat("wrote 4 files with suffix", SUFFIX, "| biomass rows", nrow(TAB),

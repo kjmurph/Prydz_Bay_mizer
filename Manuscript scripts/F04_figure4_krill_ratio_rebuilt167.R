@@ -41,6 +41,9 @@ DATA <- "Manuscript data"
 FIGS <- Sys.getenv("FIG_OUT", "Manuscript figures")
 dir.create(FIGS, recursive = TRUE, showWarnings = FALSE)
 SUF <- Sys.getenv("FIG_SUF", "rebuilt167")
+# FIG_SET / FIG_OUTER select the member set and the outer percentile band; both
+# default to the published behaviour.
+source("Manuscript scripts/F00z_member_set.R")
 guard <- function(f) {
   if (file.exists(f)) stop("refusing to overwrite: ", f, call. = FALSE); f
 }
@@ -49,6 +52,10 @@ KR <- readRDS(file.path(DATA, sprintf("krill_consumption_%s.rds", SUF)))
 meta <- readRDS(file.path(DATA, sprintf("meta_%s.rds", SUF)))
 message("members: ", meta$n_members, " | cut: ", meta$cut,
         " | years ", min(KR$Year), "-", max(KR$Year))
+# Filter BEFORE the ratio is formed. The ratio is a per-member paired quantity,
+# so filtering members here and filtering the ratios later are the same thing --
+# but doing it here keeps the exploited/unexploited pairing obviously intact.
+KR <- fig_filter(KR, fig_members(meta), "krill consumption")
 
 FISHES <- c("mesopelagic fishes", "bathypelagic fishes",
             "shelf and coastal fishes", "toothfishes")
@@ -84,10 +91,13 @@ R <- bind_rows(
   grp_ratio(WHALES,   "Large baleen + minke whales"),
   grp_ratio(FISHES,   "All fishes"))
 
+OP <- fig_outer_probs()
 S <- R %>% group_by(group, Year) %>%
   summarise(med = median(ratio, na.rm = TRUE),
             lo  = quantile(ratio, 0.25, na.rm = TRUE),
-            hi  = quantile(ratio, 0.75, na.rm = TRUE), .groups = "drop") %>%
+            hi  = quantile(ratio, 0.75, na.rm = TRUE),
+            lo_o = quantile(ratio, OP[1], na.rm = TRUE),
+            hi_o = quantile(ratio, OP[2], na.rm = TRUE), .groups = "drop") %>%
   mutate(group = factor(group, levels = c("All predators",
                                           "Large baleen + minke whales",
                                           "All fishes")))
@@ -142,6 +152,10 @@ print(as.data.frame(S %>% filter(Year == 2010) %>%
 BASELINE_YEARS <- 1841:2010
 KB <- readRDS(file.path(DATA,
   sprintf("krill_baseline_1841_unexploited_%s.rds", SUF)))
+# The baseline is built over the full member set, so it must be put through the
+# SAME filter as KR before the membership assertion below -- otherwise the band
+# would be drawn from 427 members while the ratio came from 43.
+KB <- fig_filter(KB, fig_members(meta), "krill baseline")
 stopifnot(identical(unique(KB$arm), "unexploited"),
           setequal(KB$Year, BASELINE_YEARS),
           setequal(unique(KB$sim_index), unique(KR$sim_index)))
@@ -202,6 +216,9 @@ p <- ggplot(S, aes(Year, med, colour = group, fill = group)) +
              colour = "grey40", linetype = "dashed", linewidth = 0.6) +
   geom_vline(xintercept = pk, colour = "grey55", linetype = "dotted",
              linewidth = 0.4) +
+  # Outer percentile band under the IQR, at a lower alpha. Off unless FIG_OUTER=1.
+  {if (fig_outer())
+    geom_ribbon(aes(ymin = lo_o, ymax = hi_o), alpha = 0.12, colour = NA)} +
   geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.25, colour = NA) +
   # +-1 SD natural-variability references, colour-matched to their group. Over
   # the ribbons so they are not buried, under the medians so those stay legible.
@@ -243,10 +260,15 @@ p <- ggplot(S, aes(Year, med, colour = group, fill = group)) +
         axis.text.x = element_text(angle = 45, hjust = 1),
         legend.title = element_text(face = "bold"))
 
-png_out <- guard(file.path(FIGS, sprintf("fig4_krill_ratio_%s.png", SUF)))
-pdf_out <- guard(file.path(FIGS, sprintf("fig4_krill_ratio_%s.pdf", SUF)))
+# Member set and band go in the STEM so the variants cannot overwrite each other.
+STEM <- sprintf("fig4_krill_ratio_%s%s", SUF,
+                if (identical(Sys.getenv("FIG_SET", "all"), "all")) ""
+                else paste0("_", fig_set_tag()))
+if (fig_outer()) STEM <- paste0(STEM, "_iqr", 100 * fig_outer_probs()[2])
+png_out <- guard(file.path(FIGS, sprintf("%s.png", STEM)))
+pdf_out <- guard(file.path(FIGS, sprintf("%s.pdf", STEM)))
 ggsave(png_out, p, width = 11, height = 7.5, dpi = 300)
 ggsave(pdf_out, p, width = 11, height = 7.5)
-write.csv(S, guard(file.path(DATA, sprintf("fig4_krill_ratio_series_%s.csv", SUF))),
+write.csv(S, guard(file.path(DATA, sprintf("%s_series.csv", STEM))),
           row.names = FALSE)
 cat("\nWrote:\n  ", png_out, "\n  ", pdf_out, "\n")
