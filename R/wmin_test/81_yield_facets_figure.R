@@ -37,6 +37,30 @@ cat("=== Phase 81: yield facets ===\n")
 cat("input:", basename(IN), "| members:", D$meta$n_members,
     "| base:", basename(D$meta$base), "\n")
 
+# --- optional member cut -----------------------------------------------------
+# Phase 80 extracts every usable member. P81_CUTS_RDS/P81_CUT restrict the plot
+# to a selection from a phase-93-style cuts object; unset, nothing is filtered
+# and the figure is what it always was. P81_BANDS=iqr drops the outer 5-95%
+# ribbon, which is what the top-10% variant wants -- a selected set has a
+# spread narrow enough that two nested ribbons only crowd the panel.
+CUTS_RDS <- Sys.getenv("P81_CUTS_RDS", "")
+BANDS <- Sys.getenv("P81_BANDS", "both")
+stopifnot(BANDS %in% c("both", "iqr"))
+if (nzchar(CUTS_RDS)) {
+  CR <- readRDS(CUTS_RDS)
+  cut_nm <- Sys.getenv("P81_CUT", "FULL usable")
+  if (is.null(CR$cuts[[cut_nm]]))
+    stop("no cut '", cut_nm, "' in ", CUTS_RDS, " -- have: ",
+         paste(names(CR$cuts), collapse = " | "), call. = FALSE)
+  sel <- as.integer(CR$cuts[[cut_nm]])
+  n0 <- length(unique(Y$sim_index))
+  Y <- Y[Y$sim_index %in% sel, , drop = FALSE]
+  if (!nrow(Y)) stop("the cut left no members in this extraction", call. = FALSE)
+  cat("cut '", cut_nm, "': ", length(unique(Y$sim_index)), " of ", n0,
+      " members\n", sep = "")
+}
+cat("bands:", if (BANDS == "both") "5-95% + IQR" else "IQR only", "\n")
+
 fished <- sort(unique(obs$Species[obs$obs_t > 0]))
 cat("fished species:", length(fished), "\n")
 
@@ -84,8 +108,9 @@ cat(sprintf("pseudo-log sigma %.3g (smallest non-zero %.3g)\n",
             sigma, min(nz, na.rm = TRUE)))
 
 p <- ggplot() +
-  geom_ribbon(data = rib, aes(Year, ymin = q05, ymax = q95, fill = Species),
-              alpha = .2) +
+  {if (BANDS == "both")
+    geom_ribbon(data = rib, aes(Year, ymin = q05, ymax = q95, fill = Species),
+                alpha = .2)} +
   geom_ribbon(data = rib, aes(Year, ymin = q25, ymax = q75, fill = Species),
               alpha = .3) +
   geom_line(data = rib, aes(Year, med, colour = Species), linewidth = 1) +
@@ -110,8 +135,11 @@ p <- ggplot() +
         axis.text.y = element_text(size = 8)) +
   labs(x = "Year", y = expression(Yield~(t~y^{-1})))
 
-png_out <- file.path(FIG, sprintf("yield_facets_%s.png", SUFFIX))
-pdf_out <- file.path(FIG, sprintf("yield_facets_%s.pdf", SUFFIX))
+STEM <- sprintf("yield_facets_%s%s%s", SUFFIX,
+                if (nzchar(CUTS_RDS)) "_top" else "",
+                if (BANDS == "iqr") "_iqr" else "")
+png_out <- file.path(FIG, sprintf("%s.png", STEM))
+pdf_out <- file.path(FIG, sprintf("%s.pdf", STEM))
 ggsave(png_out, p, width = 14, height = 8, dpi = 300)
 ggsave(pdf_out, p, width = 14, height = 8)
 cat("\nWrote:\n  ", png_out, "\n  ", pdf_out, "\n", sep = "")

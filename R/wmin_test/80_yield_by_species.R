@@ -44,7 +44,12 @@ cat("=== Phase 80: yield by species ===\n")
 cat("stem:", STEM, "| members", nrow(MEM), "-> usable", length(members), "\n")
 if (!length(members)) stop("no usable members", call. = FALSE)
 
-MULT <- readRDS(file.path(OUT_LARGE, "45_catchability_multipliers.rds"))$M
+# P80_MULT: the refit whose multipliers are applied. The phase-45 default belongs
+# to ensemble 44; a phase-88 run must pass 89_refit_results.rds, which was fitted
+# on the ISIMIP3a window over the usable screen. Getting this wrong is silent --
+# both files carry a $M of the same shape.
+MULT <- readRDS(Sys.getenv("P80_MULT",
+  file.path(OUT_LARGE, "45_catchability_multipliers.rds")))$M
 effort_arr <- readRDS("effort_array_1841_2010.rds")
 chunks <- split(members, ceiling(seq_along(members) / CHUNK))
 chunk_file <- function(ci) file.path(WORK_DIR, sprintf("y_%03d.rds", ci))
