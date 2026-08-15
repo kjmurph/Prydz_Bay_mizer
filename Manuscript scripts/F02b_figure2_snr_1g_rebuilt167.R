@@ -147,21 +147,77 @@ bio_f <- tot(bf); bio_c <- tot(bc)
 slope_f <- sl %>% filter(arm == "exploited")   %>% transmute(member = sim_index, Year, val = slope)
 slope_c <- sl %>% filter(arm == "unexploited") %>% transmute(member = sim_index, Year, val = slope)
 
-# --- the canonical SNR -------------------------------------------------------
+# --- the SNR, three denominators ---------------------------------------------
+# The NUMERATOR is paired in every mode: median over members of E_i - U_i. The
+# modes differ only in what the noise is.
+#
+#   classic  sd_t( mean_i U_i )      the published definition, DEFAULT
+#   medsd    median_i( sd_t U_i )    fixes the scale mismatch, shared scalar
+#   paired   median_i( (E_i-U_i) / sd_t U_i )   every member its own control
+#
+# WHY THE MODE MATTERS, measured on 1g_p88full427 at 2010:
+#   biomass  classic 1.020 | medsd 0.9215 | paired 0.8797   (-13.8%)
+#   slope    classic -33.27 | medsd -27.05 | paired -24.45   (-27%)
+#
+# `classic` averages U ACROSS MEMBERS before taking the temporal SD, which
+# cancels member-idiosyncratic fluctuations and leaves mostly the common
+# climate-forced component. That denominator is 11% (biomass) / 23% (slope)
+# SMALLER than a typical member's own temporal variability, so classic is
+# ANTI-CONSERVATIVE -- it inflates |SNR|. It also divides a median-scaled
+# numerator by a mean-scaled denominator, though that part is minor here
+# (mean/median of member level = 1.031 under the 1 g cutoff).
+#
+# `paired` is the one that matches the design. The real system is ONE
+# realisation, so a detectability claim belongs against the variability a single
+# system exhibits, not against an ensemble average that is not a physical
+# object. It also separates the two sources cleanly: the median IS the
+# exploitation effect and the IQR across members IS the parameter uncertainty.
+# Under classic the ribbon is the numerator's spread over one shared scalar, so
+# the band mixes both.
+#
+# NOT THE FORBIDDEN LOOKALIKE. All three keep a TEMPORAL SD. Dividing by the
+# ACROSS-MEMBER sd of the paired differences answers a parameter-uncertainty
+# question, gives 0.17 here rather than 0.88, and must never be called SNR.
+SNR_MODE <- Sys.getenv("FIG_SNR", "classic")
+stopifnot(SNR_MODE %in% c("classic", "medsd", "paired"))
+
 make_snr <- function(fish_m, clim_m) {
   rep_unexp <- clim_m %>% group_by(Year) %>%
     summarise(mu = mean(val, na.rm = TRUE), .groups = "drop")
-  noise <- sd(rep_unexp$mu[rep_unexp$Year %in% BASELINE_YEARS], na.rm = TRUE)
+  noise_classic <- sd(rep_unexp$mu[rep_unexp$Year %in% BASELINE_YEARS],
+                      na.rm = TRUE)
+  per <- clim_m %>% filter(Year %in% BASELINE_YEARS) %>% group_by(member) %>%
+    summarise(s = sd(val, na.rm = TRUE), .groups = "drop")
+  noise_medsd <- median(per$s, na.rm = TRUE)
+  noise <- switch(SNR_MODE, classic = noise_classic, medsd = noise_medsd,
+                  paired = noise_medsd)   # reported only; paired divides per member
   if (is.na(noise) || noise == 0) stop("baseline noise is NA or 0")
-  inner_join(fish_m, clim_m, by = c("member", "Year"), suffix = c("_f", "_c")) %>%
-    mutate(signal = val_f - val_c) %>%
-    group_by(Year) %>%
-    summarise(signal_med = median(signal, na.rm = TRUE),
-              signal_q25 = quantile(signal, 0.25, na.rm = TRUE),
-              signal_q75 = quantile(signal, 0.75, na.rm = TRUE),
-              .groups = "drop") %>%
-    mutate(noise = noise, snr_med = signal_med / noise,
-           snr_q25 = signal_q25 / noise, snr_q75 = signal_q75 / noise)
+
+  J <- inner_join(fish_m, clim_m, by = c("member", "Year"),
+                  suffix = c("_f", "_c")) %>%
+    mutate(signal = val_f - val_c)
+
+  if (SNR_MODE == "paired") {
+    J %>% left_join(per, by = "member") %>%
+      filter(is.finite(s), s > 0) %>%
+      mutate(snr_i = signal / s) %>%
+      group_by(Year) %>%
+      summarise(signal_med = median(signal, na.rm = TRUE),
+                snr_med = median(snr_i, na.rm = TRUE),
+                snr_q25 = quantile(snr_i, 0.25, na.rm = TRUE),
+                snr_q75 = quantile(snr_i, 0.75, na.rm = TRUE),
+                .groups = "drop") %>%
+      mutate(noise = noise,
+             signal_q25 = snr_q25 * noise, signal_q75 = snr_q75 * noise)
+  } else {
+    J %>% group_by(Year) %>%
+      summarise(signal_med = median(signal, na.rm = TRUE),
+                signal_q25 = quantile(signal, 0.25, na.rm = TRUE),
+                signal_q75 = quantile(signal, 0.75, na.rm = TRUE),
+                .groups = "drop") %>%
+      mutate(noise = noise, snr_med = signal_med / noise,
+             snr_q25 = signal_q25 / noise, snr_q75 = signal_q75 / noise)
+  }
 }
 
 # rolling SD per member, then the same SNR machinery on the variability series
@@ -260,8 +316,10 @@ for (W in WINDOWS) {
 
   is_main <- W == MAIN_WINDOW
   dir_out <- if (is_main) FIGS else SUPP
-  set_tag <- if (identical(Sys.getenv("FIG_SET", "all"), "all")) ""
-             else paste0("_", fig_set_tag())
+  set_tag <- paste0(
+    if (identical(Sys.getenv("FIG_SET", "all"), "all")) "" else
+      paste0("_", fig_set_tag()),
+    if (SNR_MODE == "classic") "" else paste0("_", SNR_MODE))
   stem <- if (is_main) sprintf("fig2_snr_%s%s", SUF, set_tag)
           else          sprintf("fig2_snr_%s%s_%dyr", SUF, set_tag, W)
   png_out <- guard(file.path(dir_out, paste0(stem, ".png")))
@@ -280,9 +338,10 @@ for (W in WINDOWS) {
 }
 
 write.csv(bind_rows(series_all),
-          guard(file.path(DATA, sprintf("fig2_snr_series_%s%s.csv", SUF,
+          guard(file.path(DATA, sprintf("fig2_snr_series_%s%s%s.csv", SUF,
             if (identical(Sys.getenv("FIG_SET", "all"), "all")) ""
-            else paste0("_", fig_set_tag())))),
+            else paste0("_", fig_set_tag()),
+            if (SNR_MODE == "classic") "" else paste0("_", SNR_MODE)))),
           row.names = FALSE)
 
 # The variability panels are what the window changes -- report their endpoint so
