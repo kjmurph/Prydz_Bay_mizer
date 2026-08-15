@@ -109,17 +109,34 @@ ZERO <- setNames(rep(0, length(SPN)), SPN)
 # WHOLE 1841-2100 span under the same climate, so it isolates the climate path
 # and supplies the contemporaneous denominator: how much recovery is available
 # is (unfished - none), not (1841 - none).
+# KRILL ARM. `hold` carries essentially NO krill fishing, because the fishery
+# ended in 1996 and mean 2001-2010 krill effort is exactly 0 -- so nothing in
+# the other arms tests a krill fishery at all. `krill_era` is `hold` with krill
+# put back at its own mean over the years it actually operated (1974-1996, mean
+# 0.10947, against a peak of 1.0). Everything else stays at the `hold` level, so
+# the contrast against `hold` isolates the krill fishery on top of a continuation
+# of present fishing rather than confounding it with the other gears.
+KRILL <- "antarctic krill"
+kr_eff <- eff_obs[, KRILL]
+era_mean <- mean(kr_eff[kr_eff > 0])
+krill_vec <- hold_vec; krill_vec[KRILL] <- era_mean
+
 EFF <- list(unfished = { m <- mk_eff(ZERO); m[] <- 0; m },
             none = mk_eff(ZERO),
-            hold = mk_eff(hold_vec))
+            hold = mk_eff(hold_vec),
+            krill_era = mk_eff(krill_vec))
+stopifnot(hold_vec[[KRILL]] == 0, era_mean > 0)
 stopifnot(all(EFF$unfished == 0),
           # `none` must still carry the historical fishery, or it is not a
           # "stop in 2011" arm at all
           any(EFF$none[as.numeric(rownames(EFF$none)) <= 2010, ] > 0),
           all(EFF$none[as.numeric(rownames(EFF$none)) > 2010, ] == 0))
-cat(sprintf("\neffort arms: unfished (0 throughout) | none (0 from %d) | hold (mean %d-%d)\n",
+cat(sprintf("\neffort arms: unfished (0 throughout) | none (0 from %d) | hold (mean %d-%d) | krill_era\n",
             min(fut_yrs), REF_FROM, REF_TO))
 print(round(hold_vec[hold_vec > 0], 5))
+cat(sprintf("  krill_era: %s at %.5f (mean over %d-%d, its %d operating years; peak %.3f)\n",
+            KRILL, era_mean, min(yrs_obs[kr_eff > 0]), max(yrs_obs[kr_eff > 0]),
+            sum(kr_eff > 0), max(kr_eff)))
 
 # --- climate: repeat the reference decade ------------------------------------
 # EXPLICIT extension, so therMizer's silent wrap to t %% 2010 + 1841 can never
