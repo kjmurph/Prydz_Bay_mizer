@@ -116,27 +116,48 @@ ZERO <- setNames(rep(0, length(SPN)), SPN)
 # 0.10947, against a peak of 1.0). Everything else stays at the `hold` level, so
 # the contrast against `hold` isolates the krill fishery on top of a continuation
 # of present fishing rather than confounding it with the other gears.
+# MEASURED 2026-08-15: `krill_era` is a NULL. Krill at its operating mean moves
+# nothing by 2100 -- krill 1.15 -> 1.14 of unfished, baleen and minke unchanged
+# to three significant figures -- because the era mean is 0.109 against a peak of
+# 1.000, an order of magnitude below the sustained effort that does leave a
+# trace. `krill_peak` is therefore the arm worth running: krill held at its
+# observed PEAK from 2011, which is the KC `peak_krill` intensity and spans the
+# plausible range rather than sitting at its bottom.
+#
+# P94_KRILL_ARM selects which is built; "peak" is the default for future runs.
+# Both are defined so the choice is visible rather than buried in an env var.
 KRILL <- "antarctic krill"
 kr_eff <- eff_obs[, KRILL]
 era_mean <- mean(kr_eff[kr_eff > 0])
-krill_vec <- hold_vec; krill_vec[KRILL] <- era_mean
+era_peak <- max(kr_eff)
+KRILL_ARM <- Sys.getenv("P94_KRILL_ARM", "peak")
+stopifnot(KRILL_ARM %in% c("peak", "era", "both"))
+krill_era_vec  <- hold_vec; krill_era_vec[KRILL]  <- era_mean
+krill_peak_vec <- hold_vec; krill_peak_vec[KRILL] <- era_peak
 
 EFF <- list(unfished = { m <- mk_eff(ZERO); m[] <- 0; m },
             none = mk_eff(ZERO),
-            hold = mk_eff(hold_vec),
-            krill_era = mk_eff(krill_vec))
-stopifnot(hold_vec[[KRILL]] == 0, era_mean > 0)
+            hold = mk_eff(hold_vec))
+if (KRILL_ARM %in% c("era", "both"))
+  EFF$krill_era <- mk_eff(krill_era_vec)
+if (KRILL_ARM %in% c("peak", "both"))
+  EFF$krill_peak <- mk_eff(krill_peak_vec)
+stopifnot(hold_vec[[KRILL]] == 0, era_mean > 0, era_peak >= era_mean)
 stopifnot(all(EFF$unfished == 0),
           # `none` must still carry the historical fishery, or it is not a
           # "stop in 2011" arm at all
           any(EFF$none[as.numeric(rownames(EFF$none)) <= 2010, ] > 0),
           all(EFF$none[as.numeric(rownames(EFF$none)) > 2010, ] == 0))
-cat(sprintf("\neffort arms: unfished (0 throughout) | none (0 from %d) | hold (mean %d-%d) | krill_era\n",
-            min(fut_yrs), REF_FROM, REF_TO))
+cat(sprintf("\neffort arms: %s\n", paste(names(EFF), collapse = " | ")))
 print(round(hold_vec[hold_vec > 0], 5))
-cat(sprintf("  krill_era: %s at %.5f (mean over %d-%d, its %d operating years; peak %.3f)\n",
-            KRILL, era_mean, min(yrs_obs[kr_eff > 0]), max(yrs_obs[kr_eff > 0]),
-            sum(kr_eff > 0), max(kr_eff)))
+cat(sprintf("  %s operated %d-%d (%d years): mean %.5f, peak %.3f\n",
+            KRILL, min(yrs_obs[kr_eff > 0]), max(yrs_obs[kr_eff > 0]),
+            sum(kr_eff > 0), era_mean, era_peak))
+if (!is.null(EFF$krill_era))
+  cat(sprintf("  krill_era:  %s at %.5f from %d  (MEASURED NULL: moves nothing by 2100)\n",
+              KRILL, era_mean, min(fut_yrs)))
+if (!is.null(EFF$krill_peak))
+  cat(sprintf("  krill_peak: %s at %.5f from %d\n", KRILL, era_peak, min(fut_yrs)))
 
 # --- climate: repeat the reference decade ------------------------------------
 # EXPLICIT extension, so therMizer's silent wrap to t %% 2010 + 1841 can never
