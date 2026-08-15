@@ -53,14 +53,28 @@ IN <- Sys.getenv("KC_IN5", file.path(OUT_LARGE, "KC05_abund_mass_n162.rds"))
 if (!file.exists(IN))
   stop("missing ", IN, " -- run KC05_extract_abund_mass.R first", call. = FALSE)
 K5 <- readRDS(IN)
+# KC20 carries the same schema under different names ($biomass rather than
+# $abund_mass), so a KC20 extraction can be read directly. The columns are
+# identical -- sim_index, arm, Year, Species, Abundance, Biomass.
+if (is.null(K5$abund_mass) && !is.null(K5$biomass)) {
+  K5$abund_mass <- K5$biomass
+  cat("  (reading a KC20 extraction: $biomass used as $abund_mass)\n")
+}
 AM <- K5$abund_mass; MEM <- K5$members; meta <- K5$meta
 cat("=== KC06: supplementary whale abundance / body size by scenario ===\n")
-cat("input:", basename(IN), "| G1 max rel diff at build:",
-    signif(meta$gate_G1_max_rel, 3), "\n")
+# gate_G1_max_rel is a KC05 build diagnostic; a KC20 extraction does not carry it.
+cat("input:", basename(IN),
+    if (is.numeric(meta$gate_G1_max_rel))
+      paste("| G1 max rel diff at build:", signif(meta$gate_G1_max_rel, 3))
+    else "", "\n")
 
-# stable members only -- one divergent member can own most of an across-member
-# sum, and its paired change is meaningless rather than merely extreme
-keep <- MEM$sim_index[MEM$stable]
+# USABLE members only -- one divergent member can own most of an across-member
+# sum, and its paired change is meaningless rather than merely extreme.
+# `stable` alone is a no-op where every member is admissible but not on
+# ensembles where the reproduction treatment pushes erepro >= 1 (phase 88 is
+# 521 stable of which 427 are usable). Matches KC15/KC16b/KC18.
+adm <- if ("n_erepro_ge1" %in% names(MEM)) MEM$n_erepro_ge1 == 0 else TRUE
+keep <- MEM$sim_index[MEM$stable & adm]
 AM <- AM[AM$sim_index %in% keep, ]
 n_mem <- length(unique(AM$sim_index))
 cat("members:", nrow(MEM), "| stable:", n_mem, "\n")
@@ -73,10 +87,25 @@ if (n_mem != 156) {
   cat("  NOTE: the published build had 156 stable members\n")
 }
 
-# --- panels: the two whale groups, named as in F03 ---------------------------
-sp2panel <- c("baleen whales" = "Large baleen whales",
-              "minke whales"  = "Minke whales")
+# --- panels: the whale groups, named as in F03 -------------------------------
+# KC_WHALES selects them. The default is the published pair; sperm whales are
+# available because they are the third whaled group and the one the model
+# depletes hardest (median 2010 biomass 0.003 of 1841 on the phase-88 ensemble),
+# so leaving them out understates what whaling did.
+ALL_WHALE_PANELS <- c("baleen whales" = "Large baleen whales",
+                      "minke whales"  = "Minke whales",
+                      "sperm whales"  = "Sperm whales")
+WH_SEL <- trimws(strsplit(Sys.getenv("KC_WHALES",
+                                     "baleen whales,minke whales"), ",")[[1]])
+WH_SEL <- WH_SEL[nzchar(WH_SEL)]
+if (length(setdiff(WH_SEL, names(ALL_WHALE_PANELS))))
+  stop("KC_WHALES: unknown group(s) ",
+       paste(setdiff(WH_SEL, names(ALL_WHALE_PANELS)), collapse = ", "),
+       " -- choose from ", paste(names(ALL_WHALE_PANELS), collapse = ", "),
+       call. = FALSE)
+sp2panel <- ALL_WHALE_PANELS[WH_SEL]
 panel_levels <- unname(sp2panel)
+cat("whale groups:", paste(WH_SEL, collapse = ", "), "\n")
 
 ARMS <- c("no_krill", "exploited", "peak_krill")   # diverging order
 SCEN <- c(no_krill = "No krill fishing", exploited = "Observed history",

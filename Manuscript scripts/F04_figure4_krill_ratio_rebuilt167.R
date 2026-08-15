@@ -188,6 +188,17 @@ BAND <- bind_rows(
   cbind(group = "Large baleen + minke whales", sd_band(WHALES)),
   cbind(group = "All fishes",                  sd_band(FISHES)))
 
+# The top of the y axis: the largest thing actually drawn, plus headroom for the
+# "Unexploited" annotation and the two-line event labels. Data-driven, because
+# the old fixed c(0, 1.15) was tuned when the widest band edge was 1.019 and it
+# CLIPPED the outer ribbons on the phase-88 ensemble.
+Y_TOP <- local({
+  edges <- c(S$hi, S$med, if (fig_outer()) S$hi_o else NULL, BAND$hi)
+  max(1.15, ceiling(max(edges, na.rm = TRUE) * 1.12 * 20) / 20)
+})
+cat(sprintf("\ny-axis top: %.3f (largest plotted band edge %.4f)\n", Y_TOP,
+            max(c(S$hi, if (fig_outer()) S$hi_o else NULL), na.rm = TRUE)))
+
 cat("\n=== +-1 SD natural-variability bands (unexploited",
     min(BASELINE_YEARS), "-", max(BASELINE_YEARS), "baseline) ===\n")
 print(as.data.frame(BAND), digits = 4, row.names = FALSE)
@@ -246,12 +257,16 @@ p <- ggplot(S, aes(Year, med, colour = group, fill = group)) +
   scale_fill_manual(values = cols, name = "Predator group") +
   scale_x_continuous(breaks = seq(1900, 2010, 10), limits = c(1898, 2012),
                      expand = expansion(mult = 0.005)) +
-  # Top was 1.28, which left a third of the panel empty: nothing plotted reaches
-  # above 1.007 (max ribbon edge) and the widest band edge is 1.019. 1.15 clears
-  # those, the "Unexploited" label at 1.05, and the two-line event labels hung off
-  # the panel top. The floor stays at 0 -- the rotated peak-effort labels start at
-  # 0.02 and the whale IQR reaches down to 0.195.
-  scale_y_continuous(limits = c(0, 1.15), breaks = seq(0, 1, 0.25)) +
+  # Y LIMITS ARE DATA-DRIVEN, not fixed. The old c(0, 1.15) was chosen when the
+  # widest band edge was 1.019; on the phase-88 ensemble the outer percentile
+  # ribbons rise well above that and were being CLIPPED. The top is now the
+  # largest plotted band edge plus headroom for the "Unexploited" label and the
+  # two-line event labels hung off the panel top. The floor stays at 0: the
+  # rotated peak-effort labels start at 0.02, and pinning it at 0 keeps the
+  # ratio scale honest (a band reaching down toward 0 must look like it does).
+  scale_y_continuous(
+    limits = c(0, Y_TOP),
+    breaks = seq(0, floor(Y_TOP * 4) / 4, 0.25)) +
   labs(x = "Year",
        y = "Exploited / Unexploited Antarctic krill consumption (ratio)") +
   theme_classic(base_size = 13) +
