@@ -76,10 +76,25 @@ STAB <- list(cv_threshold = 0.25, check_years_tail = 40, trend_first_years = 50,
 RR <- readRDS(file.path(OL, "93_rerank_p88.rds"))
 TOP_NAME <- grep("^TOP ", names(RR$cuts), value = TRUE)[1]
 members <- as.integer(RR$cuts[[TOP_NAME]])
+# P95_N takes the top N of the phase-93 RANKING instead of the cut, for a larger
+# pilot. The ranking is ascending yield RMSE over the usable set, so the top N is
+# a superset of the cut whenever N exceeds it.
+if (nzchar(Sys.getenv("P95_N"))) {
+  NN <- as.integer(Sys.getenv("P95_N"))
+  members <- as.integer(head(RR$ranking$sim_index, NN))
+  TOP_NAME <- sprintf("top %d of the phase-93 ranking", length(members))
+}
 if (nzchar(Sys.getenv("P95_MEMBERS")))
   members <- as.integer(trimws(strsplit(Sys.getenv("P95_MEMBERS"), ",")[[1]]))
 
-DR <- readRDS(file.path(OL, "87_member_draws_substituted.rds"))
+# P95_DRAWS: which substituted draws to build from. The phase-87 file is what
+# phase 88 used; phase 96 lifts the lower groups and widens the whales. With a
+# phase-96 file the scaling multiplier is normally 1, because the draws already
+# carry the change -- MULTS is then only for stacking a further factor on top.
+DRAWS_F <- Sys.getenv("P95_DRAWS", file.path(OL, "87_member_draws_substituted.rds"))
+if (!file.exists(DRAWS_F)) stop("missing draws: ", DRAWS_F, call. = FALSE)
+DR <- readRDS(DRAWS_F)
+cat("draws:", basename(DRAWS_F), "\n")
 MULT_Q <- readRDS(file.path(OL, "89_refit_results.rds"))$M
 effort_arr <- readRDS("effort_array_1841_2010.rds")
 obs <- read.csv("yield_observed_timeseries.csv", check.names = FALSE)
@@ -255,7 +270,7 @@ if (mode == "run") {
     max_erepro = r$max_erepro, n_erepro_ge1 = r$n_erepro_ge1)))
   saveRDS(list(per_species = PS, members = MEMTAB, mults = MULTS,
                whales = WH_SPECIES, cut = TOP_NAME,
-               meta = list(base = BASE_FILE, members = members,
+               meta = list(base = BASE_FILE, members = members, draws = DRAWS_F,
                            catchability = MULT_Q, built = Sys.time())), OUT)
   cat("WROTE", OUT, "\n")
 }
