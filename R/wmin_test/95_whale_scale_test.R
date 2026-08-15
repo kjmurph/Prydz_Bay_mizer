@@ -81,8 +81,15 @@ members <- as.integer(RR$cuts[[TOP_NAME]])
 # a superset of the cut whenever N exceeds it.
 if (nzchar(Sys.getenv("P95_N"))) {
   NN <- as.integer(Sys.getenv("P95_N"))
-  members <- as.integer(head(RR$ranking$sim_index, NN))
-  TOP_NAME <- sprintf("top %d of the phase-93 ranking", length(members))
+  # P95_SKIP takes a later slice of the ranking, so successive pilots cover
+  # disjoint members and can be pooled rather than repeating the same ones.
+  SK <- as.integer(Sys.getenv("P95_SKIP", "0"))
+  all_r <- as.integer(RR$ranking$sim_index)
+  if (SK >= length(all_r)) stop("P95_SKIP past the end of the ranking",
+                                call. = FALSE)
+  members <- all_r[(SK + 1):min(SK + NN, length(all_r))]
+  TOP_NAME <- sprintf("ranking rows %d-%d of %d", SK + 1, SK + length(members),
+                      length(all_r))
 }
 if (nzchar(Sys.getenv("P95_MEMBERS")))
   members <- as.integer(trimws(strsplit(Sys.getenv("P95_MEMBERS"), ",")[[1]]))
