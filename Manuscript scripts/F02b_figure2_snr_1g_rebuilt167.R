@@ -128,6 +128,16 @@ bc <- readRDS(file.path(DATA, sprintf("biomass_abund_clim_%s.rds", SUF)))
 sl <- readRDS(file.path(DATA, sprintf("nbss_slope_%s.rds", SUF)))
 meta <- readRDS(file.path(DATA, sprintf("meta_%s.rds", SUF)))
 message("members: ", meta$n_members, " | cut: ", meta$cut)
+# FIG_SET=top restricts to the selection carried in meta$cuts. NOTE that this
+# moves BOTH terms of the SNR: the denominator is the temporal SD of the
+# across-member MEAN unexploited trajectory, so a different member set is a
+# different noise scale, not just a different signal. That is intended -- each
+# variant is internally consistent -- but the two SNRs are not interchangeable.
+source("Manuscript scripts/F00z_member_set.R")
+KEEP <- fig_members(meta)
+bf <- fig_filter(bf, KEEP, "exploited")
+bc <- fig_filter(bc, KEEP, "unexploited")
+sl <- fig_filter(sl, KEEP, "slope")
 
 # community biomass per member-year
 tot <- function(d) d %>% group_by(member = sim_index, Year) %>%
@@ -250,8 +260,10 @@ for (W in WINDOWS) {
 
   is_main <- W == MAIN_WINDOW
   dir_out <- if (is_main) FIGS else SUPP
-  stem <- if (is_main) sprintf("fig2_snr_%s", SUF)
-          else          sprintf("fig2_snr_%s_%dyr", SUF, W)
+  set_tag <- if (identical(Sys.getenv("FIG_SET", "all"), "all")) ""
+             else paste0("_", fig_set_tag())
+  stem <- if (is_main) sprintf("fig2_snr_%s%s", SUF, set_tag)
+          else          sprintf("fig2_snr_%s%s_%dyr", SUF, set_tag, W)
   png_out <- guard(file.path(dir_out, paste0(stem, ".png")))
   pdf_out <- guard(file.path(dir_out, paste0(stem, ".pdf")))
   ggsave(png_out, fig, width = 8, height = 13, dpi = 300)
@@ -268,7 +280,9 @@ for (W in WINDOWS) {
 }
 
 write.csv(bind_rows(series_all),
-          guard(file.path(DATA, sprintf("fig2_snr_series_%s.csv", SUF))),
+          guard(file.path(DATA, sprintf("fig2_snr_series_%s%s.csv", SUF,
+            if (identical(Sys.getenv("FIG_SET", "all"), "all")) ""
+            else paste0("_", fig_set_tag())))),
           row.names = FALSE)
 
 # The variability panels are what the window changes -- report their endpoint so
