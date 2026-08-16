@@ -266,7 +266,9 @@ if (mode == "recap") {
                  biomass = as.vector(bm), stringsAsFactors = FALSE)
     })
     if (any(vapply(out, is.null, logical(1)))) return(NULL)
-    list(traj = cbind(sim_index = si, recap = rc, bind_rows(out)),
+    # do.call(rbind), NOT dplyr::bind_rows -- the workers load mizer and
+    # therMizer only, and a dplyr call here fails every job silently.
+    list(traj = cbind(sim_index = si, recap = rc, do.call(rbind, out)),
          pars = data.frame(sim_index = si, recap = rc, species = SPN,
            repro_level = as.numeric(getReproductionLevel(p)),
            erepro = p@species_params$erepro, stringsAsFactors = FALSE))
