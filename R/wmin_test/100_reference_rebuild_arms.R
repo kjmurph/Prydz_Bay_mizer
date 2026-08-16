@@ -154,7 +154,8 @@ RUNGS  <- c(0.1, 0.05, 0.01, 0.005, 0.002, 0.001)
 
 mode <- commandArgs(trailingOnly = TRUE)[1]; if (is.na(mode)) mode <- "dry"
 stopifnot(mode %in% c("dry", "run"),
-          all(ARMS %in% c("control","z0","orca","subsidy","z0_orca","all")))
+          all(ARMS %in% c("control","z0","orca","subsidy","wmin","z0_orca",
+                          "wmin_z0","all","all_nowmin")))
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 t0 <- proc.time()
@@ -322,6 +323,22 @@ edit_z0 <- function(p) {
   stopifnot(isTRUE(all.equal(p@ext_encounter, ee)))
   p
 }
+# w_min for the pinniped groups currently uses the source table's WEANING mass,
+# not birth mass: leopard seals 200 kg (44% of adult mass), large divers 135 kg.
+# erepro is proportional to w_min via mizerRDI, which uses the GRID-SNAPPED value
+# params@w[params@w_min_idx], not the nominal -- 200 kg lands on 155.7 kg and
+# 104 kg on 75.7 kg, so the realised reductions are 2.06x and 4.23x.
+# MEASURED: on its own this is nearly a no-op (biomass ratio 0.998), but combined
+# with the raised mortality it is what makes those groups admissible at all.
+WMIN_BIRTH <- c("leopard seals" = 104000, "large divers" = 35000)
+edit_wmin <- function(p) {
+  ee <- p@ext_encounter; s <- species_params(p)
+  i <- match(names(WMIN_BIRTH), s$species)
+  s$w_min[i] <- as.numeric(WMIN_BIRTH)
+  species_params(p) <- s; p@ext_encounter <- ee
+  stopifnot(isTRUE(all.equal(p@ext_encounter, ee)))
+  p
+}
 edit_int_lift <- function(p) {
   if (INT_LIFT <= 0) return(p)
   cols <- setdiff(SPN, c("minke whales","orca","sperm whales","baleen whales"))
@@ -349,13 +366,19 @@ edit_subsidy <- function(p) {
   }
   p
 }
+# wmin comes BEFORE z0: the z0 target subtracts realised predation, and widening
+# the spectrum downward changes it.
 ARM_DEF <- list(control = character(0), z0 = "z0", orca = "orca",
-                subsidy = "subsidy", z0_orca = c("orca", "z0"),
-                all = c("orca", "z0", "subsidy"))
+                subsidy = "subsidy", wmin = "wmin",
+                z0_orca = c("orca", "z0"),
+                wmin_z0 = c("wmin", "z0"),
+                all = c("wmin", "orca", "z0", "subsidy"),
+                all_nowmin = c("orca", "z0", "subsidy"))
 apply_arm <- function(arm) {
   p <- BASE
   for (e in ARM_DEF[[arm]])
-    p <- switch(e, orca = edit_orca(p), z0 = edit_z0(p), subsidy = edit_subsidy(p))
+    p <- switch(e, orca = edit_orca(p), z0 = edit_z0(p),
+                subsidy = edit_subsidy(p), wmin = edit_wmin(p))
   p
 }
 
@@ -391,7 +414,11 @@ run_ladder <- function(P0, arm) {
         converged = st$converged, stringsAsFactors = FALSE)
     }
   }
-  list(pass = !is.null(best), params = best, max_dev = best_d,
+  # `last` is returned even when the arm fails, so the blocking species can be
+  # identified without re-running. A 6-round proxy is NOT a substitute: measured
+  # 2026-08-16, it reported leopard seal erepro 0.392 where the full ladder
+  # reported 41.1.
+  list(pass = !is.null(best), params = best, last = p, max_dev = best_d,
        trace = do.call(rbind, tr), n_conv = n_conv, n_adm = n_adm,
        reason = if (is.null(best)) "no converged+admissible round at target" else NA)
 }
@@ -464,7 +491,13 @@ worker <- function(arm) {
   R <- run_ladder(p0, arm)
   if (!isTRUE(R$pass))
     return(list(arm = arm, pass = FALSE, reason = R$reason, pre = pre,
-                trace = R$trace))
+                trace = R$trace,
+                blocking = if (is.null(R$last)) NULL else {
+                  e <- R$last@species_params$erepro
+                  d <- data.frame(species = SPN, erepro = signif(e, 4),
+                                  stringsAsFactors = FALSE)
+                  d[order(-d$erepro), ][seq_len(min(5, nrow(d))), ]
+                }))
   P1 <- R$params
   saveRDS(P1, file.path(OUT_DIR, sprintf("100_%s.rds", arm)))
   list(arm = arm, pass = TRUE, max_dev = R$max_dev, trace = R$trace,
@@ -500,6 +533,17 @@ print(do.call(rbind, lapply(RES, function(r) data.frame(
   stringsAsFactors = FALSE))), row.names = FALSE)
 
 ok <- vapply(RES, function(r) isTRUE(r$pass), logical(1))
+# save ALWAYS, not only when something passed -- a run where every arm fails is
+# exactly the one whose diagnostics are needed.
+saveRDS(RES, file.path(OUT_DIR, "100_arms.rds"))
+if (any(!ok)) {
+  cat("\n=== blocking species in failed arms (erepro at the last round) ===\n")
+  for (r in RES[!ok]) {
+    cat("---", r$arm, "---\n")
+    if (is.null(r$blocking)) cat("  (no state captured)\n") else
+      print(r$blocking, row.names = FALSE)
+  }
+}
 if (any(ok)) {
   POST <- bind_rows(lapply(RES[ok], `[[`, "post"))
   cat("\n=== whale mortality and lifespan, post-ladder ===\n")
