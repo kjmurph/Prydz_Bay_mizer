@@ -61,7 +61,8 @@
 # Two consequences this phase has to handle, and the second is not in phase 94:
 #
 #   a. Projections past 2010 wrap to 1842-. Phase 94 fixed this by extending the
-#      arrays. Same fix here, except pinned to ONE year rather than a repeat.
+#      arrays. Same fix here, but repeating the ISIMIP3a ENSO window rather than
+#      pinning one year -- see P99_FORCING below.
 #   b. steady() ALSO walks the record. projectToSteady starts at t = 0, which
 #      wraps to 1841, and then t = 1 -> 1842 and so on -- so a steady() call
 #      with t_max 5000 cycles the 1841-2010 climate roughly 30 times. Every arm
@@ -103,6 +104,19 @@ DRIFT_YEARS <- as.integer(Sys.getenv("P99_DRIFT_YEARS", "1000"))
 # annual resolution.
 DRIFT_KEEP  <- max(1L, as.integer(Sys.getenv("P99_DRIFT_KEEP", "10")))
 REF_YEAR    <- as.integer(Sys.getenv("P99_REF_YEAR", "1841"))
+# FORCING CONTROL. "cycle" repeats the ISIMIP3a ENSO window; "pin" holds one
+# year. Cycle is the DEFAULT and is the protocol-correct choice: FishMIP 2.0
+# ISIMIP3a asks for ctrlclim 1961-1980 "on repeat for six cycles" over 1841-1960,
+# chosen because they span a full ENSO cycle with no detectable trend before
+# 1980, and says that models needing a longer spin-up should "repeat the ENSO
+# cycle ... for as many times necessary". Verified against this model's arrays:
+# 1841-1960 is EXACTLY six repeats of 1961-1980, bit for bit.
+# Pinning a single year is therefore NOT neutral -- 1841 sits 0.043 degC above
+# the cycle mean. The first drift pass used "pin"; this exists to close that.
+FORCING  <- Sys.getenv("P99_FORCING", "cycle")
+CYC_FROM <- as.integer(Sys.getenv("P99_CYCLE_FROM", "1961"))
+CYC_TO   <- as.integer(Sys.getenv("P99_CYCLE_TO", "1980"))
+stopifnot(FORCING %in% c("cycle", "pin"), CYC_TO > CYC_FROM)
 LONG_TMAX   <- as.integer(Sys.getenv("P99_LONG_TMAX", "5000"))
 LONG_TOL    <- as.numeric(Sys.getenv("P99_LONG_TOL", "1e-5"))
 PIN         <- Sys.getenv("P99_PIN", "1") == "1"
@@ -161,25 +175,37 @@ CORES <- min(CORES, max(1L, length(members)))
 cat("  stem:", STEM, "| built", nrow(MEM), "-> usable", length(usable), "\n")
 cat("  auditing", length(members) - 1L, "members + the reference model |",
     CORES, "cores of", parallel::detectCores(), "\n")
-cat("  forcing pinned to", REF_YEAR, ":", PIN, "| arms:",
-    paste(ARMS, collapse = ", "), "\n\n")
+cat("  forcing:", if (FORCING == "cycle")
+      sprintf("ENSO cycle %d-%d repeated (protocol)", CYC_FROM, CYC_TO)
+    else sprintf("pinned at %d", REF_YEAR),
+    "| applied:", PIN, "| arms:", paste(ARMS, collapse = ", "), "\n\n")
 
 # --- forcing control ----------------------------------------------------------
 # Every projected year gets its own label and every label carries the SAME year's
 # forcing, so the wrap can never fire and the climate cannot move. Both arrays
 # must share length and labels: plankton_forcing() indexes n_pp_array using
 # dimnames(ocean_temp).
-pin_forcing <- function(p, ref_year, n_years, t_start = 1841) {
+set_forcing <- function(p, ref_year, n_years, t_start = 1841) {
   o <- p@other_params$other
   ot <- o$ocean_temp; npp <- o$n_pp_array
   oyr <- as.numeric(rownames(ot))
   stopifnot(identical(oyr, as.numeric(rownames(npp))))
-  k <- match(ref_year, oyr)
-  if (is.na(k)) stop("P99_REF_YEAR ", ref_year, " not in the forcing record",
-                     call. = FALSE)
   yrs <- t_start + seq_len(n_years + 2L) - 1L   # +2: t can reach t_start+n_years
-  ot2  <- ot[rep(k, length(yrs)), , drop = FALSE]
-  npp2 <- npp[rep(k, length(yrs)), , drop = FALSE]
+  if (FORCING == "cycle") {
+    src <- which(oyr >= CYC_FROM & oyr <= CYC_TO)
+    if (!length(src)) stop("ENSO window ", CYC_FROM, "-", CYC_TO,
+                           " not in the forcing record", call. = FALSE)
+    # phase-aligned: model year t_start is cycle position 0, exactly as the
+    # protocol's 1841 == ctrlclim 1961.
+    k <- src[((seq_along(yrs) - 1L) %% length(src)) + 1L]
+  } else {
+    k <- match(ref_year, oyr)
+    if (is.na(k)) stop("P99_REF_YEAR ", ref_year, " not in the forcing record",
+                       call. = FALSE)
+    k <- rep(k, length(yrs))
+  }
+  ot2  <- ot[k, , drop = FALSE]
+  npp2 <- npp[k, , drop = FALSE]
   rownames(ot2) <- rownames(npp2) <- yrs
   stopifnot(nrow(ot2) == nrow(npp2), identical(rownames(ot2), rownames(npp2)),
             all(seq(t_start, t_start + n_years) %in% as.numeric(rownames(ot2))))
@@ -224,7 +250,7 @@ probe_worker <- function(si) {
     if (inherits(st, "try-error")) return(NULL)
     p <- st$p; p@initial_n <- st$n
     ext0 <- p@ext_encounter
-    pp <- pin_forcing(p, REF_YEAR, PROBE_YEARS)
+    pp <- set_forcing(p, REF_YEAR, PROBE_YEARS)
 
     B  <- sweep(p@initial_n, 2, WDW, "*")
     tot <- rowSums(B)
@@ -294,7 +320,7 @@ steady_worker <- function(si) {
     long       = list(tol = LONG_TOL, tmax = LONG_TMAX, pres = RAMP_PRESERVE, pin = TRUE))
   do.call(rbind, lapply(ARMS, function(a) {
     k <- cfg[[a]]
-    p <- if (k$pin && PIN) pin_forcing(p0, REF_YEAR, k$tmax) else p0
+    p <- if (k$pin && PIN) set_forcing(p0, REF_YEAR, k$tmax) else p0
     ext0 <- p@ext_encounter
     el <- proc.time()
     r <- steady_guarded(p, k$tol, k$pres, k$tmax)
@@ -323,7 +349,7 @@ drift_worker <- function(si) {
   suppressPackageStartupMessages({library(mizer); library(therMizer)})
   st <- try(load_state(si, "spinup"), silent = TRUE)
   if (inherits(st, "try-error")) return(NULL)
-  p <- pin_forcing(st$p, REF_YEAR, DRIFT_YEARS)
+  p <- set_forcing(st$p, REF_YEAR, DRIFT_YEARS)
   s <- try(project(p, initial_n = st$n, t_start = 1841, t_max = DRIFT_YEARS,
                    effort = 0, progress_bar = FALSE), silent = TRUE)
   if (inherits(s, "try-error")) return(NULL)
@@ -358,14 +384,17 @@ EXPORTS <- c("BASE", "SPN", "WDW", "STATE_DIR", "REF_YEAR", "PIN", "ARMS",
              "PROBE_YEARS", "DRIFT_YEARS", "DRIFT_KEEP", "LONG_TMAX",
              "LONG_TOL", "T_PER",
              "RAMP_TOL", "RAMP_TMAX", "RAMP_PRESERVE", "LAD_TOL", "LAD_TMAX",
-             "LAD_PRESERVE", "pin_forcing", "steady_guarded", "biom",
+             "LAD_PRESERVE", "set_forcing", "FORCING", "CYC_FROM", "CYC_TO",
+             "steady_guarded", "biom",
              "load_state")
 run_parallel <- function(fun, tag) {
   # force() before parLapply serialises the closure: passed lazily, `fun` is a
   # promise for a name that does not exist on the workers, and every member
   # fails with "object 'probe_worker' not found".
   force(fun)
-  f <- file.path(OUTDIR, sprintf("99_%s_%s.rds", tag, STEM))
+  # FORCING is in the filename: a cycled run must not silently overwrite a
+  # pinned one, and the two are not comparable.
+  f <- file.path(OUTDIR, sprintf("99_%s_%s_%s.rds", tag, STEM, FORCING))
   if (CORES > 1L) {
     cl <- makeCluster(CORES)
     on.exit(try(stopCluster(cl), silent = TRUE), add = TRUE)
@@ -386,7 +415,8 @@ run_parallel <- function(fun, tag) {
   }
   saveRDS(list(result = res[!bad], members = members, mode = tag,
                meta = list(stem = STEM, base = BASE_FILE, ref_year = REF_YEAR,
-                           pinned = PIN, arms = ARMS,
+                           pinned = PIN, forcing = FORCING,
+                           enso_window = c(CYC_FROM, CYC_TO), arms = ARMS,
                            probe_years = PROBE_YEARS, drift_years = DRIFT_YEARS,
                            long = c(tmax = LONG_TMAX, tol = LONG_TOL),
                            protocol = c(ramp_tol = RAMP_TOL, ramp_tmax = RAMP_TMAX,
@@ -471,7 +501,7 @@ if (mode == "drift") {
 
 if (mode == "collect") {
   for (tag in c("timescale", "steady", "drift")) {
-    f <- file.path(OUTDIR, sprintf("99_%s_%s.rds", tag, STEM))
+    f <- file.path(OUTDIR, sprintf("99_%s_%s_%s.rds", tag, STEM, FORCING))
     cat(sprintf("%-10s %s\n", tag, if (file.exists(f))
       paste(round(file.size(f) / 1e6, 1), "MB") else "-- not run --"))
   }
