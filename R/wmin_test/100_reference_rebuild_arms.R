@@ -302,10 +302,16 @@ edit_orca <- function(p) {
 }
 # z0 is EXTERNAL mortality: subtract the realised predation so TOTAL M hits the
 # target. Applied AFTER the orca edit wherever both are present.
+# THE TARGET IS ADULT M, not the all-size mean. z0 is size-flat, and both
+# published M estimates and Hoenig's t_max relation refer to adults. For 18 of 19
+# groups the two bases agree within 10%; toothfishes differ by 1.45x because the
+# model gives them heavy juvenile predation and near-zero adult mortality, and
+# their target is specified as an adult M directly. Using the all-size mean there
+# would undershoot the intended adult M by that same 1.45x.
 edit_z0 <- function(p) {
   ee <- p@ext_encounter
   s <- species_params(p)
-  Mp <- tot_M(p) - s$z0                 # predation (effort = 0, so no f_mort)
+  Mp <- adult_M(p) - s$z0               # adult predation (effort = 0, no f_mort)
   i <- match(names(TMAX), s$species)
   z_new <- CONV_FN(TMAX) - Mp[i]
   if (any(z_new <= 0))
