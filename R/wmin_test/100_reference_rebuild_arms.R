@@ -139,6 +139,7 @@ ORCA_SIGMA <- as.numeric(Sys.getenv("P100_ORCA_SIGMA", "2.0"))
 
 # --- the subsidy solve --------------------------------------------------------
 SUB_ROUNDS <- as.integer(Sys.getenv("P100_SUB_ROUNDS", "3"))
+SUB_POST   <- Sys.getenv("P100_SUB_POST", "1") == "1"   # re-solve after the ladder
 SUB_KMIN <- 0.05; SUB_KMAX <- 20        # guard one wild round; not a target
 INT_LIFT <- as.numeric(Sys.getenv("P100_INT_LIFT", "0"))
 LIFT_SPECIES <- c("leopard seals", "flying birds")
@@ -156,7 +157,7 @@ mode <- commandArgs(trailingOnly = TRUE)[1]; if (is.na(mode)) mode <- "dry"
 stopifnot(mode %in% c("dry", "run"),
           all(ARMS %in% c("control","z0","orca","subsidy","wmin","z0_orca",
                           "wmin_z0","ppmr","diet","feed","feed_z0",
-                          "all","all_feed")))
+                          "all","all_feed","maxint","maxint_z0","all_max")))
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 t0 <- proc.time()
@@ -369,6 +370,23 @@ edit_diet <- function(p) {
     p@interaction[E$predator[k], E$prey[k]] <- E$value[k]
   p
 }
+# F. THE FEEDING CEILING TRIAL. Every NON-ZERO entry in the three blocking
+# groups' PREDATOR rows is set to 1 -- i.e. maximal access to everything they
+# already eat at all. This is a BOUNDING TEST, not a parameterisation: it answers
+# "is erepro < 1 reachable for these groups by feeding alone?" and it deliberately
+# OVERRIDES the diet edits for those rows (large divers' plankton entries go back
+# from 0.05 to 1). Zero entries stay zero, so it never invents a new trophic link,
+# and only the rows are touched -- raising their columns would increase predation
+# ON them, which is the opposite of the intent.
+MAXINT_SPECIES <- trimws(strsplit(Sys.getenv("P100_MAXINT_SPECIES",
+  "leopard seals,large divers,small divers"), ",")[[1]])
+edit_maxint <- function(p) {
+  i <- match(MAXINT_SPECIES, SPN)
+  if (anyNA(i)) stop("P100_MAXINT_SPECIES not in the model: ",
+                     paste(MAXINT_SPECIES[is.na(i)], collapse = ", "), call. = FALSE)
+  for (k in i) p@interaction[k, p@interaction[k, ] > 0] <- 1
+  p
+}
 edit_int_lift <- function(p) {
   if (INT_LIFT <= 0) return(p)
   cols <- setdiff(SPN, c("minke whales","orca","sperm whales","baleen whales"))
@@ -412,13 +430,21 @@ ARM_DEF <- list(control = character(0), z0 = "z0", orca = "orca",
                 feed = c("ppmr", "diet"),
                 feed_z0 = c("ppmr", "diet", "z0"),
                 all = c("orca", "z0", "subsidy"),
-                all_feed = c("orca", "ppmr", "diet", "z0", "subsidy"))
+                all_feed = c("orca", "ppmr", "diet", "z0", "subsidy"),
+                # maxint AFTER diet, so the ceiling overrides those rows
+                maxint = "maxint",
+                maxint_z0 = c("maxint", "z0"),
+                all_max = c("orca", "ppmr", "diet", "maxint", "z0", "subsidy"))
 apply_arm <- function(arm) {
   p <- BASE
   for (e in ARM_DEF[[arm]])
     p <- switch(e, orca = edit_orca(p), z0 = edit_z0(p),
                 subsidy = edit_subsidy(p), wmin = edit_wmin(p),
-                ppmr = edit_ppmr(p), diet = edit_diet(p))
+                ppmr = edit_ppmr(p), diet = edit_diet(p),
+                maxint = edit_maxint(p),
+                stop("no handler for edit '", e, "'", call. = FALSE))
+  if (!is(p, "MizerParams"))
+    stop("edit '", e, "' did not return a MizerParams", call. = FALSE)
   p
 }
 
@@ -529,6 +555,21 @@ worker <- function(arm) {
     return(list(arm = arm, pass = FALSE, reason = paste("edit:", p0)))
   pre <- snapshot(p0, arm, "pre-ladder")
   R <- run_ladder(p0, arm)
+  # POST-LADDER SUBSIDY PASS. The odds-ratio solve runs before the ladder, but
+  # the ladder then moves the in-domain encounter and the realised shares drift
+  # -- measured 2026-08-16, orca landed at 0.47 of its target once the feeding
+  # edits were also in. Re-solve on the ladder output and re-ladder; keep the
+  # second pass only if it also passes, so this can never turn a pass into a
+  # failure.
+  if (isTRUE(R$pass) && "subsidy" %in% ARM_DEF[[arm]] && SUB_POST) {
+    R2 <- try(run_ladder(edit_subsidy(R$params), arm), silent = TRUE)
+    if (!inherits(R2, "try-error") && isTRUE(R2$pass)) {
+      s1 <- ext_share(R$params); s2 <- ext_share(R2$params)
+      j <- which(P_TARGET > 0)
+      err <- function(s) max(abs(log(s[j] / P_TARGET[j])), na.rm = TRUE)
+      if (is.finite(err(s2)) && err(s2) < err(s1)) R <- R2
+    }
+  }
   if (!isTRUE(R$pass))
     return(list(arm = arm, pass = FALSE, reason = R$reason, pre = pre,
                 trace = R$trace,
