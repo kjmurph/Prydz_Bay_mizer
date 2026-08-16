@@ -155,7 +155,8 @@ RUNGS  <- c(0.1, 0.05, 0.01, 0.005, 0.002, 0.001)
 mode <- commandArgs(trailingOnly = TRUE)[1]; if (is.na(mode)) mode <- "dry"
 stopifnot(mode %in% c("dry", "run"),
           all(ARMS %in% c("control","z0","orca","subsidy","wmin","z0_orca",
-                          "wmin_z0","all","all_nowmin")))
+                          "wmin_z0","ppmr","diet","feed","feed_z0",
+                          "all","all_feed")))
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 t0 <- proc.time()
@@ -339,6 +340,35 @@ edit_wmin <- function(p) {
   stopifnot(isTRUE(all.equal(p@ext_encounter, ee)))
   p
 }
+# D. SMALL DIVER PPMR. beta 293.8 is 1/mean(member ratios), and gentoo's 42.8 g
+# outlier dominates Adelie's 1.79 g and macaroni's 1.72 g, so the group targets
+# 20.4 g -- 5x the largest krill (4.17 g), which is why their adult feeding level
+# is 0.156. 960 is the GEOMETRIC mean of the same three ratios, the standard fix
+# for averaging ratios on a log scale, and puts preferred prey at 6.25 g.
+SD_BETA <- as.numeric(Sys.getenv("P100_SD_BETA", "960"))
+edit_ppmr <- function(p) {
+  ee <- p@ext_encounter; s <- species_params(p)
+  s$beta[match("small divers", s$species)] <- SD_BETA
+  species_params(p) <- s; p@ext_encounter <- ee
+  stopifnot(isTRUE(all.equal(p@ext_encounter, ee)))
+  p
+}
+# E. INTERACTION EDITS, from csvs/interaction_edits_v1.csv so the values and
+# their basis are auditable rather than inline constants. Applies only to the
+# named predator x prey cells; predator-on-predator entries are untouched.
+INT_CSV <- Sys.getenv("P100_INT_CSV", "csvs/interaction_edits_v1.csv")
+edit_diet <- function(p) {
+  if (!file.exists(INT_CSV)) stop("missing ", INT_CSV, call. = FALSE)
+  E <- read.csv(INT_CSV, stringsAsFactors = FALSE)
+  bad <- setdiff(c(E$predator, E$prey), SPN)
+  if (length(bad)) stop("interaction edits name unknown species: ",
+                        paste(unique(bad), collapse = ", "), call. = FALSE)
+  if (any(E$value < 0 | E$value > 1)) stop("interaction values must be in [0,1]",
+                                           call. = FALSE)
+  for (k in seq_len(nrow(E)))
+    p@interaction[E$predator[k], E$prey[k]] <- E$value[k]
+  p
+}
 edit_int_lift <- function(p) {
   if (INT_LIFT <= 0) return(p)
   cols <- setdiff(SPN, c("minke whales","orca","sperm whales","baleen whales"))
@@ -371,14 +401,24 @@ edit_subsidy <- function(p) {
 ARM_DEF <- list(control = character(0), z0 = "z0", orca = "orca",
                 subsidy = "subsidy", wmin = "wmin",
                 z0_orca = c("orca", "z0"),
+                # `wmin` is RETAINED ONLY AS A DOCUMENTED NEGATIVE RESULT and is
+                # deliberately NOT in `all`: measured 2026-08-16, birth-mass
+                # w_min takes max erepro 21.8 -> 41.1 because mizer has no
+                # parental care and the pups die before maturing.
                 wmin_z0 = c("wmin", "z0"),
-                all = c("wmin", "orca", "z0", "subsidy"),
-                all_nowmin = c("orca", "z0", "subsidy"))
+                # feeding edits come BEFORE z0: the z0 target subtracts realised
+                # predation, which they change.
+                ppmr = "ppmr", diet = "diet",
+                feed = c("ppmr", "diet"),
+                feed_z0 = c("ppmr", "diet", "z0"),
+                all = c("orca", "z0", "subsidy"),
+                all_feed = c("orca", "ppmr", "diet", "z0", "subsidy"))
 apply_arm <- function(arm) {
   p <- BASE
   for (e in ARM_DEF[[arm]])
     p <- switch(e, orca = edit_orca(p), z0 = edit_z0(p),
-                subsidy = edit_subsidy(p), wmin = edit_wmin(p))
+                subsidy = edit_subsidy(p), wmin = edit_wmin(p),
+                ppmr = edit_ppmr(p), diet = edit_diet(p))
   p
 }
 

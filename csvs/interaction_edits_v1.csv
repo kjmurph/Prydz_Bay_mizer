@@ -1,0 +1,20 @@
+predator,prey,value,basis
+small divers,antarctic krill,0.6,krill is the dominant prey of Adelie and macaroni penguins; was 0.20 - the LOWEST of their five plankton entries
+small divers,mesopelagic fishes,0.6,myctophids a real secondary prey for macaroni and gentoo; the size kernel already limits access
+leopard seals,antarctic krill,0.4,krill widely reported as 20-45% of the leopard seal diet; above the medium-diver peer value of 0.167
+leopard seals,mesozooplankton,0.16666667,lift to medium-diver peer value
+leopard seals,other krill,0.16666667,lift to medium-diver peer value
+leopard seals,other macrozooplankton,0.33333333,lift to medium-diver peer value
+leopard seals,salps,0.16666667,lift to medium-diver peer value
+leopard seals,mesopelagic fishes,0.375,lift to medium-diver peer value
+leopard seals,bathypelagic fishes,0.375,lift to medium-diver peer value
+leopard seals,shelf and coastal fishes,0.04853333,lift to medium-diver peer value
+leopard seals,squids,0.375,lift to medium-diver peer value
+leopard seals,toothfishes,0.375,lift to medium-diver peer value
+large divers,mesozooplankton,0.05,elephant seals take very little zooplankton; the row was identical to medium divers which pool krill-specialist crabeater seals
+large divers,other krill,0.05,as above
+large divers,other macrozooplankton,0.05,as above
+large divers,antarctic krill,0.05,as above
+large divers,salps,0.05,as above
+large divers,mesopelagic fishes,0.6,myctophids are a primary prey of deep-diving elephant seals
+large divers,squids,0.6,cephalopods are a primary prey of deep-diving elephant seals

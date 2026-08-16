@@ -1,0 +1,20 @@
+species,t_max,basis,decided
+mesozooplankton,,unchanged - allometric z0 is adequate at this size,2026-08-16
+other krill,,unchanged - allometric z0 is adequate at this size,2026-08-16
+other macrozooplankton,,unchanged - allometric z0 is adequate at this size,2026-08-16
+antarctic krill,,unchanged - 6.7 yr already matches E. superba 5-7 yr,2026-08-16
+salps,1,Salpa thompsoni is annual with a seasonal bloom-and-crash cycle,2026-08-16
+mesopelagic fishes,8,typical published maximum for Antarctic myctophids,2026-08-16
+bathypelagic fishes,,unchanged - both diagnostics agree at ~14 yr and predation already exceeds any longer target,2026-08-16
+shelf and coastal fishes,20,Pleuragramma antarctica and Notothenia rossii; matches the 18.7 yr survivorship estimate,2026-08-16
+flying birds,50,albatross-weighted - the group w_max of 4191 g is wandering-albatross sized,2026-08-16
+small divers,,BLOCKED - requires erepro > 1 even after the feeding edits; see docs/mortality_targets.md,2026-08-16
+squids,2,near-annual; covers the larger onychoteuthids without exceeding published Southern Ocean squid lifespans,2026-08-16
+toothfishes,32.46,ADULT M = 0.13 (CCAMLR for Dissostichus mawsoni) expressed as 4.22/M,2026-08-16
+leopard seals,,BLOCKED - requires erepro > 1 even after the feeding edits; see docs/mortality_targets.md,2026-08-16
+medium divers,35,unweighted mean over the 8 member taxa - matches how this group beta was aggregated,2026-08-16
+large divers,,BLOCKED - requires erepro > 1 even after the feeding edits; see docs/mortality_targets.md,2026-08-16
+minke whales,50,Kieran 2026-08-16,2026-08-16
+orca,80,Kieran 2026-08-16,2026-08-16
+sperm whales,90,raised from 70 to give erepro headroom; well inside the aged range,2026-08-16
+baleen whales,90,Kieran 2026-08-16,2026-08-16

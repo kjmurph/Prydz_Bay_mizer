@@ -108,8 +108,40 @@ offspring at half the adult mass — which also produces their implausible
 table's "weight at birth", against a real pup mass of ~30 kg.
 
 **These three targets therefore stand as the intent, not as implemented values.**
-They require the reproduction parameterisation to be corrected first, or a less
-ambitious target accepted. The other eleven changes apply cleanly.
+`csvs/mortality_targets_v2.csv` is the shippable set with them blanked; the other
+eleven changes apply cleanly.
+
+### What was tried, and what it bought
+
+**`w_min` birth mass instead of weaning mass** (leopard seals 200 → 104 kg, large
+divers 135 → 35 kg). **Makes it worse**: max `erepro` 21.8 → 41.1. `erepro` is
+proportional to `w_min` via `mizerRDI` — which uses the *grid-snapped*
+`params@w[params@w_min_idx]`, not the nominal — so a smaller egg should help. But
+the *required* RDI rises faster, because mizer has no parental care: a 104 kg
+"pup" is simply a small leopard seal exposed to the full predation field, and
+most die before maturing (`steady()` reports the group going extinct). **Weaning
+mass is the defensible choice** and is retained. Kept as the `wmin` arm so the
+negative result is not re-derived.
+
+**Feeding edits** (`csvs/interaction_edits_v1.csv`, plus small-diver
+`beta` 293.8 → 960). These are a **clear improvement on their own**: max `erepro`
+0.648 → 0.463 at unchanged biomass fit. Combined with the mortality targets they
+close much of the gap but not all of it:
+
+| group | erepro, targets only | + feeding edits |
+|---|---|---|
+| leopard seals | 48.1 | **19.3** |
+| large divers | 12.9 | 12.3 |
+| small divers | 5.1 | **2.5** |
+
+**Raising `t_max` cannot close the remainder.** `erepro` scales with M, so the
+implied targets are ~500 yr for leopard seals and ~283 yr for large divers —
+untenable, and those are optimistic because the relationship is worse than
+linear. Small divers would need ~51 yr against a real maximum near 20.
+
+The constraint is reproductive throughput, not mortality: these three have very
+large offspring relative to adult size (`w_min`/`w_max` of 60%, 44% and 6.7%) and
+correspondingly little headroom in `erepro` before anything is changed.
 
 ## Sources
 
