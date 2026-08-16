@@ -157,7 +157,8 @@ mode <- commandArgs(trailingOnly = TRUE)[1]; if (is.na(mode)) mode <- "dry"
 stopifnot(mode %in% c("dry", "run"),
           all(ARMS %in% c("control","z0","orca","subsidy","wmin","z0_orca",
                           "wmin_z0","ppmr","diet","feed","feed_z0",
-                          "all","all_feed","maxint","maxint_z0","all_max")))
+                          "all","all_feed","maxint","maxint_z0","all_max","wmat",
+                          "wmat_growth","wmat_z0","all_wmat")))
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 t0 <- proc.time()
@@ -387,6 +388,66 @@ edit_maxint <- function(p) {
   for (k in i) p@interaction[k, p@interaction[k, ] > 0] <- 1
   p
 }
+# G. MATURITY WINDOW. w_mat is a copy of w_max in the source table for 20 of 25
+# species; leopard seals' 348000 g IS the CSV's "maximum weight" for the species,
+# verbatim. A w_mat near w_max means the group only invests in reproduction in
+# the top few percent of its size range, so E_R is small and erepro has to be
+# large to compensate. Fractions of w_max in csvs/wmat_targets_v1.csv.
+WMAT_CSV <- Sys.getenv("P100_WMAT_CSV", "csvs/wmat_targets_v1.csv")
+edit_wmat <- function(p) {
+  if (!file.exists(WMAT_CSV)) stop("missing ", WMAT_CSV, call. = FALSE)
+  W <- read.csv(WMAT_CSV, stringsAsFactors = FALSE)
+  if (length(setdiff(W$species, SPN)))
+    stop("wmat targets name unknown species: ",
+         paste(setdiff(W$species, SPN), collapse = ", "), call. = FALSE)
+  stopifnot(all(W$w_mat_frac > 0), all(W$w_mat_frac < 1))
+  ee <- p@ext_encounter; s <- species_params(p)
+  i <- match(W$species, s$species)
+  s$w_mat[i] <- s$w_max[i] * W$w_mat_frac
+  # w_mat must stay above the realised w_min or the group has no juvenile phase
+  if (any(s$w_mat[i] <= p@w[p@w_min_idx[i]]))
+    stop("a w_mat target falls at or below the realised w_min", call. = FALSE)
+  species_params(p) <- s; p@ext_encounter <- ee
+  stopifnot(isTRUE(all.equal(p@ext_encounter, ee)))
+  p
+}
+# H. matchGrowth, GUARDED. Lowering w_mat lowers the realised age at maturity,
+# so growth must be re-reconciled against the base's literature age_mat column.
+# Three guards, from the failure modes measured on the member protocol:
+#   - restrict to species with a FINITE factor. age_mat() returns Inf where
+#     growth stalls before w_mat, and matchGrowth then poisons search_vol with
+#     Inf ("search_vol must not contain non-finite values", 17 of 40 members).
+#   - clamp the factor, so one bad species cannot rescale the whole model.
+#   - matchGrowth ends with setBevertonHolt(), which HOLDS erepro and can raise
+#     it silently to the smallest feasible value; report it so a blow-up is
+#     visible rather than inherited.
+# NOTE mizer 3.1.0 bug: matchGrowth's "before" biomass uses getBiomass(
+# usecutoff = TRUE) but the argument is use_cutoff, so it is silently ignored and
+# keep = "biomass" compares an UNCUT before against a CUT after. On this model
+# the resulting factor is <= 1.145 (small divers) and <= 1.013 elsewhere.
+MG_FACTOR_CLAMP <- as.numeric(Sys.getenv("P100_MG_CLAMP", "5"))
+MG_KEEP <- Sys.getenv("P100_MG_KEEP", "biomass")
+stopifnot(MG_KEEP %in% c("biomass", "egg", "number"))
+edit_growth <- function(p) {
+  sp <- p@species_params
+  if (!"age_mat" %in% names(sp) || anyNA(sp$age_mat))
+    stop("the base has no complete age_mat column -- matchGrowth would fall ",
+         "back to the k_vb placeholder", call. = FALSE)
+  am <- suppressWarnings(try(as.numeric(mizer::age_mat(p)), silent = TRUE))
+  if (inherits(am, "try-error")) stop("age_mat() failed", call. = FALSE)
+  fac <- am / sp$age_mat
+  sel <- is.finite(fac) & fac > 0 &
+         fac >= 1 / MG_FACTOR_CLAMP & fac <= MG_FACTOR_CLAMP
+  if (!any(sel)) return(p)
+  ee <- p@ext_encounter
+  out <- try(suppressWarnings(matchGrowth(p, species = sp$species[sel],
+                                          keep = MG_KEEP)), silent = TRUE)
+  if (inherits(out, "try-error"))
+    stop("matchGrowth: ", trimws(gsub("\\s+", " ", as.character(out))),
+         call. = FALSE)
+  if (all(out@ext_encounter == 0)) out@ext_encounter <- ee
+  out
+}
 edit_int_lift <- function(p) {
   if (INT_LIFT <= 0) return(p)
   cols <- setdiff(SPN, c("minke whales","orca","sperm whales","baleen whales"))
@@ -434,14 +495,21 @@ ARM_DEF <- list(control = character(0), z0 = "z0", orca = "orca",
                 # maxint AFTER diet, so the ceiling overrides those rows
                 maxint = "maxint",
                 maxint_z0 = c("maxint", "z0"),
-                all_max = c("orca", "ppmr", "diet", "maxint", "z0", "subsidy"))
+                all_max = c("orca", "ppmr", "diet", "maxint", "z0", "subsidy"),
+                # wmat then growth: matchGrowth reconciles the age at maturity
+                # that the new w_mat implies against the literature age_mat.
+                wmat = "wmat",
+                wmat_growth = c("wmat", "growth"),
+                wmat_z0 = c("wmat", "growth", "z0"),
+                all_wmat = c("orca", "ppmr", "diet", "maxint", "wmat", "growth",
+                             "z0", "subsidy"))
 apply_arm <- function(arm) {
   p <- BASE
   for (e in ARM_DEF[[arm]])
     p <- switch(e, orca = edit_orca(p), z0 = edit_z0(p),
                 subsidy = edit_subsidy(p), wmin = edit_wmin(p),
                 ppmr = edit_ppmr(p), diet = edit_diet(p),
-                maxint = edit_maxint(p),
+                maxint = edit_maxint(p), wmat = edit_wmat(p), growth = edit_growth(p),
                 stop("no handler for edit '", e, "'", call. = FALSE))
   if (!is(p, "MizerParams"))
     stop("edit '", e, "' did not return a MizerParams", call. = FALSE)

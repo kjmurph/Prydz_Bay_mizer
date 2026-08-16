@@ -1,0 +1,5 @@
+species,w_mat_frac,basis
+small divers,0.65,"source w_mat is a copy of w_max for 20 of 25 species; penguins mature well below maximum mass. Was 0.711"
+leopard seals,0.70,"source w_mat 348000 g is EXACTLY the CSV maximum weight for the species - the copy defect verbatim. Was 0.773"
+large divers,0.80,"southern elephant seals mature below maximum mass; males in particular keep growing long after maturity. Was 0.900"
+minke whales,0.80,"was 0.900; widened for consistency with the other three and to broaden the mature window"

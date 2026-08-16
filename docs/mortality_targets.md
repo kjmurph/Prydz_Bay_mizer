@@ -143,6 +143,63 @@ The constraint is reproductive throughput, not mortality: these three have very
 large offspring relative to adult size (`w_min`/`w_max` of 60%, 44% and 6.7%) and
 correspondingly little headroom in `erepro` before anything is changed.
 
+### Why, exactly — the `erepro` decomposition
+
+`erepro = 2 · w_min · RDI / E_R`. Between leopard seals (0.393) and medium
+divers (0.0041), two pinniped groups, the **95.4x** gap decomposes exactly as
+**17.9x from `w_min`**, 1.92x from RDI per biomass and 2.73x from the inverse of
+E_R per biomass.
+
+**`w_mat` is not the driver**, which is why lowering it did not help. Large
+divers, minke, sperm and orca all carry `w_mat`/`w_max` = 0.900 exactly, yet
+their `erepro` spans 0.011–0.047; small divers and leopard seals have *wider*
+mature windows (0.711, 0.773) and the *highest* `erepro`. Setting `w_mat` to
+0.65–0.80 made every blocked group worse and newly pushed minke over 1.
+
+**Part of the `w_min` gap is an aggregation inconsistency.** Leopard seals, a
+single-species group, took their own weaning mass (200,000 g). Medium divers,
+eight taxa, took the **minimum** weaning mass across members (king penguin,
+10,000 g) rather than the mean (52,900 g). The rule differs between groups and
+flatters medium divers. Leopard seals' own 200 kg also sits above the published
+weaning mass of ~110–130 kg. Correcting both buys roughly 1.6x against a 12.3x
+requirement.
+
+**The rest is a real structural limit, not an error.** Small divers'
+`w_min`/`w_max` of 0.49 is biologically correct — penguin chicks fledge at near
+adult mass. `erepro <= 1` implies `RDI <= E_R / (2 w_min)`, so a group producing
+few, very large offspring has a hard ceiling on reproductive throughput, and
+these groups sit near it before anything is changed. Satisfying `erepro < 1`
+would need maximum ages of roughly 38–50 yr (small divers), 95–120 yr (large
+divers) and **384 yr** (leopard seals) — 2 to 15x the published values.
+
+**DECISION (Kieran, 2026-08-16): accept `mortality_targets_v2.csv`.** The three
+groups keep their allometric mortality; every other change lands.
+
+## The accepted reference model
+
+`params_ref_p100_mort_kernel_diet.rds`, built by the `all_feed` arm on
+`mortality_targets_v2.csv`:
+
+| | control | accepted |
+|---|---|---|
+| max biomass deviation | 0.010569 | **0.014920** |
+| max `erepro` | 0.6481 | **0.8436** |
+| ladder rounds admissible | 14/14 | **14/14** |
+
+Contents: 11 mortality targets; orca `beta` 45.7 / `sigma` 2.0; small-diver
+`beta` 960; the interaction edits in `csvs/interaction_edits_v1.csv`; and the
+out-of-domain subsidy re-aligned by the odds-ratio solve, now run **after** the
+ladder as well as before — which takes the worst realised-vs-intended share from
+2.1x out (orca) to within **2%** across all nine subsidised groups.
+
+Maximum ages land exactly on target: baleen 90, sperm 90, orca 80, minke 50,
+toothfishes 24. Biomass ratios are within 1.3% of observed for every group.
+
+**Not yet tested: the member protocol.** `max erepro` 0.8436 against the
+control's 0.6481 is headroom the member protocol consumes, and a 20-member pilot
+previously showed admissibility collapsing on a change that the reference had
+absorbed comfortably. The reference passing is not evidence the members will.
+
 ## Sources
 
 Longevity figures are literature-informed judgement recorded per group in
