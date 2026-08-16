@@ -119,6 +119,12 @@ TMAX <- c("baleen whales" = as.numeric(Sys.getenv("P100_TMAX_BALEEN", "90")),
           "sperm whales"  = as.numeric(Sys.getenv("P100_TMAX_SPERM",  "90")),
           "orca"          = as.numeric(Sys.getenv("P100_TMAX_ORCA",   "80")),
           "minke whales"  = as.numeric(Sys.getenv("P100_TMAX_MINKE",  "50")))
+# P100_TMAX_CSV overrides the four above with a per-species table (columns
+# `species`, `t_max`). Rows with a blank or NA t_max are LEFT ALONE, so the file
+# can carry all 19 groups and you enable them one at a time. `dry` writes a
+# template pre-filled with each group's CURRENT implied t_max, so an unedited
+# template is a no-op by construction.
+TMAX_CSV <- Sys.getenv("P100_TMAX_CSV", "")
 CONV <- Sys.getenv("P100_CONV", "hoenig")
 CONV_FN <- switch(CONV,
   hoenig  = function(t) 4.22 / t,          # Hoenig 1983 -- the default
@@ -172,6 +178,20 @@ FEED <- read.csv(FEED_F, stringsAsFactors = FALSE)
 P_TARGET <- setNames(FEED$p_feed_outside[match(SPN, FEED$species)], SPN)
 P_TARGET[is.na(P_TARGET)] <- 0
 
+if (nzchar(TMAX_CSV)) {
+  if (!file.exists(TMAX_CSV)) stop("missing P100_TMAX_CSV: ", TMAX_CSV,
+                                   call. = FALSE)
+  TT <- read.csv(TMAX_CSV, stringsAsFactors = FALSE)
+  if (!all(c("species", "t_max") %in% names(TT)))
+    stop(TMAX_CSV, " needs columns `species` and `t_max`", call. = FALSE)
+  bad <- setdiff(TT$species, SPN)
+  if (length(bad)) stop("species in ", TMAX_CSV, " not in the model: ",
+                        paste(bad, collapse = ", "), call. = FALSE)
+  TT <- TT[!is.na(TT$t_max) & TT$t_max > 0, , drop = FALSE]
+  if (!nrow(TT)) stop(TMAX_CSV, " sets no usable t_max", call. = FALSE)
+  TMAX <- setNames(as.numeric(TT$t_max), TT$species)
+  cat("t_max targets read from", TMAX_CSV, ":", nrow(TT), "group(s)\n")
+}
 cat("base:", BASE_FILE, "| arms:", paste(ARMS, collapse = ", "), "\n")
 cat("M convention:", CONV, "| ladder target", TARGET, "preserve", PRES, "\n")
 cat("orca kernel: beta", ORCA_BETA, "sigma", ORCA_SIGMA,
@@ -205,7 +225,48 @@ ext_share <- function(p) {
     unname(v[["External"]] / sum(v))
   }, 0)
 }
-implied_tmax <- function(M) 4.22 / M      # inverse of Hoenig, for reporting only
+# INVERSE OF HOENIG, FOR REPORTING ONLY. mizer has no age dimension, so this is
+# not a model output: it says what maximum age a real stock with this mortality
+# would have. It is also CIRCULAR for any group whose z0 was set from a t_max
+# target -- it returns the target by construction.
+implied_tmax <- function(M) 4.22 / M
+
+# ADULT mortality is what z0 should be set against: z0 is size-flat, and both
+# published M estimates and Hoenig's t_max relation refer to adults. For 18 of
+# 19 groups this is within 10% of the all-size mean; toothfishes are the
+# exception (ratio 1.48), because the model gives them heavy juvenile predation
+# and near-zero adult mortality.
+adult_M <- function(p, r = NULL) {
+  if (is.null(r)) r <- rates_at(p)
+  sp <- p@species_params; B <- sweep(p@initial_n, 2, WDW, "*")
+  vapply(seq_len(nrow(sp)), function(i) {
+    s <- p@w >= sp$w_mat[i]
+    if (!any(s) || sum(B[i, s]) <= 0) return(NA_real_)
+    sum(r$mort[i, s] * B[i, s]) / sum(B[i, s])
+  }, 0)
+}
+
+# THE MIZER-NATIVE CHECK, with no Hoenig assumption. Age at size is the same
+# integral age_mat() uses, dw/g; survival to that size is exp(-int mu/g dw).
+# Maximum age = the age at which survival falls to `thresh`. Threshold-sensitive
+# where adult mortality is tiny: toothfishes give 15.6 yr at 1% and 472 at 0.1%,
+# because the survivors then sit at terminal size almost indefinitely. Use 1%,
+# and use it as a CROSS-CHECK rather than as the target.
+surv_max_age <- function(p, thresh = 0.01, r = NULL) {
+  if (is.null(r)) r <- rates_at(p)
+  g <- getEGrowth(p); mu <- r$mort; sp <- p@species_params
+  vapply(seq_len(nrow(sp)), function(i) {
+    sel <- which(p@w >= sp$w_min[i] & p@w < sp$w_max[i] & g[i, ] > 0)
+    if (!length(sel)) return(NA_real_)
+    dt <- p@dw[sel] / g[i, sel]
+    a <- cumsum(dt); Z <- cumsum(mu[i, sel] * dt)
+    k <- which(exp(-Z) <= thresh)[1]
+    if (!is.na(k)) return(a[k])
+    mt <- mu[i, sel[length(sel)]]
+    if (!is.finite(mt) || mt <= 0) return(NA_real_)
+    a[length(a)] + (-log(thresh) - Z[length(Z)]) / mt
+  }, 0)
+}
 
 # mizer 3.1.0 signals non-convergence with message(), not warning()
 steady_guarded <- function(p, tol) {
@@ -341,6 +402,30 @@ snapshot <- function(p, arm, stage) {
 }
 
 if (mode == "dry") {
+  # THE WORKSHEET. One row per group, pre-filled with its CURRENT implied t_max,
+  # so an unedited file changes nothing. Edit t_max where you want a target and
+  # blank it where you do not.
+  r0 <- rates_at(BASE)
+  aM <- adult_M(BASE, r0); alM <- tot_M(BASE, r0)
+  WS <- data.frame(species = SPN,
+    w_max_g = signif(BASE@species_params$w_max, 3),
+    age_mat = round(as.numeric(mizer::age_mat(BASE)), 2),
+    M_adult = signif(aM, 4), M_all_sizes = signif(alM, 4),
+    adult_vs_all = round(alM / aM, 2),
+    surv_max_age_1pct = round(surv_max_age(BASE, 0.01, r0), 1),
+    t_max = round(implied_tmax(aM), 1),          # <- EDIT THIS COLUMN
+    stringsAsFactors = FALSE)
+  f <- file.path(OUT_DIR, "100_tmax_worksheet.csv")
+  write.csv(WS, f, row.names = FALSE)
+  cat("=== per-species mortality worksheet (t_max pre-filled = no change) ===\n")
+  print(WS, row.names = FALSE)
+  cat("\nWROTE", f, "\n  edit the t_max column, then re-run with P100_TMAX_CSV=",
+      f, "\n", sep = "")
+  cat("\n  t_max here is 4.22/M_adult (inverse Hoenig) -- NOT a mizer output.\n")
+  cat("  surv_max_age_1pct is the model-native check: the age at which 1% of a\n")
+  cat("  cohort remains, from the model's own growth and mortality.\n")
+  cat("  Where the two disagree, the group's mortality is strongly\n")
+  cat("  size-dependent and z0 alone will not reconcile it (see toothfishes).\n\n")
   cat("=== what each edit does BEFORE any recalibration ===\n\n")
   cat("mortality targets (", CONV, "):\n", sep = "")
   M0 <- tot_M(BASE)
