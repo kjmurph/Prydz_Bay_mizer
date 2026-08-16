@@ -19,7 +19,8 @@
 # A. WHALE MORTALITY (edit "z0"). z0 = 0.6 * w_inf^(-1/3), a fish-derived
 #    allometry, gives biomass-weighted total mortality of 0.00128/yr for baleen
 #    whales -- a MEAN lifespan of 781 years and an implied MAXIMUM age of 3,592.
-#    Kieran's targets, as maximum ages: baleen 90, sperm 70, orca 80, minke 50.
+#    Kieran's targets, as maximum ages: baleen 90, sperm 90, orca 80, minke 50.
+#    Sperm was raised 70 -> 90 after the first run: see the note at P100_TMAX_SPERM.
 #
 #    CONVENTION. M is taken from Hoenig (1983), M = 4.22 / t_max. Measured
 #    against published cetacean M, this is the one that fits:
@@ -111,7 +112,11 @@ REF_YEAR <- 1841L
 
 # --- the mortality targets ----------------------------------------------------
 TMAX <- c("baleen whales" = as.numeric(Sys.getenv("P100_TMAX_BALEEN", "90")),
-          "sperm whales"  = as.numeric(Sys.getenv("P100_TMAX_SPERM",  "70")),
+          # 90, not 70: at 70 the recalibration puts sperm erepro at 0.935
+          # against the 1.0 admissibility ceiling, leaving no headroom for the
+          # member protocol where erepro floats. 90 is also well inside the
+          # aged range for sperm whales.
+          "sperm whales"  = as.numeric(Sys.getenv("P100_TMAX_SPERM",  "90")),
           "orca"          = as.numeric(Sys.getenv("P100_TMAX_ORCA",   "80")),
           "minke whales"  = as.numeric(Sys.getenv("P100_TMAX_MINKE",  "50")))
 CONV <- Sys.getenv("P100_CONV", "hoenig")
