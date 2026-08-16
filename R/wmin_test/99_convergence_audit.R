@@ -96,6 +96,12 @@ CORES     <- min(as.integer(Sys.getenv("P99_CORES", "8")),
                  max(1L, parallel::detectCores() - 2L))
 PROBE_YEARS <- as.integer(Sys.getenv("P99_PROBE_YEARS", "20"))
 DRIFT_YEARS <- as.integer(Sys.getenv("P99_DRIFT_YEARS", "1000"))
+# Store every DRIFT_KEEP-th year of the drift trajectory. The equilibrium and
+# half-life below are computed from the FULL annual series regardless; this only
+# thins what goes to disk, because 427 members x 2000 yr x 19 species is 16M
+# rows and the VM runs at 87% disk. Centuries-long relaxations do not need
+# annual resolution.
+DRIFT_KEEP  <- max(1L, as.integer(Sys.getenv("P99_DRIFT_KEEP", "10")))
 REF_YEAR    <- as.integer(Sys.getenv("P99_REF_YEAR", "1841"))
 LONG_TMAX   <- as.integer(Sys.getenv("P99_LONG_TMAX", "5000"))
 LONG_TOL    <- as.numeric(Sys.getenv("P99_LONG_TOL", "1e-5"))
@@ -337,15 +343,20 @@ drift_worker <- function(si) {
            100 * ((bt[, ncol(bt)] / bt[, ncol(bt) - min(50, ncol(bt) - 1)])^
                     (1 / min(50, ncol(bt) - 1)) - 1),
          stringsAsFactors = FALSE),
-       trajectory = data.frame(sim_index = si,
-         Year = rep(yr, each = length(SPN)),
-         species = rep(SPN, times = length(yr)),
-         biomass = as.vector(bt), stringsAsFactors = FALSE))
+       trajectory = local({
+         k <- unique(c(seq(1L, length(yr), by = DRIFT_KEEP), length(yr)))
+         data.frame(sim_index = si,
+           Year = rep(yr[k], each = length(SPN)),
+           species = rep(SPN, times = length(k)),
+           biomass = as.vector(bt[, k, drop = FALSE]),
+           stringsAsFactors = FALSE)
+       }))
 }
 
 # ================================================================== dispatch ===
 EXPORTS <- c("BASE", "SPN", "WDW", "STATE_DIR", "REF_YEAR", "PIN", "ARMS",
-             "PROBE_YEARS", "DRIFT_YEARS", "LONG_TMAX", "LONG_TOL", "T_PER",
+             "PROBE_YEARS", "DRIFT_YEARS", "DRIFT_KEEP", "LONG_TMAX",
+             "LONG_TOL", "T_PER",
              "RAMP_TOL", "RAMP_TMAX", "RAMP_PRESERVE", "LAD_TOL", "LAD_TMAX",
              "LAD_PRESERVE", "pin_forcing", "steady_guarded", "biom",
              "load_state")
