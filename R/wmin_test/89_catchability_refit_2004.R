@@ -227,10 +227,22 @@ if (SCREEN == "none") {
   if (!is.data.frame(MT) || length(setdiff(need, names(MT))))
     stop("the member table ", basename(MEMBER_TABLE), " has no $members frame ",
          "with columns ", paste(need, collapse = ", "), call. = FALSE)
+  # THE SCREEN FOLLOWS THE TABLE'S OWN DEFINITION. Phase 88 had no drift test, so
+  # its `usable` is stable AND admissible. Phase 104 adds a drift screen and its
+  # `usable` is stable AND drift_ok AND admissible; fitting the phase-88
+  # definition against a phase-104 table would silently include 62 members that
+  # the run itself rejected (265 against 203). `drift_ok` is used when the column
+  # is present and ignored when it is not, so this is a no-op on phase-88 tables.
+  has_drift <- "drift_ok" %in% names(MT)
   keep <- switch(SCREEN,
-    usable     = MT$stable & MT$n_erepro_ge1 == 0,
+    usable     = MT$stable & MT$n_erepro_ge1 == 0 &
+                 (if (has_drift) MT$drift_ok else TRUE),
     stable     = MT$stable,
     admissible = MT$n_erepro_ge1 == 0)
+  if (SCREEN == "usable")
+    cat("  screen 'usable' =", if (has_drift)
+      "stable AND drift_ok AND admissible (drift_ok present)" else
+      "stable AND admissible (no drift_ok column)", "\n")
   pass <- as.integer(MT$sim_index[keep])
   have <- si_of(states)
   # Every state must be accounted for in the table. If it is not, the table and
