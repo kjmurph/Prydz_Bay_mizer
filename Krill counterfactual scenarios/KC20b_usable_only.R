@@ -55,7 +55,14 @@ cat("stem:", STEM, "| base:", basename(D$meta$base), "\n")
 BASE <- suppressWarnings(validParams(readRDS(D$meta$base)))
 SP <- BASE@species_params$species
 stopifnot(!anyNA(match(OTHER_LTL, SP)), KRILL %in% SP)
-MULT <- readRDS(file.path(OUT_LARGE, "45_catchability_multipliers.rds"))$M
+# The catchability multipliers must match the ENSEMBLE being extracted. The
+# phase-45 file was fitted on ensemble-44 states; a phase-104 extraction needs
+# its own refit, or every arm is projected at the wrong q. KC20_MULT overrides.
+MULT_F <- Sys.getenv("KC20_MULT",
+                     file.path(OUT_LARGE, "45_catchability_multipliers.rds"))
+if (!file.exists(MULT_F)) stop("no multiplier file: ", MULT_F, call. = FALSE)
+MULT <- readRDS(MULT_F)$M
+cat("multipliers:", basename(MULT_F), "\n")
 
 # --- effort arms, KC14:108-118 verbatim --------------------------------------
 eff_obs <- readRDS("effort_array_1841_2010.rds")
@@ -81,7 +88,10 @@ states <- sort(list.files(STATE_DIR, pattern = "^state_\\d+\\.rds$",
 if (!nzchar(Sys.getenv("KC20_ALL"))) {
   MEM <- D$members
   adm <- if ("n_erepro_ge1" %in% names(MEM)) MEM$n_erepro_ge1 == 0 else TRUE
-  keep_si <- MEM$sim_index[MEM$stable & adm]
+  # follow the member table's own definition of usable: phase 104 adds a drift
+  # screen, phase 88 and earlier carry no drift_ok column and are unaffected.
+  drf <- if ("drift_ok" %in% names(MEM)) MEM$drift_ok else TRUE
+  keep_si <- MEM$sim_index[MEM$stable & adm & drf]
   si_of <- as.integer(sub("^state_0*", "",
                           sub("\\.rds$", "", basename(states))))
   states <- states[si_of %in% keep_si]

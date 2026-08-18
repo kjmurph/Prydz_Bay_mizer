@@ -63,7 +63,14 @@ cat("members:", basename(MEMBERS_RDS), "\n\n")
 # The refit records which members it fitted. Re-deriving the screen and checking
 # the two agree is what stops a refit built on the wrong member set from
 # silently setting the ranking -- the exact failure CORRECTION 5 documents.
-usable <- sort(as.integer(MEM$sim_index[MEM$stable & MEM$n_erepro_ge1 == 0]))
+# `usable` FOLLOWS THE MEMBER TABLE'S OWN DEFINITION, exactly as phase 89 does.
+# Phase 88 had no drift test; phase 104 adds one, and using the phase-88
+# definition against a phase-104 table asks for 265 members where the run itself
+# accepted 203. The guard below would then fire on a refit that was in fact
+# correct. `drift_ok` is used when present and ignored when absent.
+usable <- sort(as.integer(MEM$sim_index[
+  MEM$stable & MEM$n_erepro_ge1 == 0 &
+  (if ("drift_ok" %in% names(MEM)) MEM$drift_ok else TRUE)]))
 cat(sprintf("phase 88: built %d | stable %d | admissible %d | USABLE %d\n",
             nrow(MEM), sum(MEM$stable), sum(MEM$n_erepro_ge1 == 0),
             length(usable)))
