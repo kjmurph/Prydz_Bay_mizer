@@ -56,9 +56,12 @@ cat("input:", basename(IN), "| base:", basename(meta$base), "\n")
 # reproduction treatment pushes erepro >= 1: phase 67 is 96 stable but only 32
 # usable. A single inadmissible member is enough to distort a median.
 adm <- if ("n_erepro_ge1" %in% names(D$members)) D$members$n_erepro_ge1 == 0 else TRUE
-keep <- D$members$sim_index[D$members$stable & adm]
+# phase 104 adds a drift screen; earlier ensembles carry no drift_ok column and
+# are unaffected. Follow the member table's own definition of usable.
+drf <- if ("drift_ok" %in% names(D$members)) D$members$drift_ok else TRUE
+keep <- D$members$sim_index[D$members$stable & adm & drf]
 cat("members:", nrow(D$members), "| stable:", sum(D$members$stable),
-    "| stable AND admissible (USED):", length(keep), "\n")
+    "| USABLE (USED):", length(keep), "\n")
 if (!length(keep)) stop("no usable members", call. = FALSE)
 REC <- D$recruit %>% filter(sim_index %in% keep)
 MECH <- D$mech %>% filter(sim_index %in% keep)

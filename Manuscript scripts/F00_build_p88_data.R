@@ -57,7 +57,14 @@ suppressPackageStartupMessages({
 source("R/wmin_test/thermizer_shim.R")
 
 OUT_LARGE   <- "Output_large_files/wmin_test"
-STATE_DIR   <- file.path(OUT_LARGE, "88_full_states")
+# THE ENSEMBLE IS NOW SELECTABLE. Everything below defaulted to phase 88; a
+# phase-104 build needs its own states, ranking, member table and multipliers,
+# and its own catchability ceiling. Defaults are unchanged so existing calls
+# reproduce exactly.
+STATE_DIR   <- Sys.getenv("F0_STATE_DIR", file.path(OUT_LARGE, "88_full_states"))
+RANK_F      <- Sys.getenv("F0_RANK", file.path(OUT_LARGE, "93_rerank_p88.rds"))
+MEMBERS_F   <- Sys.getenv("F0_MEMBERS", file.path(OUT_LARGE, "88_full.rds"))
+REFIT_F     <- Sys.getenv("F0_REFIT", file.path(OUT_LARGE, "89_refit_results.rds"))
 OUT_DATA    <- "Manuscript data"
 SUFFIX      <- Sys.getenv("F0_SUFFIX", "p88full427")
 WORK_DIR    <- file.path(OUT_LARGE, paste0("F00_chunks_", SUFFIX))
@@ -65,7 +72,9 @@ REF_PERIOD  <- 2001:2010          # contemporary reference window for the spectr
 DIET_YEARS  <- 1900:2010          # Figure 4's x-axis
 SPECTRUM_MIN_W <- 3.16227766e-08  # canonical LBNbiom floor
 KRILL       <- "antarctic krill"
-QMAX        <- 1                  # catchability ceiling, as 46_selection_cuts.R
+# catchability ceiling. MUST match the ceiling the refit was run at, or the
+# multipliers are applied against a different clamp than they were fitted under.
+QMAX        <- as.numeric(Sys.getenv("F0_QMAX", "1"))
 dir.create(WORK_DIR, recursive = TRUE, showWarnings = FALSE)
 dir.create(OUT_DATA, showWarnings = FALSE)
 
@@ -76,7 +85,7 @@ DO_DIET <- as.integer(Sys.getenv("F0_DIET", "1")) == 1
 mode <- commandArgs(trailingOnly = TRUE)[1]; if (is.na(mode)) mode <- "run"
 
 # --- membership ---------------------------------------------------------------
-RR <- readRDS(file.path(OUT_LARGE, "93_rerank_p88.rds"))
+RR <- readRDS(RANK_F)
 FULL_NAME <- "FULL usable"
 TOP_NAME  <- grep("^TOP ", names(RR$cuts), value = TRUE)[1]
 members <- as.integer(RR$cuts[[FULL_NAME]])
@@ -87,16 +96,21 @@ stopifnot(length(members) == RR$meta$n_usable,
 # Re-derive the usable screen from the phase-88 summary and require a match.
 # The failure this guards is real and recent: phase 89's first run fitted every
 # state file in the directory, 1,241 of which are rejected members.
-P88 <- readRDS(file.path(OUT_LARGE, "88_full.rds"))$members
-usable <- sort(as.integer(P88$sim_index[P88$stable & P88$n_erepro_ge1 == 0]))
+P88 <- readRDS(MEMBERS_F)$members
+# follow the member table's own definition: phase 104 adds a drift screen, and
+# earlier tables carry no drift_ok column so this is a no-op on them.
+usable <- sort(as.integer(P88$sim_index[
+  P88$stable & P88$n_erepro_ge1 == 0 &
+  (if ("drift_ok" %in% names(P88)) P88$drift_ok else TRUE)]))
 if (!identical(sort(members), usable))
-  stop("the phase-93 FULL set is not the phase-88 usable set -- refusing to ",
-       "proceed. Re-run R/wmin_test/93_rerank_p88.R", call. = FALSE)
+  stop("the ranking's FULL set is not the usable set of ", basename(MEMBERS_F),
+       " -- refusing to proceed. Re-run R/wmin_test/93_rerank_p88.R against ",
+       "the matching refit.", call. = FALSE)
 message("membership verified: ", length(members), " usable | top cut '",
         TOP_NAME, "' = ", length(top_members))
 
 # --- catchability multipliers -------------------------------------------------
-RF <- readRDS(file.path(OUT_LARGE, "89_refit_results.rds"))
+RF <- readRDS(REFIT_F)
 MULT <- RF$M
 if (!identical(RF$meta$screen, "usable"))
   stop("89_refit_results.rds was fitted with screen='", RF$meta$screen,

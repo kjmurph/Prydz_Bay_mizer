@@ -47,9 +47,28 @@ if (!file.exists(IN)) stop("missing ", IN, " -- run KC20b first", call. = FALSE)
 Z <- readRDS(IN)
 keep <- Z$members$sim_index[Z$members$stable &
                             (if ("n_erepro_ge1" %in% names(Z$members))
-                               Z$members$n_erepro_ge1 == 0 else TRUE)]
+                               Z$members$n_erepro_ge1 == 0 else TRUE) &
+                            (if ("drift_ok" %in% names(Z$members))
+                               Z$members$drift_ok else TRUE)]
+# OPTIONAL TOP-N SUBSET, so a "best members" figure is reproducible from the
+# stored ranking rather than a pasted list. P85_RANK is a phase-93 style object
+# with $ranking$sim_index in ascending yield RMSE; P85_TOP_N takes its head,
+# intersected with the usable set so it can never reintroduce a rejected member.
+RANK_F <- Sys.getenv("P85_RANK", "")
+TOP_N  <- as.integer(Sys.getenv("P85_TOP_N", "0"))
+subset_label <- sprintf("all usable (n = %d)", length(keep))
+if (nzchar(RANK_F) && TOP_N > 0) {
+  if (!file.exists(RANK_F)) stop("missing P85_RANK: ", RANK_F, call. = FALSE)
+  RK <- readRDS(RANK_F)$ranking
+  ord <- as.integer(RK$sim_index[RK$sim_index %in% keep])
+  if (length(ord) < TOP_N)
+    stop("P85_TOP_N=", TOP_N, " but only ", length(ord),
+         " ranked members are usable", call. = FALSE)
+  keep <- head(ord, TOP_N)
+  subset_label <- sprintf("top %d of %d by yield RMSE", TOP_N, length(ord))
+}
 cat("=== Phase 85: recruitment vs biomass ===\n")
-cat("stem:", STEM, "| usable members:", length(keep), "\n")
+cat("stem:", STEM, "| members:", length(keep), "|", subset_label, "\n")
 cat("species:", paste(SPSEL, collapse = ", "), "\n")
 
 B <- Z$biomass %>% filter(sim_index %in% keep, Species %in% SPSEL,
