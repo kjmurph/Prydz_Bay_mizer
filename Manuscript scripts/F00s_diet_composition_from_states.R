@@ -167,7 +167,16 @@ for (k in seq_along(Z)) { CONS[k, , , ] <- Z[[k]]$cons; SZ[k, , , ] <- Z[[k]]$si
 saveRDS(list(cons = CONS, size_prop = SZ, members = members, years = YEARS,
              ref_years = REF_YEARS, species = spn, prey = prey, w = wv,
              arm = "exploited (fishing)", state_dir = STATE_DIR,
-             base_params = unname(MAN$base_path[[ARM]]),
+             # MAN$base_path is keyed by arm; a manifest without one, or an
+             # empty ARM, yields NULL and F07 then fails on basename(NULL).
+             # Fall back to the manifest's own meta, then to the string "unknown".
+             base_params = {
+               bp <- if (!is.null(MAN$base_path) && nzchar(ARM))
+                       unname(MAN$base_path[[ARM]]) else NULL
+               if (is.null(bp)) bp <- MAN$meta$base
+               if (is.null(bp)) bp <- MAN$base
+               if (is.null(bp) || !nzchar(bp)) "unknown" else as.character(bp)
+             },
              units = c(cons = "g/yr (domain total)", size_prop = "proportion"),
              built = Sys.time()), OUT_RDS)
 cat("wrote", OUT_RDS, "\n")
