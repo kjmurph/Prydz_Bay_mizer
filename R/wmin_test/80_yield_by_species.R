@@ -29,7 +29,7 @@ STEM   <- Sys.getenv("P80_STEM", "77_rmaxpostcap_n500_nomg_recap09_K1_R_max")
 SUFFIX <- Sys.getenv("P80_SUFFIX", "p77n166")
 CORES  <- as.integer(Sys.getenv("P80_CORES", "14"))
 CHUNK  <- as.integer(Sys.getenv("P80_CHUNK", as.character(CORES)))
-QMAX <- 1
+QMAX <- as.numeric(Sys.getenv("P80_QMAX", "1"))  # must match the refit
 STATE_DIR <- file.path(OUT_LARGE, paste0(STEM, "_states"))
 WORK_DIR  <- file.path(OUT_LARGE, paste0("80_yield_chunks_", SUFFIX))
 OUT_RDS   <- file.path(OUT_LARGE, sprintf("80_yield_by_species_%s.rds", SUFFIX))
