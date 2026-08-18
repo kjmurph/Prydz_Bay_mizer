@@ -80,14 +80,20 @@ effort_arr <- readRDS("effort_array_1841_2010.rds")
 YEARS <- YEAR_MIN:YEAR_MAX
 cat("states:", STATE_DIR, "| members", length(members),
     "| years", YEAR_MIN, "-", YEAR_MAX, "| suffix", SUFFIX, "\n")
-ok <- file.exists(file.path(STATE_DIR, sprintf("state_%s_%05d.rds", ARM, members)))
+# Phase 44/53 states carry an arm token (state_<arm>_00148.rds); phase 88 and
+# later do not (state_00148.rds). F0S_ARM="" picks the second form, exactly as
+# F00r_build_1g_from_states.R already did. The default is unchanged.
+state_file <- function(si) file.path(STATE_DIR,
+  if (nzchar(ARM)) sprintf("state_%s_%05d.rds", ARM, si)
+  else sprintf("state_%05d.rds", si))
+ok <- file.exists(vapply(members, state_file, character(1)))
 if (!all(ok)) stop("missing states for: ", paste(members[!ok], collapse = ", "))
 
 worker <- function(k) {
   suppressPackageStartupMessages({ library(therMizer); library(mizer) })
   source("R/wmin_test/thermizer_shim.R")
   si <- MEM[k]
-  st <- readRDS(file.path(STATE_DIR, sprintf("state_%s_%05d.rds", ARM, si)))
+  st <- readRDS(state_file(si))
   p <- st$params
   gp <- gear_params(p)
   m <- MULT[match(gp$species, names(MULT))]; m[is.na(m)] <- 1
@@ -135,6 +141,9 @@ t0 <- proc.time()
 MEM <- members
 cl <- makeCluster(min(CORES, length(members)))
 clusterExport(cl, c("MEM", "STATE_DIR", "ARM", "effort_arr", "MULT", "QMAX",
+                    # state_file is called BY NAME inside worker(); the workers
+                    # start bare, so omitting it fails every member.
+                    "state_file",
                     "YEARS", "REF_YEARS", "worker"), envir = environment())
 Z <- parLapplyLB(cl, seq_along(MEM), function(j)
   tryCatch(worker(j), error = function(e)
