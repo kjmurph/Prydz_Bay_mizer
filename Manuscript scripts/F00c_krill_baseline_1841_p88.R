@@ -34,13 +34,18 @@ suppressPackageStartupMessages({
 source("R/wmin_test/thermizer_shim.R")
 
 OUT_LARGE  <- "Output_large_files/wmin_test"
-STATE_DIR  <- file.path(OUT_LARGE, "88_full_states")
+# Selectable, matching F00_build_p88_data.R. Defaults are the phase-88 values so
+# existing calls reproduce exactly.
+STATE_DIR  <- Sys.getenv("F0_STATE_DIR", file.path(OUT_LARGE, "88_full_states"))
+RANK_F     <- Sys.getenv("F0_RANK", file.path(OUT_LARGE, "93_rerank_p88.rds"))
+MEMBERS_F  <- Sys.getenv("F0_MEMBERS", file.path(OUT_LARGE, "88_full.rds"))
+REFIT_F    <- Sys.getenv("F0_REFIT", file.path(OUT_LARGE, "89_refit_results.rds"))
 OUT_DATA   <- "Manuscript data"
 SUFFIX     <- Sys.getenv("F0_SUFFIX", "p88full427")
 WORK_DIR   <- file.path(OUT_LARGE, paste0("F00c_chunks_", SUFFIX))
 DIET_YEARS <- 1841:2010            # the manuscript baseline window
 KRILL      <- "antarctic krill"
-QMAX       <- 1
+QMAX       <- as.numeric(Sys.getenv("F0_QMAX", "1"))  # must match the refit
 OVERLAP    <- 1900:2010            # what F00 already has, used as the check
 TOL        <- 1e-10
 dir.create(WORK_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -57,16 +62,18 @@ guard <- function(f) {
 }
 
 # --- membership, verified exactly as F00_build_p88_data.R does ----------------
-RR <- readRDS(file.path(OUT_LARGE, "93_rerank_p88.rds"))
+RR <- readRDS(RANK_F)
 members <- as.integer(RR$cuts[["FULL usable"]])
-P88 <- readRDS(file.path(OUT_LARGE, "88_full.rds"))$members
-usable <- sort(as.integer(P88$sim_index[P88$stable & P88$n_erepro_ge1 == 0]))
+P88 <- readRDS(MEMBERS_F)$members
+usable <- sort(as.integer(P88$sim_index[
+  P88$stable & P88$n_erepro_ge1 == 0 &
+  (if ("drift_ok" %in% names(P88)) P88$drift_ok else TRUE)]))
 if (!identical(sort(members), usable))
   stop("the phase-93 FULL set is not the phase-88 usable set -- refusing to ",
        "proceed. Re-run R/wmin_test/93_rerank_p88.R", call. = FALSE)
 message("membership verified: ", length(members), " usable members")
 
-RF <- readRDS(file.path(OUT_LARGE, "89_refit_results.rds"))
+RF <- readRDS(REFIT_F)
 if (!identical(RF$meta$screen, "usable"))
   stop("89_refit_results.rds was fitted with screen='", RF$meta$screen,
        "', not 'usable'", call. = FALSE)
