@@ -53,7 +53,7 @@ MIN_W     <- as.numeric(Sys.getenv("F0R_MIN_W", "1"))
 SUMMARY   <- Sys.getenv("F0R_SUMMARY",
                sub("_rebuild\\.rds$", "_summary.csv", MANIFEST))
 STABLE_ONLY <- Sys.getenv("F0R_STABLE_ONLY", "1") == "1"
-QMAX <- 1
+QMAX <- as.numeric(Sys.getenv("F0_QMAX", "1"))  # must match the refit
 
 sfx <- function(stem) file.path(OUT_DATA, sprintf("%s_%s.rds", stem, SUFFIX))
 guard <- function(f) {

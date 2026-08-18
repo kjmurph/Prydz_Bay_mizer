@@ -51,7 +51,7 @@ STABLE_ONLY <- Sys.getenv("F0S_STABLE_ONLY", "1") == "1"
 YEAR_MIN  <- as.integer(Sys.getenv("F0S_YEAR_MIN", "1901"))
 YEAR_MAX  <- 2010
 REF_YEARS <- 2001:2010          # the contemporary window for the size figure
-QMAX <- 1
+QMAX <- as.numeric(Sys.getenv("F0_QMAX", "1"))  # must match the refit
 
 MAN <- readRDS(MANIFEST)
 members <- MAN$members
