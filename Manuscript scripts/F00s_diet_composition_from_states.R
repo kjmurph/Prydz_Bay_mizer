@@ -68,7 +68,14 @@ OUT_RDS <- file.path(OUT_DATA, sprintf("diet_composition_%s.rds", SUFFIX))
 if (file.exists(OUT_RDS))
   stop("refusing to overwrite an existing file: ", OUT_RDS, call. = FALSE)
 
-MULT <- readRDS(file.path(OUT_LARGE, "45_catchability_multipliers.rds"))$M
+# must match the ensemble being extracted; the phase-45 file was fitted on
+# ensemble-44 states.
+MULT_F <- Sys.getenv("F0S_MULT",
+                     file.path(OUT_LARGE, "45_catchability_multipliers.rds"))
+if (!file.exists(MULT_F)) stop("no multiplier file: ", MULT_F, call. = FALSE)
+MULT <- readRDS(MULT_F)$M
+cat("multipliers:", basename(MULT_F), "
+")
 effort_arr <- readRDS("effort_array_1841_2010.rds")
 YEARS <- YEAR_MIN:YEAR_MAX
 cat("states:", STATE_DIR, "| members", length(members),
