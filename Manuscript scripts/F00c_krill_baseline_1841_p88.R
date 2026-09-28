@@ -78,6 +78,14 @@ if (!identical(RF$meta$screen, "usable"))
   stop("89_refit_results.rds was fitted with screen='", RF$meta$screen,
        "', not 'usable'", call. = FALSE)
 MULT <- RF$M
+# QMAX MUST MATCH THE REFIT -- enforced, not merely asserted in the comment at
+# the top. `pmin(QMAX, .)` clips SILENTLY, so a mismatch produces a wrong figure
+# rather than an error. Refits from phase 89 on record meta$qmax; the legacy
+# phase-45 multipliers do not, and are skipped.
+if (!is.null(RF$meta$qmax) && !isTRUE(all.equal(QMAX, RF$meta$qmax)))
+  stop("QMAX mismatch: this run sets QMAX = ", QMAX, " but ", basename(REFIT_F),
+       " was fitted at qmax = ", RF$meta$qmax, ". Set F0_QMAX=", RF$meta$qmax,
+       call. = FALSE)
 
 if (LIMIT > 0) members <- head(members, LIMIT)
 n_tot <- length(members)

@@ -74,7 +74,16 @@ cat("input:", basename(IN),
 # ensembles where the reproduction treatment pushes erepro >= 1 (phase 88 is
 # 521 stable of which 427 are usable). Matches KC15/KC16b/KC18.
 adm <- if ("n_erepro_ge1" %in% names(MEM)) MEM$n_erepro_ge1 == 0 else TRUE
-keep <- MEM$sim_index[MEM$stable & adm]
+# phase 104 adds a drift screen; earlier ensembles carry no drift_ok column and
+# are unaffected. Follow the member table's own definition of usable, as KC16b
+# does. On a KC20 extraction this is already a no-op -- KC20b pre-screens its
+# output -- but it is not one on a member table that has not been screened.
+drf <- if ("drift_ok" %in% names(MEM)) MEM$drift_ok else TRUE
+keep <- MEM$sim_index[MEM$stable & adm & drf]
+# FIG_SET=top narrows to the ranking's top cut; unset, this returns `keep`
+# unchanged. Membership comes from the ranking, never typed here.
+source("Manuscript scripts/F00z_member_set.R")
+keep <- fig_top_intersect(keep)
 AM <- AM[AM$sim_index %in% keep, ]
 n_mem <- length(unique(AM$sim_index))
 cat("members:", nrow(MEM), "| stable:", n_mem, "\n")

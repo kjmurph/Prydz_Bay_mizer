@@ -60,6 +60,10 @@ adm <- if ("n_erepro_ge1" %in% names(D$members)) D$members$n_erepro_ge1 == 0 els
 # are unaffected. Follow the member table's own definition of usable.
 drf <- if ("drift_ok" %in% names(D$members)) D$members$drift_ok else TRUE
 keep <- D$members$sim_index[D$members$stable & adm & drf]
+# FIG_SET=top narrows to the ranking's top cut; unset, this returns `keep`
+# unchanged. Membership comes from the ranking, never typed here.
+source("Manuscript scripts/F00z_member_set.R")
+keep <- fig_top_intersect(keep)
 cat("members:", nrow(D$members), "| stable:", sum(D$members$stable),
     "| USABLE (USED):", length(keep), "\n")
 if (!length(keep)) stop("no usable members", call. = FALSE)

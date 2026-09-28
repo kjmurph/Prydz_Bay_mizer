@@ -89,11 +89,20 @@ D <- readRDS(IN); meta <- D$meta
 # the reproduction treatment pushes erepro >= 1: phase 88 is 521 stable of which
 # only 427 are usable, and one inadmissible member can distort a median.
 adm <- if ("n_erepro_ge1" %in% names(D$members)) D$members$n_erepro_ge1 == 0 else TRUE
-keep <- D$members$sim_index[D$members$stable & adm]
+# phase 104 adds a drift screen; earlier ensembles carry no drift_ok column and
+# are unaffected. Follow the member table's own definition of usable, as KC16b
+# does. On a KC20 extraction this is already a no-op -- KC20b pre-screens its
+# output -- but it is not one on a member table that has not been screened.
+drf <- if ("drift_ok" %in% names(D$members)) D$members$drift_ok else TRUE
+keep <- D$members$sim_index[D$members$stable & adm & drf]
+# FIG_SET=top narrows to the ranking's top cut; unset, this returns `keep`
+# unchanged. Membership comes from the ranking, never typed here.
+source("Manuscript scripts/F00z_member_set.R")
+keep <- fig_top_intersect(keep)
 cat("=== KC18: Figure 3, counterfactuals vs observed history ===\n")
 cat("input:", basename(IN), "| base:", basename(meta$base), "\n")
 cat("members:", nrow(D$members), "| stable:", sum(D$members$stable),
-    "| stable AND admissible (USED):", length(keep), "\n")
+    "| USABLE (USED):", length(keep), "\n")
 if (!length(keep)) stop("no usable members", call. = FALSE)
 B <- D$biomass %>% filter(sim_index %in% keep)
 n_mem <- length(keep)

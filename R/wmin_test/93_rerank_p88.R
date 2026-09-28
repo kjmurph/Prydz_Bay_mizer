@@ -23,7 +23,7 @@
 #
 # ------------------------------------------------------------- the TWO sets
 #   FULL  all 427 usable members          -- figures get IQR *and* 95% bands
-#   TOP10 the best 43 (ceiling of 10%)    -- figures get IQR
+#   TOP10 the best 42 (floor of 10%)      -- figures get IQR
 #
 # Phase 46 emitted only the top 10%. Carrying the full usable set as well means
 # the figures can show what the whole admissible ensemble does, with the
@@ -111,7 +111,7 @@ bal <- RF$per_species %>% filter(Species == BAL) %>%
 RANK <- RANK %>% left_join(bal, by = "sim_index")
 
 N <- nrow(RANK)
-n_top <- ceiling(N * TOP_FRAC)
+n_top <- floor(N * TOP_FRAC)
 cat(sprintf("\nranking: %d members | RMSE %.4f .. %.4f | median %.4f\n",
             N, min(RANK$rmse), max(RANK$rmse), median(RANK$rmse)))
 

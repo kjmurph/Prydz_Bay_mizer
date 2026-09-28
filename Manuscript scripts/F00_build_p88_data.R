@@ -116,6 +116,17 @@ if (!identical(RF$meta$screen, "usable"))
   stop("89_refit_results.rds was fitted with screen='", RF$meta$screen,
        "', not 'usable' -- its multipliers do not belong to this member set",
        call. = FALSE)
+# QMAX MUST MATCH THE REFIT, and until now that was enforced by a comment only.
+# `pmin(QMAX, .)` below clips SILENTLY, so a mismatch never errors -- it quietly
+# reproduces a different catchability regime. On 104_refit_wh_q10.rds four of the
+# nine multipliers exceed 1 (baleen 21.7, shelf/coastal 13.1), so running it at
+# the F0_QMAX default of 1 would restore the q<=1 ceiling phase 104 abandoned.
+# Refits from phase 89 on record their own ceiling in meta$qmax; the legacy
+# phase-45 multipliers do not, and are skipped so ensemble-44 runs still work.
+if (!is.null(RF$meta$qmax) && !isTRUE(all.equal(QMAX, RF$meta$qmax)))
+  stop("QMAX mismatch: this run sets QMAX = ", QMAX, " but ", basename(REFIT_F),
+       " was fitted at qmax = ", RF$meta$qmax, ". Set F0_QMAX=", RF$meta$qmax,
+       call. = FALSE)
 message("catchability: ", sum(MULT != 1), " species scaled | held at 1: ",
         paste(names(MULT)[MULT == 1], collapse = ", "))
 

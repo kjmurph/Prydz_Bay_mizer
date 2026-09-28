@@ -73,7 +73,16 @@ if (file.exists(OUT_RDS))
 MULT_F <- Sys.getenv("F0S_MULT",
                      file.path(OUT_LARGE, "45_catchability_multipliers.rds"))
 if (!file.exists(MULT_F)) stop("no multiplier file: ", MULT_F, call. = FALSE)
-MULT <- readRDS(MULT_F)$M
+MULT_OBJ <- readRDS(MULT_F)
+MULT <- MULT_OBJ$M
+# QMAX MUST MATCH THE REFIT -- enforced, not merely asserted in the comment at
+# F0_QMAX above. `pmin(QMAX, .)` clips SILENTLY, so a mismatch produces a wrong
+# figure rather than an error. Refits from phase 89 on record meta$qmax; the
+# phase-45 default here does not, and is skipped so ensemble-44 runs still work.
+if (!is.null(MULT_OBJ$meta$qmax) && !isTRUE(all.equal(QMAX, MULT_OBJ$meta$qmax)))
+  stop("QMAX mismatch: this run sets QMAX = ", QMAX, " but ", basename(MULT_F),
+       " was fitted at qmax = ", MULT_OBJ$meta$qmax, ". Set F0_QMAX=",
+       MULT_OBJ$meta$qmax, call. = FALSE)
 cat("multipliers:", basename(MULT_F), "
 ")
 effort_arr <- readRDS("effort_array_1841_2010.rds")

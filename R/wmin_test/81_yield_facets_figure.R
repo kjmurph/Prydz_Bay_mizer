@@ -135,6 +135,20 @@ p <- ggplot() +
         axis.text.y = element_text(size = 8)) +
   labs(x = "Year", y = expression(Yield~(t~y^{-1})))
 
+# NOTE (2026-08-20) -- THE `_top` TOKEN IS A LIE WHEN P81_CUT IS "FULL usable".
+# It keys off `nzchar(CUTS_RDS)`, i.e. merely whether a cuts FILE was given,
+# while the cut actually applied is P81_CUT, which DEFAULTS to "FULL usable"
+# (see ~line 51). Setting P81_CUTS_RDS without P81_CUT therefore plots every
+# usable member and labels the file `_top`.
+# THIS ALREADY HAPPENED: `yield_facets_p104q10_top.png` built 2026-08-18 was
+# byte-identical (md5 c5df663e) to a full 203-member build. It has since been
+# rebuilt with P81_CUT set explicitly, and the full-set render was renamed to
+# `yield_facets_p104q10_n203` by hand.
+# IF THIS SCRIPT IS REVISITED: derive the token from the cut, e.g.
+#   grepl("^TOP", cut_nm) -> "_top", else "_n<length(sel)>"
+# Not changed here because it would alter the phase-88 filenames
+# (`yield_facets_p88full427_top_iqr`) that the superseded lineage reproduces --
+# AND THOSE p88 `_top` FIGURES HAVE NOT BEEN CHECKED FOR THE SAME DEFECT.
 STEM <- sprintf("yield_facets_%s%s%s", SUFFIX,
                 if (nzchar(CUTS_RDS)) "_top" else "",
                 if (BANDS == "iqr") "_iqr" else "")

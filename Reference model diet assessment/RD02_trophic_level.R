@@ -71,7 +71,8 @@ ECOPATH_TL <- c(
 # =============================================================================
 cat("\n[1] mizer::getTrophicLevel() on this params\n")
 
-tl_raw <- ther_trophic_level(PARAMS, temp_eff = NULL)          # corrected
+tl_raw <- ther_trophic_level(PARAMS, temp_eff = NULL)          # both corrections
+tl_tmp <- ther_trophic_level(PARAMS, temp_eff = NULL, ext_tl = 0)  # temp fix only
 tl_bad <- getTrophicLevel(PARAMS)                              # as-is
 
 # the third route: strip the therMizer rate functions entirely. The temperature
@@ -87,22 +88,46 @@ mean_tl <- function(a) {
   m <- as.matrix(a)
   setNames(round(apply(m, 1, mean, na.rm = TRUE), 3), SPECIES)
 }
+# External share of encounter, the quantity that drives correction 2.
+ext_share <- local({
+  te <- temp_effect_scalar(PARAMS, RD_YEAR)
+  rr <- getRates(PARAMS, n = PARAMS@initial_n, n_pp = PARAMS@initial_n_pp,
+                 n_other = PARAMS@initial_n_other,
+                 effort = PARAMS@initial_effort, t = RD_YEAR)
+  wgt <- PARAMS@initial_n * rep(PARAMS@dw, each = NS)
+  num <- rowSums(sweep(PARAMS@ext_encounter, 1, te, "*") * wgt)
+  round(num / pmax(rowSums(rr$encounter * wgt), 1e-300), 3)
+})
 cmp <- data.frame(
   species        = SPECIES,
   getTrophicLevel_asis = mean_tl(tl_bad),
+  temp_fix_only  = mean_tl(tl_tmp),
   corrected      = mean_tl(tl_raw),
   rates_reset    = mean_tl(tl_plain),
   ecopath        = ECOPATH_TL[SPECIES],
   temp_eff       = round(temp_effect_scalar(PARAMS, RD_YEAR), 3),
+  ext_share      = ext_share,
   row.names = NULL)
 print(cmp, row.names = FALSE)
 cat(sprintf("\ninflation factor implied by temp_eff (1/temp_eff): %.1f to %.1f\n",
             min(1 / cmp$temp_eff), max(1 / cmp$temp_eff)))
-cat(sprintf("corrected vs rates_reset: max |diff| = %.4f  (the dw/g weighting)\n",
-            max(abs(cmp$corrected - cmp$rates_reset))))
+# rates_reset carries NEITHER correction, so it is comparable to temp_fix_only
+# (both value the subsidy at 0) and NOT to `corrected`.
+cat(sprintf("temp_fix_only vs rates_reset: max |diff| = %.4f  (the dw/g weighting)\n",
+            max(abs(cmp$temp_fix_only - cmp$rates_reset))))
+cat(sprintf("subsidy correction moves TL by up to %.3f (species: %s)\n",
+            max(abs(cmp$corrected - cmp$temp_fix_only)),
+            cmp$species[which.max(abs(cmp$corrected - cmp$temp_fix_only))]))
+cat(sprintf("mean |model - ecopath|: as-is %.3f | temp only %.3f | corrected %.3f\n",
+            mean(abs(cmp$getTrophicLevel_asis - cmp$ecopath), na.rm = TRUE),
+            mean(abs(cmp$temp_fix_only - cmp$ecopath), na.rm = TRUE),
+            mean(abs(cmp$corrected - cmp$ecopath), na.rm = TRUE)))
 
 cat("\n[1b] assertion: the transcription is faithful\n")
-tl_check <- ther_trophic_level(PLAIN, temp_eff = rep(1, NS))
+# BOTH corrections must be switched off to reproduce mizer: temp_eff = 1 for the
+# temperature factor, and ext_tl = 0 for the out-of-domain subsidy, which mizer
+# implicitly values at trophic level 0.
+tl_check <- ther_trophic_level(PLAIN, temp_eff = rep(1, NS), ext_tl = 0)
 d <- max(abs(as.matrix(tl_check) - as.matrix(tl_plain)), na.rm = TRUE)
 same_na <- identical(is.na(as.matrix(tl_check)), is.na(as.matrix(tl_plain)))
 cat(sprintf("  ther_trophic_level(scaling off) vs mizer::getTrophicLevel(): "))

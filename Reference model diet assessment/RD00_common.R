@@ -204,16 +204,65 @@ temp_effect_scalar <- function(params, t) {
 #' dw/g lifetime weighting, which is why this is not simply equal to running
 #' mizer's function on a params with the rate functions reset. RD02 reports both.
 #'
+#' CORRECTION 2 -- THE OUT-OF-DOMAIN SUBSIDY.
+#'
+#' mizerEncounter() returns `encounter + params@ext_encounter`, and
+#' therMizerEncounter() multiplies the whole of that by scaled_temp_effect().
+#' So the phase-57 subsidy is in the DENOMINATOR (cumB, via consumption) but
+#' contributes nothing to the NUMERATOR (cumA, built from search_vol and the
+#' prey/resource kernels). mizer therefore treats out-of-domain prey as prey of
+#' TROPHIC LEVEL ZERO, dragging every subsidised predator toward 1 in proportion
+#' to how much it feeds outside the domain. On params_ref_p86_agemat the
+#' external share of encounter is 0.893 for flying birds, 0.790 leopard seals,
+#' 0.750 orca, 0.596 sperm whales -- so this is not a rounding effect.
+#'
+#' `ext_tl` chooses what the subsidy is worth:
+#'   NA  (default)  EXCLUDE it from the denominator. Equivalent to assuming the
+#'                  out-of-domain prey has the same trophic composition as the
+#'                  in-domain diet, which is the natural reading of a subsidy
+#'                  that stands for the same prey field outside the box.
+#'   0              the old behaviour, i.e. external prey at TL 0. Reproduces
+#'                  mizer::getTrophicLevel() exactly and is what the RD02
+#'                  faithfulness assertion must pass.
+#'   any number     assign the subsidy that explicit trophic level.
+#'
+#' THE RESOURCE ANCHOR. mizer assigns the background resource a trophic level
+#' that grows with particle mass, `tl_R = 1 + log(w / w_R) / log(beta_R)`: the
+#' resource spectrum is itself treated as a food chain, one trophic level per
+#' factor `beta_R` in mass, anchored at TL 1 for a particle of mass `w_R`. With
+#' mizer's defaults (1e-10 g, 1000) and `w_pp_cutoff` at 1 g, the largest
+#' particle CARRYING RESOURCE (0.732 g here) is assigned TL 4.288 -- as high as
+#' a predatory fish, for what the model treats as undepletable background food.
+#' Anything feeding on the coarse end of the resource inherits that.
+#'
+#' `tl_R_max` re-anchors this to something interpretable: give the largest
+#' occupied resource particle exactly this trophic level and solve for `w_R`,
+#' holding `beta_R`. NULL keeps mizer's default anchor. This matters more since
+#' the cutoff moved from 100 g (where the default gave TL 5.0) to 1 g.
+#'
 #' @param temp_eff per-species scaling; NULL means take it from therMizer at
 #'   time `t`. Pass rep(1, NS) to switch the correction off (used by the
 #'   faithfulness assertion in RD02).
+#' @param ext_tl trophic level of the out-of-domain subsidy; see above.
+#' @param tl_R_max trophic level of the largest occupied resource particle;
+#'   NULL uses `w_R`/`beta_R` as given.
 #' @return ArraySpeciesBySize [species x size], NA below each species' egg size
 ther_trophic_level <- function(params, t = RD_YEAR,
                                n = params@initial_n,
                                n_pp = params@initial_n_pp,
                                n_other = params@initial_n_other,
                                w_R = 1e-10, beta_R = 1000,
-                               temp_eff = NULL) {
+                               temp_eff = NULL, ext_tl = NA_real_,
+                               tl_R_max = NULL) {
+  stopifnot(length(ext_tl) == 1, is.numeric(ext_tl) || is.na(ext_tl))
+  if (!is.null(tl_R_max)) {
+    stopifnot(length(tl_R_max) == 1, is.finite(tl_R_max), tl_R_max >= 1)
+    occ_R <- which(n_pp > 0)
+    if (!length(occ_R)) stop("no occupied resource bins", call. = FALSE)
+    w_top <- max(params@w_full[occ_R])
+    # tl = 1 + log(w_top/w_R)/log(beta_R) == tl_R_max  =>  w_R = w_top / beta_R^(tl_R_max-1)
+    w_R <- w_top / beta_R^(tl_R_max - 1)
+  }
   stopifnot(is.numeric(w_R), w_R > 0, is.numeric(beta_R), beta_R > 1)
   no_sp <- nrow(params@species_params)
   no_w  <- length(params@w)
@@ -234,6 +283,17 @@ ther_trophic_level <- function(params, t = RD_YEAR,
   feeding_level <- r$feeding_level
   growth        <- r$e_growth
   consumption   <- (1 - feeding_level) * encounter
+
+  # The external part of consumption, on the same footing as `consumption`.
+  # ext_encounter is [species x size] and is scaled by the SAME per-species
+  # temperature factor, because therMizerEncounter scales all of
+  # mizerEncounter() -- which already added it.
+  ext_sc <- if (all(params@ext_encounter == 0)) {
+    matrix(0, nrow = no_sp, ncol = no_w)
+  } else {
+    sweep(params@ext_encounter, 1, temp_eff, "*")
+  }
+  consumption_ext <- (1 - feeding_level) * ext_sc
 
   pred_kernel <- getPredKernel(params)
   w_ba      <- mizer:::bin_average_summary_weight(params@w, params)
@@ -265,8 +325,18 @@ ther_trophic_level <- function(params, t = RD_YEAR,
         next
       }
       weight <- params@dw[k] / g_ik
+      # CORRECTION 2. is.na(ext_tl): drop the subsidy from the denominator, so
+      # the ratio is over in-domain consumption only and the out-of-domain prey
+      # inherits the in-domain trophic composition. Otherwise it stays in the
+      # denominator and enters the numerator at the trophic level given, which
+      # at ext_tl = 0 is mizer's own (wrong) behaviour.
       cumA[i] <- cumA[i] + (1 - feeding_level[i, k]) * E_tl[i] * weight
-      cumB[i] <- cumB[i] + consumption[i, k] * weight
+      if (is.na(ext_tl)) {
+        cumB[i] <- cumB[i] + (consumption[i, k] - consumption_ext[i, k]) * weight
+      } else {
+        cumA[i] <- cumA[i] + consumption_ext[i, k] * ext_tl * weight
+        cumB[i] <- cumB[i] + consumption[i, k] * weight
+      }
       tl[i, k] <- if (cumB[i] > 0) 1 + cumA[i] / cumB[i] else 1
     }
     active_k <- k >= params@w_min_idx

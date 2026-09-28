@@ -52,12 +52,18 @@ Nine of these have observed catch. `w_inf` spans 0.00316 g (mesozooplankton) to
 
 | Path | What it is |
 |---|---|
-| `params_ref_p59_cap09_tol001.rds` | **The current reference model.** Phase 59; it is the `BASE_FILE` default of the phase-61 member script |
+| `params_ref_p100_mort_kernel_diet.rds` | **The current reference model.** Phase 100, arm `all_feed`; the `P104_BASE` default |
+| `params_ref_p86_agemat.rds` | The previous reference, and the phase-104 **control** base — keep it |
 | `Output_large_files/wmin_test/` | Everything ensemble-related, keyed by phase number |
-| `.../61_ramp_n167_nomg_K1_reproduction_level.rds` | The full 167-member phase-61 run |
-| `.../46_selection_cuts.rds` | The selection cuts, incl. cut A (167 members) |
-| `.../45_refit_results.rds` | Refitted catchability per member |
-| `.../43_member_draws.rds` | Recovered per-member parameter draws |
+| `.../104_full.rds` + `104_full_states/` | **The current ensemble.** 1,668 attempted, 203 usable. The states are **VM only**, ~300 MB |
+| `.../104_draws_noorca_wh25rep.rds` | The current abundance draws (generator `96_substitute_draws_ltl.R`) |
+| `.../104_refit_wh_q10.rds` | Current catchability: 2004 window, whales **fitted**, `QMAX = 10` |
+| `.../104_q10_rerank.rds` | The current ranking, 203 usable |
+| `.../43_member_draws.rds` | The original per-member parameter draws — still the input every substitution starts from |
+| `.../45_refit_results.rds`, `.../46_selection_cuts.rds`, `.../61_ramp_n167_...rds` | The **published 167-member lineage**. Superseded, not deleted; phase 45's ranking is still used to *enumerate* the accepted member set |
+| `.../88_full.rds` + `88_full_states/` | The phase-88 ensemble, 427 usable. Superseded by 104 |
+| `docs/monte_carlo_workflow_review.md` | **The trace of phases 59→104** — what was tested, retained or superseded, and why |
+| `run_p104q10.R` | **The one definition of "the current ensemble".** Sets the whole env block, validates it against the stored objects, then runs a target script under it: `Rscript run_p104q10.R [--top] <script.R>`. No args prints the block. Use it rather than reassembling the env by hand |
 | `R/wmin_test/NN_*.R` | The phase scripts — the main line of work |
 | `R/catch_fit/` | Catchability fitting |
 | `Manuscript scripts/F0N_*.R` | Figure builders; outputs land in `Manuscript data/` |
@@ -72,24 +78,61 @@ Work proceeds in numbered **phases**. Each phase gets one script in
 previous phase, and why. **Read that header before touching anything** — it is
 the real documentation, and it is usually accurate and current.
 
-The member protocol (phase 61) is: apply the catchability draw, ramp the
-abundance scaling in log space with `steady()` at each step, `steady()` *before*
-capping the reproduction level at 0.9, then the tolerance ladder, then a 118-year
-unfished spin-up and a stability screen (CV over the last 40 years, threshold
-0.25). The gamma draw was deliberately dropped at phase 61; members now span
-abundance and catchability uncertainty only.
+**The member protocol is phase 104** (`R/wmin_test/104_members_rebuilt.R`), which
+replaced phase 88 / phase 61:
+
+    apply the drawn catchability
+      -> scale initial_n AND R_max by the same drawn multiplier      [the ramp]
+      -> steady(tol = 0.001, t_max = 1000, preserve = "erepro")
+      -> setBevertonHolt(reproduction_level = pmin(level, RECAP))    whales only,
+         RECAP ~ U(0.1, 0.9) drawn per member, applied via a NAMED vector
+      -> NO postcap R_max scaling -- doing both squares the multiplier
+      -> tolerance ladder 0.01/0.005/0.002/0.001, steady(preserve = "R_max")
+      -> 120 yr unfished spin-up, index the LAST row (six whole ENSO cycles)
+      -> stability screen (CV over the last 40 yr < 0.25) AND a 200 yr drift
+         screen (zero effort, cycled forcing, every species within [0.5, 2])
+
+Usable = stable **and** drift-ok **and** admissible (`erepro < 1`). That is
+stricter than phase 88's definition, and several downstream scripts had the old
+pre-drift definition hardwired — they now read `drift_ok` from the member table
+when it is present. The gamma draw was deliberately dropped at phase 61; members
+span abundance, catchability and reproduction-level uncertainty only.
+
+`docs/monte_carlo_workflow_review.md` traces how this protocol was arrived at,
+what each earlier version got wrong, and which experiments exist as fallbacks.
 
 ## Traps
 
 These are settled findings. Re-deriving them costs hours.
 
+- **Every figure script DEFAULTS to phase 88 or earlier.** `F0_STATE_DIR` is
+  `88_full_states`, `F0_RANK` is `93_rerank_p88.rds`, `P80_STEM`/`P85_STEM` are
+  the phase-77 stem, `FIG_SUF` is `rebuilt167`. Nothing points at phase 104 on
+  its own. Run through `run_p104q10.R` or set the block by hand, every time.
+- **`F0_QMAX`/`P80_QMAX` default to 1 while the current refit is fitted at 10.**
+  It is applied as `pmin(QMAX, ·)`, so a mismatch does not error — it silently
+  reproduces the `q <= 1` regime phase 104 abandoned (four of nine multipliers
+  exceed 1; baleen is 21.7). **Now guarded**: the five scripts that apply it
+  compare against the refit's own `meta$qmax` and stop. Refits from phase 89 on
+  record it; the legacy phase-45 multipliers do not and are skipped.
+- **The top cut is `floor(0.10 * n)` = 20 of 203**, changed from `ceiling` on
+  2026-08-20. It lives in `104_q10_rerank.rds$cuts` and, *baked in at build
+  time*, in `meta_p104q10.rds$cuts$top` (patched to 20; a rebuilt data product
+  re-bakes it, so re-check after any F00 run). `85_recruitment_vs_biomass.R`
+  takes `P85_TOP_N` as a hand-typed literal and does **not** read the rule.
+- **`yield_facets_*_top` was not a top cut.** Phase 81 appends `_top` whenever
+  `P81_CUTS_RDS` is set, while `P81_CUT` defaults to `FULL usable`. The p104
+  figure was all 203 members until it was rebuilt on 2026-08-20. Always set
+  `P81_CUT` explicitly, and do not trust a `_top` filename elsewhere — the
+  phase-88 `_top` figures have not been checked.
 - **`species_params(params) <- ...` silently deletes `ext_encounter`.** The
   phase-57 out-of-domain subsidy lives there. Check it survived any parameter edit.
 - **`getTrophicLevel()` is broken under therMizer** — it returns absurd values
   (orca ≈ 192). `getDiet()` *proportions* are exact; its absolute rates are not.
-- **Filter to stable members before taking any mean.** A single divergent member
-  once owned 83% of an across-member sum and moved a biomass SNR from 2.41 to 0.055.
-  Medians are far more robust than means here.
+- **Filter to *usable* members before taking any mean** — stable **and** drift-ok
+  **and** admissible, not just stable. A single divergent member once owned 83% of an
+  across-member sum and moved a biomass SNR from 2.41 to 0.055. Medians are far more
+  robust than means here.
 - **The ensemble cannot be regenerated.** Members are basin selections: re-running
   the protocol reorders the ranking, and several top members are bistable. Rebuild
   from the *stored* ranking. Never "refresh" a stored member by re-running `steady()`
@@ -103,12 +146,40 @@ These are settled findings. Re-deriving them costs hours.
 - **`matchGrowth()` targets a placeholder.** With no `age_mat` column it falls back
   to `age_mat_vB()` from `k_vb`, which is a round default (0.2 or 0.5) for 14 of the
   19 groups. Target the base model's own realised `age_mat()` instead.
-- **The whale response is reproduction-clamped.** Reproduction level ≈ 0.9976 pins
-  numbers at `R_max`, so large krill losses barely move whale biomass. That is a
-  real result, not a bug — but do not attribute whale insensitivity to anything else
-  before checking the clamp.
-- **Whale catch is stock-limited**: observed baleen catch is ~23.8x the calibrated
-  stock, so no catchability value fixes it. Hold whale `q` at drawn values.
+- **`matchGrowth()` does not belong in the member protocol.** Tested at two positions
+  (phases 61 and 83): 17 of 40 members failed outright on `search_vol must not
+  contain non-finite values`, `erepro` reached 8.4e12, and growth was not pinned
+  anyway. It is correct in the *reference* recalibration, where there is no
+  perturbation and no `preserve = "R_max"` ladder afterwards. Keep it there.
+- **The whale reproduction clamp was an artefact, and it is fixed.** Levels near 1
+  came from scaling `initial_n` without scaling `R_max`: RDI rose with the draw, the
+  ceiling did not, so the level was driven toward 1 and a 0.9 cap was applied as a
+  patch. Phase 104 scales both together, so the level lands exactly where the drawn
+  `RECAP` puts it. Historical results measured under the clamp (whale insensitivity
+  to krill loss) are true of *those* members, not of the current ensemble.
+- **`RECAP` is a propagated uncertainty, never a fitted parameter.** The yield
+  objective is blind to whales — a 7.7x change in baleen catch moves the RMSE 0.3% —
+  so the ranking does not select on it (KS D = 0.076, p = 0.267 usable vs rejected).
+  Report it as sampled, not estimated.
+- **Whale catch is no longer stock-limited on the current ensemble.** That trap was
+  true when the stock was 5.8x smaller. Whale `q` is now **fitted** at `QMAX = 10`
+  and all nine species land within 7% of observed; the old `q <= 1` ceiling was
+  binding on 68% of baleen members and was distorting the fit. Do not reinstate the
+  hold without re-measuring it.
+- **Never scale `R_max` at both the ramp and postcap.** It squares the multiplier
+  (baleen `R_max` x249 against the ramp's x15.9). Scale it once, at the ramp, with
+  `initial_n`.
+- **`steady()` reports convergence on states that are not steady.** For slow groups
+  its test (relative RDI change over 1.5 yr) cannot see the drift: at tol 0.01 /
+  `t_max` 300 a x5 baleen perturbation returns 4.78 of 5, reports success, then
+  collapses to 0.21 over 200 years. Use tol 0.001 / `t_max` 1000, and **measure
+  drift** rather than trusting the report.
+- **Repeat the ISIMIP3a ENSO window; never pin a single year.** The spin-up is
+  ctrlclim 1961-1980 x6 over 1841-1960, verified bit-for-bit, so model year 1841 *is*
+  climate 1961. Pinning model-1841 sits 0.043 degC above the cycle mean and alone
+  invented a 39x minke drift over 2000 years.
+- **`project(t_start, t_max = N)` returns N+1 rows.** Phase 88's `s0@n[118, , ]` was
+  year 1958, not 1959 — 117 elapsed years, mid-ENSO-cycle. Index the last row.
 - **Never commit all 16 cores.** Leave one free; saturating them risks a hard
   shutdown that kills the in-flight run too.
 
@@ -116,7 +187,12 @@ These are settled findings. Re-deriving them costs hours.
 
 - **`README.md`** recommends `params/params_optim_v04_w_pp_100.rds` as "the best
   param object to work from". That is many phases out of date. The reference model
-  is `params_ref_p59_cap09_tol001.rds`.
+  is `params_ref_p100_mort_kernel_diet.rds`.
+- **`docs/VM_RERUN_PLAN.md`** is accurate and authoritative for phases 87-89 — the
+  ISIMIP3a 2004 calibration window, the catchability documentation the protocol
+  requires, and the VM run sequence. Its "settled protocol constraints" section
+  describes the **phase-88** build, which phase 104 replaced; read
+  `docs/monte_carlo_workflow_review.md` alongside it.
 - `ANALYSIS_STATUS.md`, `ANALYSIS_RUN_SUMMARY.md` and
   `MONTE_CARLO_CODE_ASSESSMENT.md` describe the older 5k Monte Carlo run
   (`Output_large_files/mc_5k_blocks`), not the current ensemble.

@@ -48,8 +48,18 @@ if (!length(members)) stop("no usable members", call. = FALSE)
 # to ensemble 44; a phase-88 run must pass 89_refit_results.rds, which was fitted
 # on the ISIMIP3a window over the usable screen. Getting this wrong is silent --
 # both files carry a $M of the same shape.
-MULT <- readRDS(Sys.getenv("P80_MULT",
-  file.path(OUT_LARGE, "45_catchability_multipliers.rds")))$M
+MULT_F <- Sys.getenv("P80_MULT",
+  file.path(OUT_LARGE, "45_catchability_multipliers.rds"))
+MULT_OBJ <- readRDS(MULT_F)
+MULT <- MULT_OBJ$M
+# QMAX MUST MATCH THE REFIT -- enforced, not merely asserted at P80_QMAX above.
+# `pmin(QMAX, .)` clips SILENTLY, so a mismatch produces a wrong extraction
+# rather than an error. Refits from phase 89 on record meta$qmax; the phase-45
+# default here does not, and is skipped so ensemble-44 runs still work.
+if (!is.null(MULT_OBJ$meta$qmax) && !isTRUE(all.equal(QMAX, MULT_OBJ$meta$qmax)))
+  stop("QMAX mismatch: this run sets QMAX = ", QMAX, " but ", basename(MULT_F),
+       " was fitted at qmax = ", MULT_OBJ$meta$qmax, ". Set P80_QMAX=",
+       MULT_OBJ$meta$qmax, call. = FALSE)
 effort_arr <- readRDS("effort_array_1841_2010.rds")
 chunks <- split(members, ceiling(seq_along(members) / CHUNK))
 chunk_file <- function(ci) file.path(WORK_DIR, sprintf("y_%03d.rds", ci))

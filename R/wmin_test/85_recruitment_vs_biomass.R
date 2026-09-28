@@ -54,6 +54,17 @@ keep <- Z$members$sim_index[Z$members$stable &
 # stored ranking rather than a pasted list. P85_RANK is a phase-93 style object
 # with $ranking$sim_index in ascending yield RMSE; P85_TOP_N takes its head,
 # intersected with the usable set so it can never reintroduce a rejected member.
+#
+# NOTE (2026-08-20) -- P85_TOP_N IS A LITERAL, NOT A RULE. It is whatever
+# integer the caller types; nothing here reads the ranking object's own
+# `n_top`, so the "top 10%" rule cannot propagate. When the cut moved from
+# ceiling(0.10 * 203) = 21 to floor(...) = 20, this script was unaffected only
+# because the operator had already happened to pass 20. `run_p104q10.R` now
+# derives P85_TOP_N from the stored cut, which closes the gap for callers that
+# go through it -- a direct `Rscript` call can still pass any number.
+# IF THIS SCRIPT IS REVISITED: default TOP_N to length of the rank object's
+# TOP cut when P85_RANK is set and P85_TOP_N is unset, rather than to 0. Left
+# alone for now because changing it would alter every existing call site.
 RANK_F <- Sys.getenv("P85_RANK", "")
 TOP_N  <- as.integer(Sys.getenv("P85_TOP_N", "0"))
 subset_label <- sprintf("all usable (n = %d)", length(keep))

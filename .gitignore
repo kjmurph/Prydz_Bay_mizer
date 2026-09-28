@@ -54,6 +54,9 @@ Manuscript data/*.csv
 # The scripts that produce these ARE tracked, so the outputs are reproducible.
 Krill counterfactual scenarios/analysis/
 Reference model diet assessment/analysis/
+# the per-arm output folders (p86_agemat/, p86_agemat_tlfix/, ...) nest their
+# own analysis/ one level down, which the line above does not reach
+Reference model diet assessment/*/analysis/
 Reference model diet assessment/benchmarks/
 Reference model diet assessment/recalibrated_54/
 Manuscript analysis/*.csv
@@ -66,3 +69,15 @@ R/figures/fig1/phylopic_cache/
 # Loose summary tables written by the root-level grid scripts.
 biomass_bb0_rmse_top10pct_summary.csv
 yield_rmse_by_group.csv
+
+# --- FishMIP ISIMIP3a submission outputs ------------------------------------
+# The p104 submission bundle (38 MB) is rebuilt by R/fishmip_isimip3a/FM01-FM07
+# (tracked), documented in docs/fishmip_isimip3a_outputs.md.
+FishMIP_ISIMIP3a_submission_p104/
+# The earlier submission, built on the 2,111-member ensemble with the 13x domain
+# area: its outputs are untracked (still on disk, still in history), but its
+# scripts and README stay tracked because R/fishmip_isimip3a/ cites them by
+# line number for provenance.
+FishMIP_ISIMIP3a_submission/*
+!FishMIP_ISIMIP3a_submission/*.R
+!FishMIP_ISIMIP3a_submission/README.md

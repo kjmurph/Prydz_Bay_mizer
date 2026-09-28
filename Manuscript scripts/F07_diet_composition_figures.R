@@ -44,15 +44,39 @@ YEAR_MIN <- 1901
 guard <- function(f) {
   if (file.exists(f)) stop("refusing to overwrite: ", f, call. = FALSE); f
 }
+# FIG_SET=top appends `_top`, matching F02-F05. Unset, TAG is "" and every
+# filename is byte-for-byte what it was.
+source("Manuscript scripts/F00z_member_set.R")
+TAG <- if (identical(Sys.getenv("FIG_SET", "all"), "all")) "" else
+  paste0("_", fig_set_tag())
 sv <- function(p, stem, w, h) {
-  png <- guard(file.path(OUT, sprintf("%s_%s.png", stem, SUF)))
-  pdf <- guard(file.path(OUT, sprintf("%s_%s.pdf", stem, SUF)))
+  png <- guard(file.path(OUT, sprintf("%s_%s%s.png", stem, SUF, TAG)))
+  pdf <- guard(file.path(OUT, sprintf("%s_%s%s.pdf", stem, SUF, TAG)))
   ggsave(png, p, width = w, height = h, dpi = 300)
   ggsave(pdf, p, width = w, height = h)
   cat("  wrote", basename(png), "and .pdf\n")
 }
 
 D <- readRDS(file.path(DATA, sprintf("diet_composition_%s.rds", SUF)))
+# --- member set ---------------------------------------------------------------
+# The diet product carries every usable member and no cut, so the top membership
+# comes from meta_<SUF>.rds -- the same object F02-F05 read it from. Subsetting
+# the arrays on dim 1 HERE is sufficient: every downstream summary is an apply()
+# over that dimension and every allocation reads dim(.)[1].
+# meta is read ONLY when a cut is asked for, so an unset FIG_SET does not make
+# this script depend on a file it never needed (F07_SUF=kernel158 has no meta).
+KEEP_SIM <- if (identical(Sys.getenv("FIG_SET", "all"), "all")) NULL else
+  fig_members(readRDS(file.path(DATA, sprintf("meta_%s.rds", SUF))))
+if (!is.null(KEEP_SIM)) {
+  idx <- match(KEEP_SIM, D$members)
+  if (anyNA(idx))
+    stop("the cut names ", sum(is.na(idx)), " member(s) absent from the diet ",
+         "product -- it was built on a different member set", call. = FALSE)
+  D$cons      <- D$cons[idx, , , , drop = FALSE]
+  D$size_prop <- D$size_prop[idx, , , , drop = FALSE]
+  D$members   <- D$members[idx]
+  message("  FIG_SET=top: diet filtered to ", length(idx), " members")
+}
 cat("=== F07: diet composition figures,", SUF, "===\n")
 cat("members:", length(D$members), "| years", min(D$years), "-", max(D$years),
     "| base:", basename(D$base_params), "\n")

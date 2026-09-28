@@ -71,3 +71,30 @@ fig_set_tag <- function(set = Sys.getenv("FIG_SET", "all")) {
   set <- tolower(trimws(set))
   if (set == "top") "top" else "full"
 }
+
+# The KC scripts read a KC20 extraction, which carries a member table but no
+# cuts object, so fig_members() has nothing to read. This takes the top cut from
+# the ranking instead and intersects it with the screen the caller has already
+# applied. FIG_SET unset -> `keep` is returned untouched, so every existing call
+# path is unchanged.
+fig_top_intersect <- function(keep,
+                              rank_file = Sys.getenv("KC_RANK",
+                                            Sys.getenv("F0_RANK", "")),
+                              set = Sys.getenv("FIG_SET", "all")) {
+  set <- tolower(trimws(set))
+  if (!set %in% c("all", "full", "top"))
+    stop("FIG_SET must be 'all', 'full' or 'top', not '", set, "'", call. = FALSE)
+  if (set %in% c("all", "full")) return(keep)
+  if (!nzchar(rank_file) || !file.exists(rank_file))
+    stop("FIG_SET='top' needs the ranking object -- set KC_RANK, or F0_RANK, ",
+         "to it (run_p104q10.R already exports F0_RANK).", call. = FALSE)
+  RR <- readRDS(rank_file)
+  nm <- grep("^TOP ", names(RR$cuts), value = TRUE)[1]
+  if (is.na(nm)) stop("no TOP cut in ", rank_file, call. = FALSE)
+  out <- intersect(keep, as.integer(RR$cuts[[nm]]))
+  if (!length(out))
+    stop("the top cut and the usable screen do not overlap", call. = FALSE)
+  message("  FIG_SET=top: filtered to ", length(out), " of ", length(keep),
+          " members (cut '", nm, "')")
+  out
+}

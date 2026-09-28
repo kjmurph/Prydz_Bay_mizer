@@ -75,7 +75,7 @@ size-flat. **Toothfishes are the exception** (15.7 yr by survivorship against
 | flying birds | 50 | albatross-weighted — the group's `w_max` of 4,191 g is wandering-albatross sized |
 | small divers | 20 | Adelie recorded to ~20 yr; macaroni and gentoo similar |
 | squids | 2 | near-annual; covers the larger onychoteuthids without exceeding published Southern Ocean squid lifespans |
-| toothfishes | **adult M = 0.13** | CCAMLR value for *Dissostichus mawsoni*, entered as `t_max = 32.46`. Specified as M rather than `t_max` because this group's mortality is strongly size-dependent |
+| toothfishes | **adult M = 0.13** | CCAMLR value for *Dissostichus mawsoni* — see [Toothfish M: the citation](#toothfish-m-the-citation) below. Entered as `t_max = 32.46`. Specified as M rather than `t_max` because this group's mortality is strongly size-dependent |
 | leopard seals | 26 | standard published maximum for *Hydrurga leptonyx* |
 | medium divers | 35 | unweighted mean over the 8 member taxa (fur/crabeater/Ross/Weddell seals, emperor + king penguins, ziphiids, dolphins), matching how this group's `beta` was aggregated |
 | large divers | 23 | standard maximum for female southern elephant seals (the group is elephant seals only) |
@@ -200,10 +200,46 @@ control's 0.6481 is headroom the member protocol consumes, and a 20-member pilot
 previously showed admissibility collapsing on a change that the reference had
 absorbed comfortably. The reference passing is not evidence the members will.
 
+## Toothfish M: the citation
+
+Traced 2026-08-19. The toothfish entry is the one target taken from a published
+stock assessment rather than from a longevity judgement, so it is the one that
+needed an additional reference.
+
+**M = 0.13 y⁻¹** originates with **Dunn, A.; Horn, P.L.; Hanchet, S.M. (2006).
+*Revised estimates of the biological parameters for Antarctic toothfish
+(Dissostichus mawsoni) in the Ross Sea.* WG-SAM-06/8. CCAMLR, Hobart.** They
+estimated M by the methods of Chapman-Robson (1960), **Hoenig (1983)** and Punt et
+al. (2005), obtained a range of **0.11–0.17 y⁻¹**, and after considering the
+assumptions and potential bias proposed **0.13 y⁻¹ for stock modelling, with
+0.11–0.15 for sensitivity analyses**. Catch-at-age from 1998–2005 was used, from
+the northern Ross Sea (the oldest fish) and from the early, near-unexploited years
+of the fishery.
+
+It is the value CCAMLR carries: Table 1 of the **Stock Annex 2022, *Dissostichus
+mawsoni* in Subarea 88.1** gives M = 0.13 for both sexes
+(<https://fishdocs.ccamlr.org/SAannex_881_TOA_2022.pdf>, §3.4). It is used in the
+Ross Sea assessment of Mormede, Dunn & Hanchet (2014), *CCAMLR Science* 21: 39–62.
+Later model-based estimation inside the assessment gave **0.09–0.13** (Moore et
+al. 2019, WG-SAM-19/04), i.e. our value sits at the top of that range.
+
+**Two things to state if this is cited.**
+
+1. **The `t_max = 32.46` is not a longevity claim.** It is `4.22/0.13`, a coding
+   convenience so an M-based target can enter the same code path as the
+   longevity-based ones. *D. mawsoni* is aged well beyond that — the assessment's
+   own maturity ogive puts female 50% spawning at ~16.9 yr, and the species is
+   routinely aged past 40. Do not report 32.46 as a maximum age.
+2. **It is a partial round-trip through Hoenig.** Because Dunn et al. used Hoenig
+   (1983) as one of three estimators, converting their M back through `4.22/t_max`
+   returns 0.13 by construction. This is an identity, not an independent
+   cross-check. The value is well constrained — but by Dunn et al., not by anything
+   this project does to it.
+
 ## Sources
 
-Longevity figures are literature-informed judgement recorded per group in
-`csvs/mortality_targets_v1.csv`. **They have not been checked against the primary
-papers** and must be before citation — the same caveat the phase-57 subsidy
-assumptions carry. The best-constrained entries are toothfishes (CCAMLR M = 0.13
-for *D. mawsoni*), antarctic krill, and the four whale groups.
+Longevity figures for the other groups are literature-informed judgement recorded
+per group in `csvs/mortality_targets_v1.csv`. **They have not been checked against
+the primary papers** and must be before citation — the same caveat the phase-57
+subsidy assumptions carry. The best-constrained entries are toothfishes (above),
+antarctic krill, and the four whale groups.
