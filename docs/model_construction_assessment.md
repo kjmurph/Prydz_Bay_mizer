@@ -50,9 +50,8 @@ differences confirm a spine of 18 stored objects (§2).
 
 The path along that spine passes through:
 - **interactive edits.** 54 live `tuneParams()` calls sit in the on-spine
-  notebooks, 28 of them in `model_setup_v4`. Eight spine steps change parameters
-  (`h`, `gamma`, `kappa`, kernel type) that no scripted call on the path
-  changes.
+  notebooks, 28 of them in `model_setup_v4`. Seven spine steps change parameters
+  (`h`, `gamma`, `kappa`) that no scripted call on the path changes.
 - **objects overwritten in place or saved from arrays that no longer exist.**
 - **mizer 2.4.0 and 2.5.0,** whose `matchBiomasses()` semantics differ from 3.1.0.
 - **notebooks run out of order.** Numbering does not follow the lineage:
@@ -161,9 +160,9 @@ flowchart TD
 | 10 | `params_04_06_2024` (2024-06-04; mizer 2.5.0) | `08_ISIMIP3a_simulations_Prydz_Bay.Rmd:389-542` | one gear per species (`08:404`); catchabilities from the ratio tuning and overrides `08:451-501` (krill 0.005, squids 5e-6, orca 0.1, sperm 1, …); `erepro` 0.999999 for 3 groups (`08:526-542`). Rate functions reverted to mizer's and the resource set to semichemostat, which 08's text does not do | scripted + unexplained | plausible (parent v03 or v04, indistinguishable) |
 | 11 | `params_04_06_2024_v3` | `08:434-521` | `steady()` loop: leopard seal / minke / sperm `erepro` 0.999999 → 1.10 / 1.13 / **171.7** (inadmissible; repaired later); `R_max` | scripted | plausible |
 | 12 | `params_04_06_2024_v4` | `model_setup_old/New_steady_state.Rmd:21-41` | `tuneParams()` ×2: `h` 12, `gamma` ×0.59 to ×56 (median ×24), **`kappa` −94%** (×0.057), `erepro`, `R_max` | interactive | confirmed |
-| 13 | `params_07_06_2024` (06-07) | `model_setup_old/New_steady_state_07_06_2024.Rmd`: `erepro` cap 0.99 `:44`; `calibrateBiomass()`/`matchBiomasses()` ladder `:52-285`; reloaded, `tuneParams()` and **overwritten under the same name** `:301-305` | `gamma` × 0.9948 uniform; **minke switched to a box kernel**; baleen ppmr 5.4e5–9.3e13 → 1e5–5e6 | interactive | plausible (kernel types change only through the GUI or by hand) |
+| 13 | `params_07_06_2024` (06-07) | `model_setup_old/New_steady_state_07_06_2024.Rmd`: `erepro` cap 0.99 `:44`; `calibrateBiomass()`/`matchBiomasses()` ladders `:52-285`, interleaved with the **minke box kernel** `:179-181` and ppmr 1e5–5e6 for both whale groups `:263-267`; reloaded, `tuneParams()` and **overwritten under the same name** `:301-305` | `gamma` × 0.9948 uniform (the `calibrateBiomass()` rescale); minke switched to a box kernel; baleen ppmr 5.4e5–9.3e13 → 1e5–5e6. The `tuneParams()` session before the overwrite left no other visible change | scripted | confirmed |
 | 14 | `params_for_use` (2024-08-26) | `06_steady_state_therMizer.Rmd:2742-2796` (save commented) | effort = 1951-1960 means, exactly the values hard-coded at `06:421-440`; plankton forcing = the `06:1065-1091` anomaly on `params_07_06_2024`'s resource level (exact on all 103 finite cells), rows 1961-62; temperature rows 1961-62 (exact); depth residence reset to equal 0.2; **therMizer encounter/predation installed, which needs `aerobic_effect = TRUE`; the active call `06:2782` says FALSE** | scripted | confirmed except the aerobic flag; the arrays saved that day (`*_26_08_2024.RDS`) are gone |
-| 15 | `params_steady_state_2011_2020` (2025-03-13) | `06:143-191` | effort → 0 (`06:145`), yield targets → 0 (`06:152`), ladder, `tuneParams()` ×2 (`06:173`, `189`): `h` 2, `gamma` 14 (baleen ×24), minke `m` | interactive | confirmed |
+| 15 | `params_steady_state_2011_2020` (2025-03-13) | `06:143-191` | effort → 0 (`06:145`), yield targets → 0 (`06:152`), ladder, `tuneParams()` ×2 (`06:173`, `189`): `h` 2, `gamma` 14 (baleen ×24), minke `m`. One of the 14 `gamma` changes is hand-set: mesozooplankton ×2 at `06:184` | interactive | confirmed |
 | 16 | `params_steady_state_2011_2020_tol_0.00025` (2025-03-19) | `06:237-312` | ladder tol 0.1 → 0.00025: only `initial_n`, `erepro`, `R_max` | scripted (mizer 2.5.0) | confirmed |
 | 17 | **`params_sel_adj`** (2025-09-07 16:31) | `09_Uncertainty_Analysis.Rmd:1104-1444` | 1841-2010 forcing; whale `sigmoid_length` selectivity; `steady()` | scripted | **confirmed by exact replay (R6)** |
 
@@ -237,7 +236,7 @@ Live counts are from `A2_inventory.R` (`inventory_summary.csv`).
 | `09_Uncertainty_Analysis.Rmd` | edge 17 (`:1077-1477`) | the MC base; then the MC itself (beyond this boundary) | 0 / 9 | 51 / 20 | |
 | `optim_model_setup_old/model_setup_v4.Rmd` | edges 0-3 | the construction | **28** / 1 | 0 / 15 | the `w_min` repair at `:524-525` was abandoned (`docs/size_parameter_audit.md`) |
 | `model_setup_old/New_steady_state.Rmd` | edge 12 | `tuneParams()` | 10 / 0 | 0 / 1 | |
-| `model_setup_old/New_steady_state_07_06_2024.Rmd` | edge 13 | ladder; overwrite in place | 1 / 0 | 0 / 1 | |
+| `model_setup_old/New_steady_state_07_06_2024.Rmd` | edge 13 | ladder; minke box kernel and whale ppmr window (`:179-181`, `:263-267`); overwrite in place | 1 / 0 | 0 / 1 | |
 | `group params/1g_simplified_groups_params.Rmd` | input to edge 0 | trait table | 0 / 0 | 0 / 3 | reads absolute paths on another machine (`C:/Users/kjmurphy/OneDrive - University of Tasmania/…`) |
 | `interaction matrix/2g_trait_groups_interaction_matrix_vCWC.R` | input to edge 0 | interaction matrix | 0 / 0 | 1 / 4 | deterministic (its `set.seed` is for a plot palette); R7 exact |
 
@@ -489,7 +488,7 @@ The R scripts run as `Rscript --vanilla R/model_construction/<script>`.
 | 5 | `R1_plankton.R`, `R1b_diagnose.R` | 45 s, 42 s | `R1_results.csv`, `R1b_results.csv` |
 | 6 | `R2_temperature.R` … `R7_construction.R`, `W5_checks.R` | 1-12 s each | `R2`-`R7` and `W5` `_results.csv`; `R6_params_sel_adj_replay_mizer310.rds` |
 | 7 | `A4_followups.R` | 3 s | prints the follow-up diagnostics behind §2.2, §2.4, §6 items 6-7 and 15, and §7 (needs A1's output) |
-| 8 | `V_report_check.R` | 1 s | `V_results.csv`: every md5 and 95 cited line numbers re-read |
+| 8 | `V_report_check.R` | 1 s | `V_results.csv`: every md5 and 98 cited line numbers re-read |
 
 Runtimes were measured on 2026-10-05 from the repository copies. Every output
 was byte-identical to the original scratchpad run, except R6's wall-time note
