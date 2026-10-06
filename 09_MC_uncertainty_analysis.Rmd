@@ -1,0 +1,285 @@
+---
+title: "09 Monte Carlo parameter exploration"
+subtitle: "Preliminary uncertainty analysis for the Prydz Bay therMizer model"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 12, fig.height = 8)
+```
+
+# Overview
+
+When the model calibrated to the contemporary (2010–2020) ecosystem is run through
+the historical period with whaling and fishing (1841–2010), several groups, notably
+the whales, end far from their observed contemporary biomass. This notebook explores
+which values of three poorly constrained parameter groups are consistent with the
+model ending near the observations:
+
+| Parameter group | Perturbed | Multiplier applies to |
+|---|---|---|
+| Gear catchability | the 9 fished gears | each gear |
+| Search-volume coefficient (gamma) | all 19 groups | each group |
+| Initial abundance | all 19 groups | each group |
+
+Each ensemble member draws log-normal multipliers, is re-equilibrated with
+`steady()`, spun up without fishing and tested for stability, then run from 1841 to
+2010 with historical climate and fishing. Members whose mean 2000–2010 biomass lies
+within the observational bounds for all but at most three groups are accepted
+(rejection sampling). **Stage 1** samples widely around the reference model
+(`params_sel_adj.rds`); **stage 2** samples again around the centre of the stage-1
+accepted multipliers. The stage-2 centre, relative to the reference model, is the
+parameter set carried forward.
+
+The step-by-step description, and every function used here, is in `mc_functions.R`.
+
+## Relation to the original 09 notebook
+
+This notebook keeps the sampling scheme (the same member id and base model give the
+same random draws as the original code), the parameter bounds, the steady-state and
+spin-up settings, the stability test, the acceptance rule and the use of the mean
+of accepted multipliers as the centre. Changes:
+
+1. The first spin-up cycle no longer passes `initial_n = NULL` to `project()`, which
+   errors in mizer 2.4–2.5 (every member failed with "replacement has length zero").
+2. `steady()` non-convergence (reported by `message()`, not `warning()`, in mizer 2.5)
+   and erepro values raised by `steady()` are recorded for every member. Rejecting
+   them is optional and off by default, as in the original; the duplicate `steady()`
+   call that followed any warning is gone.
+3. The pre-check uses `maturity()`; the original called `getMaturity()`, which does
+   not exist in mizer 2.5, so that check was silently skipped.
+4. Multipliers are also stored relative to the reference model, so the stage-2
+   centre includes the stage-1 shift. The original applied each round's centre to
+   `params_sel_adj`, which dropped the previous round's shift after the first round.
+5. Member ids must not overlap between batches or stages. The original restarted at
+   1 in every batch, so batches and rounds reused the same random draws.
+6. Results are saved per block as biomass, yield, multipliers and diagnostics
+   (full `MizerSim` objects optional) and interrupted runs resume.
+7. The original stage 1 perturbed `params_sel_adj_v2` (hand-set catchabilities);
+   later steps used `params_sel_adj.rds`. This notebook uses `params_sel_adj.rds`
+   throughout.
+8. The optimiser, adaptive-search, best-member and species-wise hybrid sections are
+   not included.
+
+# 1. Setup
+
+```{r libraries}
+suppressPackageStartupMessages({
+  library(mizer)       # developed with mizer 2.5.0
+  library(therMizer)
+  library(ggplot2)
+})
+source("mc_functions.R")
+```
+
+```{r switches}
+paths <- list(
+  base_params = "params_sel_adj.rds",                  # reference model (therMizer, 1841-2010 forcing)
+  effort      = "effort_array_1841_2010.rds",          # historical effort [year x gear]
+  yield_obs   = "yield_observed_timeseries_tidy.RDS",  # observed catches: Year, Species, Yield (g/yr)
+  out_dir     = file.path("Output_large_files", "monte_carlo_results", "consolidated")
+)
+
+run_stage1 <- FALSE   # TRUE: run (or resume) stage 1; FALSE: load saved results
+run_stage2 <- FALSE   # TRUE: run (or resume) stage 2; FALSE: load saved results
+quick_test <- FALSE   # TRUE: 6 members per stage with short, relaxed settings (checks the code only)
+n_cores <- max(1, parallel::detectCores() - 1)
+
+if (quick_test) paths$out_dir <- paste0(paths$out_dir, "_quicktest")
+```
+
+# 2. Inputs
+
+```{r inputs}
+base_params <- readRDS(paths$base_params)
+effort      <- readRDS(paths$effort)
+yield_obs   <- readRDS(paths$yield_obs)
+
+species_order <- species_params(base_params)$species
+
+# The historical run's years come from the effort array
+range(as.numeric(dimnames(effort)[[1]]))
+```
+
+Observed biomass (2010–2020 means, McCormack et al. 2020) and acceptance bounds in
+grams. Data-derived ranges are used where available; elsewhere the bounds are 0.5–1.5
+times the observed mean.
+
+```{r observations}
+obs_biomass <- data.frame(
+  Species = species_order,
+  ObsBiomass = c(1.297420e+13, 2.801248e+12, 1.474341e+13, 5.897364e+12, 9.612703e+11,
+                 1.769209e+12, 1.769209e+12, 4.027900e+12, 4.423023e+09, 2.358946e+10,
+                 2.211512e+11, 1.105756e+12, 2.948682e+09, 3.907004e+11, 1.621775e+10,
+                 2.064077e+10, 8.846046e+09, 1.621775e+10, 1.872413e+11)
+)
+bounds <- mc_biomass_bounds(
+  obs_biomass,
+  lower_g = c(NA, NA, NA, 3.24355e12, NA, NA, NA, NA, NA, 2.3589456e10, NA, NA,
+              1.474341e9, 2.41674e11, 1.1794728e10, 1.9166433e10, 7.371705e9,
+              1.0320387e10, 4.5704571e10),
+  upper_g = c(NA, NA, NA, 1.0173e13, NA, NA, NA, NA, NA, 2.6538138e10, NA, NA,
+              5.897364e9, 5.20251e11, 3.0961161e10, 2.2115115e10, 1.0320387e10,
+              1.6217751e10, 2.99291e11),
+  assumed_fraction = 0.5
+)
+knitr::kable(transform(bounds, ObsBiomass = signif(ObsBiomass / 1e6, 3),
+                       Lower_t = signif(Lower_g / 1e6, 3), Upper_t = signif(Upper_g / 1e6, 3))[,
+             c("Species", "ObsBiomass", "Lower_t", "Upper_t", "RangeSource")],
+             caption = "Observed biomass and acceptance bounds (tonnes)")
+```
+
+# 3. Settings
+
+Stage 1 uses the defaults in `mc_settings()`, which reproduce the last stage-1 run of
+the original notebook. Stage 2 uses the refinement settings of the original rerun.
+
+```{r settings}
+settings_stage1 <- mc_settings()
+settings_stage2 <- mc_settings(catchability_sd = 1, abundance_sd = 4, gamma_sd = 2,
+                               steady_tol = 0.002, steady_t_max = 1200,
+                               spinup_cycles = 3, spinup_min_cycles = 2)
+ids_stage1 <- 1:1200             # further stage-1 batches: continue from 1201
+ids_stage2 <- 100000 + 1:1000    # stage-2 ids never overlap stage-1 ids
+
+if (quick_test) {
+  test_overrides <- list(steady_t_max = 50, steady_tol = 0.05, stability_cv_max = 100,
+                         stability_trend_rel_slope_max = 100, accept_max_outside = 19)
+  settings_stage1 <- modifyList(settings_stage1, test_overrides)
+  settings_stage2 <- modifyList(settings_stage2, test_overrides)
+  ids_stage1 <- 1:6
+  ids_stage2 <- 100000 + 1:6
+  n_cores <- min(n_cores, 2)
+}
+
+knitr::kable(mc_settings_table(stage1 = settings_stage1, stage2 = settings_stage2),
+             caption = "Monte Carlo settings")
+```
+
+# 4. Stage 1: broad exploration
+
+Expect roughly 1–2.5 minutes per member per core with the full settings.
+
+```{r stage1-run}
+dir_stage1 <- file.path(paths$out_dir, "stage1")
+if (run_stage1) {
+  mc_run_stage(base_params, effort, ids_stage1, settings_stage1, dir_stage1, n_cores = n_cores)
+}
+stage1 <- mc_load_stage(dir_stage1)
+```
+
+```{r stage1-accept}
+acc1 <- mc_accept(stage1, bounds)
+ids_acc1 <- acc1$accepted_ids
+knitr::kable(mc_funnel(stage1, acc1), caption = "Stage 1: members at each step")
+knitr::kable(mc_outside_by_group(acc1), caption = "Stage 1: members outside the bounds, by group")
+```
+
+```{r stage1-parameters, fig.height = 9}
+mc_plot_multipliers(stage1, ids_acc1, "catchability")
+mc_plot_multipliers(stage1, ids_acc1, "gamma", group_order = species_order)
+mc_plot_multipliers(stage1, ids_acc1, "abundance", group_order = species_order)
+knitr::kable(mc_multiplier_summary(stage1, ids_acc1, scale = "stage"), digits = 3,
+             caption = "Stage 1: multipliers, all members run vs accepted")
+```
+
+```{r stage1-envelopes}
+mc_plot_biomass(stage1, ids_acc1, bounds, species_order = species_order)
+mc_plot_yield(stage1, ids_acc1, yield_obs, species_order = species_order)
+```
+
+Centre of the accepted multipliers (arithmetic mean, as in the original analysis;
+`stat = "geometric_mean"` or `"median"` are the alternatives for log-normal
+multipliers). Applying it to the reference model gives the stage-2 base.
+
+```{r stage1-centre}
+centre1 <- mc_centre(stage1, ids_acc1, stat = "mean")
+write.csv(mc_centre_table(centre1, base_params),
+          file.path(dir_stage1, "centre_stage1_mean.csv"), row.names = FALSE)
+params_centre1 <- mc_apply_centre(base_params, centre1)
+knitr::kable(mc_centre_table(centre1, base_params), digits = 3,
+             caption = "Stage 1 centre (multipliers relative to the reference model)")
+```
+
+# 5. Stage 2: refinement around the stage-1 centre
+
+Stage-2 multipliers are drawn relative to the stage-1 centre (`"stage"` scale) and
+also stored relative to the reference model (`"reference"` scale).
+
+```{r stage2-run}
+dir_stage2 <- file.path(paths$out_dir, "stage2")
+if (run_stage2) {
+  mc_run_stage(params_centre1, effort, ids_stage2, settings_stage2, dir_stage2,
+               reference_params = base_params, n_cores = n_cores)
+}
+stage2 <- mc_load_stage(dir_stage2)
+```
+
+```{r stage2-accept}
+acc2 <- mc_accept(stage2, bounds)
+ids_acc2 <- acc2$accepted_ids
+knitr::kable(mc_funnel(stage2, acc2), caption = "Stage 2: members at each step")
+knitr::kable(mc_outside_by_group(acc2), caption = "Stage 2: members outside the bounds, by group")
+```
+
+```{r stage2-parameters, fig.height = 9}
+mc_plot_multipliers(stage2, ids_acc2, "catchability")
+mc_plot_multipliers(stage2, ids_acc2, "gamma", group_order = species_order)
+mc_plot_multipliers(stage2, ids_acc2, "abundance", group_order = species_order)
+```
+
+```{r stage2-envelopes}
+mc_plot_biomass(stage2, ids_acc2, bounds, species_order = species_order)
+mc_plot_yield(stage2, ids_acc2, yield_obs, species_order = species_order)
+```
+
+# 6. Final parameter set
+
+The mean of the stage-2 accepted multipliers on the reference scale, applied to the
+reference model without re-running `steady()` (as for the original
+`params_mean_from_rerun_results.rds`).
+
+```{r final-params}
+centre2 <- mc_centre(stage2, ids_acc2, stat = "mean", scale = "reference")
+write.csv(mc_centre_table(centre2, base_params),
+          file.path(dir_stage2, "centre_stage2_mean_reference.csv"), row.names = FALSE)
+params_mc_centre <- mc_apply_centre(base_params, centre2)
+saveRDS(params_mc_centre, file.path(paths$out_dir, "params_mc_centre_stage2.rds"))
+knitr::kable(mc_centre_table(centre2, base_params), digits = 3,
+             caption = "Final centre (multipliers relative to the reference model)")
+```
+
+# 7. Numbers for the Methods
+
+```{r methods-numbers}
+f1 <- mc_funnel(stage1, acc1)
+f2 <- mc_funnel(stage2, acc2)
+m1 <- mc_members(stage1); m1a <- m1[m1$member_id %in% ids_acc1, ]
+m2 <- mc_members(stage2); m2a <- m2[m2$member_id %in% ids_acc2, ]
+pct <- function(x) sprintf("%.1f%%", 100 * mean(x, na.rm = TRUE))
+```
+
+- Stage 1 ran `r f1$n[1]` members; `r f1$n[6]` completed every step and `r f1$n[7]`
+  (`r sprintf("%.1f%%", 100 * f1$n[7] / f1$n[1])`) met the biomass criterion.
+- Stage 2 ran `r f2$n[1]` members; `r f2$n[6]` completed every step and `r f2$n[7]`
+  (`r sprintf("%.1f%%", 100 * f2$n[7] / f2$n[1])`) met the biomass criterion.
+- Accepted members whose steady state converged within the tolerance: stage 1
+  `r pct(m1a$steady_converged)`, stage 2 `r pct(m2a$steady_converged)`.
+- Accepted members with any erepro above 1 after `steady()`: stage 1
+  `r pct(m1a$max_erepro > 1)`, stage 2 `r pct(m2a$max_erepro > 1)`.
+
+```{r methods-tables}
+knitr::kable(mc_multiplier_summary(stage2, ids_acc2, scale = "reference"), digits = 3,
+             caption = "Stage 2 accepted multipliers relative to the reference model")
+```
+
+# 8. Session information
+
+```{r session}
+stage1$info$versions
+sessionInfo()
+```
